@@ -18,10 +18,17 @@ local function find_heading_at(bufnr, line)
   end
   local root = tree:root()
   local target_node = root:descendant_for_range(line - 1, 0, line - 1, 0)
-  while target_node and target_node:type() ~= "headline" do
+  -- Bounded parent walk: a corrupt or in-progress treesitter tree
+  -- shouldn't ever return a `:parent()` cycle, but bound the walk
+  -- so a regression can't translate into a frozen UI.  200 levels
+  -- is far deeper than any plausible org outline.
+  for _ = 1, 200 do
+    if not target_node or target_node:type() == "headline" then
+      break
+    end
     target_node = target_node:parent()
   end
-  if not target_node then
+  if not target_node or target_node:type() ~= "headline" then
     return nil, nil
   end
   local sr = target_node:start()
@@ -196,17 +203,34 @@ function M.cycle_global(bufnr)
   -- changes, re-close every drawer so a transition to "show all"
   -- still hides drawer bodies.  Tab on a drawer line still opens
   -- it (cycle()'s drawer-at-cursor branch above).
+  --
+  -- Debounce against rapid `<S-Tab>` presses: each global cycle
+  -- schedules a `close_all_drawers` walk, but on a real-world
+  -- buffer that walk is O(N tree nodes) and triggers a
+  -- redraw-per-drawer.  Without coalescing, spamming <S-Tab> 10x
+  -- queues 10 walks; each one runs to completion before the next
+  -- keystroke is processed, surfacing as a multi-second hang on
+  -- the next user input (the trigger for the "freeze on `za` after
+  -- spamming <S-Tab>" report).  Tagging each call with a fresh
+  -- token and short-circuiting earlier schedules drops all but the
+  -- final one.
   if (require("organ").config.fold or {}).close_drawers_on_open ~= false then
-    -- Defer one tick: foldlevel changes the fold state on next
-    -- redraw, so foldclose on this tick may run before the new
-    -- level took effect.
+    local tok = {}
+    M._drawer_close_tok[bufnr] = tok
     vim.schedule(function()
+      if M._drawer_close_tok[bufnr] ~= tok then
+        return
+      end
       if vim.api.nvim_buf_is_valid(bufnr) then
         M.close_all_drawers(bufnr)
       end
     end)
   end
 end
+
+-- Per-buffer "latest scheduled close_all_drawers" token; see the
+-- coalescing comment in `cycle_global`.
+M._drawer_close_tok = {}
 
 -- Close every drawer fold in the buffer. Called from BufReadPost on
 -- org files so drawers start collapsed (matches Emacs default —
