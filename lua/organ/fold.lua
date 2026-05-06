@@ -305,6 +305,8 @@ local function build_fold_levels(bufnr)
   -- in one stroke (Emacs's CONTENTS view).  Requires
   -- `foldminlines = 0` on the window (set in ftplugin/core.lua) so
   -- vim accepts 1-line folds.
+  -- Blank lines stay at cur_level so a content-less heading's
+  -- separator doesn't open a phantom 1-line body fold.
   local cur_level = 0
   local in_body = false
   for i = 1, nlines do
@@ -315,7 +317,9 @@ local function build_fold_levels(bufnr)
       levels[i] = ">" .. cur_level
       in_body = false
     elseif cur_level > 0 then
-      if not in_body then
+      if line:match("^%s*$") then
+        levels[i] = in_body and tostring(body_level) or tostring(cur_level)
+      elseif not in_body then
         levels[i] = ">" .. body_level
         in_body = true
       else
@@ -323,6 +327,35 @@ local function build_fold_levels(bufnr)
       end
     else
       levels[i] = "0"
+    end
+  end
+  -- Demote trailing blanks (assigned body_level above) back to cur_level.
+  do
+    local section_level = 0
+    local trailing_start = nil
+    for i = 1, nlines do
+      local line = lines[i] or ""
+      local stars = line:match("^(%*+)%s")
+      if stars then
+        if trailing_start then
+          for j = trailing_start, i - 1 do
+            levels[j] = tostring(section_level)
+          end
+          trailing_start = nil
+        end
+        section_level = #stars
+      elseif section_level > 0 then
+        if line:match("^%s*$") then
+          trailing_start = trailing_start or i
+        else
+          trailing_start = nil
+        end
+      end
+    end
+    if trailing_start then
+      for j = trailing_start, nlines do
+        levels[j] = tostring(section_level)
+      end
     end
   end
   -- Pass 2: drawer / block sub-folds via tree-sitter.  Each foldable
