@@ -1,4 +1,4 @@
--- blink.cmp source adapter for organ link completion.
+-- blink.cmp source adapters for organ completion.
 
 local M = {}
 
@@ -63,9 +63,6 @@ function M.new_roam_node()
   return source
 end
 
--- Cite-key source: fires after `[cite:@<partial>` and offers keys
--- discovered from `#+bibliography:` directives + the cite config.
--- Inserts the bare key (without the `@`, since that's already typed).
 function M.new_cite()
   local source = {}
   function source:enabled()
@@ -97,29 +94,42 @@ function M.new_cite()
   return source
 end
 
--- Drawer-name source: fires when cursor is right after a typed `:` at the
--- start of a line inside a headline section. Mirrors `org-complete` for
--- drawer keywords.
-function M.new_drawer()
+-- Sources that share the cursor_partial / completion_items shape.
+-- `skip_empty = true`: empty partial suppresses (todo right after `* `).
+local SIMPLE_SOURCES = {
+  todo = { module = "todo", kind = "Keyword", skip_empty = true },
+  tags = { module = "tags", kind = "EnumMember", trigger = { ":" } },
+  directive = { module = "directive", kind = "Keyword", trigger = { "+", "#" } },
+  drawer = { module = "drawer", kind = "Property" },
+  src_lang = { module = "src_lang", kind = "Module", trigger = { " " } },
+}
+
+local function make_simple(name, spec)
   local source = {}
   function source:enabled()
     return vim.bo.filetype == "org"
   end
+  if spec.trigger then
+    function source:get_trigger_characters()
+      return spec.trigger
+    end
+  end
   function source:get_completions(_ctx, callback)
-    local d = require("organ.complete.drawer")
-    local partial = d.cursor_partial(0)
-    if not partial then
+    local mod = require("organ.complete." .. spec.module)
+    local p = mod.cursor_partial(0)
+    if p == nil or (spec.skip_empty and p == "") then
       callback({ items = {} })
       return
     end
     local items = {}
-    for _, it in ipairs(d.completion_items(partial)) do
+    for _, it in ipairs(mod.completion_items(p)) do
       items[#items + 1] = {
         label = it.label,
         insertText = it.insertText,
         filterText = it.filterText,
-        kind = "Property",
-        source_name = "organ_drawer",
+        kind = it.kind or spec.kind,
+        detail = it.detail,
+        source_name = "organ_" .. name,
       }
     end
     callback({ items = items })
@@ -127,127 +137,20 @@ function M.new_drawer()
   return source
 end
 
--- TODO-keyword source: completes the first word on a headline.
 function M.new_todo()
-  local source = {}
-  function source:enabled()
-    return vim.bo.filetype == "org"
-  end
-  function source:get_completions(_ctx, callback)
-    local todo = require("organ.complete.todo")
-    local p = todo.cursor_partial(0)
-    if p == "" or p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(todo.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        kind = "Keyword",
-        source_name = "organ_todo",
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple("todo", SIMPLE_SOURCES.todo)
 end
-
--- Tag source: completes inside `:tag1:tag2:|` slot.
 function M.new_tags()
-  local source = {}
-  function source:enabled()
-    return vim.bo.filetype == "org"
-  end
-  function source:get_trigger_characters()
-    return { ":" }
-  end
-  function source:get_completions(_ctx, callback)
-    local tags = require("organ.complete.tags")
-    local p = tags.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(tags.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        kind = "EnumMember",
-        detail = it.detail,
-        source_name = "organ_tags",
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple("tags", SIMPLE_SOURCES.tags)
 end
-
--- Directive source: completes `#+TIT<Tab>` → `#+TITLE: ` etc.
 function M.new_directive()
-  local source = {}
-  function source:enabled()
-    return vim.bo.filetype == "org"
-  end
-  function source:get_trigger_characters()
-    return { "+", "#" }
-  end
-  function source:get_completions(_ctx, callback)
-    local d = require("organ.complete.directive")
-    local p = d.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(d.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        kind = it.kind or "Keyword",
-        detail = it.detail,
-        source_name = "organ_directive",
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple("directive", SIMPLE_SOURCES.directive)
 end
-
+function M.new_drawer()
+  return make_simple("drawer", SIMPLE_SOURCES.drawer)
+end
 function M.new_src_lang()
-  local source = {}
-  function source:enabled()
-    return vim.bo.filetype == "org"
-  end
-  function source:get_trigger_characters()
-    return { " " }
-  end
-  function source:get_completions(_ctx, callback)
-    local sl = require("organ.complete.src_lang")
-    local p = sl.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(sl.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        kind = "Module",
-        detail = it.detail,
-        source_name = "organ_src_lang",
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple("src_lang", SIMPLE_SOURCES.src_lang)
 end
 
 function M.maybe_register()
@@ -267,22 +170,12 @@ function M.maybe_register()
   pcall(function()
     blink.add_source("organ_link", M.new())
   end)
-  pcall(function()
-    blink.add_source("organ_todo", M.new_todo())
-  end)
-  pcall(function()
-    blink.add_source("organ_tags", M.new_tags())
-  end)
-  pcall(function()
-    blink.add_source("organ_directive", M.new_directive())
-  end)
-  pcall(function()
-    blink.add_source("organ_src_lang", M.new_src_lang())
-  end)
-  if organ.config.complete.drawer ~= false then
-    pcall(function()
-      blink.add_source("organ_drawer", M.new_drawer())
-    end)
+  for name, spec in pairs(SIMPLE_SOURCES) do
+    if name ~= "drawer" or organ.config.complete.drawer ~= false then
+      pcall(function()
+        blink.add_source("organ_" .. name, make_simple(name, spec))
+      end)
+    end
   end
   if organ.config.complete.roam_everywhere then
     pcall(function()

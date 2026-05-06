@@ -65,37 +65,55 @@ function M.new_roam_node()
   return source
 end
 
-function M.new_drawer()
+-- Sources that share the cursor_partial / completion_items shape.
+-- `skip_empty = true`: empty partial suppresses (todo right after `* `).
+local SIMPLE_SOURCES = {
+  todo = { module = "todo", kind_name = "Keyword", skip_empty = true },
+  tags = { module = "tags", kind_name = "EnumMember", trigger = { ":" } },
+  directive = { module = "directive", kind_name = "Keyword", trigger = { "+", "#" } },
+  drawer = { module = "drawer", kind_name = "Property", trigger = { ":" } },
+  src_lang = { module = "src_lang", kind_name = "Module", trigger = { " " } },
+}
+
+local function make_simple(spec)
   local source = {}
   function source:get_keyword_pattern()
     return [[\k\+]]
   end
-  function source:get_trigger_characters()
-    return { ":" }
+  if spec.trigger then
+    function source:get_trigger_characters()
+      return spec.trigger
+    end
   end
   function source:complete(_params, callback)
     if vim.bo.filetype ~= "org" then
       callback({ items = {} })
       return
     end
-    local d = require("organ.complete.drawer")
-    local partial = d.cursor_partial(0)
-    if not partial then
+    local mod = require("organ.complete." .. spec.module)
+    local p = mod.cursor_partial(0)
+    if p == nil or (spec.skip_empty and p == "") then
       callback({ items = {} })
       return
     end
-    local cmp_items = {}
-    for _, it in ipairs(d.completion_items(partial)) do
-      cmp_items[#cmp_items + 1] = {
+    local kind = require("cmp").lsp.CompletionItemKind[spec.kind_name]
+    local items = {}
+    for _, it in ipairs(mod.completion_items(p)) do
+      items[#items + 1] = {
         label = it.label,
         insertText = it.insertText,
         filterText = it.filterText,
-        kind = require("cmp").lsp.CompletionItemKind.Property,
+        detail = it.detail,
+        kind = kind,
       }
     end
-    callback({ items = cmp_items })
+    callback({ items = items })
   end
   return source
+end
+
+function M.new_drawer()
+  return make_simple(SIMPLE_SOURCES.drawer)
 end
 
 function M.new_cite()
@@ -133,135 +151,16 @@ function M.new_cite()
 end
 
 function M.new_todo()
-  local source = {}
-  function source:get_keyword_pattern()
-    return [[\k\+]]
-  end
-  function source:complete(_params, callback)
-    if vim.bo.filetype ~= "org" then
-      callback({ items = {} })
-      return
-    end
-    local todo = require("organ.complete.todo")
-    local p = todo.cursor_partial(0)
-    if p == "" or p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(todo.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        kind = require("cmp").lsp.CompletionItemKind.Keyword,
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple(SIMPLE_SOURCES.todo)
 end
-
 function M.new_tags()
-  local source = {}
-  function source:get_keyword_pattern()
-    return [[\k\+]]
-  end
-  function source:get_trigger_characters()
-    return { ":" }
-  end
-  function source:complete(_params, callback)
-    if vim.bo.filetype ~= "org" then
-      callback({ items = {} })
-      return
-    end
-    local tags = require("organ.complete.tags")
-    local p = tags.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(tags.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        detail = it.detail,
-        kind = require("cmp").lsp.CompletionItemKind.EnumMember,
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple(SIMPLE_SOURCES.tags)
 end
-
 function M.new_directive()
-  local source = {}
-  function source:get_keyword_pattern()
-    return [[\k\+]]
-  end
-  function source:get_trigger_characters()
-    return { "+", "#" }
-  end
-  function source:complete(_params, callback)
-    if vim.bo.filetype ~= "org" then
-      callback({ items = {} })
-      return
-    end
-    local d = require("organ.complete.directive")
-    local p = d.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(d.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        detail = it.detail,
-        kind = require("cmp").lsp.CompletionItemKind.Keyword,
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple(SIMPLE_SOURCES.directive)
 end
-
 function M.new_src_lang()
-  local source = {}
-  function source:get_keyword_pattern()
-    return [[\k\+]]
-  end
-  function source:get_trigger_characters()
-    return { " " }
-  end
-  function source:complete(_params, callback)
-    if vim.bo.filetype ~= "org" then
-      callback({ items = {} })
-      return
-    end
-    local sl = require("organ.complete.src_lang")
-    local p = sl.cursor_partial(0)
-    if p == nil then
-      callback({ items = {} })
-      return
-    end
-    local items = {}
-    for _, it in ipairs(sl.completion_items(p)) do
-      items[#items + 1] = {
-        label = it.label,
-        insertText = it.insertText,
-        filterText = it.filterText,
-        detail = it.detail,
-        kind = require("cmp").lsp.CompletionItemKind.Module,
-      }
-    end
-    callback({ items = items })
-  end
-  return source
+  return make_simple(SIMPLE_SOURCES.src_lang)
 end
 
 function M.maybe_register()
