@@ -820,6 +820,45 @@ Fold                                                       *organ-config-fold*
     the level transition and suppresses markers on body lines.
     Falls back to level-compare on non-org buffers.
 
+    Pair it with |organ-fold-contents-view-statuscolumn_lnum| for
+    correct relnum under CONTENTS view.  Recipe wiring both helpers:
+    >lua
+        local M = {}
+        local function number_for(lnum, relnum, virtnum)
+          if virtnum and virtnum ~= 0 then return "    " end
+          local relative = vim.wo.relativenumber
+            and relnum and relnum ~= 0
+          local n
+          local ok, contents = pcall(require, "organ.fold.contents")
+          if ok and contents.statuscolumn_lnum then
+            n = contents.statuscolumn_lnum(lnum, relative)
+          else
+            n = relative and relnum or lnum
+          end
+          return string.format("%4d", n)
+        end
+
+        local function fold_for(lnum)
+          local ok, organ_fold = pcall(require, "organ.fold")
+          if ok and organ_fold.statuscolumn_marker then
+            return organ_fold.statuscolumn_marker(lnum)
+          end
+          return " "
+        end
+
+        function M.render()
+          return table.concat({
+            "%s",
+            number_for(vim.v.lnum, vim.v.relnum, vim.v.virtnum),
+            " ",
+            fold_for(vim.v.lnum),
+            " ",
+          })
+        end
+        return M
+    <
+    Then `vim.o.statuscolumn = "%!v:lua.require'lib.statuscolumn'.render()"`.
+
                                                     *organ-fold-contents-view*
 CONTENTS view (`<S-Tab>` third state, body_fold = false strategy):
 when active, the buffer is in a temporary mode where every heading
@@ -857,12 +896,19 @@ this mode.
                       buffer lines, so a heading 5 buffer rows down
                       shows as "5" even when body is concealed
                       between -- visually wrong.  Use the helper
-                      `organ.fold.contents.statuscolumn_lnum(lnum,
-                      relative)` from a custom statuscolumn to
-                      compute number/relnum from VISIBLE-line
-                      distance.  Outside CONTENTS state no extmarks
-                      exist and the helper returns vim-equivalent
-                      values, so it's safe to wire unconditionally.
+                      below from a custom statuscolumn to compute
+                      number/relnum from VISIBLE-line distance.
+                      Outside CONTENTS state no extmarks exist and
+                      the helper returns vim-equivalent values, so
+                      it's safe to wire unconditionally.
+
+                                  *organ-fold-contents-view-statuscolumn_lnum*
+    `require("organ.fold.contents").statuscolumn_lnum(lnum, relative)`
+    Computes the value to render in the line-number slot for buffer
+    line `lnum`, counting only VISIBLE (non-concealed) lines.
+    `relative = true` returns relnum (0 on the cursor line); false
+    returns the absolute lnum.  See |organ-fold-statuscolumn_marker|
+    for the matching fold-marker helper and a complete recipe.
 
   Cleanup triggers    `BufWipeout` clears the in-memory state on
                       buffer wipe.  `FileType` (set to anything

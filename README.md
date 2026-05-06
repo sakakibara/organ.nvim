@@ -425,29 +425,67 @@ layout, manual-removal recipes, and platform-specific setup.
 
 ## Statuscolumn
 
-For users with a custom `statuscolumn` that computes fold markers via
-`foldlevel(lnum) > foldlevel(lnum - 1)`: that idiom misses heading
-lines whose foldlevel doesn't strictly exceed the previous line's.
-With `body_fold = false` (default) sibling headings at the same depth
-hit this; with `body_fold = true` body sits at `body_level` so any
-heading following body hits it too.
+Two helpers for users with a custom `'statuscolumn'`:
 
-Drop-in helper that handles both: `require("organ.fold").statuscolumn_marker(lnum)`.
-In an org buffer it marks every heading line as a fold-start
-regardless of the level transition and suppresses markers on body
-lines.  Falls back to `foldlevel`-compare on non-org buffers.
+| Helper | Replaces | Why |
+|---|---|---|
+| `require("organ.fold").statuscolumn_marker(lnum)` | the `foldlevel(lnum) > foldlevel(lnum-1)` "is this a fold start" idiom | That idiom misses heading lines whose foldlevel doesn't strictly exceed the previous line's (sibling headings at the same depth, or any heading after body in `body_fold = true`).  The helper marks every heading line as a fold-start. |
+| `require("organ.fold.contents").statuscolumn_lnum(lnum, relative)` | the value vim feeds into `%l` / `%r` for `'number'` / `'relativenumber'` | Vim counts buffer lines.  Under CONTENTS view body is concealed but its line numbers are still allocated -- a heading 5 buffer rows down with concealed body would render as `5` even though it's visually adjacent.  The helper returns visible-line distance instead. |
+
+Both helpers degrade to vim-equivalent values outside the contexts they care about, so it's safe to wire both unconditionally.  Recipe:
 
 ```lua
-local function fold_for(lnum)
-  return require("organ.fold").statuscolumn_marker(lnum)
+-- ~/.config/nvim/lua/lib/statuscolumn.lua (or wherever yours lives)
+local M = {}
+
+local function number_for(lnum, relnum, virtnum)
+  if virtnum and virtnum ~= 0 then return "    " end
+  local relative = vim.wo.relativenumber and relnum and relnum ~= 0
+  local n
+  local ok, contents = pcall(require, "organ.fold.contents")
+  if ok and contents.statuscolumn_lnum then
+    n = contents.statuscolumn_lnum(lnum, relative)
+  else
+    n = relative and relnum or lnum
+  end
+  return string.format("%4d", n)
 end
+
+local function fold_for(lnum)
+  local ok, organ_fold = pcall(require, "organ.fold")
+  if ok and organ_fold.statuscolumn_marker then
+    return organ_fold.statuscolumn_marker(lnum)
+  end
+  -- vim-default fallback if organ isn't loaded
+  local fillchars = vim.opt.fillchars:get()
+  if vim.fn.foldlevel(lnum) == 0 then return " " end
+  if vim.fn.foldclosed(lnum) > 0 then
+    return "%#FoldColumn#" .. (fillchars.foldclose or ">") .. "%*"
+  elseif vim.fn.foldlevel(lnum) > vim.fn.foldlevel(lnum - 1) then
+    return "%#FoldColumn#" .. (fillchars.foldopen or "v") .. "%*"
+  end
+  return " "
+end
+
+function M.render()
+  return table.concat({
+    "%s",  -- signs
+    number_for(vim.v.lnum, vim.v.relnum, vim.v.virtnum),
+    " ",
+    fold_for(vim.v.lnum),
+    " ",
+  })
+end
+
+return M
 ```
+
+Then `vim.o.statuscolumn = "%!v:lua.require'lib.statuscolumn'.render()"`.
 
 Vim's built-in `%C` also renders fold markers correctly (it has
 direct access to `>N` directives), but adds an indicator on every
-line inside an open fold.  The helper keeps the cleaner "marker at
-fold-start lines, blank elsewhere" policy most custom statuscolumns
-already use.
+line inside an open fold and doesn't help with the relnum-under-conceal
+problem, so the helpers stay useful even alongside `%C`.
 
 ## Folding
 
