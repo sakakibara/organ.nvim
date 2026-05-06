@@ -423,6 +423,32 @@ Commands: `:Org notifier install` / `test` / `status` / `doctor` /
 `clear` / `uninstall`.  See `:h organ-notifier` for the install
 layout, manual-removal recipes, and platform-specific setup.
 
+## Statuscolumn
+
+For users with a custom `statuscolumn` that computes fold markers via
+`foldlevel(lnum) > foldlevel(lnum - 1)`: that idiom misses heading
+lines whose foldlevel doesn't strictly exceed the previous line's.
+With `body_fold = false` (default) sibling headings at the same depth
+hit this; with `body_fold = true` body sits at `body_level` so any
+heading following body hits it too.
+
+Drop-in helper that handles both: `require("organ.fold").statuscolumn_marker(lnum)`.
+In an org buffer it marks every heading line as a fold-start
+regardless of the level transition and suppresses markers on body
+lines.  Falls back to `foldlevel`-compare on non-org buffers.
+
+```lua
+local function fold_for(lnum)
+  return require("organ.fold").statuscolumn_marker(lnum)
+end
+```
+
+Vim's built-in `%C` also renders fold markers correctly (it has
+direct access to `>N` directives), but adds an indicator on every
+line inside an open fold.  The helper keeps the cleaner "marker at
+fold-start lines, blank elsewhere" policy most custom statuscolumns
+already use.
+
 ## Differences from Emacs
 
 The agenda render mirrors Emacs's defaults (category prefix, `[#A]`
