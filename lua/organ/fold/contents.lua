@@ -89,6 +89,35 @@ function M.is_active(bufnr)
   return state[bufnr] ~= nil
 end
 
+-- Whether body range `r` (1-indexed inclusive) hides anything
+-- non-whitespace.  All-blank ranges aren't worth flagging with an
+-- ellipsis on the heading -- mirrors the same "no real content"
+-- check `emacs_foldtext` applies to closed folds in OVERVIEW.
+local function range_has_real_content(bufnr, r)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, r[1] - 1, r[2], false) or {}
+  for _, l in ipairs(lines) do
+    if l:match("%S") then
+      return true
+    end
+  end
+  return false
+end
+
+-- Find the heading line above body range r[1].  Headings can be
+-- separated from their body by blanks / drawers / planning lines,
+-- so scan upward for `^*+\s`.  Returns nil when the first body
+-- range starts before any heading (shouldn't happen --
+-- `each_body_range` already filters those, but be defensive).
+local function heading_above(bufnr, body_start)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, body_start - 1, false) or {}
+  for i = #lines, 1, -1 do
+    if (lines[i] or ""):match("^%*+%s") then
+      return i
+    end
+  end
+  return nil
+end
+
 local function place_marks(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   for _, r in ipairs(each_body_range(bufnr)) do
@@ -101,6 +130,24 @@ local function place_marks(bufnr)
       end_row = r[2] - 1,
       conceal_lines = "",
     })
+    -- Visual parity with OVERVIEW state: a closed-fold heading
+    -- renders "* H1 …" via `emacs_foldtext`; in CONTENTS view the
+    -- heading isn't folded (no closed fold), so foldtext never runs
+    -- and the line shows raw.  Plant a virt_text ellipsis on the
+    -- heading line above each non-empty body range so a heading
+    -- whose body is hidden looks the same in CONTENTS as in
+    -- OVERVIEW.  `Folded` hl picks up the same `winhighlight`
+    -- remap (`Folded:OrgFolded`) so the bg is transparent.
+    if range_has_real_content(bufnr, r) then
+      local hline = heading_above(bufnr, r[1])
+      if hline then
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, 0, {
+          virt_text = { { " …", "Folded" } },
+          virt_text_pos = "eol",
+          hl_mode = "combine",
+        })
+      end
+    end
   end
 end
 

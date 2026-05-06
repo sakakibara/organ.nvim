@@ -823,9 +823,14 @@ Fold                                                       *organ-config-fold*
     CONTENTS view (`<S-Tab>` third state) hides body via
     `conceal_lines` extmarks, leaving every heading visible.  Auto-
     bumps `conceallevel` and `concealcursor` while CONTENTS is active
-    and restores both on exit.  Requires Neovim 0.11+ for the
-    `conceal_lines` primitive; on older Neovim CONTENTS degrades to
-    "level-1 headings only" (`foldlevel = 1`).
+    and restores both on exit.  Each heading whose body is hidden
+    also gets a virt_text " …" suffix (highlight `Folded`, so the
+    `Folded:OrgFolded` window remap covers it too) so the heading
+    line reads identically to its OVERVIEW counterpart where
+    `emacs_foldtext` renders the same suffix on the closed fold.
+    Requires Neovim 0.11+ for the `conceal_lines` primitive; on
+    older Neovim CONTENTS degrades to "level-1 headings only"
+    (`foldlevel = 1`).
 
     `true` -- body sits at `body_level = max_heading_depth + 1` so
     `:set foldlevel = max_heading_depth` is itself the CONTENTS
