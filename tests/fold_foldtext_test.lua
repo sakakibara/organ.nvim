@@ -41,20 +41,35 @@ local function with_fold(foldstart, foldend, fn)
   return out
 end
 
+-- foldtext can return a string or a list of {text, hl} segments
+-- (treesitter-aware path).  Normalise for assertions.
+local function as_string(v)
+  if type(v) == "string" then
+    return v
+  end
+  local parts = {}
+  for _, seg in ipairs(v) do
+    parts[#parts + 1] = seg[1]
+  end
+  return table.concat(parts)
+end
+
 -- Default config -> "emacs" -> "* H1 …" with content present.
 check("default config = 'emacs'", cfg.foldtext == "emacs", "got " .. tostring(cfg.foldtext))
 local out = with_fold(1, 3, function()
   return fold.foldtext()
 end)
-check("emacs renderer ends with ' …'", out:sub(-#" …") == " …", "got " .. tostring(out))
-check("emacs renderer starts with heading", out:find("^%* H1") ~= nil)
+local out_s = as_string(out)
+check("emacs renderer ends with ' …'", out_s:sub(-#" …") == " …", "got " .. tostring(out_s))
+check("emacs renderer starts with heading", out_s:find("^%* H1") ~= nil)
 
 -- All-blank body -> no ellipsis suffix.
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "", "" })
 local blank_out = with_fold(1, 3, function()
   return fold.foldtext()
 end)
-check("all-blank body: no ellipsis suffix", blank_out == "* H1", "got " .. tostring(blank_out))
+local blank_s = as_string(blank_out)
+check("all-blank body: no ellipsis suffix", blank_s == "* H1", "got " .. tostring(blank_s))
 
 -- Custom function.
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })

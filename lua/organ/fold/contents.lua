@@ -15,6 +15,13 @@ local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
 local state = {} -- bufnr -> { saved_conceallevel = N }
+-- Memoize visible-line distance per (bufnr, cursor_line, changedtick).
+-- statuscolumn renders the same `cur` for every visible line in a
+-- redraw, so the cache absorbs ~all repeated work; first line pays
+-- the loop, the rest of the visible window is O(1).  Cleared on
+-- enter/leave so adding/removing extmarks invalidates correctly
+-- (extmark changes don't bump changedtick).
+local _slnum_cache = {}
 
 -- Probe once: nvim_buf_set_extmark with `conceal_lines = ""` is the
 -- primitive this module relies on (added in nvim 0.11).  On 0.10 the
@@ -263,6 +270,7 @@ function M.enter(bufnr)
   if state[bufnr] or not is_supported() then
     return
   end
+  _slnum_cache[bufnr] = nil
   place_marks(bufnr)
   -- Save+raise conceallevel and concealcursor on every window
   -- currently showing this buffer.  Default `concealcursor = ""`
@@ -347,6 +355,7 @@ function M.leave(bufnr)
     return
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  _slnum_cache[bufnr] = nil
   if s.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, s.augroup)
   end
@@ -388,6 +397,16 @@ function M.statuscolumn_lnum(lnum, relative)
     return lnum
   end
   local bufnr = vim.api.nvim_get_current_buf()
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local entry = _slnum_cache[bufnr]
+  if not entry or entry.tick ~= tick or entry.cur ~= cur then
+    entry = { tick = tick, cur = cur, dist = {} }
+    _slnum_cache[bufnr] = entry
+  end
+  local cached = entry.dist[lnum]
+  if cached ~= nil then
+    return cached
+  end
   local lo, hi = math.min(lnum, cur), math.max(lnum, cur)
   local visible = 0
   local i = lo + 1
@@ -397,7 +416,6 @@ function M.statuscolumn_lnum(lnum, relative)
     else
       local fold_end = vim.fn.foldclosedend(i)
       if fold_end > 0 then
-        -- Closed fold: counts as 1 visible row regardless of span.
         visible = visible + 1
         i = fold_end + 1
       else
@@ -406,6 +424,7 @@ function M.statuscolumn_lnum(lnum, relative)
       end
     end
   end
+  entry.dist[lnum] = visible
   return visible
 end
 

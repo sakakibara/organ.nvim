@@ -464,24 +464,96 @@ local function fold_has_real_content(foldstart, foldend)
   return false
 end
 
+-- Cache treesitter-segment results per (bufnr, lnum) keyed on
+-- changedtick so a stationary fold rendering N times pays the
+-- iter_captures cost once.  Cleared automatically on edit.
+local _ts_seg_cache = {} -- bufnr -> { tick = N, lines = { lnum -> segments } }
+
+-- Build {text, hl_group} segments for a single line by walking every
+-- attached treesitter parser and collecting highlight captures over
+-- the line range.  Later captures override earlier ones at any byte
+-- (matches the highlighter's "last wins" rule), and contiguous runs
+-- with the same hl are coalesced into one segment.  Returns nil if
+-- no parser is attached so the caller can fall back to plain text.
+local function ts_line_segments_uncached(bufnr, lnum)
+  local line = vim.fn.getline(lnum)
+  if line == "" then
+    return { { "", "Normal" } }
+  end
+  local row = lnum - 1
+  local ok, parser = pcall(vim.treesitter.get_parser, bufnr)
+  if not ok or not parser then
+    return nil
+  end
+  local hl_at = {}
+  for i = 1, #line do
+    hl_at[i] = nil
+  end
+  parser:for_each_tree(function(tree, ltree)
+    local lang = ltree:lang()
+    local q_ok, query = pcall(vim.treesitter.query.get, lang, "highlights")
+    if not q_ok or not query then
+      return
+    end
+    for id, node, _ in query:iter_captures(tree:root(), bufnr, row, row + 1) do
+      local sr, sc, er, ec = node:range()
+      if sr <= row and row <= er then
+        local s = (sr == row) and sc or 0
+        local e = (er == row) and ec or #line
+        local hl = "@" .. query.captures[id] .. "." .. lang
+        for col = s + 1, e do
+          hl_at[col] = hl
+        end
+      end
+    end
+  end)
+  local segments = {}
+  local cur_hl, run_start = hl_at[1], 1
+  for col = 2, #line do
+    if hl_at[col] ~= cur_hl then
+      segments[#segments + 1] = { line:sub(run_start, col - 1), cur_hl or "Normal" }
+      cur_hl, run_start = hl_at[col], col
+    end
+  end
+  segments[#segments + 1] = { line:sub(run_start), cur_hl or "Normal" }
+  return segments
+end
+
+local function ts_line_segments(bufnr, lnum)
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local entry = _ts_seg_cache[bufnr]
+  if not entry or entry.tick ~= tick then
+    entry = { tick = tick, lines = {} }
+    _ts_seg_cache[bufnr] = entry
+  end
+  if entry.lines[lnum] == nil then
+    -- nil sentinel for "no parser" results; use false to distinguish
+    -- "computed and is nil" from "not yet computed".
+    local segs = ts_line_segments_uncached(bufnr, lnum)
+    entry.lines[lnum] = segs == nil and false or segs
+  end
+  local cached = entry.lines[lnum]
+  if cached == false then
+    return nil
+  end
+  return cached
+end
+
 -- Renderer: heading line + an Emacs-style ellipsis suffix when the
 -- fold hides real content.  Mirrors Emacs `org-ellipsis` (default
--- `…`).  All-blank body is left bare.  Returns a list of
--- `{text, hl_group}` tuples when treesitter foldtext is available
--- (nvim 0.10+) so the heading keeps its TODO / title / tag colors;
--- falls back to a plain string on older nvim where foldtext is
--- single-highlight only.
+-- `…`).  All-blank body is left bare.  Returns `{text, hl_group}`
+-- segments when a treesitter parser is attached so the heading keeps
+-- its TODO / title / tag colors; falls back to a plain string on
+-- buffers without an active parser.
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
-  local ts_ok, ts_ft = pcall(function()
-    return vim.treesitter.foldtext()
-  end)
-  if ts_ok and type(ts_ft) == "table" then
+  local segments = ts_line_segments(vim.api.nvim_get_current_buf(), foldstart)
+  if segments then
     if has_real then
-      table.insert(ts_ft, { " …", "Folded" })
+      segments[#segments + 1] = { " …", "Folded" }
     end
-    return ts_ft
+    return segments
   end
   local line = vim.fn.getline(foldstart)
   if not has_real then
