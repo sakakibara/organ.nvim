@@ -377,11 +377,26 @@ function M.check()
     return false
   end
 
+  local function is_lua_wrapper(s)
+    -- `v:lua.<...>` or `%!v:lua.<...>` -- custom Lua function whose
+    -- delegation we can't see from the option string alone.
+    return s:find("v:lua%.") ~= nil
+  end
+
   local foldtext = vim.o.foldtext
   if foldtext == "" then
     health.ok("foldtext: vim default (organ sets win-local in org buffers)")
   elseif references(foldtext, "organ.fold", "organ_fold") then
     health.ok("foldtext references organ.fold")
+  elseif is_lua_wrapper(foldtext) then
+    health.info(
+      "Custom Lua foldtext: "
+        .. foldtext
+        .. ".  If your wrapper "
+        .. "delegates to organ.fold.foldtext when filetype == 'org', "
+        .. "fold rendering is correct.  Otherwise folded headings "
+        .. "render plain.  See |organ-config-fold-foldtext|."
+    )
   else
     health.warn(
       "Custom global foldtext is set but doesn't reference organ.fold."
@@ -389,6 +404,7 @@ function M.check()
         .. " the Emacs-style colored line. Current value:\n    "
         .. foldtext,
       {
+        "See `:h organ-config-fold-foldtext` for the renderer contract.",
         "Recipe: have your custom foldtext delegate when filetype == 'org':",
         "    if vim.bo.filetype == 'org' then",
         "      local ok, organ_fold = pcall(require, 'organ.fold')",
@@ -401,30 +417,40 @@ function M.check()
   local statuscolumn = vim.o.statuscolumn
   if statuscolumn == "" then
     health.ok("statuscolumn: vim default")
+  elseif
+    references(statuscolumn, "statuscolumn_marker", "organ.fold")
+    and references(statuscolumn, "statuscolumn_lnum", "organ.fold.contents")
+  then
+    health.ok("statuscolumn references both organ helpers")
+  elseif is_lua_wrapper(statuscolumn) then
+    health.info(
+      "Custom Lua statuscolumn: "
+        .. statuscolumn
+        .. ".  If your "
+        .. "wrapper calls organ.fold.statuscolumn_marker and "
+        .. "organ.fold.contents.statuscolumn_lnum, fold markers and "
+        .. "relnum render correctly.  Otherwise sibling headings may "
+        .. "show no fold marker and concealed-body rows may inflate "
+        .. "relnum.  See |organ-fold-statuscolumn_marker| for a recipe."
+    )
   else
-    local has_marker = references(statuscolumn, "statuscolumn_marker", "organ.fold")
-    local has_lnum = references(statuscolumn, "statuscolumn_lnum", "organ.fold.contents")
-    if has_marker and has_lnum then
-      health.ok("statuscolumn references both organ helpers")
-    else
-      local missing = {}
-      if not has_marker then
-        missing[#missing + 1] = "statuscolumn_marker (heading fold-start indicator)"
-      end
-      if not has_lnum then
-        missing[#missing + 1] = "statuscolumn_lnum (visible-line relnum)"
-      end
-      health.warn(
-        "Custom statuscolumn is set but doesn't reference: "
-          .. table.concat(missing, ", ")
-          .. ".  Sibling headings may render no fold marker, and "
-          .. "concealed-body rows may inflate relnum.",
-        {
-          "See `:h organ-fold-statuscolumn_marker` for a complete recipe",
-          "wiring both helpers into a custom statuscolumn module.",
-        }
-      )
+    local missing = {}
+    if not references(statuscolumn, "statuscolumn_marker") then
+      missing[#missing + 1] = "statuscolumn_marker (heading fold-start indicator)"
     end
+    if not references(statuscolumn, "statuscolumn_lnum") then
+      missing[#missing + 1] = "statuscolumn_lnum (visible-line relnum)"
+    end
+    health.warn(
+      "Custom statuscolumn is set but doesn't reference: "
+        .. table.concat(missing, ", ")
+        .. ".  Sibling headings may render no fold marker, and "
+        .. "concealed-body rows may inflate relnum.",
+      {
+        "See `:h organ-fold-statuscolumn_marker` for a complete recipe",
+        "wiring both helpers into a custom statuscolumn module.",
+      }
+    )
   end
 end
 
