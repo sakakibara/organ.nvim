@@ -806,6 +806,59 @@ Fold                                                       *organ-config-fold*
     the level transition and suppresses markers on body lines.
     Falls back to level-compare on non-org buffers.
 
+                                                    *organ-fold-contents-view*
+CONTENTS view (`<S-Tab>` third state, body_fold = false strategy):
+when active, the buffer is in a temporary mode where every heading
+is visible at every depth and body lines are hidden.  Several
+window/buffer treatments are applied for the duration; ALL of them
+are reverted on exit.  No special state is allowed to leak past
+this mode.
+
+  Conceal layer       Body line ranges get a `conceal_lines = ""`
+                      extmark in the `organ_fold_contents`
+                      namespace.  Cleared on exit.
+
+  Window options      `conceallevel` is auto-bumped to 2 (if lower)
+                      and `concealcursor` is set to `nvic` so the
+                      cursor sitting on a concealed line keeps it
+                      hidden -- otherwise vim's default would reveal
+                      body the moment `j` lands there.  Prior values
+                      are saved per-window and restored on exit on
+                      every window currently displaying the buffer.
+
+  Cursor redirect     A buffer-local `CursorMoved` autocmd watches
+                      every motion (j / k / arrows / gj / gk /
+                      search / gg / G / `]]` / `[[` / marks /
+                      mouse) and bounces the cursor off concealed
+                      body to the nearest visible line in the
+                      direction of travel.  Does NOT touch any
+                      keymap; user remaps continue to work.
+                      `BufWinEnter` is also wired so re-entering
+                      the buffer's window via `:wincmd`, mouse, or
+                      tmux focus also nudges the cursor off body.
+                      Visual / insert / operator-pending modes are
+                      left alone.
+
+  Line numbers        Vim's built-in `'relativenumber'` counts
+                      buffer lines, so a heading 5 buffer rows down
+                      shows as "5" even when body is concealed
+                      between -- visually wrong.  Use the helper
+                      `organ.fold.contents.statuscolumn_lnum(lnum,
+                      relative)` from a custom statuscolumn to
+                      compute number/relnum from VISIBLE-line
+                      distance.  Outside CONTENTS state no extmarks
+                      exist and the helper returns vim-equivalent
+                      values, so it's safe to wire unconditionally.
+
+  Cleanup triggers    `BufWipeout` clears the in-memory state on
+                      buffer wipe.  `FileType` (set to anything
+                      other than org) calls `leave()` so window
+                      options are restored if the user switches the
+                      buffer's filetype mid-CONTENTS.  Explicit
+                      cycle out via `<S-Tab>` calls `leave()`
+                      normally.  `M.forget(bufnr)` is a hard reset
+                      for any consumer that needs it.
+
 ------------------------------------------------------------------------------
 Indent                                                   *organ-config-indent*
 

@@ -474,6 +474,33 @@ No conceal dependency -- pick this if you keep `conceallevel = 0`
 and don't want the temporary bump.  `za` on body folds the body
 line, not the heading.
 
+### CONTENTS view: special-treatment summary
+
+When the third `<S-Tab>` state is active under `body_fold = false`,
+several treatments apply for the duration of the mode and are
+reverted on exit -- nothing is allowed to persist past the cycle:
+
+- Body line ranges get `conceal_lines = ""` extmarks in the
+  `organ_fold_contents` namespace.
+- Window `conceallevel` auto-bumps to 2 (if lower) and
+  `concealcursor` is set to `nvic` so cursor-on-concealed stays
+  hidden.  Saved per-window, restored on exit on every window
+  showing the buffer.
+- A buffer-local `CursorMoved` autocmd redirects the cursor off
+  concealed body to the nearest visible line in the direction of
+  travel.  Covers j / k / arrows / gj / gk / search / gg / G / ]]
+  / [[ / marks / mouse / any custom mapping -- no user keymap is
+  touched.  `BufWinEnter` is included so window switches and tmux
+  focus also nudge the cursor off body.
+- For correct relnum: vim's built-in `'relativenumber'` counts
+  buffer lines, so a 5-row gap of concealed body still shows as
+  "5".  Use `require("organ.fold.contents").statuscolumn_lnum(lnum,
+  relative)` from a custom statuscolumn to get visible-line
+  distance.  Outside CONTENTS the helper degrades to vim-equivalent
+  values, so it's safe to wire unconditionally.
+- `BufWipeout` and `FileType` (off-org) trigger automatic cleanup
+  so state never leaks past the buffer / filetype it was meant for.
+
 ## Conceal
 
 Per-element switches under `emphasis`.  Each element can be turned
