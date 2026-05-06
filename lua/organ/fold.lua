@@ -550,10 +550,17 @@ function M.emacs_foldtext()
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
   local segments = ts_line_segments(vim.api.nvim_get_current_buf(), foldstart)
   if segments then
-    if has_real then
-      segments[#segments + 1] = { " …", "Folded" }
+    -- Build a fresh result list every call.  Mutating the cached
+    -- segments would append the ellipsis on every render, so a fold
+    -- shown N times would render `* H1 … … … …` after N redraws.
+    local result = {}
+    for i, seg in ipairs(segments) do
+      result[i] = seg
     end
-    return segments
+    if has_real then
+      result[#result + 1] = { " …", "Folded" }
+    end
+    return result
   end
   local line = vim.fn.getline(foldstart)
   if not has_real then
