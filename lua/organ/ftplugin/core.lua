@@ -73,32 +73,61 @@ function M.attach(bufnr)
   -- `vim.treesitter.foldexpr()` because the latter conflated list /
   -- drawer / block nodes with outline depth and broke heading
   -- folding in files containing lists.  See `lua/organ/fold.lua` for
-  -- the algorithm.
-  pcall(function()
-    vim.api.nvim_set_option_value("foldmethod", "expr", { win = 0 })
-    vim.api.nvim_set_option_value(
-      "foldexpr",
-      "v:lua.require'organ.fold'.foldexpr(v:lnum)",
-      { win = 0 }
-    )
-    vim.api.nvim_set_option_value("foldenable", true, { win = 0 })
-    vim.api.nvim_set_option_value("foldlevel", 99, { win = 0 })
-    -- `foldminlines = 0` lets the foldexpr's body folds (often a single
-    -- line under a heading) actually close — the default of 1 silently
-    -- drops 1-line folds that sit between adjacent transitions.
-    vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
-    vim.api.nvim_set_option_value("foldtext", "v:lua.require('organ.fold').foldtext()", { win = 0 })
-    -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
-    -- so folded heading lines blend with Normal's background.  The
-    -- foldtext segments keep their natural foreground (TODO, title,
-    -- tags) on top.  Append to whatever the user already had set in
-    -- winhighlight rather than clobber it.
-    local prev_wh = vim.api.nvim_get_option_value("winhighlight", { win = 0 })
-    if not prev_wh:find("Folded:") then
-      local new_wh = (prev_wh == "" and "Folded:OrgFolded") or (prev_wh .. ",Folded:OrgFolded")
-      vim.api.nvim_set_option_value("winhighlight", new_wh, { win = 0 })
-    end
-  end)
+  -- the algorithm.  These are window-local options; setting them
+  -- once at FileType time covers the FIRST window the buffer enters,
+  -- but a `:vsplit` / `wincmd s` later spawns another window where
+  -- foldtext / foldexpr default to "" and vim shows its built-in
+  -- `+--  N lines:` foldtext instead of organ's renderer.  Re-apply
+  -- on BufWinEnter so every window the buffer ever lands in gets
+  -- the same options.
+  local function apply_fold_window_opts()
+    pcall(function()
+      vim.api.nvim_set_option_value("foldmethod", "expr", { win = 0 })
+      vim.api.nvim_set_option_value(
+        "foldexpr",
+        "v:lua.require'organ.fold'.foldexpr(v:lnum)",
+        { win = 0 }
+      )
+      vim.api.nvim_set_option_value("foldenable", true, { win = 0 })
+      -- `foldminlines = 0` lets the foldexpr's body folds (often a single
+      -- line under a heading) actually close — the default of 1 silently
+      -- drops 1-line folds that sit between adjacent transitions.
+      vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
+      vim.api.nvim_set_option_value(
+        "foldtext",
+        "v:lua.require('organ.fold').foldtext()",
+        { win = 0 }
+      )
+      -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
+      -- so folded heading lines blend with Normal's background.  The
+      -- foldtext segments keep their natural foreground (TODO, title,
+      -- tags) on top.  Append to whatever the user already had set in
+      -- winhighlight rather than clobber it.
+      local prev_wh = vim.api.nvim_get_option_value("winhighlight", { win = 0 })
+      if not prev_wh:find("Folded:") then
+        local new_wh = (prev_wh == "" and "Folded:OrgFolded") or (prev_wh .. ",Folded:OrgFolded")
+        vim.api.nvim_set_option_value("winhighlight", new_wh, { win = 0 })
+      end
+    end)
+  end
+  apply_fold_window_opts()
+  -- foldlevel only on the initial attach -- BufWinEnter shouldn't
+  -- reset it back to 99 every time the user re-enters the window
+  -- (would override <S-Tab> state).
+  pcall(vim.api.nvim_set_option_value, "foldlevel", 99, { win = 0 })
+  local fold_win_group = vim.api.nvim_create_augroup("organ_foldwin_" .. bufnr, { clear = true })
+  vim.api.nvim_create_autocmd("BufWinEnter", {
+    group = fold_win_group,
+    buffer = bufnr,
+    callback = apply_fold_window_opts,
+  })
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    group = fold_win_group,
+    buffer = bufnr,
+    callback = function()
+      pcall(vim.api.nvim_del_augroup_by_id, fold_win_group)
+    end,
+  })
 
   -- Drawers start collapsed (Emacs default). Defer one tick so the TS
   -- parser + foldexpr have populated before we try to close ranges.
