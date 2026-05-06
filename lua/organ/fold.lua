@@ -475,6 +475,15 @@ local _ts_seg_cache = {} -- bufnr -> { tick = N, lines = { lnum -> segments } }
 -- (matches the highlighter's "last wins" rule), and contiguous runs
 -- with the same hl are coalesced into one segment.  Returns nil if
 -- no parser is attached so the caller can fall back to plain text.
+--
+-- Force-parses the line range across the whole language tree before
+-- walking captures.  Without this, a freshly-loaded buffer (or one
+-- whose injection trees haven't been parsed for this row yet -- e.g.
+-- right after `<S-Tab>` flips fold state) will yield only the main
+-- parser's captures and miss any injection's, producing segments
+-- that later cycles can't recover from because changedtick is
+-- unchanged so the seg cache returns the same partial result on
+-- every call.
 local function ts_line_segments_uncached(bufnr, lnum)
   local line = vim.fn.getline(lnum)
   if line == "" then
@@ -485,24 +494,37 @@ local function ts_line_segments_uncached(bufnr, lnum)
   if not ok or not parser then
     return nil
   end
+  pcall(parser.parse, parser, { row, row + 1 })
   local hl_at = {}
   for i = 1, #line do
     hl_at[i] = nil
   end
+  -- Capture priority mirrors the runtime highlighter: walk every
+  -- LanguageTree in DFS order, and within each tree a lower
+  -- `priority` metadata entry loses to a higher one.  Default
+  -- priority is 100 (`vim.hl.priorities.treesitter`).  Tracking the
+  -- winning priority per byte lets a more-specific child capture
+  -- (e.g. `@org.heading.title.1`) override the broader parent
+  -- capture (`@org.heading.1`) regardless of capture-iter order.
+  local prio_at = {}
   parser:for_each_tree(function(tree, ltree)
     local lang = ltree:lang()
     local q_ok, query = pcall(vim.treesitter.query.get, lang, "highlights")
     if not q_ok or not query then
       return
     end
-    for id, node, _ in query:iter_captures(tree:root(), bufnr, row, row + 1) do
+    for id, node, metadata in query:iter_captures(tree:root(), bufnr, row, row + 1) do
       local sr, sc, er, ec = node:range()
       if sr <= row and row <= er then
         local s = (sr == row) and sc or 0
         local e = (er == row) and ec or #line
         local hl = "@" .. query.captures[id] .. "." .. lang
+        local priority = tonumber((metadata[id] or {}).priority or metadata.priority) or 100
         for col = s + 1, e do
-          hl_at[col] = hl
+          if (prio_at[col] or -1) <= priority then
+            hl_at[col] = hl
+            prio_at[col] = priority
+          end
         end
       end
     end
