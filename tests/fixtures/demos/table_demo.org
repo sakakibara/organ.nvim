@@ -1,0 +1,15 @@
+#+title: Table demo
+
+* Quarterly revenue
+
+A simple table with a TBLFM line that sums each row.  The Total
+column starts blank; `:Org table eval_formulas` fills it in from
+the per-row formula.
+
+| Quarter | Region A | Region B | Region C | Total |
+|---------+----------+----------+----------+-------|
+| Q1      |     1200 |      850 |      640 |       |
+| Q2      |     1450 |      910 |      720 |       |
+| Q3      |     1610 |      980 |      810 |       |
+| Q4      |     1820 |     1100 |      950 |       |
+#+TBLFM: $5=$2+$3+$4

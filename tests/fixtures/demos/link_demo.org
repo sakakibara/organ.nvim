@@ -1,0 +1,21 @@
+#+title: Link demo
+
+* Project notes
+:PROPERTIES:
+:ID:       proj-notes
+:END:
+
+The README documents the public API.  See
+[[file:link_target.org][the target file]] for the full breakdown.
+
+Heading-internal jumps work too: see [[*Glossary][the glossary
+below]] for terminology.
+
+* Glossary
+:PROPERTIES:
+:ID:       glossary
+:END:
+
+- *org-mode*: outline-and-tasks markup, the lingua franca of the
+  Emacs productivity stack.
+- *roam*: a bidirectional-link layer on top of org files.

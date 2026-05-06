@@ -1,0 +1,18 @@
+#+title: Link target
+
+* Public API
+:PROPERTIES:
+:ID:       link-target-api
+:END:
+
+Reached this file by following a [[file:...]] link from the demo
+buffer.  `<C-o>` returns to the source file (vim's jumplist).
+
+** setup(opts)
+
+Initialize the plugin with a config table.
+
+** :Org follow_link
+
+Follow the link under the cursor -- the entry point exercised in
+the demo above.

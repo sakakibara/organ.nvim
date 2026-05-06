@@ -121,9 +121,23 @@ Click a row to expand.  All demos are auto-rendered from
 
 </details>
 
-> **Wanted demos** (PRs welcome — drop a `.tape` in `assets/tapes/`):
-> table editing, formula recompute, link follow + back, OS
-> notification firing on a scheduled item.
+<details>
+<summary><strong>Tables</strong> — <code>&lt;Tab&gt;</code> cell navigation + <code>:Org table eval_formulas</code></summary>
+
+<p align="center">
+  <img src="assets/demos/table.gif" alt="table demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Links</strong> — <code>&lt;CR&gt;</code> follow, <code>&lt;C-o&gt;</code> back via vim's jumplist</summary>
+
+<p align="center">
+  <img src="assets/demos/link.gif" alt="link demo" width="780">
+</p>
+
+</details>
 
 ## Install
 
