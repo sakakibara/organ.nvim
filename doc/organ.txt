@@ -784,11 +784,35 @@ Fold                                                       *organ-config-fold*
         "emacs"     -- heading line + ` …` suffix when the fold
                        hides real content (Emacs `org-ellipsis`
                        look).  All-blank body is left bare.
-        function(foldstart, foldend) -> string -- custom renderer.
-                       Errors from the function fall back to the
-                       heading line so a buggy override can't break
-                       the buffer.
+                       Returns treesitter-aware highlight segments
+                       on nvim 0.10+, so the heading keeps its TODO
+                       / title / tag colors when folded.
+        function(foldstart, foldend) -> string | list -- custom
+                       renderer.  Return a string for plain text,
+                       or a list of `{text, hl_group}` tuples for
+                       per-segment highlights.  Errors from the
+                       function fall back to the heading line so a
+                       buggy override can't break the buffer.
         false / nil -- vim default (just the first line + `...`).
+
+                                                        *organ-fold-OrgFolded*
+    Folded org-buffer rows render with the `OrgFolded` highlight
+    group instead of vim's default `Folded`.  organ defines
+    `OrgFolded` with `bg = "NONE"` (default = true so user
+    overrides win) and the org ftplugin sets window-local
+    `'winhighlight'` to remap `Folded:OrgFolded`, so folded heading
+    lines blend with `Normal` instead of vim's grey ribbon and the
+    treesitter-aware foreground colors render on top cleanly.
+
+    Gotcha: `winhighlight` is window-local and additive.  organ's
+    ftplugin appends `Folded:OrgFolded` to whatever was already
+    there (and skips if the user has their own `Folded:` entry).
+    To override, either set your own `Folded:` mapping in
+    `'winhighlight'` BEFORE the org buffer attaches, or override
+    the `OrgFolded` group itself:
+    >lua
+        vim.api.nvim_set_hl(0, "OrgFolded", { bg = "#333333" })
+    <
 
                                                  *organ-config-fold-body_fold*
     `fold.body_fold` (bool, default: `false`)

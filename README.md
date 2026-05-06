@@ -574,6 +574,28 @@ reverted on exit -- nothing is allowed to persist past the cycle:
   AND skips conceal-extmark rows, so relnum stays correct in both
   OVERVIEW (closed folds) and CONTENTS (concealed body).
 
+### Folded heading appearance
+
+The default `fold.foldtext = "emacs"` renders the folded heading
+line with treesitter-aware highlight segments (nvim 0.10+) — the
+TODO keyword, title, tags keep their natural colors instead of
+collapsing into a single `Folded` ribbon.  An `…` ellipsis is
+appended when the fold hides real content; all-blank body is left
+bare.
+
+To make the row blend with the buffer background instead of vim's
+grey `Folded` ribbon, organ defines `OrgFolded` with `bg = "NONE"`
+and the ftplugin sets window-local `winhighlight = "Folded:OrgFolded"`
+on org buffers.  Override:
+
+```lua
+vim.api.nvim_set_hl(0, "OrgFolded", { bg = "#333333" })  -- give it a tint
+```
+
+`winhighlight` is window-local and additive — organ skips its
+remap if the user already has a `Folded:` entry there, so an
+explicit user setting wins.
+
 ## Conceal
 
 Per-element switches under `emphasis`.  Each element can be turned

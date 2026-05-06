@@ -202,6 +202,15 @@ function M.register()
   vim.api.nvim_set_hl(0, "@markup.bold", { bold = true, default = true })
   vim.api.nvim_set_hl(0, "@markup.italic", { italic = true, default = true })
   vim.api.nvim_set_hl(0, "@markup.underline", { underline = true, default = true })
+
+  -- Folded lines in org buffers should blend with the buffer
+  -- background instead of vim's default grey ribbon -- the heading
+  -- under the cursor reads the same folded as it does unfolded
+  -- (Emacs `org-fold` look).  Defined as `bg = "NONE"` so each
+  -- segment's foreground (TODO, title, tags) renders on top of
+  -- Normal's background.  Activated via `winhighlight` in
+  -- ftplugin/core.lua, scoped to org windows only.
+  vim.api.nvim_set_hl(0, "OrgFolded", { bg = "NONE", default = true })
   vim.api.nvim_set_hl(0, "@markup.strikethrough", { strikethrough = true, default = true })
   -- Catch-all groups for the per-keyword query directives in
   -- queries/org/highlights.scm. Per-keyword groups are also registered in

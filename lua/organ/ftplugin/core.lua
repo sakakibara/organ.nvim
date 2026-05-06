@@ -88,6 +88,16 @@ function M.attach(bufnr)
     -- drops 1-line folds that sit between adjacent transitions.
     vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
     vim.api.nvim_set_option_value("foldtext", "v:lua.require('organ.fold').foldtext()", { win = 0 })
+    -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
+    -- so folded heading lines blend with Normal's background.  The
+    -- foldtext segments keep their natural foreground (TODO, title,
+    -- tags) on top.  Append to whatever the user already had set in
+    -- winhighlight rather than clobber it.
+    local prev_wh = vim.api.nvim_get_option_value("winhighlight", { win = 0 })
+    if not prev_wh:find("Folded:") then
+      local new_wh = (prev_wh == "" and "Folded:OrgFolded") or (prev_wh .. ",Folded:OrgFolded")
+      vim.api.nvim_set_option_value("winhighlight", new_wh, { win = 0 })
+    end
   end)
 
   -- Drawers start collapsed (Emacs default). Defer one tick so the TS

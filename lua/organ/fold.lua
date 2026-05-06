@@ -466,11 +466,25 @@ end
 
 -- Renderer: heading line + an Emacs-style ellipsis suffix when the
 -- fold hides real content.  Mirrors Emacs `org-ellipsis` (default
--- `…`).  All-blank body is left bare.
+-- `…`).  All-blank body is left bare.  Returns a list of
+-- `{text, hl_group}` tuples when treesitter foldtext is available
+-- (nvim 0.10+) so the heading keeps its TODO / title / tag colors;
+-- falls back to a plain string on older nvim where foldtext is
+-- single-highlight only.
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
+  local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
+  local ts_ok, ts_ft = pcall(function()
+    return vim.treesitter.foldtext()
+  end)
+  if ts_ok and type(ts_ft) == "table" then
+    if has_real then
+      table.insert(ts_ft, { " …", "Folded" })
+    end
+    return ts_ft
+  end
   local line = vim.fn.getline(foldstart)
-  if foldend <= foldstart or not fold_has_real_content(foldstart, foldend) then
+  if not has_real then
     return line
   end
   return line .. " …"
