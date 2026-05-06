@@ -160,12 +160,34 @@ jobs:
           # seconds of each other; the second push gets rejected as
           # non-fast-forward.  Retry with rebase a few times so the
           # later run cleanly stacks on top of the earlier one.
+          # `-X theirs` resolves binary-file conflicts (the regenerated
+          # GIFs) in favor of our just-rendered versions; without it,
+          # two concurrent regen commits collide on the same .gif and
+          # rebase aborts because git can't 3-way-merge binary files.
           for attempt in 1 2 3; do
             if git push; then
               exit 0
             fi
             echo "push attempt $attempt rejected -- rebasing onto origin/main"
-            git pull --rebase origin main
+            if ! git pull --rebase -X theirs origin main; then
+              # Last-resort recovery: rebase failed even with
+              # -X theirs.  Snapshot our gifs aside, hard-reset onto
+              # origin, restore the gifs, and recommit.  Always
+              # resolves to "use what THIS run rendered" because tapes
+              # and code on this commit are the latest source of truth.
+              git rebase --abort || true
+              mkdir -p /tmp/demo-gifs
+              cp -f assets/demos/*.gif /tmp/demo-gifs/ 2>/dev/null || true
+              git reset --hard origin/main
+              mkdir -p assets/demos
+              cp -f /tmp/demo-gifs/*.gif assets/demos/ 2>/dev/null || true
+              git add -f assets/demos/*.gif
+              if git diff --staged --quiet; then
+                echo "no GIF delta after reset -- nothing left to push"
+                exit 0
+              fi
+              git commit -m "chore(demos): regenerate from tapes [skip ci]"
+            fi
           done
           echo "FAIL: could not push regenerated demos after 3 retries"
           exit 1
