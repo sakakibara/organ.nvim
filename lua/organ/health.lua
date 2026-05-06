@@ -357,6 +357,75 @@ function M.check()
       health.info("no #+bibliography: directives in current buffer")
     end
   end
+
+  -- User-config integration: when the user runs a custom foldtext or
+  -- custom statuscolumn, those override organ's win-local set and
+  -- silently strip the Emacs-style folded heading / fold-aware relnum
+  -- unless they delegate.  Detect the common shapes and surface a
+  -- warning with a one-line fix.
+  health.start("organ.user-config integration")
+
+  local function references(s, ...)
+    if not s or s == "" then
+      return false
+    end
+    for _, pat in ipairs({ ... }) do
+      if s:find(pat, 1, true) then
+        return true
+      end
+    end
+    return false
+  end
+
+  local foldtext = vim.o.foldtext
+  if foldtext == "" then
+    health.ok("foldtext: vim default (organ sets win-local in org buffers)")
+  elseif references(foldtext, "organ.fold", "organ_fold") then
+    health.ok("foldtext references organ.fold")
+  else
+    health.warn(
+      "Custom global foldtext is set but doesn't reference organ.fold."
+        .. "  Org buffers may render plain folded headings instead of"
+        .. " the Emacs-style colored line. Current value:\n    "
+        .. foldtext,
+      {
+        "Recipe: have your custom foldtext delegate when filetype == 'org':",
+        "    if vim.bo.filetype == 'org' then",
+        "      local ok, organ_fold = pcall(require, 'organ.fold')",
+        "      if ok and organ_fold.foldtext then return organ_fold.foldtext() end",
+        "    end",
+      }
+    )
+  end
+
+  local statuscolumn = vim.o.statuscolumn
+  if statuscolumn == "" then
+    health.ok("statuscolumn: vim default")
+  else
+    local has_marker = references(statuscolumn, "statuscolumn_marker", "organ.fold")
+    local has_lnum = references(statuscolumn, "statuscolumn_lnum", "organ.fold.contents")
+    if has_marker and has_lnum then
+      health.ok("statuscolumn references both organ helpers")
+    else
+      local missing = {}
+      if not has_marker then
+        missing[#missing + 1] = "statuscolumn_marker (heading fold-start indicator)"
+      end
+      if not has_lnum then
+        missing[#missing + 1] = "statuscolumn_lnum (visible-line relnum)"
+      end
+      health.warn(
+        "Custom statuscolumn is set but doesn't reference: "
+          .. table.concat(missing, ", ")
+          .. ".  Sibling headings may render no fold marker, and "
+          .. "concealed-body rows may inflate relnum.",
+        {
+          "See `:h organ-fold-statuscolumn_marker` for a complete recipe",
+          "wiring both helpers into a custom statuscolumn module.",
+        }
+      )
+    end
+  end
 end
 
 return M
