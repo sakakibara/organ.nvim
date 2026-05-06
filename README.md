@@ -94,11 +94,36 @@ Click a row to expand.  All demos are auto-rendered from
 
 </details>
 
+<details>
+<summary><strong>Cycle</strong> — <code>&lt;S-Tab&gt;</code> SHOW_ALL → OVERVIEW → CONTENTS, <code>&lt;Tab&gt;</code> per-heading</summary>
+
+<p align="center">
+  <img src="assets/demos/cycle.gif" alt="cycle demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Structure</strong> — promote / demote / move subtrees with <code>&lt;M-h/j/k/l&gt;</code></summary>
+
+<p align="center">
+  <img src="assets/demos/structure.gif" alt="structure demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Archive</strong> — move a subtree to its archive sibling</summary>
+
+<p align="center">
+  <img src="assets/demos/archive.gif" alt="archive demo" width="780">
+</p>
+
+</details>
+
 > **Wanted demos** (PRs welcome — drop a `.tape` in `assets/tapes/`):
-> `<S-Tab>` global cycle (SHOW_ALL → OVERVIEW → CONTENTS), heading
-> structure manipulation (`<M-h/j/k/l>`), table editing, formula
-> recompute, archive subtree, link follow + back, OS notification
-> firing on a scheduled item.
+> table editing, formula recompute, link follow + back, OS
+> notification firing on a scheduled item.
 
 ## Install
 

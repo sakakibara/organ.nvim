@@ -1,0 +1,13 @@
+#+title: Structure demo
+
+* Top of the list
+Some intro paragraph for the first heading.
+
+* Middle entry
+The one we'll move and re-level.
+** Sub-task A
+** Sub-task B
+*** Deep detail
+
+* Last for now
+The trailing heading.

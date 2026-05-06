@@ -1,0 +1,18 @@
+#+title: Archive demo
+
+* DONE Ship the v1 release :work:
+CLOSED: [2026-04-30 Thu 17:00]
+:PROPERTIES:
+:ID:       v1-release
+:Effort:   8h
+:END:
+Final release notes shipped, GitHub release published, downstream
+notified.  Ready to archive.
+
+* TODO Audit the deps :work:
+SCHEDULED: <2026-05-12 Tue>
+Outstanding -- stays in the live file.
+
+* DONE Plan the v2 kickoff :work:project:
+CLOSED: [2026-05-01 Fri 11:00]
+Initial scope agreed in standup.  Archive when post-mortem lands.

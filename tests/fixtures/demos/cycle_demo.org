@@ -1,0 +1,46 @@
+#+title: Cycle demo
+#+author: organ.nvim
+#+filetags: :demo:
+
+:PROPERTIES:
+:ID:       cycle-demo-root
+:CATEGORY: demo
+:END:
+
+* Project Atlas
+:PROPERTIES:
+:ID:       atlas
+:END:
+The roadmap for the Atlas release.  Everything in this section
+is body content.  In CONTENTS view this paragraph hides while the
+heading stays visible.
+
+** TODO Architecture review
+SCHEDULED: <2026-05-08 Fri>
+Document the data flow and surface the bottlenecks.
+*** Storage layer
+*** Indexing pipeline
+*** Search ranker
+** TODO Public beta
+DEADLINE: <2026-05-15 Fri>
+Cut a feature freeze, ship to the early-access list.
+
+* Reading list
+:PROPERTIES:
+:ID:       reading
+:END:
+Books and papers queued for review.
+
+** "Designing Data-Intensive Applications" — Kleppmann
+** "The Annotated Turing" — Petzold
+** "Foundations of Statistical NLP" — Manning, Schütze
+
+* Habits
+:PROPERTIES:
+:ID:       habits
+:END:
+Daily and weekly recurring items.
+
+** Morning pages
+** Evening reflection
+** Weekly review
