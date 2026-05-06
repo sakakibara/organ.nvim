@@ -17,6 +17,12 @@ require("organ").setup({
 local fold = require("organ.fold")
 local contents = require("organ.fold.contents")
 
+if not contents.is_supported() then
+  print("(skipped: nvim does not support `conceal_lines` extmark)")
+  print("fold_global_test: SKIP")
+  os.exit(0)
+end
+
 local fails = 0
 local function check(label, ok, detail)
   if ok then
