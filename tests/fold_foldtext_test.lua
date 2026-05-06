@@ -56,20 +56,8 @@ local blank_out = with_fold(1, 3, function()
 end)
 check("all-blank body: no ellipsis suffix", blank_out == "* H1", "got " .. tostring(blank_out))
 
--- Switch to "items" renderer.
-vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })
-cfg.foldtext = "items"
-local items_out = with_fold(1, 3, function()
-  return fold.foldtext()
-end)
-check(
-  "items renderer ends with 'items hidden'",
-  items_out:find("items hidden$") ~= nil,
-  "got " .. tostring(items_out)
-)
-check("items count = 2", items_out:find("◉ 2") ~= nil, "got " .. tostring(items_out))
-
 -- Custom function.
+vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })
 cfg.foldtext = function(s, e)
   return string.format("[%d-%d] custom", s, e)
 end

@@ -608,8 +608,7 @@ return {
     body_fold = false,
     -- foldtext rendering:
     --   "emacs"   (default) -- heading line + an ellipsis suffix
-    --                          (Emacs `org-ellipsis` look).
-    --   "items"   -- heading line + "  ◉ N items hidden" suffix.
+    --                          when there's hidden content.
     --   function(foldstart, foldend) -> string -- custom renderer.
     --   false / nil -- vim default (no organ-supplied foldtext).
     foldtext = "emacs",

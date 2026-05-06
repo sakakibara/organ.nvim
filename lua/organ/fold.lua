@@ -449,8 +449,9 @@ local function fold_has_real_content(foldstart, foldend)
   return false
 end
 
--- Renderer: heading line + an Emacs-style ellipsis suffix.  Mirrors
--- Emacs `org-ellipsis` (default `…`).
+-- Renderer: heading line + an Emacs-style ellipsis suffix when the
+-- fold hides real content.  Mirrors Emacs `org-ellipsis` (default
+-- `…`).  All-blank body is left bare.
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local line = vim.fn.getline(foldstart)
@@ -458,18 +459,6 @@ function M.emacs_foldtext()
     return line
   end
   return line .. " …"
-end
-
--- Renderer: heading line + "◉ N items hidden" suffix.  Organ's
--- prior default; opt in via `fold.foldtext = "items"`.
-function M.items_foldtext()
-  local foldstart, foldend = vim.v.foldstart, vim.v.foldend
-  local line = vim.fn.getline(foldstart)
-  local hidden = foldend - foldstart
-  if hidden <= 0 or not fold_has_real_content(foldstart, foldend) then
-    return line
-  end
-  return line .. "  ◉ " .. hidden .. " items hidden"
 end
 
 -- Dispatcher.  ftplugin/core.lua wires this as the foldtext expression;
@@ -483,10 +472,6 @@ function M.foldtext()
     end
     return vim.fn.getline(vim.v.foldstart)
   end
-  if cfg == "items" then
-    return M.items_foldtext()
-  end
-  -- Default ("emacs") and unknown strings fall back to the Emacs renderer.
   return M.emacs_foldtext()
 end
 
