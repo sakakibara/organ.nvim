@@ -514,16 +514,29 @@ local function ts_line_segments_uncached(bufnr, lnum)
       return
     end
     for id, node, metadata in query:iter_captures(tree:root(), bufnr, row, row + 1) do
-      local sr, sc, er, ec = node:range()
-      if sr <= row and row <= er then
-        local s = (sr == row) and sc or 0
-        local e = (er == row) and ec or #line
-        local hl = "@" .. query.captures[id] .. "." .. lang
-        local priority = tonumber((metadata[id] or {}).priority or metadata.priority) or 100
-        for col = s + 1, e do
-          if (prio_at[col] or -1) <= priority then
-            hl_at[col] = hl
-            prio_at[col] = priority
+      local capture_name = query.captures[id]
+      -- Skip "private" captures (`@_foo`).  Treesitter convention
+      -- treats leading-underscore names as intermediate -- they're
+      -- used to bind a node to a predicate (e.g. the
+      -- `((headline_line stars: (stars) @_s title: (title)
+      -- @org.heading.title.1) (#org-stars-level? @_s 1))` pattern
+      -- captures stars as `@_s` only to count them).  nvim's runtime
+      -- highlighter skips them; we do too -- otherwise the stars on
+      -- a level-1 heading get painted with the (undefined) `@_s.org`
+      -- group, which renders as Normal and overrides the proper
+      -- `@org.heading.1.org` capture from a parallel pattern.
+      if capture_name:sub(1, 1) ~= "_" then
+        local sr, sc, er, ec = node:range()
+        if sr <= row and row <= er then
+          local s = (sr == row) and sc or 0
+          local e = (er == row) and ec or #line
+          local hl = "@" .. capture_name .. "." .. lang
+          local priority = tonumber((metadata[id] or {}).priority or metadata.priority) or 100
+          for col = s + 1, e do
+            if (prio_at[col] or -1) <= priority then
+              hl_at[col] = hl
+              prio_at[col] = priority
+            end
           end
         end
       end
@@ -561,38 +574,64 @@ local function ts_line_segments(bufnr, lnum)
   return cached
 end
 
+-- Heading-title hl group for the ellipsis decoration.  Picks the
+-- per-level title capture (`@org.heading.title.N.org`) when the
+-- start line is a real heading; falls back to the broader heading
+-- capture, then `Folded` if neither is reachable.  Used by the
+-- foldtext renderer AND by `fold/contents.lua`'s virt_text suffix
+-- so both visual states render the ellipsis in the same color as
+-- the heading text it follows.
+function M.heading_title_hl(line)
+  local stars = line and line:match("^(%*+)%s")
+  if not stars then
+    return "Folded"
+  end
+  local level = #stars
+  if level >= 1 and level <= 8 then
+    return "@org.heading.title." .. level .. ".org"
+  end
+  return "@org.heading.title.org"
+end
+
 -- Renderer: heading line + an Emacs-style ellipsis suffix when the
 -- fold hides real content.  Mirrors Emacs `org-ellipsis` (default
--- `…`).  All-blank body is left bare.  Returns `{text, hl_group}`
--- segments when a treesitter parser is attached so the heading keeps
--- its TODO / title / tag colors; falls back to a plain string on
--- buffers without an active parser.
+-- `…`, no leading space).  All-blank body is left bare.  Returns
+-- `{text, hl_group}` segments when a treesitter parser is attached
+-- so the heading keeps its TODO / title / tag colors; falls back to
+-- a plain string on buffers without an active parser.  Wrapped in
+-- pcall in `M.foldtext` -- any error returns the bare heading line
+-- so vim never falls back to its own `+--  N lines:` default.
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
+  local line = vim.fn.getline(foldstart)
   local segments = ts_line_segments(vim.api.nvim_get_current_buf(), foldstart)
   if segments then
     -- Build a fresh result list every call.  Mutating the cached
     -- segments would append the ellipsis on every render, so a fold
-    -- shown N times would render `* H1 … … … …` after N redraws.
+    -- shown N times would render `* H1……………` after N redraws.
     local result = {}
     for i, seg in ipairs(segments) do
       result[i] = seg
     end
     if has_real then
-      result[#result + 1] = { " …", "Folded" }
+      result[#result + 1] = { "…", M.heading_title_hl(line) }
     end
     return result
   end
-  local line = vim.fn.getline(foldstart)
   if not has_real then
     return line
   end
-  return line .. " …"
+  return line .. "…"
 end
 
--- Dispatcher.  ftplugin/core.lua wires this as the foldtext expression;
--- the underlying renderer is selected by `fold.foldtext` config.
+-- Dispatcher.  ftplugin/core.lua wires this as the foldtext
+-- expression; the underlying renderer is selected by
+-- `fold.foldtext` config.  Always returns SOMETHING renderable --
+-- a top-level pcall catches any error so vim cannot silently fall
+-- back to its `+--  N lines:` default (which previously surfaced
+-- after multiple `<S-Tab>` cycles when a transient TS-parse error
+-- propagated out of `emacs_foldtext`).
 function M.foldtext()
   local cfg = (require("organ").config.fold or {}).foldtext
   if type(cfg) == "function" then
@@ -600,9 +639,13 @@ function M.foldtext()
     if ok and type(out) == "string" then
       return out
     end
-    return vim.fn.getline(vim.v.foldstart)
+    return vim.fn.getline(vim.v.foldstart) or ""
   end
-  return M.emacs_foldtext()
+  local ok, out = pcall(M.emacs_foldtext)
+  if ok and (type(out) == "string" or type(out) == "table") then
+    return out
+  end
+  return vim.fn.getline(vim.v.foldstart) or ""
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,

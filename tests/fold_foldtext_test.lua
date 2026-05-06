@@ -60,7 +60,12 @@ local out = with_fold(1, 3, function()
   return fold.foldtext()
 end)
 local out_s = as_string(out)
-check("emacs renderer ends with ' …'", out_s:sub(-#" …") == " …", "got " .. tostring(out_s))
+check("emacs renderer ends with '…'", out_s:sub(-#"…") == "…", "got " .. tostring(out_s))
+check(
+  "emacs renderer has no space before ellipsis",
+  out_s:sub(-#" …") ~= " …",
+  "got " .. tostring(out_s)
+)
 check("emacs renderer starts with heading", out_s:find("^%* H1") ~= nil)
 
 -- All-blank body -> no ellipsis suffix.
@@ -73,7 +78,7 @@ check("all-blank body: no ellipsis suffix", blank_s == "* H1", "got " .. tostrin
 
 -- Regression: rendering the same fold N times must return the same
 -- result.  Previously the cached segment list was mutated on each
--- call, so the trailing ellipsis multiplied (`* H1 … … … …`).
+-- call, so the trailing ellipsis multiplied (`* H1………………`).
 do
   vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })
   cfg.foldtext = "emacs"
