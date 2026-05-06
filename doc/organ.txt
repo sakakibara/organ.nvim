@@ -2480,7 +2480,7 @@ LINKS, IDs, GOTO                                             *organ-cmd-links*
 *:Org-id_update*
     `:Org id update`
     Re-scan the buffer's ID assignments and resync the SQLite index.
-    Run after manually editing IDs (rare).
+    Run after manually editing IDs.
 
 *:Org-goto*
     `:Org goto`

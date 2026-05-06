@@ -392,7 +392,7 @@ Tools that "just work" via LSP: aerial.nvim, symbols-outline.nvim,
 telescope-lsp-*, fzf-lua's `lsp_*` pickers, trouble.nvim,
 nvim-navic.
 
-Opt out (rare) -- `require("organ").setup({ lsp = { enabled = false } })`.
+Opt out: `require("organ").setup({ lsp = { enabled = false } })`.
 
 ## Native OS notifications
 

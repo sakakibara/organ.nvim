@@ -1165,7 +1165,7 @@ return {
     -- Normalise whitespace on headlines: collapse runs of spaces
     -- between stars / todo / comment / priority / title to a single
     -- space.  Tags are then placed per `tags_column`.  Set false to
-    -- preserve the user's exact spacing (rare).
+    -- preserve the user's exact spacing.
     normalize_whitespace = true,
   },
 
