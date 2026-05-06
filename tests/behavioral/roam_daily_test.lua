@@ -26,7 +26,7 @@ local function check(label, ok, detail)
   end
 end
 
-local tmp = vim.fn.tempname()
+local tmp = vim.fn.resolve(vim.fn.tempname())
 vim.fn.mkdir(tmp, "p")
 local roam_dir = tmp .. "/roam"
 

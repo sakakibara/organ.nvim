@@ -12,7 +12,7 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
-local tmp = vim.fn.tempname()
+local tmp = vim.fn.resolve(vim.fn.tempname())
 vim.fn.mkdir(tmp, "p")
 local org_dir = tmp .. "/org"
 vim.fn.mkdir(org_dir, "p")
