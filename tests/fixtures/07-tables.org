@@ -1,0 +1,23 @@
+* Table with header separator
+
+| Name  | Score | Grade |
+|-------+-------+-------|
+| Alice |    95 | A     |
+| Bob   |    82 | B     |
+| Carol |    74 | C     |
+
+* Table without separator
+
+| Item  | Count |
+| Apple |     3 |
+| Pear  |     7 |
+
+* Inline text after table
+Body paragraph below the table.
+
+* Table with alignment
+
+| Left  | Center | Right |
+|-------+--------+-------|
+| aaa   | bbb    | ccc   |
+| ddddd | eee    | ff    |

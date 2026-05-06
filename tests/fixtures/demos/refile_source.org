@@ -1,0 +1,15 @@
+#+TITLE: Source
+
+* TODO Multi-sequence org-todo-keywords                  :work:project:
+SCHEDULED: <2026-05-07 Thu>
+:PROPERTIES:
+:Effort:   3h
+:END:
+
+Per-file ~#+TODO:~ directives + Emacs-style annotated keywords
+with key-binding hints and log policy.
+
+** Subtasks
+*** TODO Update lua/organ/todo.lua to honor #+TODO: directives
+*** TODO Add tests
+*** DONE Audit existing keyword handling

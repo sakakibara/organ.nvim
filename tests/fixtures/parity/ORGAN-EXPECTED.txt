@@ -1,0 +1,64 @@
+Week-agenda (W19):
+Monday      4 May 2026 W19
+               8:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+  Tasks:       9:00 ┄┄┄┄┄ Scheduled:  TODO Call dentist for cleaning appointment  ›
+  playground: 10:00 ┄┄┄┄┄ Scheduled:  PROJ Sync with Sarah on Q4 product priorities  ›
+              12:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+              14:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+              16:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+  Tasks:      17:00 ┄┄┄┄┄ Scheduled:  NEXT Weekly review        :gtd:
+  Habits:     17:00 ┄┄┄┄┄ Scheduled:  NEXT Weekly review      :habit:
+              18:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+              20:00 ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
+  Habits:     Scheduled:  NEXT Long run (10km+)                         :habit:
+  playground: Scheduled:  TODO Task with tag           :playground:test:urgent:
+  playground: In   6 d.:       WAIT Task with deadline        :playground:test:
+  Tasks:      Sched. 3x:  NEXT Pay rent                                   :gtd:
+  Tasks:      Scheduled:  NEXT Pick up dry cleaning               :gtd:@errand:
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:
+
+Tuesday     5 May 2026 W19
+  playground: 14:00 ┄┄┄┄┄ Scheduled:  NEXT Sync with Anil on infra capacity  ›
+  Tasks:      Scheduled:  NEXT [#A] Submit expense report       :gtd:@computer:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  playground: Scheduled:  NEXT Task with priority [#A]                         ›
+  Tasks:      Scheduled:  NEXT Take out trash                             :gtd:
+
+Wednesday   6 May 2026 W19
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  playground: Scheduled:  NEXT Marketing alignment                     :@email:
+
+Thursday    7 May 2026 W19
+  Tasks:      Deadline:   NEXT [#A] Submit expense report       :gtd:@computer:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     Scheduled:  PROJ Strength training                        :habit:
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:
+
+Friday      8 May 2026 W19
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     Sched. 1x:  TODO Donate                                   :habit:
+  Tasks:      Scheduled:  NEXT Draft Q4 OKR proposal         :gtd:@office:deep:
+
+Saturday    9 May 2026 W19
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+
+Sunday      10 May 2026 W19
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     PROJ Strength training                                    :habit:
+  playground: Deadline:        WAIT Task with deadline        :playground:test:
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:

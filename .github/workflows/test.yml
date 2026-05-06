@@ -1,0 +1,220 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        nvim-version: [stable, nightly, "v0.10.4"]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: ${{ matrix.nvim-version }}
+
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            sqlite3 libsqlite3-0 libnotify-bin at libcairo2 librsvg2-bin
+
+      - name: setup node (for tree-sitter generate)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: run test suite
+        run: make test
+
+  parity:
+    # Regenerates both agenda parity snapshots and asserts neither has
+    # drifted from the committed fixtures.  Catches:
+    #   * organ render changed without an explicit baseline update
+    #   * emacs upstream changed (new release produces different output)
+    # Runs once (no nvim-version matrix) since the emacs install is
+    # heavy and the organ side already ranges across versions in the
+    # matrixed `test` job above.
+    name: agenda parity check (emacs vs organ)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: install system dependencies (incl. emacs)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            sqlite3 libsqlite3-0 libnotify-bin emacs-nox
+
+      - name: setup node (for tree-sitter generate)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: parity-check
+        run: make parity-check
+
+  smoke-lazy:
+    name: smoke (lazy.nvim install + load)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            sqlite3 libsqlite3-0 libnotify-bin
+
+      - name: setup node (for tree-sitter generate)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: lazy.nvim install + load + open .org
+        run: |
+          mkdir -p ~/.config/nvim
+          cat > ~/.config/nvim/init.lua <<EOF
+          local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
+          if not (vim.uv or vim.loop).fs_stat(lazypath) then
+            vim.fn.system({
+              "git", "clone", "--filter=blob:none",
+              "https://github.com/folke/lazy.nvim.git", "--branch=stable", lazypath,
+            })
+          end
+          vim.opt.rtp:prepend(lazypath)
+
+          require("lazy").setup({
+            {
+              dir = "$GITHUB_WORKSPACE",
+              dependencies = {
+                "sakakibara/tablature.nvim",
+                "sakakibara/narrow.nvim",
+              },
+              build = function() require("organ.grammar_install").install() end,
+              config = function()
+                require("organ").setup({ org_dir = "/tmp/org" })
+              end,
+            },
+          }, { install = { missing = true } })
+          EOF
+
+          mkdir -p /tmp/org
+          cat > /tmp/org/smoke.org <<EOF
+          * TODO smoke test
+          SCHEDULED: <2099-01-01 Fri 09:00>
+          ** subtask
+          - [ ] checkbox item
+          EOF
+
+          # Trigger lazy install + sync, then quit.
+          timeout 90 nvim --headless -c 'Lazy! sync' -c 'qa' 2>&1 || true
+
+          # Now actually open the org file and run a couple of commands.
+          # Capture all output; fail if any real Vim/Lua error appears.
+          # `:Org status` legitimately prints `errors=N` as a health field, so
+          # we match concrete error markers instead of the bare word "error".
+          output=$(timeout 30 nvim --headless /tmp/org/smoke.org \
+            -c 'Org status' \
+            -c 'messages' \
+            -c 'qa' 2>&1)
+          echo "$output"
+          if echo "$output" | grep -qE 'Error detected|E[0-9]+:|stack traceback'; then
+            echo ""
+            echo "FAIL: errors detected during smoke test"
+            exit 1
+          fi
+          echo ""
+          echo "PASS: lazy.nvim install + load + open .org succeeded"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: JohnnyMorganz/stylua-action@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          version: latest
+          args: --check lua/ plugin/ tests/
+
+  lint-markdown:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: DavidAnson/markdownlint-cli2-action@v20
+        with:
+          globs: |
+            **/*.md
+            !node_modules
+            !tests/deps
+
+  # Demo GIFs in assets/demos/ are CI-only artifacts: the demos
+  # workflow renders them from assets/tapes/*.tape and force-adds
+  # them in a [skip ci] commit.  Local `make demos` is preview-only
+  # — devs must NOT commit rendered files (they'd race CI's render
+  # of the same tape and produce drift between the README image
+  # and the source-of-truth tape).
+  #
+  # This guard rejects any push or PR that adds / modifies
+  # assets/demos/* unless it's the demos workflow's own bot commit.
+  demos-source-of-truth:
+    name: assets/demos is CI-only
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Need history so we can diff against the merge base.
+          fetch-depth: 0
+      - name: verify no human commits touched assets/demos/
+        run: |
+          # On PRs: compare against the PR base.  On push: compare
+          # against the previous commit on this branch.
+          if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "no base commit to diff against — skipping guard"
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base"...HEAD -- assets/demos/)
+          if [ -z "$changed" ]; then
+            echo "PASS: no human commit touched assets/demos/"
+            exit 0
+          fi
+          # Bot commits use the github-actions[bot] author; allow them.
+          for sha in $(git log --format=%H "$base"...HEAD -- assets/demos/); do
+            author=$(git log -1 --format=%ae "$sha")
+            if [ "$author" != "41898282+github-actions[bot]@users.noreply.github.com" ]; then
+              echo "FAIL: $sha modified assets/demos/ but author is $author"
+              echo ""
+              echo "Demo GIFs are CI-only artifacts.  Edit the tape in"
+              echo "assets/tapes/ and let the demos workflow regenerate"
+              echo "the GIF on push.  Local \`make demos\` is preview-"
+              echo "only — never commit the rendered files."
+              exit 1
+            fi
+          done
+          echo "PASS: assets/demos/ changes are all from the bot"

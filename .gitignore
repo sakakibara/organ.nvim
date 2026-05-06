@@ -1,0 +1,26 @@
+node_modules/
+*.log
+.DS_Store
+doc/tags
+.claude/settings.local.json
+# Reference material (not part of the project)
+org-mode/
+org-roam/
+tree-sitter-org/
+Untitled
+# Fuzz artifacts (slow-input dumps from scripts/fuzz-grammar.sh)
+scripts/.fuzz-slow-*.org
+tests/deps/
+
+# Demo GIFs are CI-only artifacts.  Tapes in assets/tapes/ are the
+# source of truth; the demos workflow renders them and force-adds
+# the result.  Local `make demos` writes to assets/demo-preview/
+# instead (NEVER assets/demos/) so a contributor's local render
+# can't dirty `git status` for the tracked CI-published file.  A
+# repo guard fails any human commit that touches assets/demos/.
+assets/demos/
+assets/demo-preview/
+# *.log (line 2) already covers .gif.log files captured by
+# minimal_init.lua's :messages dump and read by the Makefile to
+# detect post-render errors that vhs would otherwise hide inside
+# the GIF (E-codes, "not modifiable", Lua stacks, etc.).

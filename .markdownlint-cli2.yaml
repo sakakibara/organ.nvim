@@ -1,0 +1,27 @@
+# markdownlint-cli2 config.  See https://github.com/DavidAnson/markdownlint
+# for the full rule list.  Tuned to match the README/CONTRIBUTING style
+# already in the repo so existing files don't all need rewrites.
+
+config:
+  # Line length: don't enforce -- the README has long URLs + cell rows
+  # that would be uglier broken than left over the limit.
+  MD013: false
+  # Allow inline HTML for the centered logo + collapsible sections.
+  MD033: false
+  # Allow duplicate headings (multiple "Install" subsections, etc.).
+  MD024: false
+  # Don't require a top-level h1 -- README uses centered HTML title.
+  MD041: false
+  # Allow bare URLs (rare but readable).
+  MD034: false
+  # Files don't need a single h1.
+  MD025: false
+
+globs:
+  - "**/*.md"
+
+ignores:
+  - "node_modules/**"
+  - "tests/deps/**"
+  - "org-mode/**"
+  - "org-roam/**"

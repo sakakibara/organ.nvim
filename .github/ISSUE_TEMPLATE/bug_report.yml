@@ -1,0 +1,80 @@
+name: Bug report
+description: Something isn't working the way the docs say it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report.  Please fill in everything below — the
+        environment block in particular saves a couple of round-trips.
+
+        For files that open correctly in Emacs but break in organ
+        (or vice versa), use the **Emacs / org-roam interop bug**
+        template instead — it's tuned for that comparison.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Run the commands below and paste their output verbatim.
+      value: |
+        - Neovim:
+          ```
+          $ nvim --version | head -1
+          ```
+        - organ.nvim version (commit if installed from git):
+          ```
+          $ cd <path/to/organ.nvim> && git rev-parse --short HEAD
+          ```
+        - OS + version (Linux distro / macOS / Windows):
+        - `:checkhealth organ` — paste at least the section that
+          covers your symptom (DB / parser / org_dir / etc.):
+          ```
+          ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal reproducer
+      description: |
+        The smallest org snippet + sequence of keys / commands that
+        triggers the bug.  A 5-line file beats a 500-line file.
+
+        State expected vs actual explicitly — bugs that "obviously"
+        differ from what you wanted are often subtle from outside.
+      placeholder: |
+        ```org
+        * TODO Bug
+          ...
+        ```
+
+        Steps:
+        1. `:edit /tmp/repro.org`
+        2. Cursor on line 1.
+        3. Press `<M-j>`.
+
+        Expected: subtree moves down.
+        Actual:   error message "Not an editor command".
+    validations:
+      required: true
+
+  - type: textarea
+    id: error
+    attributes:
+      label: Error / stack trace
+      description: |
+        Full stack trace (paste, don't summarise).  If there's no
+        explicit error, run `:messages` after triggering the bug
+        and paste anything organ-related.
+      render: text
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: |
+        Related plugins, custom config snippets, theory of cause,
+        anything else that might narrow it down.

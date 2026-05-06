@@ -1,0 +1,108 @@
+#+TITLE: Kitchen-sink Emacs/org-roam interop fixture
+#+AUTHOR: Hand-crafted reference
+#+TODO: TODO NEXT WAITING | DONE CANCELLED
+#+TAGS: { @work(w) @home(h) }
+#+FILETAGS: :reference:fixture:
+#+CATEGORY: refdoc
+#+STARTUP: showall
+#+OPTIONS: toc:nil num:nil
+#+LINK: gh https://github.com/%s
+#+MACRO: stamp [[$1][${2}]]
+#+BIBLIOGRAPHY: refs.bib
+
+* Top-level node                                      :@work:project:
+:PROPERTIES:
+:ID:       550e8400-e29b-41d4-a716-446655440000
+:CUSTOM_ID: top
+:ROAM_ALIASES: "Project Top"
+:ROAM_REFS: https://example.com
+:CATEGORY: refdoc
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-04-15 Wed 09:30]
+- State "TODO"       from              [2026-04-10 Fri 11:00]
+- Note taken on [2026-04-12 Sun 14:00] \\
+  Captured at lunch.
+:END:
+
+Body paragraph with [[id:11111111-1111-1111-1111-111111111111][an id link]] and
+a [[file:./other.org::*Heading][file-heading link]] and an [[https://example.com][http link]].
+A bracketed footnote reference[fn:1] and a numbered one[fn:2] and an inline one[fn::inline body].
+A cite reference: [cite:@knuth1968].
+
+** TODO [#A] First child :@work:hard:
+SCHEDULED: <2026-05-10 Sun> DEADLINE: <2026-05-15 Fri 14:00 +1w>
+:PROPERTIES:
+:ID:       11111111-1111-1111-1111-111111111111
+:EFFORT:   1:30
+:STYLE:    habit
+:END:
+
+Body of the first child.
+
+*** WAITING Second-level child
+CLOSED: [2026-04-20 Mon 10:00] SCHEDULED: <2026-05-12 Tue ++1d>
+
+A nested paragraph.  [[*Top-level node][Title link]].
+
+** NEXT [#B] Second child                                 :@home:
+:PROPERTIES:
+:ID:       22222222-2222-2222-2222-222222222222
+:END:
+
+A list:
+- Item one
+- Item two with [[id:11111111-1111-1111-1111-111111111111][a link inside]]
+  - Nested item
+- [ ] Unchecked task
+- [X] Checked task
+- [-] Partially-done task
+
+A numbered list:
+1. First
+2. Second
+3. Third
+
+A description list:
+- Term one :: definition one
+- Term two :: definition two
+
+A pipe table:
+| Name  | Score | Grade |
+|-------+-------+-------|
+| Alice |   95  | A     |
+| Bob   |   72  | C     |
+| Carol |   88  | B     |
+#+TBLFM: $3='(if (>= $2 90) "A" (if (>= $2 80) "B" "C"))
+
+A src block:
+#+BEGIN_SRC python :tangle /tmp/sample.py :results output
+print("hello from python")
+#+END_SRC
+
+A LaTeX fragment $E = mc^2$ and a display equation:
+\begin{equation}
+\int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2}
+\end{equation}
+
+A quoted block:
+#+BEGIN_QUOTE
+The price of reliability is the pursuit of the utmost simplicity.
+#+END_QUOTE
+
+* Footnotes
+[fn:1] Bracketed footnote body.
+[fn:2] Numbered footnote body that wraps
+across multiple lines like Emacs allows.
+
+* Archive                                                  :ARCHIVE:
+** DONE Archived task
+:PROPERTIES:
+:ARCHIVE_TIME: 2026-04-01 Wed 09:00
+:ARCHIVE_FILE: /home/u/org/notes.org
+:ARCHIVE_OLPATH: Top-level node/Sub
+:ARCHIVE_TODO: TODO
+:ARCHIVE_CATEGORY: refdoc
+:ARCHIVE_ITAGS: project
+:ID:       33333333-3333-3333-3333-333333333333
+:END:

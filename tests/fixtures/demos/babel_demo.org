@@ -1,0 +1,17 @@
+#+TITLE: Babel demo
+
+A small Lua source block.  Press =,xb= (or =:Org babel execute=)
+inside the block to run it; the result lands as =#+RESULTS:= right
+below.
+
+Lua is built into Neovim's tree-sitter, so the body highlights
+without any extra parser install.
+
+#+begin_src lua
+local pow = function(b, e)
+  local r = 1
+  for _ = 1, e do r = r * b end
+  return r
+end
+return pow(2, 10)
+#+end_src

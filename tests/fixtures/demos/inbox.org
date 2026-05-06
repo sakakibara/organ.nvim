@@ -1,0 +1,4 @@
+#+TITLE: Inbox
+#+CATEGORY: inbox
+
+* Inbox

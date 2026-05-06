@@ -1,0 +1,79 @@
+name: Emacs / org-roam interop bug
+description: A file that opens correctly in Emacs but breaks in organ (or vice versa).
+labels: ["bug", "interop"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        organ.nvim aims for byte-level format compatibility with Emacs
+        org-mode + org-roam.  If a file opens cleanly in one and
+        breaks in the other — wrong AST, wrong highlighting, missing
+        agenda row, broken roam link — that's a bug we want to know
+        about.
+
+        Please link the relevant `org-*` defcustom or function (e.g.
+        `org-priority-regexp`, `org-element-headline-parser`) so the
+        fix has a clear parity reference.
+
+  - type: textarea
+    id: file
+    attributes:
+      label: Org file (smallest reproducer)
+      description: |
+        The smallest snippet that exhibits the difference.  Strip
+        everything not load-bearing — five lines beats fifty.
+      render: org
+    validations:
+      required: true
+
+  - type: textarea
+    id: emacs
+    attributes:
+      label: Emacs behavior
+      description: |
+        What does Emacs do with the file?  Include:
+        - Emacs + org-mode versions (`M-x org-version`)
+        - Relevant config (`org-todo-keywords`, `org-log-into-drawer`,
+          custom faces, etc.)
+        - The expected output / behavior (screenshot or paste)
+    validations:
+      required: true
+
+  - type: textarea
+    id: organ
+    attributes:
+      label: organ.nvim behavior
+      description: |
+        What does organ do?  Include the specific commands or queries
+        that diverge, the actual output, and any error messages from
+        `:messages`.
+    validations:
+      required: true
+
+  - type: input
+    id: parity_reference
+    attributes:
+      label: Emacs parity reference
+      description: |
+        Link to the relevant Emacs `org-*` defcustom / function /
+        regex on Worg, the org source, or the manual.
+      placeholder: "https://orgmode.org/manual/... or https://github.com/bzg/org-mode/blob/main/lisp/org.el#L..."
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      value: |
+        - Neovim:
+          ```
+          $ nvim --version | head -1
+          ```
+        - organ.nvim version (commit if installed from git):
+          ```
+          $ cd <path/to/organ.nvim> && git rev-parse --short HEAD
+          ```
+        - Emacs + org-mode version:
+          ```
+          M-x org-version
+          ```
+        - OS + version:

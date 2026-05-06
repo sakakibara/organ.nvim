@@ -1,0 +1,35 @@
+#+CATEGORY: Habits
+#+TITLE: Habits
+
+* TODO Morning walk                                                            :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+* TODO Read for 30 minutes                                                     :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+* TODO Stretch                                                                 :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+* TODO Donate                                                                  :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-01 Fri .+1w>
+* NEXT Long run (10km+)                                                        :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-04 Mon .+7d>
+* NEXT Weekly review                                                           :habit:
+  SCHEDULED: <2026-05-04 Mon 17:00 .+7d>
+* PROJ Strength training                                                       :habit:
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+  SCHEDULED: <2026-05-07 Thu .+3d>

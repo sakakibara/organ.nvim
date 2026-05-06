@@ -1,0 +1,16 @@
+* TODO Write the Q2 report
+  SCHEDULED: <2026-04-25 Sat>
+  Body paragraph here.
+
+* TODO Combined planning on one line
+  SCHEDULED: <2026-04-25 Sat> DEADLINE: <2026-04-30 Thu>
+  Body.
+
+* DONE Closed task
+  CLOSED: [2026-04-20 Mon 14:30]
+  Notes.
+
+* TODO Planning across multiple lines
+  SCHEDULED: <2026-04-25 Sat>
+  DEADLINE: <2026-04-30 Thu>
+  Body.

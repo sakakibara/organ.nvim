@@ -1,0 +1,9 @@
+#+TITLE: Multi-sequence TODO support
+:PROPERTIES:
+:ID: multi-sequence
+:END:
+
+Per-file ~#+TODO:~ directives + Emacs-style annotated keywords with
+key-binding hints and log policy.
+
+See [[id:organ-nvim][organ.nvim]] for the parent project notes.

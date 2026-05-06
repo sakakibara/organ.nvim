@@ -1,0 +1,21 @@
+* TODO First task
+  Body under todo.
+
+* DONE Completed task
+  CLOSED: [2026-04-20 Mon 10:00]
+
+* WAITING Blocked task
+  Body.
+
+* TODO [#A] High priority todo
+  Some content.
+
+* TODO [#C] Low priority todo
+  Other content.
+
+* DONE [#B] Done with priority
+  CLOSED: [2026-04-18 Sat 09:00]
+  Body.
+
+* Headline without state
+  Plain body.

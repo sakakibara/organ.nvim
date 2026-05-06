@@ -1,0 +1,3012 @@
+*organ.txt*  Unified org-mode + org-roam for Neovim
+
+Author:  Sho Sakakibara
+License: MIT
+
+==============================================================================
+TABLE OF CONTENTS                                                  *organ-toc*
+
+  Introduction ........................... |organ-introduction|
+  Requirements ........................... |organ-requirements|
+  Installation ........................... |organ-installation|
+  Quickstart ............................. |organ-quickstart|
+  Configuration .......................... |organ-config|
+    Conventions .......................... |organ-config-conventions|
+    Defaults ............................. |organ-config-defaults|
+    Capture .............................. |organ-config-capture|
+    Agenda ............................... |organ-config-agenda|
+    Find ................................. |organ-config-find|
+    Roam ................................. |organ-config-roam|
+    Clock ................................ |organ-config-clock|
+    Structure ............................ |organ-config-structure|
+    Table ................................ |organ-config-table|
+    TODO ................................. |organ-config-todo|
+    Property ............................. |organ-config-property|
+    Inline editing ....................... |organ-config-inline-edit|
+    Completion ........................... |organ-config-complete|
+    Watcher .............................. |organ-config-watcher|
+    Backlinks ............................ |organ-config-backlinks|
+    Sparse trees ......................... |organ-config-sparse|
+    Fold ................................. |organ-config-fold|
+    Indent ............................... |organ-config-indent|
+    Format ............................... |organ-config-format|
+    LSP .................................. |organ-config-lsp|
+    Global keymaps ....................... |organ-config-global-keymaps|
+  Commands ............................... |organ-commands|
+    Indexing ............................. |organ-cmd-indexing|
+    Capture .............................. |organ-cmd-capture|
+    Capture extras ....................... |organ-cmd-capture-ext|
+    Agenda ............................... |organ-cmd-agenda|
+    Agenda extras ........................ |organ-cmd-agenda-ext|
+    Find ................................. |organ-cmd-find|
+    Clock ................................ |organ-cmd-clock|
+    Roam ................................. |organ-cmd-roam|
+    Roam extras .......................... |organ-cmd-roam-ext|
+    Structure ............................ |organ-cmd-structure|
+    Subtree operations ................... |organ-cmd-subtree-ops|
+    Inline editing ....................... |organ-cmd-inline-edit|
+    Property ............................. |organ-cmd-property|
+    Tables ............................... |organ-cmd-tables|
+    Table extras ......................... |organ-cmd-tables-ext|
+    Sparse trees ......................... |organ-cmd-sparse|
+    Sparse tree (org-match) .............. |organ-cmd-match|
+    Watcher .............................. |organ-cmd-watcher|
+    TODO ................................. |organ-cmd-todo|
+    TODO dependencies / ORDERED .......... |organ-cmd-todo-ext|
+    Planning (sched/dead/eff/tags/prop) .. |organ-cmd-planning|
+    Links, IDs, goto ..................... |organ-cmd-links|
+    Lists, checkboxes, inline tasks ...... |organ-cmd-lists|
+    Footnotes ............................ |organ-cmd-footnotes|
+    Footnote extras ...................... |organ-cmd-footnote-ext|
+    Source-block edit .................... |organ-cmd-src|
+    Babel (src execution) ................ |organ-cmd-babel|
+    Citations ............................ |organ-cmd-cite|
+    Macros / SETUPFILE / INCLUDE ......... |organ-cmd-expand|
+    Dynamic blocks ....................... |organ-cmd-dblock|
+    Column view .......................... |organ-cmd-columns|
+    Attach ............................... |organ-cmd-attach|
+    Export backends ...................... |organ-cmd-export|
+    LaTeX fragments ...................... |organ-cmd-latex|
+    Display toggles ...................... |organ-cmd-display|
+    Publish .............................. |organ-cmd-publish|
+    Holidays ............................. |organ-cmd-holidays|
+    Miscellaneous ........................ |organ-cmd-misc|
+    Misc extras .......................... |organ-cmd-misc-ext|
+  Native OS notifications ................ |organ-notifier|
+  Timer / pomodoro ....................... |organ-timer|
+  Profiler / instrumentation ............. |organ-profile|
+  Babel sessions ......................... |organ-babel-sessions|
+  org-modern visual upgrades ............. |organ-modern|
+  Star concealment ....................... |organ-stars|
+  Agenda Emacs-parity .................... |organ-agenda-parity|
+  Keymaps ................................ |organ-keymaps|
+    Global ............................... |organ-keymaps-global|
+    FileType=org buffer-local ............ |organ-keymaps-org|
+    Agenda buffer ........................ |organ-keymaps-agenda|
+    Capture buffer ....................... |organ-keymaps-capture|
+  Architecture ........................... |organ-architecture|
+  Emacs / org-roam interop ............... |organ-interop|
+  Differences from Emacs ................. |organ-differences|
+  License ................................ |organ-license|
+
+==============================================================================
+INTRODUCTION                                              *organ-introduction*
+
+organ.nvim is a unified org-mode + org-roam implementation for Neovim.
+It uses a tree-sitter grammar (`tree-sitter-organ` + `tree-sitter-organ-
+inline`, separate public repos) for parsing and SQLite for indexing
+headlines, links, properties, and timestamps.
+
+Feature set (pre-1.0, daily-driver parity with Emacs):
+ - TODO cycling, agenda, capture, clocking
+ - Links, refile, backlinks
+ - org-roam nodes, dailies
+ - Properties, tag inheritance
+ - Sparse trees
+ - Tables: auto-align, row/col operations, formulas
+
+Explicitly deferred: Babel, export, org-roam graph.
+
+Status: Pre-1.0. API may change before 1.0. Feedback welcome.
+
+==============================================================================
+REQUIREMENTS                                              *organ-requirements*
+
+ - Neovim 0.10+ (uses `nvim_set_option_value`, `vim.uv`, etc.)
+ - SQLite 3 runtime — FFI-loaded; no Lua binding required. Linux/macOS
+   ship it; Windows users may need to install it separately.
+ - `git` + `make` + a C compiler to build the tree-sitter grammars.
+   No Node / npm / pnpm needed: each grammar repo commits the
+   generated parser.c; install clones the repos and runs `make`.
+
+==============================================================================
+INSTALLATION                                              *organ-installation*
+
+With lazy.nvim: ~
+>lua
+    {
+      "sakakibara/organ.nvim",
+      dependencies = { "sakakibara/tablature.nvim" },
+      build = function() require("organ.grammar_install").install() end,
+      config = function()
+        require("organ").setup({
+          org_dir = vim.fn.expand("~/org"),
+        })
+      end,
+    }
+<
+
+With vim.pack (Neovim 0.12+ built-in, no third-party manager): ~
+>lua
+    vim.pack.add({
+      "https://github.com/sakakibara/tablature.nvim",
+      "https://github.com/sakakibara/organ.nvim",
+    })
+    require("organ.grammar_install").install()  -- one-time; idempotent
+    require("organ").setup({
+      org_dir = vim.fn.expand("~/org"),
+    })
+<
+
+The build step clones `tree-sitter-organ` + `tree-sitter-organ-inline`
+into `<stdpath data>/organ/`, compiles the parsers into
+`<stdpath data>/organ/parser/{org,org_inline}.so`, and registers them
+via `vim.treesitter.language.add` lazily (on first tree-sitter call,
+not at `setup()` time). nvim-treesitter is NOT required.
+
+`plugin/organ.lua` runs at Neovim startup and registers all `:Org*`
+commands. No DB or tree-sitter work happens at this stage, so startup
+time is unaffected regardless of how many org files you have.
+
+`ftplugin/org.lua` installs buffer-local keymaps when a buffer's
+filetype is set to `org`.
+
+==============================================================================
+QUICKSTART                                                  *organ-quickstart*
+
+Commands to try first:
+>vim
+    :Org scan              " index org_dir into SQLite
+    :Org agenda            " open the default agenda view
+    :Org find              " fuzzy-find headlines
+    :Org capture           " run a capture template
+    :Org clock in           " start a clock on the headline at cursor
+    :Org roam daily today    " open today's daily note
+<
+
+Default global keymaps (from any buffer):
+
+    `<Leader>oc`   |:Org-capture|
+    `<Leader>oa`   |:Org-agenda|
+    `<Leader>of`   |:Org-find|
+    `<Leader>or`   |:Org-roam|
+    `<Leader>od`   |:Org-roam_daily_today|
+    `<Leader>oi`   |:Org-clock_in|
+    `<Leader>oo`   |:Org-clock_out|
+
+See |organ-config-global-keymaps| for the full table.
+
+==============================================================================
+CONFIGURATION                                                   *organ-config*
+
+All configuration is passed to `require("organ").setup({...})`.
+
+------------------------------------------------------------------------------
+Conventions                                         *organ-config-conventions*
+
+Five rules govern how config works:
+
+1. List/map collections REPLACE on user override. ~
+   `capture.templates`, `agenda.views`, etc. — provide your own list to
+   fully replace defaults. Compose with defaults via: >lua
+       local defaults = require("organ.defaults")
+       require("organ").setup({
+         capture = {
+           templates = vim.tbl_extend("force",
+             defaults.capture.templates, {
+               { name  = "My Note", key = "x",
+                 target = { kind = "file",
+                            path = "~/org/scratch.org" },
+                 body  = "* %?" },
+             }),
+         },
+       })
+<
+
+2. Keymap blocks DEEP-MERGE. ~
+   Set `keymaps.<name> = "<lhs>"` to override a single key.
+   Set `keymaps.<name> = false` to disable that one binding.
+   Set `keymaps = false` to disable all keymaps for a feature.
+
+3. Every feature has `enabled = true`. ~
+   Set `<feature>.enabled = false` to turn it off: keymaps not
+   installed, autocmds not registered, and the feature's `:Org*`
+   commands removed from Neovim's completion list.
+   Exception: `watcher.enabled = false` means "don't auto-start"; the
+   `:Org watch_*` commands stay registered.
+
+4. `nil` is "absent". ~
+   To disable something use `false`, not `nil`. `vim.tbl_deep_extend`
+   strips nil values.
+
+5. Defaults are public. ~
+   `require("organ.defaults")` returns the canonical default config.
+   Inspect, copy, or compose from it.
+
+Examples: >lua
+    -- Disable property editing entirely
+    require("organ").setup({ property = { enabled = false } })
+
+    -- Override one keymap
+    require("organ").setup({
+      structure = { keymaps = { promote_subtree = "<Leader>op" } },
+    })
+
+    -- Disable all subtree keymaps
+    require("organ").setup({ structure = { keymaps = false } })
+<
+
+------------------------------------------------------------------------------
+Defaults                                               *organ-config-defaults*
+
+Top-level options:
+
+                                                        *organ-config-org_dir*
+    `org_dir` (string, default: `"~/org"`)
+    Root directory scanned by |:Org-scan|.
+
+                                                        *organ-config-db_path*
+    `db_path` (string, default: `stdpath("data") .. "/organ.db"`)
+    Path to the SQLite database file.
+
+                                                    *organ-config-parser_path*
+    `parser_path` (string)
+    Path to the compiled `org.so` grammar. Set automatically.
+
+                                                *organ-config-scan_on_startup*
+    `scan_on_startup` (bool, default: `false`)
+    If `true`, run a scan on every Neovim startup.
+
+                                                    *organ-config-debounce_ms*
+    `debounce_ms` (number, default: `200`)
+    Milliseconds to debounce file-change events.
+
+                                                    *organ-config-incremental*
+    `incremental` (bool, default: `true`)
+    Only reindex changed files.
+
+                                                     *organ-config-mtime_skip*
+    `mtime_skip` (bool, default: `true`)
+    Skip files whose mtime hasn't changed.
+
+                                                      *organ-config-hash_skip*
+    `hash_skip` (bool, default: `true`)
+    Skip files whose content hash matches the stored hash.
+
+                                                   *organ-config-auto_recover*
+    `auto_recover` (bool, default: `true`)
+    Auto-recover from DB corruption.
+
+                                                   *organ-config-ignore_globs*
+    `ignore_globs` (list, default: `{"**/archive/**", "**/.git/**", ...}`)
+    Glob patterns for paths to skip during scan.
+
+                                                *organ-config-scan_batch_size*
+    `scan_batch_size` (number, default: `50`)
+    Files per batch during a scan.
+
+                                                         *organ-config-notify*
+    `notify` (bool, default: `true`)
+    Show `vim.notify` messages for scan results, errors, etc.
+
+                                                      *organ-config-log_level*
+    `log_level` (string, default: `"info"`)
+    Log level for internal messages.
+
+                                                        *organ-config-pragmas*
+    `pragmas` (table)
+    SQLite PRAGMA settings. Defaults: WAL journal, NORMAL synchronous,
+    64 MB mmap, 5 s busy_timeout, foreign keys ON.
+
+------------------------------------------------------------------------------
+Capture                                                 *organ-config-capture*
+
+                                                *organ-config-capture-enabled*
+    `capture.enabled` (bool, default: `true`)
+
+                                              *organ-config-capture-templates*
+    `capture.templates` (list)
+    List of capture template tables. Each entry has:
+
+    `name`    Display name shown in the picker.
+    `key`     Single character to activate this template directly.
+    `target`  Where to file the entry. See target kinds below.
+    `body`    Template string with placeholders.
+
+    Target kinds:
+     - `{ kind = "file", path = "~/org/notes.org" }` — append to file.
+     - `{ kind = "file_headline", path = "...", headline = "Tasks" }`
+       — append under named headline.
+     - `{ kind = "file_olp_datetree", path = "..." }` — datetree.
+
+    Placeholder reference:
+     `%t`        Inactive timestamp `[YYYY-MM-DD Day]`
+     `%T`        Active timestamp `<YYYY-MM-DD Day>`
+     `%u`        Inactive timestamp + time
+     `%U`        Active timestamp + time
+     `%a`        Annotation (link to current file + line)
+     `%i`        Initial content (from clipboard / selection)
+     `%?`        Cursor position after template expansion
+     `%^{Prompt}` Prompt user for a value
+     `%<format>` Date formatted with `os.date(format)`
+
+    Default templates: Task (`t`), Note (`n`), Journal (`j`).
+
+                                    *organ-config-capture-jump_after_finalise*
+    `capture.jump_after_finalise` (bool, default: `false`)
+    If `true`, jump to the filed entry after finalising.
+
+                                                 *organ-config-capture-window*
+    `capture.window` (table)
+    Controls the capture buffer window:
+     - `kind`: `"float"` | `"split"` | `"vsplit"` (default: `"float"`)
+     - `width`: float 0–1 (fraction of screen) or integer columns.
+     - `height`: float 0–1 or integer rows.
+     - `border`: `"rounded"` | `"single"` | `"double"` | etc.
+     - `title`: window title format string.
+     - `title_pos`: `"center"` | `"left"` | `"right"`.
+
+                                        *organ-config-capture-datetree_format*
+    `capture.datetree_format` (list of strings)
+    `os.date` format strings for each datetree level.
+    Default: `{ "%Y", "%Y-%m %B", "%Y-%m-%d %A" }` (year / month / day).
+
+                                                *organ-config-capture-keymaps*
+    `capture.keymaps` (table)
+    See |organ-keymaps-capture|.
+
+                                                  *organ-config-capture-popup*
+    `capture.popup` (table)
+    Template picker popup options (`border`, `width`, `max_lines`).
+
+------------------------------------------------------------------------------
+Agenda                                                   *organ-config-agenda*
+
+                                                 *organ-config-agenda-enabled*
+    `agenda.enabled` (bool, default: `true`)
+
+                                            *organ-config-agenda-default_view*
+    `agenda.default_view` (table)
+    The view shown by |:Org-agenda| when no named view is selected.
+    Fields:
+     - `from`, `to`: date range. `"today"`, `"+7d"`, ISO strings.
+     - `types`: list of `"scheduled"` | `"deadline"` | `"active"`.
+     - `todo.exclude`: list of TODO states to hide.
+     - `include_overdue` (bool): include overdue items.
+     - `group_by`: `"day"` | `"file"` | `"priority"` | `"todo"`.
+     - `order_within_group`: list of `{ field, direction }` pairs.
+
+                                                   *organ-config-agenda-views*
+    `agenda.views` (table, default: `{}`)
+    Named views. Keys are view names; values are view tables with a
+    `blocks` list. Each block is a view table (same fields as
+    `default_view`). Example: >lua
+        agenda = {
+          views = {
+            weekly = {
+              blocks = {
+                { from = "today", to = "+7d",
+                  types = { "scheduled", "deadline" },
+                  todo = { exclude = { "DONE", "CANCELLED" } },
+                  include_overdue = true, group_by = "day" },
+              },
+            },
+          },
+        }
+<
+
+                                     *organ-config-agenda-refresh_debounce_ms*
+    `agenda.refresh_debounce_ms` (number, default: `300`)
+
+                                             *organ-config-agenda-line_format*
+    `agenda.line_format` (function or nil)
+    Custom line formatter for agenda items.
+
+                                                 *organ-config-agenda-keymaps*
+    `agenda.keymaps` (table)
+    See |organ-keymaps-agenda|.
+
+------------------------------------------------------------------------------
+Find                                                       *organ-config-find*
+
+                                                   *organ-config-find-enabled*
+    `find.enabled` (bool, default: `true`)
+
+                                                   *organ-config-find-backend*
+    `find.backend` (string, default: `"snacks"`)
+    Picker backend. `"snacks"` uses snacks.nvim if installed.
+
+                                                   *organ-config-find-columns*
+    `find.columns` (list)
+    Columns displayed in the picker:
+    `level`, `todo`, `priority`, `title`, `tags`, `backlinks`, `path`.
+
+                                              *organ-config-find-match_fields*
+    `find.match_fields` (list)
+    Fields used for filtering: `title`, `tags`, `path`, `todo`,
+    `priority`.
+
+    Prefix token syntax in the prompt:
+     `todo:NEXT`       filter by TODO state
+     `priority:A`      filter by priority
+     `tag:work`        filter by tag
+     `file:inbox`      filter by filename
+    Plain words match title. Tokens AND together.
+
+                                                   *organ-config-find-keymaps*
+    `find.keymaps` (table)
+    Non-default keys active inside the find picker.  `<CR>` is
+    implicit -- it ALWAYS fires the picker's default action
+    (jump for `:Org find`, refile_here for `:Org refile`,
+    insert_link for `:Org link insert`, follow for link-target
+    pickers).  This table is for the SECONDARY keys only:
+     `split`           horizontal split   (`<C-s>`)
+     `vsplit`          vertical split     (`<C-v>`)
+     `tab`             new tab            (`<C-t>`)
+     `backlinks`       show backlinks     (`<C-b>`)
+     `jump_to_source`  jump to source     (`<C-o>`)
+     `create`          create new node    (`<M-CR>`)
+
+------------------------------------------------------------------------------
+Roam                                                       *organ-config-roam*
+
+                                                   *organ-config-roam-enabled*
+    `roam.enabled` (bool, default: `true`)
+
+                                                       *organ-config-roam-dir*
+    `roam.dir` (string, default: `"~/org/roam"`)
+    Directory for roam node files.
+
+                                             *organ-config-roam-file_template*
+    `roam.file_template` (string or nil)
+    Template for new roam node file names.
+
+                                             *organ-config-roam-body_template*
+    `roam.body_template` (string or nil)
+    Template for new roam node body.
+
+                                                   *organ-config-roam-dailies*
+    `roam.dailies.subdir` (string, default: `"daily"`)
+    Subdirectory under `roam.dir` for daily notes.
+
+                                          *organ-config-roam-dailies-template*
+    `roam.dailies.template` (string or nil)
+    Template body for new daily notes.
+
+------------------------------------------------------------------------------
+Clock                                                     *organ-config-clock*
+
+                                                  *organ-config-clock-enabled*
+    `clock.enabled` (bool, default: `true`)
+
+                                               *organ-config-clock-log_drawer*
+    `clock.log_drawer` (string or nil)
+    Drawer name for clock entries. `nil` inherits from
+    `todo.log_drawer` (default `"LOGBOOK"`).
+
+                                   *organ-config-clock-idle_threshold_minutes*
+    `clock.idle_threshold_minutes` (number or nil)
+    If set, prompts to subtract idle time when Neovim is idle for
+    longer than this many minutes. `nil` disables idle resolution.
+
+                                                  *organ-config-clock-keymaps*
+    `clock.keymaps` (table)
+    All default to `nil` (no buffer-local binding). Set to a key
+    string to bind in org buffers:
+     `in_`     |:Org-clock_in|
+     `out`     |:Org-clock_out|
+     `cancel`  |:Org-clock_cancel|
+     `jump`    |:Org-clock_jump|
+     `report`  |:Org-clock_report|
+
+------------------------------------------------------------------------------
+Structure                                             *organ-config-structure*
+
+                                              *organ-config-structure-enabled*
+    `structure.enabled` (bool, default: `true`)
+
+                                              *organ-config-structure-keymaps*
+    `structure.keymaps` (table)
+     `promote_subtree`   `"<<"` — promote subtree one level
+     `demote_subtree`    `">>"` — demote subtree one level
+     `promote_headline`  `<LocalLeader><` — promote headline only
+     `demote_headline`   `<LocalLeader>>` — demote headline only
+     `move_subtree_up`   `"gK"` — swap with previous sibling
+     `move_subtree_down` `"gJ"` — swap with next sibling
+
+------------------------------------------------------------------------------
+Table                                                     *organ-config-table*
+
+                                                  *organ-config-table-enabled*
+    `table.enabled` (bool, default: `true`)
+
+                                                  *organ-config-table-keymaps*
+    `table.keymaps` (table)
+     `next_cell`  `<Tab>` — move to next cell; realign; fold on headline
+     `prev_cell`  `<S-Tab>` — move to previous cell; fold globally
+     `menu`       `<LocalLeader>tt` — open table operations menu
+
+------------------------------------------------------------------------------
+TODO                                                       *organ-config-todo*
+
+                                                  *organ-config-todo-sequence*
+    `todo.sequence` (list or list-of-lists)
+    Ordered list of TODO states. `"|"` separates active from done.
+    Mirrors Emacs `org-todo-keywords`.
+    Default: `{ "TODO", "NEXT", "WAITING", "HOLD", "PROJ", "|",`
+              `"DONE", "CANCELLED" }`
+
+    Two shapes accepted:
+
+    Single sequence: ~
+>lua
+        sequence = { "TODO", "WAIT", "|", "DONE" }
+<
+    Multi-sequence (each sub-list has its own active->done): ~
+>lua
+        sequence = {
+          { "TODO", "WAIT", "|", "DONE" },
+          { "BUG", "TRIAGE", "|", "FIXED" },
+        }
+<
+    Cycling stays within the matched sub-sequence (BUG cycles to
+    TRIAGE then FIXED, never to DONE).
+
+                                               *organ-config-todo-annotations*
+    Each keyword may carry an Emacs-style annotation suffix in
+    parentheses controlling the fast-selection key + log policy:
+
+        `"TODO(t)"`        `t` = fast-selection key
+        `"NEXT(n!)"`       `!` log timestamp on entry
+        `"WAIT(w@)"`       `@` log + prompt for note on entry
+        `"DONE(d/!)"`      `/!` log timestamp on EXIT
+        `"DONE(d@/!)"`     prompt + note on entry, time on exit
+        `"REPORT(@)"`      no key, only log policy
+
+    Annotation-derived log policy is applied automatically -- no
+    separate `log_states` entry needed for the common case.
+    Explicit `log_states` overrides annotations.
+
+                                               *organ-config-todo-fast-select*
+    Fast-selection (Emacs `org-fast-todo-selection`) is invoked by:
+
+        `<M-T>`             ergonomic chord (most terminals)
+        `<LocalLeader>T`    universal fallback (every terminal)
+        `:Org todo fast`    explicit command
+
+    Press the annotated key to apply that state, `<Space>` to
+    clear, `<Esc>` to cancel.  When no keywords are annotated,
+    falls back to a `vim.ui.select` prompt.
+
+                                                  *organ-config-todo-log_done*
+    `todo.log_done` (string, default: `"time"`)
+    What to log when a TODO is marked DONE: `"time"` or `"note"`.
+
+                                                *organ-config-todo-log_drawer*
+    `todo.log_drawer` (string, default: `"LOGBOOK"`)
+    Drawer name used for TODO state change log entries.
+
+                                                *organ-config-todo-log_states*
+    `todo.log_states` (table, default: `{}`)
+    Per-destination-state logging policy. Maps a state name to one of
+    `"time"`, `"note"`, or `false`. Mirrors Emacs per-keyword `(state .
+    "@")` / `(state . "!")` syntax. Setting a state to `false` suppresses
+    logging for that destination even if `log_state_changes = true`.
+    Example: `{ WAITING = "note", HOLD = "time" }`.
+
+                                         *organ-config-todo-log_state_changes*
+    `todo.log_state_changes` (boolean, default: `false`)
+    When true, every TODO state transition writes a timestamp entry to
+    the log drawer (per-state `log_states` overrides still apply).
+
+                                           *organ-config-todo-log_into_drawer*
+    `todo.log_into_drawer` (boolean, default: `true`)
+    When true, state-change log entries wrap inside `log_drawer`. When
+    false, entries appear as bare list items immediately after the
+    planning block. Mirrors Emacs `org-log-into-drawer`.
+
+                                                   *organ-config-todo-keymaps*
+    `todo.keymaps` (table)
+    All default to `nil`:
+     `cycle`  Cycle through TODO states
+     `set`    Open picker to set TODO state
+
+                                                 *organ-config-todo-calendars*
+    `todo.calendars` (list, default: `{}`)
+    Holiday calendar names used by repeater skip filters.
+
+                                           *organ-config-todo-default_country*
+    `todo.default_country` (string or nil)
+    ISO country code for the default holiday calendar.
+
+                                        *organ-config-todo-holidays_cache_dir*
+    `todo.holidays_cache_dir` (string or nil)
+    Directory for cached holiday calendar data.
+
+------------------------------------------------------------------------------
+Property                                               *organ-config-property*
+
+                                               *organ-config-property-enabled*
+    `property.enabled` (bool, default: `true`)
+
+                                               *organ-config-property-keymaps*
+    `property.keymaps` (table)
+     `set`     `<LocalLeader>ps` — set or update a property
+     `delete`  `<LocalLeader>pd` — delete a property
+
+------------------------------------------------------------------------------
+Inline editing                                      *organ-config-inline-edit*
+
+                                            *organ-config-inline-edit-enabled*
+    `inline_edit.enabled` (bool, default: `true`)
+
+                                            *organ-config-inline-edit-keymaps*
+    `inline_edit.keymaps` (table)
+     `increment`  `<C-a>` — increment value at cursor
+     `decrement`  `<C-x>` — decrement value at cursor
+
+                                 *organ-config-inline-edit-fallback_increment*
+    `inline_edit.fallback_increment` (function or nil)
+    Called when no org-context is detected at cursor.
+
+                                 *organ-config-inline-edit-fallback_decrement*
+    `inline_edit.fallback_decrement` (function or nil)
+    Called when no org-context is detected at cursor.
+
+    Example with dial.nvim: >lua
+        inline_edit = {
+          fallback_increment = function()
+            require("dial.map").manipulate("increment", "normal")
+          end,
+          fallback_decrement = function()
+            require("dial.map").manipulate("decrement", "normal")
+          end,
+        }
+<
+
+------------------------------------------------------------------------------
+Completion                                             *organ-config-complete*
+
+                                               *organ-config-complete-enabled*
+    `complete.enabled` (bool, default: `true`)
+    Auto-triggers the link completion menu on `[[id:`, `[[*`,
+    `[[file:`, `[[attachment:`, `[[<KEY>:` in insert mode.
+
+                                        *organ-config-complete-attachment_dir*
+    `complete.attachment_dir` (string or nil)
+    Directory for attachment file completion.
+
+                                 *organ-config-complete-file_walk_max_results*
+    `complete.file_walk_max_results` (number, default: `500`)
+    Maximum results when walking the filesystem for file completion.
+
+                                                   *organ-config-complete-cmp*
+    `complete.cmp` (bool, default: `true`)
+    Register as a nvim-cmp source if nvim-cmp is loaded.
+
+                                                 *organ-config-complete-blink*
+    `complete.blink` (bool, default: `true`)
+    Register as a blink.cmp source if blink.cmp is loaded.
+
+------------------------------------------------------------------------------
+Watcher                                                 *organ-config-watcher*
+
+                                                *organ-config-watcher-enabled*
+    `watcher.enabled` (bool, default: `true`)
+    `false` means "don't auto-start". The `:Org watch_*` commands remain
+    available so the watcher can be started manually.
+
+                                             *organ-config-watcher-watch_dirs*
+    `watcher.watch_dirs` (list, default: `{}`)
+    Extra directories to watch in addition to `org_dir`.
+
+                                     *organ-config-watcher-auto_watch_buffers*
+    `watcher.auto_watch_buffers` (bool, default: `true`)
+    Automatically watch the directory of each org buffer opened.
+
+                                        *organ-config-watcher-delete_grace_ms*
+    `watcher.delete_grace_ms` (number, default: `500`)
+    Milliseconds to wait before processing a delete event (handles
+    editor save-via-rename patterns).
+
+                                     *organ-config-watcher-rescan_interval_ms*
+    `watcher.rescan_interval_ms` (number, default: `60000`)
+    Periodic full-rescan interval in milliseconds (1 minute).
+
+                                                 *organ-config-watcher-ignore*
+    `watcher.ignore` (list)
+    Lua patterns for paths to ignore. Defaults cover `.git/`, swap
+    files, backup files, and temp files.
+
+                                            *organ-config-watcher-use_polling*
+    `watcher.use_polling` (bool, default: `false`)
+    Fall back to polling instead of `libuv` fs_event.
+
+                                       *organ-config-watcher-poll_interval_ms*
+    `watcher.poll_interval_ms` (number, default: `5000`)
+    Poll interval when `use_polling = true`.
+
+------------------------------------------------------------------------------
+Backlinks                                             *organ-config-backlinks*
+
+                                              *organ-config-backlinks-enabled*
+    `backlinks.enabled` (bool, default: `true`)
+
+                                  *organ-config-backlinks-refresh_debounce_ms*
+    `backlinks.refresh_debounce_ms` (number, default: `300`)
+
+                                          *organ-config-backlinks-line_format*
+    `backlinks.line_format` (function or nil)
+    Custom formatter for backlink list lines.
+
+                                              *organ-config-backlinks-keymaps*
+    `backlinks.keymaps` (table)
+     `jump`        `<CR>` — open the source headline
+     `open_split`  `"o"` — open in split
+     `open_vsplit` `"v"` — open in vsplit
+     `refresh`     `"r"` — refresh the backlinks list
+     `close`       `"q"` — close the buffer
+     `help`        `"g?"` — show keymap help
+
+------------------------------------------------------------------------------
+Sparse trees                                             *organ-config-sparse*
+
+                                                 *organ-config-sparse-enabled*
+    `sparse.enabled` (bool, default: `true`)
+    Gates `:Org sparse_tree_*` commands.
+
+------------------------------------------------------------------------------
+Fold                                                       *organ-config-fold*
+
+                                                   *organ-config-fold-keymaps*
+    `fold.keymaps` (table)
+     `cycle`        `<Tab>` — cycle fold state of headline at cursor
+     `cycle_global` `<S-Tab>` — cycle global fold state
+
+    Note: `<Tab>` is shared with table navigation. When the cursor is
+    on a table row it navigates cells; on a headline it folds.
+
+------------------------------------------------------------------------------
+Indent                                                   *organ-config-indent*
+
+                                                 *organ-config-indent-enabled*
+    `indent.enabled` (bool, default: `false`)
+    Virtual indent (mirror Emacs `org-indent-mode`).  Each body
+    line gets an inline virt-text prefix of (level - 1) *
+    `shift_per_level` spaces, so nested content shifts right
+    visually without modifying the underlying buffer text.
+
+                                         *organ-config-indent-shift_per_level*
+    `indent.shift_per_level` (number, default: `2`)
+    Spaces added per outline level.
+
+                                                *organ-config-indent-hl_group*
+    `indent.hl_group` (string, default: `"Conceal"`)
+
+                                     *organ-config-indent-refresh_debounce_ms*
+    `indent.refresh_debounce_ms` (number, default: `100`)
+
+                                       *organ-config-indent-adapt_indentation*
+    `indent.adapt_indentation` (`false` | `"headline-data"` | `true`,
+                                default: `false`)
+    Real on-disk indent (mirror Emacs `org-adapt-indentation`).
+    Unlike `enabled`, this rewrites BUFFER TEXT — body lines get
+    spaces prepended that persist on disk.  Applied by `:Org
+    format` / formatexpr / `format_buffer`; never auto-fires on
+    keystrokes.
+
+        `"headline-data"`   planning + drawer + property lines
+                            indent under their headline; body
+                            prose stays at column 0.  Matches
+                            Emacs's default behavior.
+        `true`              every body line indents.
+        `false` (default)   never modify indentation.
+
+    Source / example block bodies are NEVER reindented.
+
+------------------------------------------------------------------------------
+Format                                                   *organ-config-format*
+
+Settings for the org formatter (`:Org format` / `gq` / LSP
+`textDocument/formatting`).  Paragraph rewrap that preserves
+headlines, drawers, blocks, planning lines, tables.  Wraps to
+`textwidth` (or 80 if unset).  Auto-format-on-save is intentionally
+not bundled -- wire it via your formatter-runner of choice
+(conform.nvim / none-ls / a BufWritePre autocmd calling
+`require("organ.format").format_buffer(0)`).
+
+                                                 *organ-config-format-enabled*
+    `format.enabled` (bool, default: `true`)
+    Master switch for the formatter.
+
+                                             *organ-config-format-tags_column*
+    `format.tags_column` (number | `false`, default: `77`)
+    Right-align tags on headlines to this column.  Mirrors Emacs
+    `org-tags-column`.
+        positive N    align tag block's right edge to column N
+        negative N    align to (`textwidth` + N + 1); -1 = textwidth
+        `0`           one space between title and tags (no align)
+        `false`       leave tags wherever the user typed them
+
+                                    *organ-config-format-normalize_whitespace*
+    `format.normalize_whitespace` (bool, default: `true`)
+    Collapse runs of internal whitespace on headlines (between
+    stars / TODO keyword / COMMENT marker / priority cookie /
+    title) to a single space.
+
+------------------------------------------------------------------------------
+LSP                                                         *organ-config-lsp*
+
+In-process language server for org buffers.  When enabled, every
+org buffer gets an in-process LSP client attached automatically
+on `FileType=org` -- no `vim.lsp.start` boilerplate, no lspconfig
+entry, no Mason install.  The server is a Lua module, not a
+separate binary process.
+
+Capabilities advertised:
+    `textDocument/hover`           `K` -- headline summary, ID /
+                                  link target preview
+    `textDocument/definition`      `gd` -- jump to ID target,
+                                  footnote, link
+    `textDocument/references`      `gr` -- inbound links to the
+                                  headline at cursor
+    `textDocument/rename`          `<F2>` -- rename headline +
+                                  update inbound links
+    `textDocument/documentSymbol` outline tree (aerial,
+                                  symbols-outline, navic, ...)
+    `workspace/symbol`             cross-file fuzzy outline find
+    `textDocument/completion`      headlines, IDs, tags, TODO
+                                  keywords, link targets
+    `textDocument/foldingRange`    LSP-driven folding
+    `textDocument/documentLink`    clickable links
+    `textDocument/codeAction`      same set as |:Org-actions|
+    `textDocument/diagnostic`      malformed planning lines,
+                                  unresolved IDs, ...
+    `textDocument/formatting`      `vim.lsp.buf.format()` runs
+                                  |:Org-format|
+
+                                                    *organ-config-lsp-enabled*
+    `lsp.enabled` (bool, default: `true`)
+    Master switch.  Set to `false` to skip auto-attach entirely.
+    A running client can also be stopped at any time with
+    `:Org lsp stop`; `:Org lsp start` reattaches.
+
+------------------------------------------------------------------------------
+Global keymaps                                   *organ-config-global-keymaps*
+
+These keymaps are registered globally (any buffer) when `setup()` runs.
+
+                                         *organ-config-global-keymaps-capture*
+                                          *organ-config-global-keymaps-agenda*
+                                            *organ-config-global-keymaps-find*
+                                            *organ-config-global-keymaps-roam*
+
+Default table:
+
+    Action                 Default key       Command ~
+    Capture                `<Leader>oc`      |:Org-capture|
+    Agenda                 `<Leader>oa`      |:Org-agenda|
+    Find                   `<Leader>of`      |:Org-find|
+    Find file              `<Leader>oF`      |:Org-find_file|
+    Find link              `<Leader>ol`      |:Org-find_link|
+    Roam                   `<Leader>or`      |:Org-roam|
+    Daily note (today)     `<Leader>od`      |:Org-roam_daily_today|
+    Clock in               `<Leader>oi`      |:Org-clock_in|
+    Clock out              `<Leader>oo`      |:Org-clock_out|
+    Clock report           `<Leader>oR`      |:Org-clock_report|
+    Scan                   (no default)      |:Org-scan|
+    Status                 (no default)      |:Org-status|
+
+Override or disable individual keymaps: >lua
+    require("organ").setup({
+      global_keymaps = {
+        capture = "<Leader>nc",   -- override
+        find    = false,          -- disable this one
+      },
+    })
+
+    -- Disable all global keymaps:
+    require("organ").setup({ global_keymaps = false })
+<
+
+==============================================================================
+COMMANDS                                                      *organ-commands*
+
+------------------------------------------------------------------------------
+Indexing                                                  *organ-cmd-indexing*
+
+*:Org-index*
+    `:Org index [file]`
+    Reindex a single org file (defaults to current buffer).
+
+*:Org-scan*
+    `:Org scan`
+    Scan all `.org` files under `org_dir` and update the SQLite index.
+    See |organ-config-org_dir|.
+
+*:Org-status*
+    `:Org status`
+    Show organ queue and DB status (headline count, file count, etc.).
+
+------------------------------------------------------------------------------
+Capture                                                    *organ-cmd-capture*
+
+*:Org-capture*
+    `:Org capture [key]`
+    Open a capture buffer. With no argument, shows the template picker.
+    With a template key argument (e.g., `:Org capture t`), opens that
+    template directly.
+
+    See |organ-config-capture-templates| for template configuration.
+    See |organ-keymaps-capture| for buffer-local keys.
+
+*:Org-capture_prompt*
+    `:Org capture_prompt`
+    Open the capture template picker via a prefix-tree popup float.
+    Equivalent to |:Org-capture| with no argument.
+
+------------------------------------------------------------------------------
+Agenda                                                      *organ-cmd-agenda*
+
+*:Org-agenda*
+    `:Org agenda [view-name]`
+    Open the agenda buffer. With no argument: if `agenda.views` is
+    non-empty, shows a picker; otherwise opens the default view
+    directly. With a view name, opens that named view.
+
+    See |organ-config-agenda-views| for defining named views.
+    See |organ-keymaps-agenda| for buffer-local keys.
+
+*:Org-stuck_projects*
+    `:Org stuck_projects`
+    Open an agenda view showing "stuck" projects — projects with no
+    NEXT-state subtask. Configured via `stuck.project_filter` and
+    `stuck.next_states`.
+
+*:Org-agenda_todos*
+    `:Org agenda todos`
+    Global TODO list across all indexed org files (Emacs `M-x
+    org-todo-list`).  Same data as `:Org find todo` but rendered
+    in the agenda buffer, with the agenda's per-row keymaps.
+
+*:Org-agenda_tags*
+    `:Org agenda tags [query]`
+    Tag-query agenda view (Emacs `M-x org-tags-view`).  Argument is
+    Emacs `org-match` syntax, e.g. `work&urgent-@home`.  Prompts
+    when called without an argument.
+
+*:Org-agenda_search*
+    `:Org agenda search [substring]`
+    Title-substring search agenda view.  Prompts when called
+    without an argument.
+
+*:Org-refile*
+    `:Org refile`
+    Refile the current subtree under a headline chosen from the index.
+
+------------------------------------------------------------------------------
+Find                                                          *organ-cmd-find*
+
+*:Org-find*
+    `:Org find`
+    Find any indexed headline using the configured picker backend.
+    Supports prefix token filtering in the prompt:
+    `todo:NEXT priority:A tag:work file:inbox`. See |organ-config-find|.
+
+*:Org-find_file*
+    `:Org find file`
+    Find an org file by name.
+
+*:Org-find_tag*
+    `:Org find tag [tags]`
+    Find headlines by tag. Argument is a comma-separated list of tags.
+
+*:Org-find_todo*
+    `:Org find todo [state]`
+    Find headlines by TODO state.
+
+*:Org-find_link*
+    `:Org find link [types]`
+    Find an org link in the index. Optional argument is a
+    comma-separated list of target types to filter by.
+
+*:Org-find_ref*
+    `:Org find ref [key]`
+    Find a headline by property key-value (default key: `ROAM_REFS`).
+
+*:Org-follow_link*
+    `:Org follow_link`
+    Follow the org link under the cursor.
+
+*:Org-hover*
+    `:Org hover`
+    Preview the headline target of the link under the cursor in a
+    floating window without leaving the source buffer.
+
+*:Org-backlinks*
+    `:Org backlinks`
+    Show backlinks for the headline at cursor. Opens a buffer listing
+    all headlines that link to the current one.
+
+*:Org-complete*
+    `:Org complete`
+    Open the link completion picker for the `[[...` trigger at cursor.
+    Normally triggered automatically in insert mode. Use this command
+    to trigger it manually.
+
+*:Org-actions*
+    `:Org actions`
+    Open the context-aware org action menu (Emacs `C-c C-c` / VSCode
+    "Quick Fix").  The menu inspects the cursor context (headline,
+    list item, drawer, link, src block, table) and offers the
+    relevant set of actions; powers the LSP code-action handler too.
+
+*:Org-rename_headline*
+    `:Org rename_headline [new-title]`
+    Rename the headline at cursor and rewrite every link in the
+    index that referenced its title.  Prompts when called without
+    an argument.
+
+*:Org-format*
+    `:Org format`
+    Rewrap paragraphs in the buffer.  Use `:'<,'> Org format` to
+    rewrap only the visual selection.
+
+------------------------------------------------------------------------------
+Clock                                                        *organ-cmd-clock*
+
+*:Org-clock_in*
+    `:Org clock in`
+    Start a clock on the headline at cursor. If another clock is
+    active, it is stopped automatically (with a notification).
+
+*:Org-clock_out*
+    `:Org clock out`
+    Stop the active clock and log the duration in the LOGBOOK drawer.
+
+*:Org-clock_cancel*
+    `:Org clock cancel`
+    Cancel the active clock without logging.
+
+*:Org-clock_jump*
+    `:Org clock jump`
+    Jump to the headline that has the active clock.
+
+*:Org-clock_report*
+    `:Org clock report [range]`
+    Open a clock report buffer. Range argument:
+     `today`            today only
+     `week`             current week Mon–Sun (default)
+     `month`            current calendar month
+     `<YYYY-MM-DD>`     single ISO date
+     `<from> <to>`      two ISO dates (space-separated)
+
+    See |organ-differences| for default range differences vs Emacs.
+
+------------------------------------------------------------------------------
+Roam                                                          *organ-cmd-roam*
+
+*:Org-roam*
+    `:Org roam`
+    Find a roam node (create on no match).
+
+*:Org-roam_insert*
+    `:Org roam insert`
+    Insert an `[[id:...]]` link to a roam node at cursor position.
+
+*:Org-roam_daily_today*
+    `:Org roam daily today`
+    Open today's daily note (creates it if absent).
+
+*:Org-roam_daily_yesterday*
+    `:Org roam daily yesterday`
+    Open yesterday's daily note.
+
+*:Org-roam_daily_tomorrow*
+    `:Org roam daily tomorrow`
+    Open tomorrow's daily note.
+
+*:Org-roam_daily*
+    `:Org roam daily [iso-date]`
+    Open the daily note for a specific date. With no argument, opens
+    a calendar popup.
+
+------------------------------------------------------------------------------
+Structure                                                *organ-cmd-structure*
+
+*:Org-promote*
+    `:Org promote`
+    Promote the subtree at cursor (decrease heading level by 1).
+
+*:Org-demote*
+    `:Org demote`
+    Demote the subtree at cursor (increase heading level by 1).
+
+*:Org-promote_headline*
+    `:Org promote_headline`
+    Promote only the headline at cursor, not its children.
+
+*:Org-demote_headline*
+    `:Org demote_headline`
+    Demote only the headline at cursor, not its children.
+
+*:Org-move_up*
+    `:Org move_up`
+    Move subtree up — swap with the previous sibling.
+
+*:Org-move_down*
+    `:Org move_down`
+    Move subtree down — swap with the next sibling.
+
+------------------------------------------------------------------------------
+Inline editing                                         *organ-cmd-inline-edit*
+
+*:Org-increment*
+    `:Org increment`
+    Increment the value at cursor. Context-aware: cycles TODO states,
+    increments dates, increases priorities, or calls the fallback.
+
+*:Org-decrement*
+    `:Org decrement`
+    Decrement the value at cursor. Context-aware inverse of
+    |:Org-increment|.
+
+------------------------------------------------------------------------------
+Property                                                  *organ-cmd-property*
+
+*:Org-set_property*
+    `:Org set_property`
+    Set or update a property on the headline at cursor via
+    `vim.ui.input`. Creates a `:PROPERTIES:` drawer if absent.
+
+*:Org-delete_property*
+    `:Org delete_property`
+    Delete a property from the headline at cursor via `vim.ui.select`.
+
+------------------------------------------------------------------------------
+Tables                                                      *organ-cmd-tables*
+
+*:Org-table_insert_row*
+    Insert a row below the cursor row.
+
+*:Org-table_insert_row_above*
+    Insert a row above the cursor row.
+
+*:Org-table_delete_row*
+    Delete the row at cursor.
+
+*:Org-table_move_row_up*
+    Move the current row up by one.
+
+*:Org-table_move_row_down*
+    Move the current row down by one.
+
+*:Org-table_insert_column*
+    Insert a column to the right of the current column.
+
+*:Org-table_insert_column_left*
+    Insert a column to the left of the current column.
+
+*:Org-table_delete_column*
+    Delete the current column.
+
+*:Org-table_move_column_left*
+    Move the current column left by one.
+
+*:Org-table_move_column_right*
+    Move the current column right by one.
+
+*:Org-table_sort*
+    Sort the table by the current column.
+
+*:Org-table_eval_formulas*
+    Evaluate `#+TBLFM:` formulas for the table at cursor.
+
+    Supported formula syntax:
+     `$N`               column N reference
+     `@R`               row R reference
+     `@R$N`             cell reference
+     Ranges             e.g. `$1..$3`
+     Arithmetic         `+`, `-`, `*`, `/`
+     Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
+
+    All table operations can also be invoked via the menu at
+    `<LocalLeader>tt`. See |organ-keymaps-org|.
+
+------------------------------------------------------------------------------
+Sparse trees                                                *organ-cmd-sparse*
+
+*:Org-sparse_tree_todo*
+    `:Org sparse_tree todo [state]`
+    Fold all lines except headlines matching the given TODO state
+    (or any non-done state if no argument).
+
+*:Org-sparse_tree_tag*
+    `:Org sparse_tree tag <tag>`
+    Fold all lines except headlines carrying the given tag.
+
+*:Org-sparse_tree_regex*
+    `:Org sparse_tree regex <pattern>`
+    Fold all lines except headlines whose title matches the Lua regex.
+
+*:Org-sparse_tree_clear*
+    `:Org sparse_tree clear`
+    Clear the sparse tree view, restoring normal fold state.
+
+------------------------------------------------------------------------------
+Watcher                                                    *organ-cmd-watcher*
+
+*:Org-watch_start*
+    `:Org watch start`
+    Start the filesystem watcher. Automatically reindexes changed
+    files without a manual |:Org-scan|.
+
+*:Org-watch_stop*
+    `:Org watch stop`
+    Stop the filesystem watcher.
+
+*:Org-watch_status*
+    `:Org watch status`
+    Show current watcher status (running/stopped, watched dirs, etc.).
+
+    Note: these commands are always available even when
+    `watcher.enabled = false`. See |organ-config-watcher-enabled|.
+
+------------------------------------------------------------------------------
+TODO                                                          *organ-cmd-todo*
+
+*:Org-todo*
+    `:Org todo [state]`
+    Cycle (no argument) or set the TODO state of the headline at
+    cursor. With an argument, sets that specific state directly.
+
+    On a state transition into a "done" keyword, organ.nvim runs the
+    done-side effects: insert `CLOSED:` line, log the transition into
+    LOGBOOK, and (for repeating tasks) bump SCHEDULED/DEADLINE to the
+    next occurrence — see |organ-repeaters| for the syntax.
+
+*:Org-toggle_checkbox*                                    *organ-cmd-checkbox*
+    `:Org toggle_checkbox`
+    Cycle the checkbox on the current list item:
+    `[ ]` → `[X]` → `[-]` → `[ ]`.  If the line is a list item without
+    a checkbox, inserts `[ ]` first; subsequent invocations cycle.
+
+    The nearest enclosing parent's statistics cookie (`[N/M]` or
+    `[P%]`) is recomputed from its direct children, recursing upward.
+    Parents that have their own checkbox auto-flip: all done → `[X]`,
+    none done → `[ ]`, partial → `[-]`.
+
+*:Org-meta_return*                                     *organ-cmd-meta-return*
+    `:Org meta_return`
+    Insert a new element appropriate to the cursor context:
+    - On a headline       → new sibling at the same level after the
+                            section body.
+    - On a list item      → new sibling item with the same bullet
+                            style.  Numeric lists renumber the tail.
+    - Inside a table row  → new row with the same column count.
+    - Otherwise           → blank line below.
+
+------------------------------------------------------------------------------
+Habits                                                      *organ-cmd-habits*
+
+*:Org-habits*
+    `:Org habits [days]`
+    Open a floating popup listing every headline marked
+    `:STYLE: habit`, with a consistency-graph row for the last `days`
+    days (default 21), the current status, and the streak length.
+
+    Glyph row (per day, oldest → newest):
+        `*`  done on time          → highlighted as `OrgHabitDone`
+        `*`  done ahead             → `OrgHabitAhead`
+        `!`  done late              → `OrgHabitLate`
+        `.`  no completion, in window → `OrgHabitClear`
+        `X`  past alarm window      → `OrgHabitOverdue`
+
+    Status enum:
+        `done-today`   completed today
+        `ahead`        next due is in the future, on track
+        `due-today`    next due is today
+        `approaching`  past due but inside the alarm window (only if
+                       the repeater uses `.+P/Q` syntax)
+        `overdue`      past due (no alarm) or past the alarm window
+
+    Habits also render their glyph row inline in the regular
+    `:Org agenda` view: any agenda line for a `:STYLE: habit` headline
+    is followed by a 14-day consistency-graph using the same glyphs and
+    highlight groups as `:Org habits`. To override the number of days,
+    set `habit_glyph_days` on the row in a custom `line_format`.
+
+    Habit completions come from State→DONE entries in the headline's
+    LOGBOOK drawer, indexed by `:Org index` / `:Org scan`.
+
+    See also: |organ-repeaters| for `.+P/Q` syntax.
+
+------------------------------------------------------------------------------
+Image reveal                                                     *organ-image*
+
+*:Org-image_reveal*
+    `:Org image_reveal`
+    Open the image link `[[file:…]]` (or `[[./pic.png]]`) under the
+    cursor in the system default viewer (`open` on macOS,
+    `xdg-open` on Linux, `start` on Windows).
+
+    Recognised image extensions: `png`, `jpg`/`jpeg`, `gif`, `webp`,
+    `bmp`, `tiff`/`tif`, `svg`. Non-image targets still open via the
+    system viewer; treat the warning as informational.
+
+    For inline rendering inside the buffer (terminals with the Kitty
+    graphics protocol or sixel + the `image.nvim` plugin installed): >
+
+        require("organ").setup({
+          image = { inline = true },
+        })
+<
+    Falls back silently to system-viewer if `image.nvim` isn't found.
+
+------------------------------------------------------------------------------
+LaTeX preview                                            *organ-latex-preview*
+
+*:Org-latex_preview*
+    `:Org latex_preview`
+    Open a floating popup showing the LaTeX fragment under the cursor.
+    Recognised forms:
+        `$x^2$`                           inline math
+        `$$x^2$$`                         display math
+        `\(x^2\)`                          inline math (paren-style)
+        `\[x^2\]`                          display math (bracket-style)
+        `\begin{env} … \end{env}`         multi-line environment
+
+    Recognised `\name` entities (`\alpha`, `\to`, `\sum`, …) are
+    rendered as their unicode glyphs in the popup; everything else
+    appears verbatim. Press `q` or move the cursor to dismiss.
+
+    This is the dependency-free preview tier. Image-rendered LaTeX
+    (via `pdflatex` + `dvipng` and a terminal graphics protocol) is
+    intentionally deferred — wire it up via your terminal's image
+    plugin if needed.
+
+------------------------------------------------------------------------------
+Roam graph                                                  *organ-roam-graph*
+
+*:Org-roam_graph*
+    `:Org roam graph[ depth]`
+    Open a floating window listing the forward and back-link
+    neighbourhood of the org-roam node at cursor. The node id is
+    detected from `:PROPERTIES:` `:ID:` on the containing headline
+    (or, as a fallback, the file-level property drawer).
+
+    Format: `<arrow> <title>  ::  <file>:<line>` where `<arrow>` is
+    `→` (outgoing) or `←` (incoming). `<CR>` jumps to the highlighted
+    node; `q` closes the popup.
+
+    `depth` defaults to `1`. Larger values walk further but query cost
+    grows linearly with neighbourhood size.
+
+*:Org-roam_graph_mermaid*
+    `:Org roam graph_mermaid[ depth]`
+    Generate a Mermaid `flowchart LR` diagram for the same
+    neighbourhood and copy it to the system clipboard. Paste into any
+    markdown surface that renders Mermaid (GitHub, Obsidian, etc.).
+
+------------------------------------------------------------------------------
+Markdown export                                                 *organ-export*
+
+*:Org-export_markdown*
+    `:Org export markdown[!] [path]`
+    Export the current org buffer to CommonMark. Without `path`, writes
+    to the buffer's filename with `.org` replaced by `.md`. Use `!` to
+    overwrite an existing target.
+
+    Conversions:
+        `* heading`         → `#`-style ATX header (level mapped 1:1)
+        `*bold*`            → `**bold**`
+        `=verb=` `~code~`   → `` `code` ``
+        `[[t][d]]`          → `[d](t)`
+        list items          → `- ` (numeric lists kept as `1.` etc.)
+        `[ ]` `[X]` `[-]`   → `[ ]` `[x]` `[ ]` (markdown checkbox)
+        `#+begin_src LANG`  → triple-backtick fenced block with lang
+        org tables          → GitHub-flavoured markdown tables
+        `-----`             → `---` (thematic break)
+
+    Drawers, planning lines (SCHEDULED / DEADLINE), `:PROPERTIES:` blocks,
+    citations, and `#+keywords` are dropped. Pure-data plumbing for
+    sharing notes outside org.
+
+*:Org-export_html*
+    `:Org export html[!] [path]`
+    Export the current org buffer to a self-contained HTML5
+    document. Writes to `<basename>.html` by default; bang to
+    overwrite. Maps the same constructs as `:Org export markdown`
+    plus:
+        `[ ]` `[X]`         → `<input type="checkbox" disabled>`
+        tables              → `<thead>` / `<tbody>` with `<th>` / `<td>`
+        src blocks          → `<pre><code class="language-X">`
+        title (#+title)     → `<title>` and document head
+
+    A small inline `<style>` block ships by default for sane
+    typography; pass `minimal_style = false` programmatically (or
+    set `export.html.minimal_style = false` in setup) to drop it.
+
+------------------------------------------------------------------------------
+Effort estimates                                                *organ-effort*
+
+Set the `:EFFORT:` property on a headline (e.g. `:EFFORT: 1:30` or
+`:EFFORT: 2h`). Agenda lines render `[H:MM]` for the estimate, and
+`[clocked/estimate]` once clock entries accumulate. Recognised value
+forms:
+
+    `30`         30 minutes
+    `1:30`       1 hour 30 minutes
+    `2h` `2hr`   120 minutes
+    `30m`        30 minutes
+    `1.5h`       90 minutes
+    `1d`         24 hours (calendar day)
+    `1w`         7 × 24 hours
+
+Configure: >
+
+    require("organ").setup({
+      effort = { show_in_agenda = true },   -- default
+    })
+<
+Set to false to hide the effort segment from agenda lines.
+
+The clocked side comes from CLOCK lines parsed by `:Org index` /
+`:Org scan` (see |organ-cmd-clock|). Reset / re-clock and refresh the
+agenda to update.
+
+------------------------------------------------------------------------------
+Tag inheritance                                            *organ-tag-inherit*
+
+By default, organ matches a tag query against the union of a
+headline's direct tags, every ancestor's tags, and the file's
+`#+FILETAGS:` (Emacs `org-tags-inherit-p` semantics).
+
+Display: agenda lines show only direct tags by default. To render the
+full inherited set: >
+
+    require("organ").setup({
+      tags = { display_inherited = true },
+    })
+<
+To restore Emacs' "search tags non-recursively" behaviour: >
+
+    require("organ").setup({
+      tags = { inherit = false },
+    })
+<
+Per-query override: >
+
+    query.headlines({ tags = { any = {"work"}, inherit = false } })
+<
+
+------------------------------------------------------------------------------
+Pretty entities                                        *organ-pretty-entities*
+
+Display LaTeX-style entities (`\alpha`, `\to`, `\sum`, …) as their
+unicode glyphs (α, →, ∑) using conceal extmarks. Mirrors Emacs'
+`org-pretty-entities`. The entity names match Emacs `org-entities`.
+
+Off by default. Enable for all org buffers: >
+
+    require("organ").setup({
+      entities = { enabled = true },
+    })
+<
+Or toggle on the current buffer: >
+
+    :Org pretty_entities
+<
+Add custom entries (key WITHOUT leading backslash): >
+
+    require("organ").setup({
+      entities = {
+        enabled = true,
+        extra = {
+          fox = "🦊",
+          rocket = "🚀",
+        },
+      },
+    })
+<
+Conceal level 2 and concealcursor "nc" are set automatically when
+the feature is attached to a window. With concealcursor disabled
+("c" removed), the underlying `\name` text is revealed when the
+cursor sits on it for editing.
+
+------------------------------------------------------------------------------
+Agenda alarms                                                   *organ-alarms*
+
+Notify before each scheduled time today (or fire your own callback).
+Disabled by default; opt in with: >
+
+    require("organ").setup({
+      alarms = { enabled = true },
+    })
+<
+Defaults:
+    `lead_minutes`           `{ 10, 0 }` — fire 10 min before, and again at due time
+    `scan_interval_seconds`  `600`       — rescan today's agenda every 10 min
+    `notify`                 nil          — use vim.notify with a default body
+
+Custom callback: >
+
+    require("organ").setup({
+      alarms = {
+        enabled = true,
+        lead_minutes = { 30, 5, 0 },
+        notify = function(row, lead, fire_ts)
+          -- row.title, row.id, row.scheduled (ISO), row.file_path, row.line_start
+          -- lead is the configured `lead_minutes` slot that triggered.
+          require("notify")("Org due: " .. row.title, "warn")
+        end,
+      },
+    })
+<
+Implementation: each scan walks today's `:Org agenda` and creates a libuv
+timer per (headline × lead). On the `indexed` event (after `:Org scan` or
+file save), the schedule is recomputed so freshly added rows are picked
+up. DONE / CANCELLED rows and past-due-minus-lead rows are skipped.
+
+------------------------------------------------------------------------------
+Speed commands                                          *organ-speed-commands*
+
+When the cursor sits at column 0 of a headline, single-key bindings can
+dispatch common operations without prefixes. This is the Neovim port of
+Emacs `org-use-speed-commands`. Disabled by default; opt in with: >
+
+    require("organ").setup({
+      speed = { enabled = true },
+    })
+<
+Default keymap (every entry overridable per-key, or set to false):
+    `n` / `p`    next / previous visible heading
+    `f` / `F`    fold cycle / global fold cycle
+    `t` / `T`    TODO cycle / TODO set (menu)
+    `s` / `d`    schedule / deadline
+    `a` / `A`    archive / archive to sibling
+    `I` / `O`    clock in / out
+    `<` / `>`    promote / demote
+    `U` / `D`    move subtree up / down
+    `g`          open agenda
+    `c`          capture
+    `?`          show speed-command help
+
+Customisation: >
+
+    require("organ").setup({
+      speed = {
+        enabled = true,
+        commands = {
+          n = "next_visible",
+          p = false,           -- disable just `p`
+          x = "todo_cycle",    -- rebind `x` to TODO cycle
+          y = function() print("custom") end,
+        },
+      },
+    })
+<
+Off-headline (or non-column-0) the keys fall through to their normal
+Vim behaviour, so `n`/`p` still mean "repeat last search forward/back"
+elsewhere in the buffer.
+
+------------------------------------------------------------------------------
+Footnotes                                                *organ-cmd-footnotes*
+
+*:Org-footnote_jump*
+    `:Org footnote jump`
+    Jump from a footnote reference to its definition (or vice versa).
+    Reference forms recognised: `[fn:LABEL]`, `[fn:LABEL: text]`,
+    `[fn::text]`, `[fn:N]`.
+
+*:Org-footnote_insert*
+    `:Org footnote insert`
+    Insert a fresh `[fn:N]` reference at the cursor (N = next free
+    integer) and a corresponding stub definition at the end of the
+    buffer.  Cursor lands on the stub for editing.
+
+*:Org-footnote_renumber*
+    `:Org footnote renumber`
+    Re-sequence numeric footnotes 1..K in order of first reference.
+    Both references and definition lines are rewritten consistently.
+
+------------------------------------------------------------------------------
+Source blocks                                                  *organ-cmd-src*
+
+*:Org-edit_special*
+    `:Org edit_special`
+    Open the `#+begin_src LANG ... #+end_src` block at cursor in a
+    dedicated buffer with the LANG filetype.  Saving the edit buffer
+    (`:write` / `:wq`) writes the body back to the source org buffer,
+    re-applying the original indentation.
+
+    Common LANG aliases: `sh`/`shell`/`zsh` → `bash`,
+    `js` → `javascript`, `ts` → `typescript`, `py` → `python`, `rb`
+    → `ruby`, `rs` → `rust`, `el`/`emacs-lisp` → `lisp`, etc.
+
+------------------------------------------------------------------------------
+Holidays                                                  *organ-cmd-holidays*
+
+*:Org-fetch_holidays*
+    `:Org fetch_holidays [calendar ...]`
+    Fetch holiday calendar data from the network and store it in
+    `todo.holidays_cache_dir`. Used by the repeater skip filters
+    (`cal:NAME` syntax). See |organ-config-todo-calendars|.
+
+------------------------------------------------------------------------------
+Miscellaneous                                                 *organ-cmd-misc*
+
+*:Org-indent_mode*
+    `:Org indent_mode [on|off]`
+    Toggle or set visual auto-indent for the current buffer.
+    See |organ-config-indent|.
+
+==============================================================================
+REPEATERS AND HABITS                                         *organ-repeaters*
+
+A SCHEDULED or DEADLINE timestamp can carry a "repeater" suffix that
+auto-bumps the date when the task transitions into a done state.
+
+Base forms (from Emacs org-mode):
+    `+N{u}`     plain repeat — bump from the OLD date by N units.
+    `++N{u}`    catch-up — bump until the new date is in the future.
+    `.+N{u}`    restart — bump from TODAY by N units.
+where `{u}` is one of `h` (hour), `d` (day), `w` (week), `m` (month),
+or `y` (year).
+
+Habit alarm form (Emacs `org-habit`):
+    `.+P/Q`     repeat every P; flag overdue when more than Q has
+                passed.  P and Q each carry a unit.
+
+Examples:
+    `<2026-04-25 Sat +1w>`         every week from Apr 25
+    `<2026-04-25 Sat .+1d/3d>`     daily habit, alarm if 3+ days pass
+    `<2026-04-25 Sat ++1m>`        catch-up monthly
+
+Skip filters                                          *organ-repeater-filters*
+
+After the period, an optional bracketed filter narrows which dates the
+repeater is allowed to land on.  Tokens are comma-separated; named
+days/months OR-combine, every other token AND-combines.  Within a
+single `KEY:VALUE` token, VALUE may be a `;`-separated OR list.
+
+    Day classes:
+        `wd`             weekday (Mon-Fri)
+        `we`             weekend (Sat-Sun)
+    Named days:
+        `mon`,`tue`,`wed`,`thu`,`fri`,`sat`,`sun`     OR-combined
+    Named months:
+        `jan` … `dec`                                 OR-combined
+    Day of month:
+        `dom:N`          exact day (1..31)
+        `dom:-N`         Nth from end (-1 = last day)
+        `dom:first`      = `dom:1`
+        `dom:last`       = `dom:-1`
+        `bom`            alias for `dom:1`
+        `eom`            alias for `dom:-1`
+        `dom:N1;N2;...`  any of these days
+    Nth weekday in month:
+        `nth:K:DOW`      K = 1..5 or `last`; DOW = `mon`..`sun`
+        `nth:K:D1;D2`    Kth occurrence of any listed weekday
+    Month:
+        `month:N`        N = 1..12
+        `month:NAME`     short-name match (jan..dec)
+        `month:V1;V2`    any of these months
+    Quarter:
+        `quarter:Q`      Q = 1..4
+        `quarter:Q1;Q2`  any of these quarters
+    Business day:
+        `bizday`         weekday and not in the configured holiday
+                         calendar (`todo.default_holiday_cal`)
+        `bizday:N`       Nth business day of month
+        `bizday:-N`      Nth from end
+    Calendar:
+        `cal:NAME`       in the named calendar
+                         (`todo.calendars` or ISO-3166-1 alpha-2 code
+                         routed through |:Org-fetch_holidays|)
+    Negation:
+        `!TOKEN`         negate any of the above
+
+Examples:
+    `+1d[wd]`                weekday-only daily standup
+    `+1m[dom:25]`            25th of every month
+    `+1m[eom]`               last day of every month
+    `+1m[dom:-3,wd]`         3rd-to-last weekday of every month
+    `+1m[nth:2:mon]`         2nd Monday of every month
+    `+1m[nth:last:fri]`      last Friday of every month
+    `+1d[bizday]`            any business day (skips weekends + holidays)
+    `+1m[bizday:-1]`         last business day of every month
+    `+1d[month:1;4;7;10]`    any day in Jan / Apr / Jul / Oct
+    `+1d[!cal:US]`           skip US holidays
+
+Repeater highlighting                              *organ-repeater-highlights*
+
+Inside a timestamp, the parts highlight separately:
+    `@org.timestamp.date`              YYYY-MM-DD
+    `@org.timestamp.dayname`           Mon / Tue / ...
+    `@org.timestamp.time`              HH:MM
+    `@org.timestamp.repeater`          +1d / .+1d / ++1d
+    `@org.timestamp.repeater.alarm`    /3d (org-habit alarm)
+    `@org.timestamp.repeater.filter`   [wd,nth:2:fri,!cal:US]
+    `@org.timestamp.warning`           -3d
+    `@org.timestamp.diary`             <%%(diary-cyclic ...)>
+    `@org.timestamp.range`             <a>--<b>
+
+==============================================================================
+SOURCE-BLOCK LANGUAGE INJECTION                          *organ-src-injection*
+
+Tree-sitter injects an embedded language parser into every
+`#+begin_src LANG ... #+end_src` block whose LANG matches one of the
+built-in patterns (the parser must be installed separately, e.g. via
+`nvim-treesitter`):
+
+    python, lua, bash (sh / shell / zsh), javascript (js),
+    typescript (ts), rust, go, ruby, c, cpp (c++), java, html, css,
+    yaml (yml), json, toml, markdown (md), sql, elisp (el /
+    emacs-lisp), vim (vimscript), haskell (hs), php, perl, swift,
+    kotlin (kt), scala, r, dot (graphviz), dockerfile, make
+    (makefile).
+
+To extend the list, drop an overlay file at
+`~/.config/nvim/queries/org/injections.scm` adding patterns of the
+form:
+
+>
+    ((src_block) @injection.content
+     (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Ee][Ll][Ii][Xx][Ii][Rr]")
+     (#set! injection.language "elixir"))
+<
+
+Use |:Org-edit_special| to edit a src block in a dedicated buffer with
+its language's full filetype features (LSP, formatters, etc.) and
+write the result back on save.
+
+==============================================================================
+CITATIONS                                                    *organ-citations*
+
+Citations follow the standard org-cite syntax:
+
+    `[cite/STYLE:PREFIX @key1 SUFFIX1; PREFIX2 @key2 SUFFIX2]`
+
+The parser decomposes citations into named tree-sitter nodes:
+
+    citation
+      citation_style?            "/style"
+      citation_reference         per `@key` block
+        citation_prefix?         text before `@`
+        citation_key             "@key" (alpha/digit/_/-/:)
+        citation_suffix?         text after key, before `;` or `]`
+
+Each part highlights independently:
+    `@org.citation`            whole bracket
+    `@org.citation.style`      style
+    `@org.citation.key`        @key
+    `@org.citation.prefix`     prefix text
+    `@org.citation.suffix`     suffix text
+
+==============================================================================
+KEYMAPS                                                        *organ-keymaps*
+
+------------------------------------------------------------------------------
+Global keymaps                                          *organ-keymaps-global*
+
+Registered from any buffer when `setup()` runs.
+
+    Key              Action                  Command ~
+    `<Leader>oc`     Capture                 |:Org-capture|
+    `<Leader>oa`     Agenda                  |:Org-agenda|
+    `<Leader>of`     Find headline           |:Org-find|
+    `<Leader>oF`     Find file               |:Org-find_file|
+    `<Leader>ol`     Find link               |:Org-find_link|
+    `<Leader>or`     Roam find/insert        |:Org-roam|
+    `<Leader>od`     Daily note (today)      |:Org-roam_daily_today|
+    `<Leader>oi`     Clock in                |:Org-clock_in|
+    `<Leader>oo`     Clock out               |:Org-clock_out|
+    `<Leader>oR`     Clock report            |:Org-clock_report|
+
+See |organ-config-global-keymaps| to override or disable.
+
+------------------------------------------------------------------------------
+FileType=org buffer-local keymaps                          *organ-keymaps-org*
+
+Installed by `ftplugin/org.lua` when a buffer gets `filetype=org`.
+
+Structure (|organ-config-structure|): ~
+    `<<`                   Promote subtree
+    `>>`                   Demote subtree
+    `<LocalLeader><`       Promote headline only
+    `<LocalLeader>>`       Demote headline only
+    `gK`                   Move subtree up
+    `gJ`                   Move subtree down
+
+Fold (|organ-config-fold|): ~
+    `<Tab>`                Cycle fold state (on headline)
+    `<S-Tab>`              Cycle global fold state
+
+Table (|organ-config-table|): ~
+    `<Tab>`                Next cell / realign (on table row)
+    `<S-Tab>`              Previous cell (on table row)
+    `<LocalLeader>tt`      Open table operations menu
+
+Property (|organ-config-property|): ~
+    `<LocalLeader>ps`      Set/update property
+    `<LocalLeader>pd`      Delete property
+
+Inline edit (|organ-config-inline-edit|): ~
+    `<C-a>`                Increment value at cursor
+    `<C-x>`                Decrement value at cursor
+
+TODO (|organ-config-todo|): ~
+    (none by default — set `todo.keymaps.cycle` / `todo.keymaps.set`)
+
+Clock (|organ-config-clock|): ~
+    (none by default — set `clock.keymaps.in_` / `.out` / etc.)
+
+------------------------------------------------------------------------------
+Agenda buffer                                           *organ-keymaps-agenda*
+
+Active in the read-only agenda buffer:
+
+    `<CR>`     Jump to headline in source file
+    `r`        Refresh the agenda
+    `q`        Close the agenda
+    `o`        Open headline in horizontal split
+    `v`        Open headline in vertical split
+    `/`        Filter headlines
+    `<Tab>`    Fold/unfold day group
+    `g?`       Show keymap help
+    `t`        Cycle TODO state of source headline
+    `T`        Set TODO state via picker
+    `]]`       Jump to next block header
+    `[[`       Jump to previous block header
+    `j`        Next item
+    `k`        Previous item
+
+See |organ-config-agenda-keymaps| to override.
+
+------------------------------------------------------------------------------
+Capture buffer                                         *organ-keymaps-capture*
+
+Active while editing a capture template buffer:
+
+    `ZZ`                   Finalise: file the entry and close
+    `<CR>`  (normal mode)  Finalise (alternate)
+    `ZQ`                   Cancel: discard and close
+    `q`     (normal mode)  Cancel if buffer is unmodified
+    `<LocalLeader>w`       Refile: finalise then open refile picker
+
+Emacs muscle memory recipe: >lua
+    require("organ").setup({
+      capture = {
+        keymaps = {
+          finalise        = "<C-c><C-c>",
+          cancel          = "<C-c><C-k>",
+          refile_finalise = "<C-c><C-w>",
+        },
+      },
+    })
+<
+
+See |organ-config-capture-keymaps| to override.
+
+==============================================================================
+ARCHITECTURE                                              *organ-architecture*
+
+organ.nvim has three startup phases:
+
+1. `plugin/organ.lua` — runs at Neovim startup. Registers all `:Org*`
+   user commands and the `org` filetype. No DB, no tree-sitter, no I/O.
+   Startup cost is negligible regardless of org file count.
+
+2. `ftplugin/org.lua` — runs when a buffer's filetype is set to `org`.
+   Delegates to `lua/organ/ftplugin/*.lua` for structure, inline-edit,
+   property, table, core (TODO / fold / clock) keymaps. `setup()` must
+   have run before this fires.
+
+3. Lazy resources — the SQLite handle (`runtime.lua`) and tree-sitter
+   parser are opened on first use, not at `setup()` time. `setup()`,
+   |:Org-agenda|, and other non-parsing commands work immediately even
+   if the grammar hasn't been built yet.
+
+The index lives in a single SQLite database (`organ.db`). All queries
+go through `cmd.lua`, which dispatches to feature modules. The schema
+is versioned; `auto_recover` handles forward migration automatically.
+
+The filesystem watcher (`lua/organ/watcher.lua`) uses `libuv` `fs_event`
+by default. When a `.org` file changes, it is re-parsed incrementally
+and the index updated. The watcher is optional; manual |:Org-scan| or
+|:Org-index| work without it.
+
+==============================================================================
+EMACS / ORG-ROAM INTEROP                                       *organ-interop*
+
+organ.nvim aims for byte-level format compatibility with Emacs
+org-mode and org-roam.  Files written by Emacs read back unchanged;
+files written by organ are valid Emacs org.  This section documents
+what's covered, what isn't, and the one config knob that matters for
+sharing an org_dir between the two.
+
+File format ~
+    organ writes only standard org-mode syntax — headlines, drawers
+    (`:PROPERTIES:` / `:LOGBOOK:` / `:NAME:`), planning lines
+    (`SCHEDULED:` / `DEADLINE:` / `CLOSED:`), tags, footnotes, lists,
+    tables, links (`[[id:...]]` / `[[file:...]]` / `[[*Title]]`),
+    src blocks, captures, archive subtrees with the Emacs property
+    set (`ARCHIVE_TIME` / `ARCHIVE_FILE` / `ARCHIVE_OLPATH` /
+    `ARCHIVE_TODO` / `ARCHIVE_CATEGORY` / `ARCHIVE_ITAGS`), LOGBOOK
+    entries, `[cite:@key]` org-cite, and timestamps in
+    `<YYYY-MM-DD Day>` form.  Emacs reads these without modification.
+
+UUID format ~
+    Emacs / org-roam default to UUID v4 (random) for `:ID:` values.
+    organ defaults to UUID v7 (timestamp-prefixed; sortable by
+    creation order — RFC 9562).  Both are valid RFC 4122 strings, and
+    `:ID:` values are opaque to org-mode — both formats interoperate
+    freely.  Switching tools means new headlines pick up the new
+    tool's format; old headlines keep their original IDs intact.
+    To force v4 generation in organ:
+>lua
+        require("organ").setup({
+          links = {
+            id_method = function() return require("your-v4-lib").v4() end,
+          },
+        })
+<
+    Or set `id_method = "ts"` for the timestamp-string form
+    (`YYYYMMDDTHHMMSS-NNN`) instead of either UUID flavor.
+
+ID locations file ~
+    Emacs's org-id resolves cross-file `[[id:...]]` links via
+    `~/.emacs.d/.org-id-locations` (an s-expression alist mapping
+    files → ID lists).  organ uses its SQLite index instead.  When
+    you share an org_dir between Emacs and organ, point organ at the
+    same file:
+>lua
+        require("organ").setup({
+          links = { id_locations_file = "~/.emacs.d/.org-id-locations" },
+        })
+<
+    With this set, organ exports the index to that file after every
+    scan (`scan_done` event hook).  Emacs's
+    `org-id-locations-load` reads it on startup so cross-file ID
+    links resolve in both tools without a full directory scan.
+    Manual export: |:Org-id_export_locations|.
+
+Reserved hierarchical action names ~
+    organ's `:Org` dispatcher uses sub-action names under the
+    `agenda` group (`day`, `week`, `todos`, `tags`, `search`,
+    `custom`).  If you name a configured agenda view exactly the
+    same as one of these, the hierarchical action wins — pick a
+    distinct view name.  Same for `find {file, link, ref, tag,
+    todo}`, `roam {insert, daily, buffer, linkify, graph}`, etc.
+
+Known interop limitations ~
+    - Emacs babel `:session` headers carry across blocks via
+      Emacs's process pool; organ has its own session manager
+      (`organ.babel.sessions`) that supports python / sh / bash /
+      zsh — other languages currently re-evaluate per block.
+    - LaTeX environments are recognised by the indexer but render-
+      side support is limited to `latex_preview` / `latex_render`.
+    - Emacs `org-link-frame-setup` for `gnus` / `bbdb` / `info` is
+      not wired (organ.link.dispatch falls back to `:open`).
+
+==============================================================================
+DIFFERENCES FROM EMACS                                     *organ-differences*
+
+Intentional differences from Emacs org-mode / org-roam:
+
+Clock-in with active clock ~
+    Emacs: Prompts keep / stop / cancel.
+    organ.nvim: Auto-stops current, starts new (with notification).
+    Why: Single-clock UX; prompt is friction.
+
+Clock report default range ~
+    Emacs: All time.
+    organ.nvim: Current week (Mon–Sun).
+    Why: Smaller surface; use args for other ranges.
+
+Clock persist file ~
+    Emacs: `org-clock-persist-file`.
+    organ.nvim: `<stdpath data>/organ/clock.json`.
+    Why: Same idea, Neovim-native path.
+
+Property-value link match ~
+    Emacs: Pattern-based.
+    organ.nvim: Token-membership exact match.
+    Why: Clearer semantics, no false positives on ROAM_REFS.
+
+Property key case ~
+    Emacs: Lenient.
+    organ.nvim: Case-sensitive.
+    Why: Avoid `:Title:` matching `[[title:...]]`.
+
+TODO repeater skip filters ~
+    Emacs: No calendar awareness.
+    organ.nvim: `+/++/.+` extended with `[wd|we|dow-list|cal:NAME]`.
+    Why: Superset — weekday-only, weekend-only, holiday-aware repeats.
+
+Datetree headline format ~
+    Emacs: Hardcoded year / year-month / year-month-day.
+    organ.nvim: Configurable via |organ-config-capture-datetree_format|.
+    Why: Weekly-grouped and flat journals supported.
+
+Capture buffer keymaps ~
+    Emacs: `C-c C-c` finalise, `C-c C-k` cancel (non-modal).
+    organ.nvim: `ZZ` finalise, `ZQ` cancel, `<CR>` confirm.
+    Why: Vim-native. Emacs bindings are an opt-in config recipe.
+
+Subtree manipulation keymaps ~
+    Emacs: `M-Left/Right`, `M-S-Left/Right`, `M-S-Up/Down`.
+    organ.nvim: `<<` / `>>` / `<LocalLeader></>` / `gK` / `gJ`.
+    Why: Neovim-native. Emacs bindings are opt-in.
+
+Inline increment/decrement ~
+    Emacs: `S-Left/Right/Up/Down`.
+    organ.nvim: `<C-a>` / `<C-x>` (extends Vim's number increment).
+    Why: Reuse Vim's canonical increment keys.
+
+Table editing realign trigger ~
+    Emacs: `|` typing AND `<Tab>`.
+    organ.nvim: `<Tab>` only.
+    Why: Keystroke-noise reduction.
+
+Table row/col operations ~
+    Emacs: `M-S-Up/Down/Left/Right`.
+    organ.nvim: `<LocalLeader>tt` menu or `:Org table_*` commands.
+    Why: One discoverable menu vs. 8 separate keys.
+
+Spreadsheet formula engine ~
+    Emacs: Full Emacs Calc (lookups, remote refs, lisp).
+    organ.nvim: Subset: `$N`/`@R`/`@R$N`, ranges, arithmetic,
+    `vsum/vmean/vmax/vmin/vlen`.
+    Why: Practical 80%; full Calc rarely needed in Neovim workflows.
+
+Agenda multi-view dispatcher ~
+    Emacs: Always shows dispatcher.
+    organ.nvim: Shows `vim.ui.select` only when `agenda.views` is
+    non-empty; single-view users get zero friction.
+    Why: No modal overhead for single-view users.
+
+Find headline filter ~
+    Emacs: Plain-text title/tag search.
+    organ.nvim: Prefix tokens `todo:NEXT priority:A tag:work file:inbox`
+    AND plain title words.
+    Why: Better than Emacs — structured multi-criteria in the prompt.
+
+Find backlink count ~
+    Emacs: Not shown.
+    organ.nvim: `(←N)` column with inbound id-link count per headline.
+    Why: Matches org-roam centrality UX without org-roam dependency.
+
+Agenda jump keymaps `o`/`v` ~
+    Emacs: Bare `o` opens in another window; `v` chooses view options.
+    organ.nvim: `gs`/`gv` (vim "go" namespace).
+    Why: Bare `o`/`v` shadow Vim's normal-mode `o` (open new line) and
+    `v` (visual mode); muscle memory mismatch is jarring. Pinned by
+    `tests/keymap_audit_test.lua`.
+
+File-level `:ID:` (org-roam) ~
+    Emacs org-roam: A property drawer BEFORE the first heading creates
+    a file-level node, addressable as `[[id:UUID]]`.
+    organ.nvim: Same behavior. The indexer surfaces a synthetic
+    level-0 record so `query.get_by_id` / agenda / find / backlinks
+    all work uniformly with file-level IDs. Pinned by
+    `tests/roam_create_to_index_e2e_test.lua`.
+
+==============================================================================
+NATIVE OS NOTIFICATIONS                                       *organ-notifier*
+
+By default, agenda alarms (`alarms.enabled = true`) deliver in-Neovim
+notifications via `vim.notify` — they only fire while Neovim is running.
+**Strictly opt-in**: nothing is installed, registered, or scheduled until
+you explicitly enable OS-level scheduling. Two paths to enable:
+
+  1. Set `alarms.local_schedule = true` in `setup()`. The first scan
+     after that installs the per-platform bundle (macOS) and starts
+     scheduling.
+  2. Run `:Org notifier install` directly (macOS) for explicit install
+     without enabling `local_schedule` (e.g. just to test).
+
+>
+    require("organ").setup({
+      alarms = {
+        enabled = true,
+        local_schedule = true,    -- opt-in: route reminders through OS
+        lookahead_hours = 48,     -- pre-schedule horizon (default 48)
+      },
+    })
+<
+
+How it works (macOS, post-redesign): ONE persistent LaunchAgent
+(`sh.organ.tick`) whose plist carries an array of exact-time triggers
+— one per upcoming reminder. launchd wakes the agent at each of those
+times and only those times, so:
+
+  - System Settings → Login Items & Extensions has ONE entry
+    ("Organ"), regardless of how many reminders you have scheduled.
+  - Zero polling: between fires, the process doesn't run at all.
+  - Survives reboot (launchd persists agents across logout/boot).
+
+The agent invokes a bundled native binary that uses macOS's modern
+`UNUserNotificationCenter` API. Notifications attribute to "Organ"
+(the bundle id `sh.organ.notifier`), so you grant permission to
+"Organ" in System Settings → Notifications, not "Script Editor".
+
+Per-platform mechanism:
+
+  macOS    Single tick LaunchAgent + Swift `organ-notify` binary at
+           `~/Library/Application Support/organ/Organ.app/`. If `swiftc`
+           is missing (no Xcode CLT), falls back to a shell script that
+           calls osascript — notifications still fire but attribute to
+           Script Editor. `:Org notifier doctor` reports which is in use.
+  Linux    `at(1)` if `atd` is running, else `systemd-run --user`.
+           Delivery via `notify-send --app-name=Organ --icon=organ`.
+  Windows  `Register-ScheduledTask` + WinRT toast via PowerShell. First
+           run installs %APPDATA%\organ\ + a Start Menu shortcut with
+           AppUserModelID set so toasts say "Organ" instead of
+           "Windows PowerShell".
+
+What gets installed and where (macOS): ~
+
+  Path                                                       What
+  --------------------------------------------------------- ----------------
+  ~/Library/Application Support/organ/Organ.app/            App bundle
+    Contents/Info.plist                                     Bundle metadata
+    Contents/MacOS/organ-notify                             Swift binary (or
+                                                            shell fallback)
+    Contents/Resources/Organ.icns                           Icon
+  ~/Library/LaunchAgents/sh.organ.tick.plist                Tick agent
+  ~/Library/Logs/organ-notifier.log                         Tick stderr log
+
+Linux uses system tools only — no bundle install. Windows writes
+`%APPDATA%\organ\` (icon + notify helper script + Start Menu shortcut).
+
+Commands ~
+
+*:Org-notifier_install*
+    `:Org notifier install`
+    Explicit, opt-in install of the macOS notifier bundle. Builds the
+    Swift `organ-notify` binary (requires Xcode CLT for native
+    attribution; falls back to a shell wrapper otherwise), writes
+    Info.plist + icon, and registers the bundle with macOS
+    LaunchServices. Idempotent. No-op on Linux/Windows.
+
+*:Org-notifier_test*
+    `:Org notifier test`
+    Fire a one-off test notification 10 seconds from now via the
+    platform backend. On macOS, requires `:Org notifier install` to have
+    run first (errors out with a clear message otherwise — never
+    silently installs as a side effect of "test").
+
+*:Org-notifier_status*
+    `:Org notifier status`
+    Per-platform diagnostic: detected scheduler tools, current scheduled
+    entry count, next fire time, bundle install state.
+
+*:Org-notifier_doctor*
+    `:Org notifier doctor`
+    Walks every link in the chain (tools, bundle, LaunchServices
+    registration, foreground notification probe) and reports PASS / FAIL
+    for each. Run this when notifications aren't firing.
+
+*:Org-notifier_clear*
+    `:Org notifier clear`
+    Cancel every scheduled reminder. Bundle stays installed.
+
+*:Org-notifier_uninstall*
+    `:Org notifier uninstall`
+    macOS only. Confirms before doing anything; then removes the tick
+    agent, every legacy per-reminder agent (from the old design),
+    deletes the bundle dir, deregisters from LaunchServices, and
+    nudges cfprefsd so System Settings refreshes. Refuses to delete
+    if the bundle path is a SYMLINK (paranoia guard against following
+    somewhere unexpected).
+
+Known limitations ~
+  - Linux without `atd`: `systemd-run` transient timers don't survive
+    reboot.
+  - Notification permission: every platform has a one-time prompt the
+    first time organ tries to deliver. macOS users without Xcode CLT
+    will be prompted for "Script Editor", not "Organ".
+  - Lookahead window: anything past `lookahead_hours` from the last
+    `:Org scan` won't be pre-scheduled.
+
+==============================================================================
+CITATION COMMANDS                                             *organ-cmd-cite*
+
+The CITATIONS section above describes the parser; these commands wire
+it into a usable workflow. Bibliography paths are discovered from
+buffer `#+bibliography:` directives plus `cite.bibliographies` (paths
+or globs in `setup()`). Style picks up from `#+cite_export:` (default
+APA). Three styles ship: APA, Chicago, IEEE.
+
+*:Org-cite_preview*
+    `:Org cite preview [style]`
+    Open a scratch preview buffer with `[cite:...]` brackets rewritten
+    in-line and a rendered bibliography appended. Useful for sanity-
+    checking citations before export. Without `style`, uses the
+    buffer's `#+cite_export:` or APA default.
+
+*:Org-cite_bibliography*
+    `:Org cite bibliography [style]`
+    Replace the `#+print_bibliography` line in the buffer with rendered
+    bibliography entries. In-place edit — overwrite-friendly: re-run to
+    regenerate after entry edits.
+
+*:Org-cite_find*
+    `:Org cite find`
+    Open the find-module picker over all known cite keys. Default action
+    inserts `[cite:@KEY]` at cursor. Secondary action (configurable
+    via `find.keymaps`) yanks `@KEY`. Per-style author/year/title
+    metadata shown alongside each key.
+
+==============================================================================
+MACROS, SETUPFILE, INCLUDE                                  *organ-cmd-expand*
+
+Org-mode's reusable-content surface — macros (`{{{name(args)}}}`),
+SETUPFILE keyword inheritance, and INCLUDE directives — is implemented
+by `lua/organ/expand.lua`. The expansion runs as a buffer pre-pass
+before tree-sitter parses the source. Built-in macros: `{{{date(FMT)}}}`,
+`{{{time(FMT)}}}`, `{{{modification-time(FMT)}}}`, `{{{title}}}`,
+`{{{author}}}`, `{{{email}}}`, `{{{date}}}` (no-arg pulls #+DATE),
+`{{{property(KEY)}}}`, `{{{keyword(KEY)}}}`, `{{{n(VAR[,VAL])}}}`
+counters.
+
+*:Org-expand_preview*
+    `:Org expand_preview`
+    Open a scratch buffer with the rewritten text — SETUPFILE pulled
+    in, INCLUDEs inlined, macros expanded. No export round-trip
+    required. Cycle detection caps at 8 passes for self-referential
+    macros.
+
+Export integration: pass `opts.expand = true` to any export backend
+(`:Org export markdown`, `:Org export html`, etc.) to run the full
+SETUPFILE → INCLUDE → MACRO pass before tree-sitter parses the source.
+
+INCLUDE forms recognised:
+  `#+INCLUDE: "path"`                          verbatim insert
+  `#+INCLUDE: "path" example`                  wrap in `#+begin_example`
+  `#+INCLUDE: "path" src LANG`                 wrap in `#+begin_src LANG`
+  `#+INCLUDE: "path" export FMT`               wrap in `#+begin_export FMT`
+  `#+INCLUDE: "path" :lines "5-10"`            slice
+  `#+INCLUDE: "path::*Headline"`               subtree extraction
+  `#+INCLUDE: "path::#NAME"`                   named-block extraction
+  `#+INCLUDE: "path" :minlevel N`              promote subtree to level N
+
+Recursive transitive INCLUDEs are supported.
+
+==============================================================================
+PUBLISH                                                    *organ-cmd-publish*
+
+Project-based publishing pipeline. Define projects in
+`config.publish.projects`:
+>
+    require("organ").setup({
+      publish = {
+        projects = {
+          notes = {
+            base_dir       = "~/org",
+            output_dir     = "~/Sites/notes",
+            extension      = "org",
+            recursive      = true,
+            publishing_function = "html",  -- export backend name
+            opts           = { cite_native = true, expand = true },
+          },
+        },
+      },
+    })
+<
+
+*:Org-publish*
+    `:Org publish <project>`
+    Publish a single named project. Iterates every matching file under
+    `base_dir`, runs `publishing_function` (the corresponding
+    `:Org export_<backend>`), writes outputs to `output_dir` preserving
+    relative paths.
+
+*:Org-publish_all*
+    `:Org publish_all`
+    Publish every project defined in `publish.projects`.
+
+==============================================================================
+BABEL -- SOURCE BLOCK EXECUTION                              *organ-cmd-babel*
+
+Execute `#+begin_src LANG ... #+end_src` blocks and capture results
+into `#+RESULTS:` blocks below. Built-in language runners: sh, bash,
+zsh, fish, python, lua, ruby, perl, js/javascript, php, R/r, ts/
+typescript, scheme. Add more via
+`babel.languages.<lang> = function(body, opts) ... end`.
+
+By default every block prompts before execution. Disable globally with
+`babel.confirm_evaluate = false`, or per-language via
+`babel.allow_languages = { "lua", "sh" }`.
+
+*:Org-babel_execute*
+    `:Org babel execute`
+    Execute the src block at cursor. Result rendered as a `#+RESULTS:`
+    block immediately below; if one already exists, its contents are
+    replaced.
+
+*:Org-babel_execute_buffer*
+    `:Org babel execute_buffer`
+    Execute every src block in the buffer in document order. Each
+    gets its own `#+RESULTS:` block.
+
+*:Org-babel_tangle*
+    `:Org babel tangle`
+    Extract every src block with `:tangle PATH` header into PATH.
+    Multiple blocks targeting the same PATH are concatenated in
+    document order.
+
+==============================================================================
+DYNAMIC BLOCKS                                              *organ-cmd-dblock*
+
+Dynamic blocks are content regions whose body is regenerated by a
+named computation. Defined as:
+>
+    #+BEGIN: <name> :param value :param2 value
+    ...content here is overwritten on update...
+    #+END:
+<
+Built-in dynamic blocks: `clocktable` (clock report), `columnview`
+(see |organ-cmd-columns|).
+
+*:Org-update_dblock*
+    `:Org update_dblock`
+    Recompute and rewrite the body of the dynamic block at cursor.
+
+*:Org-update_all_dblocks*
+    `:Org update_all_dblocks`
+    Recompute every dynamic block in the buffer in document order.
+
+==============================================================================
+COLUMN VIEW                                                *organ-cmd-columns*
+
+Column view renders a tabular summary of headline properties driven by
+the `#+COLUMNS:` keyword (e.g. `%25ITEM %TODO %3PRIORITY %TAGS
+%ESTIMATE{$} %ACTUAL{$}`).
+
+*:Org-columns*
+    `:Org columns`
+    Open a column-view buffer for the current file. <CR> on a row
+    jumps to the source headline. `q` closes the view.
+
+==============================================================================
+ATTACH                                                      *organ-cmd-attach*
+
+Per-headline attachments live under `<config.attach.dir>/<id[:2]>/<id[3:]>/`
+(matches Emacs's `data/<id>/` layout but with sharded prefix to avoid
+giant flat dirs). The headline's `:ID:` property is created on demand.
+
+*:Org-attach*
+    `:Org attach [path]`
+    Copy `path` into the attach dir for the headline at cursor and
+    add a `[[attachment:basename]]` link. Without `path`, prompts.
+
+*:Org-attach_open*
+    `:Org attach open`
+    Open the attachment under cursor in the system default app.
+
+*:Org-attach_reveal*
+    `:Org attach reveal`
+    Reveal the headline's attach dir in the system file manager.
+
+*:Org-attach_url*
+    `:Org attach url <url>`
+    Download `url` into the attach dir and add an attachment link.
+
+*:Org-attach_screenshot*
+    `:Org attach screenshot`
+    Capture a screenshot to the attach dir and add an attachment link.
+    Backend (macOS `screencapture`, Linux `flameshot`/`grim`, Windows
+    `snippingtool`) auto-detected.
+
+==============================================================================
+TODO DEPENDENCIES + ORDERED                               *organ-cmd-todo-ext*
+
+`lua/organ/dependencies.lua` enforces three guards at every TODO state
+transition (wired into `todo._apply`):
+
+  - Parent blocked by children: a headline can't transition to DONE
+    while any descendant is in an active TODO state. Mirrors Emacs
+    `org-enforce-todo-dependencies = t`. Default ON; disable via
+    `todo.enforce_dependencies = false`.
+  - ORDERED siblings: a headline whose parent has `:ORDERED: t` cannot
+    transition to DONE while any previous sibling is still active.
+  - Checkbox dependencies (opt-in): with
+    `todo.enforce_checkbox_dependencies = true`, a headline cannot
+    transition to DONE while any `- [ ]` in its body is unchecked.
+
+A child carrying `:NOBLOCKING: t` is exempt from the parent-blocking
+guard.
+
+*:Org-toggle_ordered*
+    `:Org toggle_ordered`
+    Flip the `:ORDERED:` property on the headline at cursor. When set,
+    sibling-dependency enforcement applies to its children.
+
+==============================================================================
+SCHEDULED, DEADLINE, PROPERTIES, EFFORT                   *organ-cmd-planning*
+
+*:Org-schedule*
+    `:Org schedule [<iso>|today|tomorrow|<spec>]`
+    Set or update the SCHEDULED timestamp on the headline at cursor.
+    Without arg, opens the calendar popup. With arg, parses common
+    spec forms (ISO date, `today`, `tomorrow`, `+1d`, `+1w`, etc.).
+
+*:Org-deadline*
+    `:Org deadline [<iso>|today|tomorrow|<spec>]`
+    Same as `:Org schedule` for DEADLINE.
+
+*:Org-set_effort*
+    `:Org set_effort [<spec>]`
+    Set the `:EFFORT:` property on the headline at cursor. Recognised
+    forms: `1:30`, `2h`, `30m`, `1.5h`, `1d`. See |organ-effort|.
+
+*:Org-set_tags*
+    `:Org set_tags`
+    Open the fast-tag-selection popup to add/remove tags on the
+    headline at cursor.
+
+==============================================================================
+LINKS, IDs, GOTO                                             *organ-cmd-links*
+
+*:Org-store_link*
+    `:Org store_link`
+    Store a link to the headline (or file position) at cursor in
+    organ's session-scoped link store (bounded at 50). Retrieve via
+    `:Org insert_link`.
+
+*:Org-insert_link*
+    `:Org insert_link`
+    Pick from the stored-link list and insert at cursor as
+    `[[target][description]]`.
+
+*:Org-id_get_create*
+    `:Org id get_create`
+    Get or create a UUIDv7 `:ID:` property on the headline at cursor.
+    UUIDv7 (time-ordered) sorts by creation, useful for the index.
+
+*:Org-id_update*
+    `:Org id update`
+    Re-scan the buffer's ID assignments and resync the SQLite index.
+    Run after manually editing IDs (rare).
+
+*:Org-goto*
+    `:Org goto`
+    Jump to a headline by interactively navigating the document
+    outline. Lighter than `:Org find` for in-file movement.
+
+==============================================================================
+SUBTREE, NARROW, ARCHIVE                               *organ-cmd-subtree-ops*
+
+*:Org-cut_subtree* / *:Org-copy_subtree* / *:Org-paste_subtree*
+    Cut / copy / paste a subtree. Paste re-levels to match the
+    insertion point's outline depth.
+
+*:Org-narrow_to_subtree* / *:Org-widen*
+    `:Org narrow_to_subtree` / `:Org widen`
+    Visually fold everything outside the subtree at cursor (narrow);
+    `:Org widen` restores full visibility. Implementation uses foldexpr
+    (no actual buffer truncation).
+
+*:Org-archive_subtree*
+    `:Org archive subtree`
+    Move the subtree at cursor to `<file>.org_archive` (matches Emacs
+    convention).
+
+*:Org-archive_to_sibling*
+    `:Org archive to_sibling`
+    Move the subtree to a sibling-level `Archived` headline within the
+    same file.
+
+==============================================================================
+LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
+
+*:Org-toggle_item*
+    `:Org toggle_item`
+    Cycle the marker of the line at cursor between plain text → `- `
+    list item → `1. ` numbered → plain text.
+
+*:Org-list_sort*
+    `:Org list sort`
+    Sort the list at cursor alphabetically (case-insensitive).
+
+*:Org-list_repair*
+    `:Org list repair`
+    Renumber numeric list items consistently (1., 2., 3., …).
+
+*:Org-list_to_subtree*
+    `:Org list to_subtree`
+    Convert the list at cursor into nested headlines. Each item
+    becomes a heading at depth = current heading depth + nesting depth.
+
+*:Org-update_statistics*
+    `:Org update_statistics`
+    Recompute `[N/M]` and `[X%]` cookies on the headline at cursor
+    based on its descendant TODO/checkbox states.
+
+*:Org-inline_task_insert*
+    `:Org inline_task_insert`
+    Insert an `* INLINE` task block at cursor — a Emacs `org-inlinetask`-
+    style construct that's a fully-tagged TODO embedded inline without
+    breaking the parent heading's outline.
+
+==============================================================================
+TABLE EXTRAS                                            *organ-cmd-tables-ext*
+
+(See |organ-cmd-tables| for the basic row/column operations.)
+
+*:Org-table_edit_field*
+    `:Org table edit_field`
+    Open the cell at cursor in a popup buffer for multi-line editing.
+    `<CR>` commits, `q` cancels.
+
+*:Org-table_import*
+    `:Org table import <path>`
+    Insert table read from a CSV/TSV file at cursor.
+
+*:Org-table_export*
+    `:Org table export <path>`
+    Write the table at cursor to a CSV/TSV file.
+
+==============================================================================
+EXPORT BACKENDS                                             *organ-cmd-export*
+
+All eight export backends accept `[!]` to overwrite an existing target,
+`[path]` to specify the output, and the same option set as
+`:Org export markdown` (see |organ-export|). Without `path`, the output
+lands next to the source file with the appropriate extension.
+
+Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
+  `cite_native = true`   embed CSL processor output for `[cite:...]`
+  `cite_style = "..."`   override `#+cite_export:` style
+  `bib_files = {...}`    extra bibliography paths
+  `expand = true`        run macros / SETUPFILE / INCLUDE pre-pass
+
+*:Org-export_latex*
+    `:Org export latex[!] [path]`
+    Export to a self-contained LaTeX article. Tables become
+    `\begin{tabular}` blocks, src blocks become `\begin{minted}` (with
+    `minted` package) or `\begin{verbatim}` fallback.
+
+*:Org-export_beamer*
+    `:Org export beamer[!] [path]`
+    Export to a Beamer presentation. Headlines map to `\begin{frame}`,
+    second-level become slide subdivisions.
+
+*:Org-export_ascii*
+    `:Org export ascii[!] [path]`
+    Plain-text export with rule lines, indented headings, ASCII tables.
+
+*:Org-export_texinfo*
+    `:Org export texinfo[!] [path]`
+    Texinfo export — useful for generating Info docs for distribution.
+
+*:Org-export_opml*
+    `:Org export opml[!] [path]`
+    OPML export — outline-only structure for sharing with mind-mapping
+    tools.
+
+*:Org-export_ics*
+    `:Org export ics[!] [path]`
+    Export the buffer's SCHEDULED + DEADLINE entries as a single
+    iCalendar `.ics` file.
+
+*:Org-export_ics_all*
+    `:Org export ics_all[!] [path]`
+    Export entries from EVERY org file under `org_dir` to one
+    aggregate `.ics`. Useful for calendar-app subscription.
+
+==============================================================================
+LATEX FRAGMENTS                                              *organ-cmd-latex*
+
+Render `$...$`, `$$...$$`, `\(...\)`, `\[...\]` LaTeX fragments to
+images and display inline (terminals supporting Kitty graphics or
+sixel via image.nvim).
+
+*:Org-latex_render*
+    `:Org latex_render`
+    Force a one-shot render of every fragment in the buffer.
+
+*:Org-latex_cache_purge*
+    `:Org latex_cache_purge`
+    Drop the rendered-image cache (under
+    `<stdpath data>/organ/latex-cache/`). Useful after toolchain
+    upgrades.
+
+==============================================================================
+SPARSE TREE (extra)                                          *organ-cmd-match*
+
+(See |organ-cmd-sparse| for the basic predicates.)
+
+*:Org-sparse_tree_match*
+    `:Org sparse_tree match <query>`
+    Apply an Emacs `org-match` query language predicate. Examples:
+        `:Org sparse_tree match work&urgent-OFFICE`
+        `:Org sparse_tree match +work-{home}|gtd`
+        `:Org sparse_tree match +PRIORITY="A"+TODO="NEXT"`
+
+==============================================================================
+ROAM EXTRAS                                               *organ-cmd-roam-ext*
+
+(See |organ-cmd-roam| for the basic roam commands.)
+
+*:Org-roam_buffer*
+    `:Org roam buffer`
+    Open the roam backlinks sidebar for the current file. Lists
+    every node that links here; <CR> jumps.
+
+*:Org-roam_linkify*
+    `:Org roam linkify`
+    Scan the buffer for plain-text mentions of known roam node titles
+    and rewrite them as `[[id:UUID][title]]` links.
+
+*:Org-roam_linkify_buffer*
+    `:Org roam linkify_buffer`
+    Same as `:Org roam linkify` but with confirmation per match.
+
+==============================================================================
+FOOTNOTE EXTRAS                                       *organ-cmd-footnote-ext*
+
+(See |organ-cmd-footnotes| for the basic footnote commands.)
+
+*:Org-footnote_normalize*
+    `:Org footnote normalize`
+    Convert all inline footnote definitions (`[fn::text]`) to numbered
+    references with separate definitions at the end of the buffer.
+
+*:Org-footnote_sort*
+    `:Org footnote sort`
+    Sort footnote definitions to match the order of references in the
+    buffer.
+
+==============================================================================
+DISPLAY TOGGLES                                            *organ-cmd-display*
+
+*:Org-toggle_inline_images*
+    `:Org toggle_inline_images`
+    Toggle inline image rendering for `[[file:image.png]]` links.
+    Requires image.nvim and a Kitty/sixel-capable terminal.
+
+*:Org-toggle_emphasis_conceal*
+    `:Org toggle_emphasis_conceal`
+    Toggle conceal of emphasis markers — when on, `*bold*` shows as
+    `bold` (in bold) without the asterisks.
+
+*:Org-pretty_entities*
+    `:Org pretty_entities`
+    Toggle conceal-based replacement of org entity escapes (`\alpha` →
+    α, `\to` → →, etc.).
+
+==============================================================================
+CAPTURE EXTRAS                                         *organ-cmd-capture-ext*
+
+==============================================================================
+AGENDA FORMAT                                            *organ-agenda-format*
+
+The default render mirrors Emacs's `org-agenda-prefix-format` and uses
+different defaults per view kind, just like Emacs.
+
+TODO list view (`block.kind = "todo"` or `block.from` unset): ~
+>
+    work:        TODO [#A] Standup                    :work:urgent:
+    work:        NEXT [#B] Code review                       :work:
+    work:             Untagged plain heading
+    personal:    DONE Buy groceries                        :errand:
+    work:             [#C] Notes for later                    :ref:
+<
+Flat list, `category:` prefix, no time / Scheduled: column.
+
+Daily/weekly agenda view (`block.kind = "agenda"` or `block.from` set): ~
+>
+    Sunday      3 May 2026
+      work:    9:00........ Scheduled:  TODO [#A] Standup     :work:urgent:
+<
+Day-grouped, dot-padded time, `Scheduled:`/`Deadline:` tag, undated
+rows hidden by default.
+
+Customize via `organ.config.agenda`:
+
+`agenda.prefix_format` ~
+    One of:
+      * string — applied to every block regardless of kind. Mini-format
+        language (see specifiers below). Same as Emacs's single-format
+        `org-agenda-prefix-format`.
+      * table — keyed by view kind. Default:
+>lua
+        {
+          agenda  = "  %-12:c %?-12t %?s ",
+          todo    = "  %-12:c ",
+          stuck   = "  %-12:c ",
+          default = "  %-12:c ",
+        }
+<
+      * function — `function(record, ctx) -> string` for full control.
+    Format specifiers (string or per-kind table values):
+        %c       category (filename stem unless `#+CATEGORY:` set)
+        %-Nc     category, left-padded to N chars
+        %-N:c    category followed by `:`, padded to N chars total
+                 (matches Emacs's `%-12:c` modifier)
+        %t       scheduled time (e.g. `9:00` — no leading zero)
+        %-Nt     time, dot-padded to N chars (Emacs's distinctive style:
+                 `9:00......`)
+        %?-Nt    time, rendered as N spaces when empty (so the column
+                 stays aligned even for un-timed rows; matches Emacs `%?`)
+        %s       scheduling tag: "Scheduled:" / "Deadline:" / ""
+        %?s      same, blank when empty
+
+`agenda.todo_width` ~
+    Force the TODO column to a fixed width. Default `nil` → auto-fit to
+    the longest keyword present in the rendered block (mirrors Emacs).
+
+`agenda.tags_column` ~
+    Right-align tags at this column. Default `80`. A negative value is
+    treated as offset from the right edge of `textwidth` (or 80 if
+    unset). Mirrors Emacs `org-agenda-tags-column`.
+
+`agenda.show_no_date` ~
+    When `false` (default) the daily/weekly agenda view hides rows that
+    have no SCHEDULED / DEADLINE / CLOSED date. Mirrors Emacs's
+    `org-agenda-include-all-todo = nil`. Set to `true` to surface a
+    `(No date)` group like the previous behavior.
+
+`agenda.block_separator` ~
+    When `true` (default) emit a `═════` line between blocks
+    in a multi-block view (like Emacs). Set to `false` to use a blank
+    line separator instead.
+
+`agenda.category_width`, `agenda.time_width` ~
+    Numeric widths for the default `%-Nc` / `%?-Nt` placeholders when the
+    user keeps the default `prefix_format`. Override either to change the
+    visual column width.
+
+==============================================================================
+AGENDA EXTRAS                                           *organ-cmd-agenda-ext*
+
+*:Org-agenda_custom*
+    `:Org agenda custom`
+    Open the custom agenda dispatcher even when only one named view
+    exists (default `:Org agenda` skips the dispatcher when there's
+    only one view).
+
+*:Org-agenda_day* / *:Org-agenda_week*
+    Shortcut commands for the today / this-week views without needing
+    to define them in `agenda.views`.
+
+==============================================================================
+MISCELLANEOUS                                             *organ-cmd-misc-ext*
+
+*:Org-protocol*
+    `:Org protocol <url>`
+    Handle an `org-protocol://` URL passed via the OS link handler.
+    Dispatches to capture / store-link / etc. based on the protocol
+    sub-scheme.
+
+==============================================================================
+TIMER / POMODORO                                                 *organ-timer*
+
+Countdown timer for pomodoro-style focus sessions. Single instance per
+nvim. Survives buffer changes; does NOT survive nvim restart.
+
+*:Org-timer_start*  `:Org timer start [duration]`
+    Start a countdown. `duration` accepts:
+      "25"        25 minutes (bare numbers default to minutes — Emacs
+                  convention)
+      "25m"       25 minutes
+      "90s"       90 seconds
+      "1h"        1 hour
+      "1h30m"     1 hour 30 minutes
+      "0:25:00"   h:m:s form
+      "25:00"     m:s form
+    Default when omitted: `config.timer.default_seconds` (25 min).
+
+*:Org-timer_stop*    Stop / clear the active timer.
+*:Org-timer_pause*   Pause; press again to resume.
+*:Org-timer_status*  Print remaining time on the active timer.
+
+On expiry, fires `organ.timer.expired` event + a vim.notify
+("⏲ Organ timer expired"). State auto-clears so the next
+`:Org timer start` begins fresh.
+
+Statusline component (drop into 'statusline' or a lualine component): >lua
+    require("organ.timer").statusline()
+<
+Returns "⏲ MM:SS" when running, "⏸ MM:SS" when paused, "" when idle.
+
+==============================================================================
+PROFILER / INSTRUMENTATION                                     *organ-profile*
+
+Wraps the indexer + agenda hot paths with timing measurement. Surfaces
+slow calls (≥ 50 ms by default) so you can pinpoint the source of any
+"freezes time to time" you experience.
+
+*:Org-profile_start*   `:Org profile start [slow_ms]`
+    Begin recording. Optional argument sets the threshold for what
+    counts as "slow" (default 50).
+
+*:Org-profile_stop*    Stop and print the report.
+*:Org-profile_report*  Print the running report without stopping.
+
+The wrapper is a no-op when not started; the cost of having it
+loaded is one boolean check per wrapped call. Wrapped functions:
+`organ.indexer.extract`, `organ.indexer.write_body`,
+`organ.agenda.refresh`, `organ.agenda.render`, `organ.query.agenda`,
+`organ.query.headlines`, `organ.query.links_to`,
+`organ.drain_blocking`.
+
+==============================================================================
+BABEL SESSIONS                                          *organ-babel-sessions*
+
+`:session foo` header on a `#+begin_src python` (or `sh` / `bash`)
+keeps a long-lived REPL alive between blocks; variables and imports
+carry across. The literate-programming workflow.
+
+>org
+    #+begin_src python :session main
+    import math
+    x = 7
+    #+end_src
+
+    #+begin_src python :session main
+    print(math.sqrt(x))   #=> 2.6457513...
+    #+end_src
+<
+Different `:session` names spawn independent kernels. Drop a session
+explicitly with: >lua
+    require("organ.babel.sessions").stop_session("python", "main")
+<
+or stop all: >lua
+    require("organ.babel.sessions").stop_all()
+<
+Sessions auto-clean on `VimLeavePre`. Currently supported languages:
+python, sh, bash. Others fall back to the existing fresh-subprocess
+runner (no persistence).
+
+==============================================================================
+ORG-MODERN VISUAL UPGRADES                                      *organ-modern*
+
+Three composable visual stages that decorate org buffers, all opt-in: >lua
+    require("organ").setup({
+      modern = {
+        bullets = true,    -- per-level glyphs
+        blocks  = true,    -- block-frame decoration
+        pills   = true,    -- TODO + timestamp pills
+      },
+    })
+<
+                                                        *organ-modern-bullets*
+`bullets` — replaces the trailing `*` of each headline with a level-
+indexed glyph (◉ ○ ◈ ◇ default cycle, repeats for deeper levels) and
+conceals the leading N-1 stars as spaces. Override the cycle: >lua
+    modern = { bullets = { glyphs = { "●", "○", "▶", "▷" } } }
+<
+DO NOT combine with `stars.hide = true` — both touch the same conceal
+range and the last-applied wins (non-deterministic).
+
+                                                         *organ-modern-blocks*
+`blocks` — `#+begin_TYPE [args]` and `#+end_TYPE` lines render as box-
+drawing decoration (`┌── lang ──`, `└──`). Works for src/quote/example
+/verse/export/comment/special/greater. Original text is concealed;
+underlying buffer content unchanged.
+
+                                                          *organ-modern-pills*
+`pills` — TODO state keywords and timestamps render with `reverse =
+true + bold` overlay so they look like solid color blocks. Cosmetic
+only (no buffer text changes). The pill background comes from the
+existing fg color of the @org.todo / @org.timestamp groups via vim's
+inverse-video, so a single colorscheme override propagates.
+
+==============================================================================
+STAR CONCEALMENT                                                 *organ-stars*
+
+Emacs `org-hide-leading-stars` equivalent. Off by default. >lua
+    stars = { hide = true }
+<
+Conceals all but the trailing `*` of each headline's leading-star
+block, so `*** Foo` renders as `   * Foo`. Sets the window's
+`'conceallevel'` to 2 on attach (restored on detach).
+
+==============================================================================
+AGENDA EMACS-PARITY                                      *organ-agenda-parity*
+
+The agenda subsystem mirrors Emacs `org-agenda` for daily-driver flows.
+This section enumerates the parity work; see |organ-cmd-agenda-ext| for
+the command list.
+
+INTERACTIVE DISPATCHER                                 *organ-agenda-dispatch*
+    `:Org agenda` with no args opens an Emacs-style chooser (M-x
+    org-agenda):
+        a   Week agenda
+        d   Day agenda
+        t   Global TODO list
+        m   Tag query…
+        s   Search by string…
+        #   Stuck projects
+        <user views from agenda.views config>
+        default
+
+NEW VIEWS                                                 *organ-agenda-views*
+    `:Org agenda todos`            global active TODOs
+    `:Org agenda tags [query]`     org-match tag-query view
+    `:Org agenda search [query]`   title-substring search
+
+PER-ROW EDIT KEYMAPS                                  *organ-agenda-edit-keys*
+    + / - / =      raise / lower / clear priority
+    gT             set tags
+    A              archive row to file
+    gA             toggle showing archived rows
+    gC             open clock report
+    <M-CR>         add new TODO heading
+
+BULK SELECT + ACTIONS                                      *organ-agenda-bulk*
+    <Space>        toggle bulk mark on cursor row + advance
+    gM             toggle mark on every visible row
+    gB             apply action menu (state change / schedule /
+                   deadline / refile / archive / delete)
+    u              undo last bulk delete (vim-native)
+    <C-r>          redo last undone delete
+
+PERIOD + NAVIGATION                                         *organ-agenda-nav*
+    f / b          next / prev period
+    .              today
+    gj             jump to date
+    gd / gw        day / week view
+
+VISUAL                                                   *organ-agenda-visual*
+    `time_grid`         Emacs `org-agenda-use-time-grid`. Default ON
+                        for today's bucket only:
+                          { hours = { 8, 10, 12, 14, 16, 18, 20 },
+                            on    = "today" | "all" }
+                        Set `false` to disable.
+    `now_marker`        "← now" line on today's bucket. Default true.
+    `view_header`       "Day-agenda (Wnn):" / "Week-agenda (Wnn):"
+                        top-of-buffer line. Default true.
+    `sticky`            Reuse the same agenda buffer when opening
+                        the same view name again. Default true.
+    `show_overdue_scheduled`
+                        Roll overdue scheduled rows into today's
+                        bucket. Default false (matches Emacs).
+
+REPEATER EXPANSION                                    *organ-agenda-repeaters*
+    Recurring tasks (`+1d`, `++1w`, `.+1d`, `.+7d`, ...) generate
+    one synthetic row per occurrence in the agenda window. Daily
+    habits show on each day Mon-Sun; weekly tasks show each week.
+
+PREFIX FORMAT                                            *organ-agenda-prefix*
+    Default per-view-kind:
+        agenda  → "  %-12:c %?-12t %?s "
+        todo    → "  %-12:c "
+        stuck   → "  %-12:c "
+    The `%s` token produces context-aware labels:
+        "Scheduled:"    today's scheduled rows
+        "Deadline:"     today's deadlines
+        "In   N d.:"    future scheduled / deadline within 14 days
+        "Sched. Nx:"    overdue scheduled (N repeat-cycles late)
+        "Past due:"     overdue deadlines
+    For day-grouped views, the reference date is the BUCKET's date,
+    not today — Tuesday's row reads "Scheduled:" because Tuesday IS
+    its scheduled day, not "In 1 d.:" relative to today.
+
+CATEGORY + TAG ORDER                                    *organ-agenda-display*
+    Category respects (in this precedence): per-headline `:CATEGORY:`
+    property, file's `#+CATEGORY:` keyword, then filename stem.
+    Tags render in source-file order (not alphabetical).
+
+==============================================================================
+LICENSE                                                        *organ-license*
+
+MIT — see the LICENSE file in the project repository.
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:

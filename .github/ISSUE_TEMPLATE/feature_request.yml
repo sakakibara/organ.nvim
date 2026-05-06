@@ -1,0 +1,56 @@
+name: Feature request
+description: A missing capability or an Emacs `org-*` setting organ doesn't support yet.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two things make a feature request actionable: a real workflow
+        that needs it, and a concrete shape someone can implement
+        without a second round of clarifying questions.
+
+        If the feature already exists in Emacs, link the relevant
+        `org-*` defcustom or function — that gives the parity
+        baseline and lets the implementer match Emacs's behavior
+        exactly.
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation
+      description: |
+        What workflow does this enable?  What can't you do today,
+        and how do you currently work around it?
+    validations:
+      required: true
+
+  - type: input
+    id: emacs_reference
+    attributes:
+      label: Emacs / org-roam reference (if applicable)
+      description: |
+        Link to the relevant `org-*` defcustom, function, or manual
+        section.  Skip if this isn't an Emacs-parity ask.
+      placeholder: "https://orgmode.org/manual/... or org-* defcustom name"
+
+  - type: textarea
+    id: shape
+    attributes:
+      label: Proposed shape
+      description: |
+        Concrete enough that someone can start without asking again:
+        - command name (`:Org foo bar`)
+        - config key + default
+        - keymap (and whether it should be on by default)
+        - expected behavior on edge cases
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: |
+        Existing organ features, external plugins, or workarounds
+        that almost solve it.  Helps clarify what's actually
+        missing vs. underdocumented.

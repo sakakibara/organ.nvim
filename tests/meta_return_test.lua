@@ -1,0 +1,141 @@
+-- M-RET context-aware insert.
+-- Run via: nvim --headless -l tests/meta_return_test.lua
+
+local root = vim.fn.getcwd()
+dofile(root .. "/tests/_bootstrap.lua")
+
+local mr = require("organ.meta_return")
+
+local function with_buffer(lines, line, col, fn)
+  local b = vim.api.nvim_create_buf(true, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, lines)
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_win_set_cursor(0, { line, col })
+  fn()
+  local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  local cur = vim.api.nvim_win_get_cursor(0)
+  vim.api.nvim_buf_delete(b, { force = true })
+  return out, cur
+end
+
+local function eq(a, b, label)
+  if a ~= b then
+    error(label .. ":\n  expected: " .. vim.inspect(b) .. "\n  actual:   " .. vim.inspect(a))
+  end
+end
+
+local function deq(a, b, label)
+  if vim.deep_equal(a, b) ~= true then
+    error(label .. ":\n  expected: " .. vim.inspect(b) .. "\n  actual:   " .. vim.inspect(a))
+  end
+end
+
+-- 1. Headline: insert sibling at same level after the section.
+local out = with_buffer(
+  {
+    "* First",
+    "Some body.",
+    "* Second",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* First",
+  "Some body.",
+  "* ",
+  "* Second",
+}, "headline → new sibling at same level after section body")
+
+-- 2. List item with `-` bullet: insert new `-` below.
+out = with_buffer(
+  {
+    "- one",
+    "- two",
+  },
+  1,
+  4,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "- one",
+  "- ",
+  "- two",
+}, "list item `- ` → new `- ` below")
+
+-- 3. Numeric list: new item + renumbers the rest.
+out = with_buffer(
+  {
+    "1. one",
+    "2. two",
+    "3. three",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "1. one",
+  "2. ",
+  "3. two",
+  "4. three",
+}, "numeric list inserts and renumbers tail")
+
+-- 4. Indented `*` bullet.
+out = with_buffer(
+  {
+    "* H",
+    "  * subitem",
+  },
+  2,
+  4,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* H",
+  "  * subitem",
+  "  * ",
+}, "indented `*` bullet → another `*` at same indent")
+
+-- 5. Table row: new row with same column count.
+out = with_buffer(
+  {
+    "| a | b | c |",
+    "| 1 | 2 | 3 |",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "| a | b | c |",
+  "|  |  |  |",
+  "| 1 | 2 | 3 |",
+}, "table row → new row with same cell count")
+
+-- 6. Plain paragraph: open blank line below.
+out = with_buffer(
+  {
+    "Just text",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, { "Just text", "" }, "paragraph → blank line below")
+
+io.write("meta_return ok\n")
+os.exit(0)

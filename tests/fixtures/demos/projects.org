@@ -1,0 +1,20 @@
+#+TITLE: Projects
+
+* organ.nvim
+:PROPERTIES:
+:ID: organ-nvim
+:END:
+
+Tracks the [[id:multi-sequence][multi-sequence TODO support]] work,
+among other release-prep tasks.
+
+** Backlog
+
+* personal
+:PROPERTIES:
+:ID: personal
+:END:
+
+Books to read, gifts to plan, [[id:multi-sequence][hobby code]].
+
+** Backlog

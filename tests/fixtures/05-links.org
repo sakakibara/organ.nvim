@@ -1,0 +1,18 @@
+* Alpha
+  :PROPERTIES:
+  :ID:       alpha-id
+  :END:
+  Some body with [[id:beta-id][Beta]] and a bare URL [[https://example.com]].
+
+* Beta
+  :PROPERTIES:
+  :ID:       beta-id
+  :END:
+  Back-reference: [[id:alpha-id]]. Also a file link: [[file:/tmp/x.org]].
+  And a headline search: [[*Gamma Section]] for fun.
+
+* Gamma Section
+  :PROPERTIES:
+  :ID:       gamma-id
+  :END:
+  No links here.

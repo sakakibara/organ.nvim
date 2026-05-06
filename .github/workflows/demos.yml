@@ -1,0 +1,156 @@
+name: demos
+
+# Re-renders every assets/tapes/*.tape into assets/demos/*.gif and
+# commits the result back to the branch.
+#
+# Triggers on push to main that touches:
+#   * tapes / fixtures        — the tape itself or its inputs changed
+#   * plugin code             — what the tape demonstrates may have
+#                               changed (bug fixes, UI tweaks, output
+#                               format changes).  Without this the
+#                               GIFs drift behind reality.
+#   * grammar / queries       — syntax highlighting + tree-sitter
+#                               injections feed every render
+#   * dep manifests           — snacks / catppuccin version bumps
+#                               can shift colors / icons
+#   * the workflow itself     — Makefile, demos.yml
+#   * workflow_dispatch       — manual refresh
+#
+# Skips itself with `[skip ci]` on the regen commit to avoid loops.
+# Tapes are the source of truth; committed GIFs are derived
+# artifacts.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'assets/tapes/**'
+      - 'tests/fixtures/demos/**'
+      - 'lua/**'
+      - 'plugin/**'
+      - 'ftplugin/**'
+      - 'queries/**'
+      - 'sql/**'
+      - 'scripts/demo-deps.sh'
+      - '.github/workflows/demos.yml'
+      - 'Makefile'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # Need full history + a writable token so the regen commit
+          # can push back to main.
+          fetch-depth: 1
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: install vhs + its runtime deps
+        run: |
+          # ttyd + ffmpeg are vhs's recording / encoding backends.
+          # JetBrainsMono Nerd Font supplies the glyphs snacks /
+          # organ icons render -- without it the demos show □ tofu
+          # for every nerd-font codepoint.
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ttyd ffmpeg chromium-browser \
+            sqlite3 libsqlite3-0 libnotify-bin \
+            libcairo2 librsvg2-bin \
+            fonts-jetbrains-mono unzip
+          # Nerd-patched JetBrains Mono isn't in apt; pull the
+          # official release zip into the system font dir.
+          NF_VERSION=v3.4.0
+          mkdir -p /tmp/nf
+          curl -sL -o /tmp/nf/jbmono.zip \
+            "https://github.com/ryanoasis/nerd-fonts/releases/download/${NF_VERSION}/JetBrainsMono.zip"
+          sudo unzip -o /tmp/nf/jbmono.zip -d /usr/share/fonts/truetype/jetbrainsmono-nerd
+          sudo fc-cache -f
+          # vhs prebuilt linux/amd64 release.
+          VHS_VERSION=v0.11.0
+          curl -sL -o /tmp/vhs.tar.gz \
+            "https://github.com/charmbracelet/vhs/releases/download/${VHS_VERSION}/vhs_${VHS_VERSION#v}_Linux_x86_64.tar.gz"
+          sudo tar -xzf /tmp/vhs.tar.gz -C /tmp/
+          sudo mv /tmp/vhs_${VHS_VERSION#v}_Linux_x86_64/vhs /usr/local/bin/vhs
+          vhs --version
+
+      - name: setup node (for tree-sitter generate)
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: install plugin runtime deps (tablature / narrow)
+        run: make deps
+
+      - name: install demo deps (snacks / catppuccin — used by tapes)
+        run: make demo-deps
+
+      - name: build grammar (demos exercise the parser)
+        run: make grammar
+
+      - name: render every tape -> gif
+        run: |
+          mkdir -p assets/demos
+          make demos
+
+      - name: verify rendered output
+        # Belt and suspenders.  `make demos` already fails on vhs
+        # error, missing output, OR nvim Lua errors captured in the
+        # per-GIF log.  This step double-checks: every tape under
+        # assets/tapes/ produced a non-empty GIF over a reasonable
+        # size threshold (a 1-frame placeholder GIF is ~few KB; a
+        # real render is hundreds of KB).
+        run: |
+          set -e
+          fail=0
+          for tape in assets/tapes/*.tape; do
+            name=$(basename "${tape%.tape}")
+            gif="assets/demos/$name.gif"
+            if [ ! -f "$gif" ]; then
+              echo "FAIL: $gif missing (tape: $tape)"
+              fail=1
+              continue
+            fi
+            size=$(stat -c%s "$gif")
+            # 50KB floor: an empty / 1-frame GIF is < 10KB, a real
+            # render is 200KB+.  Anything below 50KB likely means
+            # vhs aborted mid-encode.
+            if [ "$size" -lt 51200 ]; then
+              echo "FAIL: $gif suspiciously small ($size bytes)"
+              fail=1
+            fi
+          done
+          if [ "$fail" != 0 ]; then
+            echo ""
+            echo "Demo verification failed -- not pushing.  Inspect"
+            echo "the render logs above + the .gif.log files in the"
+            echo "workflow artifacts to diagnose."
+            exit 1
+          fi
+          echo "All demos verified."
+
+      - name: commit regenerated demos
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # `-f` because assets/demos/ is .gitignored: humans never
+          # commit GIFs (they're derived artifacts), only this
+          # workflow does.  The [skip ci] tag on the regen commit
+          # prevents re-triggering this same workflow.
+          git add -f assets/demos
+          if git diff --staged --quiet; then
+            echo "no GIF changes -- nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore(demos): regenerate from tapes [skip ci]"
+          git push

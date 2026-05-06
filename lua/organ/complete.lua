@@ -1,0 +1,379 @@
+-- Insert-mode link completion for organ.nvim.
+
+local M = {}
+
+M.TRIGGERS = {
+  ["[[id:"] = "id",
+  ["[[*"] = "headline",
+  ["[[file:"] = "file",
+  ["[[attachment:"] = "attachment",
+}
+
+function M.trigger_at_cursor(bufnr)
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+  local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  local prefix_part = line:sub(1, col)
+
+  local open_at = prefix_part:find("%[%[[^%[]*$")
+  if not open_at then
+    return nil
+  end
+
+  local payload = prefix_part:sub(open_at)
+  for trigger, kind in pairs(M.TRIGGERS) do
+    if payload:sub(1, #trigger) == trigger then
+      local rest = payload:sub(#trigger + 1)
+      if rest:find("]]", 1, true) then
+        return nil
+      end
+      return {
+        kind = kind,
+        prefix = trigger,
+        prefix_col = open_at - 1,
+        query = rest,
+      }
+    end
+  end
+
+  -- Property-value trigger: [[<KEY>: where KEY is property-name shaped
+  -- and not a reserved scheme.
+  local key, rest = payload:match("^%[%[([A-Za-z][A-Za-z0-9_-]*):(.*)$")
+  if key then
+    local reserved = {
+      id = true,
+      file = true,
+      attachment = true,
+      http = true,
+      https = true,
+      mailto = true,
+    }
+    if not reserved[key] and not rest:find("]]", 1, true) then
+      return {
+        kind = "property_value",
+        key = key,
+        prefix = "[[" .. key .. ":",
+        prefix_col = open_at - 1,
+        query = rest,
+      }
+    end
+  end
+
+  return nil
+end
+
+local function get_config()
+  local ok, organ = pcall(require, "organ")
+  if not ok or not organ.config then
+    return {}
+  end
+  return organ.config.complete or {}
+end
+
+local function relpath(p)
+  return vim.fn.fnamemodify(p, ":.")
+end
+
+-- Walk a directory recursively, collecting up to `cap` file paths whose
+-- relative form contains `query` (substring; case-insensitive).
+local function walk_files(root_dir, query, cap)
+  local results = {}
+  local q_lower = (query or ""):lower()
+  local function visit(d)
+    if #results >= cap then
+      return
+    end
+    local h = vim.uv.fs_scandir(d)
+    if not h then
+      return
+    end
+    while true do
+      if #results >= cap then
+        return
+      end
+      local name, t = vim.uv.fs_scandir_next(h)
+      if not name then
+        break
+      end
+      if not name:match("^%.") then
+        local full = d .. "/" .. name
+        if t == "directory" then
+          visit(full)
+        elseif t == "file" then
+          local rel = relpath(full)
+          if q_lower == "" or rel:lower():find(q_lower, 1, true) then
+            results[#results + 1] = rel
+          end
+        end
+      end
+    end
+  end
+  pcall(visit, root_dir)
+  return results
+end
+
+local function list_dir(dir, query)
+  local results = {}
+  local q_lower = (query or ""):lower()
+  local h = vim.uv.fs_scandir(dir)
+  if not h then
+    return results
+  end
+  while true do
+    local name, t = vim.uv.fs_scandir_next(h)
+    if not name then
+      break
+    end
+    if t == "file" then
+      if q_lower == "" or name:lower():find(q_lower, 1, true) then
+        results[#results + 1] = name
+      end
+    end
+  end
+  return results
+end
+
+function M.items_for(kind, query)
+  if kind == "id" then
+    local rows = require("organ.query").headlines({ has_id = true })
+    local items = {}
+    for _, r in ipairs(rows) do
+      items[#items + 1] = {
+        kind = "id",
+        display = string.format(
+          "%s   %s:%d",
+          r.title,
+          relpath(r.file_path),
+          (r.line_start or 0) + 1
+        ),
+        insert_text = r.id,
+        description = r.title,
+      }
+    end
+    return items
+  end
+
+  if kind == "headline" then
+    local rows = require("organ.query").headlines({})
+    local items = {}
+    for _, r in ipairs(rows) do
+      items[#items + 1] = {
+        kind = "headline",
+        display = string.format(
+          "%s   %s:%d",
+          r.title,
+          relpath(r.file_path),
+          (r.line_start or 0) + 1
+        ),
+        insert_text = r.title,
+        description = r.title,
+      }
+    end
+    return items
+  end
+
+  if kind == "file" then
+    local cfg = get_config()
+    local cap = cfg.file_walk_max_results or 500
+    local paths = walk_files(vim.fn.getcwd(), query, cap)
+    local items = {}
+    for _, p in ipairs(paths) do
+      items[#items + 1] = {
+        kind = "file",
+        display = p,
+        insert_text = p,
+        description = vim.fn.fnamemodify(p, ":t"),
+      }
+    end
+    return items
+  end
+
+  if kind == "attachment" then
+    local cfg = get_config()
+    local dir = cfg.attachment_dir or (vim.fn.getcwd() .. "/attachments")
+    local names = list_dir(dir, query)
+    local items = {}
+    for _, n in ipairs(names) do
+      items[#items + 1] = {
+        kind = "attachment",
+        display = n,
+        insert_text = n,
+        description = n,
+      }
+    end
+    return items
+  end
+
+  if kind == "property_value" then
+    -- For property_value, the second argument is the full trigger table
+    -- (we need both key and query), not just the query string.
+    local trigger = query
+    if type(trigger) ~= "table" or not trigger.key then
+      return {}
+    end
+
+    local rows = require("organ.query").headlines({
+      has_property = trigger.key,
+      include_properties = true,
+    })
+    local items = {}
+    local seen = {}
+    for _, r in ipairs(rows) do
+      local raw = (r.properties or {})[trigger.key]
+      if raw then
+        for tok in raw:gmatch("%S+") do
+          if
+            tok ~= ""
+            and not seen[tok]
+            and (trigger.query == "" or tok:find(trigger.query, 1, true))
+          then
+            seen[tok] = true
+            items[#items + 1] = {
+              kind = "property_value",
+              insert_text = tok,
+              display = tok .. "   →  " .. (r.title or ""),
+              description = r.title,
+            }
+          end
+        end
+      end
+    end
+    return items
+  end
+
+  return {}
+end
+
+M._open_for = {}
+
+function M.open_picker(bufnr, trigger)
+  local items
+  if trigger.kind == "property_value" then
+    items = M.items_for(trigger.kind, trigger)
+  else
+    items = M.items_for(trigger.kind, trigger.query)
+  end
+  local picker_items = {}
+  for _, it in ipairs(items) do
+    picker_items[#picker_items + 1] = {
+      display = it.display,
+      match_fields = { "display" },
+      _item = it,
+    }
+  end
+  require("organ.find").pick({
+    source = "complete",
+    items = picker_items,
+    default_action = "complete_select",
+    actions = {
+      complete_select = function(picker_item)
+        M.apply_selection(bufnr, trigger, picker_item._item)
+      end,
+    },
+  })
+end
+
+-- True when a host completion plugin is already loaded; we then skip the
+-- snacks-picker fallback so users don't see two UIs at once. Progressive
+-- enhancement: blink.cmp / nvim-cmp own the popup if present.
+function M._host_completion_active()
+  if package.loaded["blink.cmp"] then
+    return true
+  end
+  if package.loaded["cmp"] then
+    return true
+  end
+  return false
+end
+
+function M.maybe_open(bufnr)
+  if M._host_completion_active() then
+    return
+  end
+  local trigger = M.trigger_at_cursor(bufnr)
+  if not trigger then
+    M._open_for[bufnr] = nil
+    return
+  end
+  local row = vim.api.nvim_win_get_cursor(0)[1]
+  local key = row .. ":" .. trigger.prefix_col
+  if M._open_for[bufnr] == key then
+    return
+  end
+  M._open_for[bufnr] = key
+
+  M.open_picker(bufnr, trigger)
+end
+
+function M.apply_selection(bufnr, trigger, item)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local fresh = M.trigger_at_cursor(bufnr)
+  if not fresh or fresh.prefix ~= trigger.prefix or fresh.prefix_col ~= trigger.prefix_col then
+    require("organ.notify").warn("completion target moved; aborting insert")
+    return
+  end
+
+  local row = vim.api.nvim_win_get_cursor(0)[1] - 1
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+  local link = string.format("%s%s][%s]]", trigger.prefix, item.insert_text, item.description)
+  local ok, err =
+    pcall(vim.api.nvim_buf_set_text, bufnr, row, trigger.prefix_col, row, col, { link })
+  if not ok then
+    require("organ.notify").warn("organ: completion failed: " .. tostring(err))
+    return
+  end
+  vim.api.nvim_win_set_cursor(0, { row + 1, trigger.prefix_col + #link })
+end
+
+-- Omnifunc adapter — fires for users without blink.cmp / nvim-cmp who
+-- use Vim's built-in `<C-x><C-o>` completion.  Two-phase per
+-- `:h complete-functions`:
+--   * findstart=1: locate the trigger column (col of `[[id:` etc.)
+--   * findstart=0: return the candidate list
+--
+-- Wired automatically in ftplugin/org.lua via `vim.bo.omnifunc`.
+function M.omnifunc(findstart, base)
+  local bufnr = vim.api.nvim_get_current_buf()
+  if findstart == 1 then
+    local trigger = M.trigger_at_cursor(bufnr)
+    if not trigger then
+      return -3 -- "cancel completion silently"
+    end
+    -- Stash the trigger so phase 2 can reuse it (avoid re-parsing the
+    -- line from the now-shifted cursor position).
+    M._omni_trigger = trigger
+    -- omnifunc reports the byte column where the matched text starts;
+    -- we want completion to replace the text AFTER the prefix, so
+    -- point at the column right after `[[id:` (or whichever trigger).
+    return trigger.prefix_col + #trigger.prefix
+  end
+  local trigger = M._omni_trigger
+  M._omni_trigger = nil
+  if not trigger then
+    return {}
+  end
+  local items = M.items_for(trigger.kind, base or trigger.query or "")
+  local out = {}
+  for _, it in ipairs(items or {}) do
+    out[#out + 1] = {
+      word = it.insert_text,
+      abbr = it.display,
+      menu = "[organ:" .. trigger.kind .. "]",
+      info = it.description,
+    }
+  end
+  return out
+end
+
+M.commands = {
+  complete = {
+    fn = function()
+      M.maybe_open(vim.api.nvim_get_current_buf())
+    end,
+    desc = "Open the link completion picker for the `[[...` trigger at cursor",
+  },
+}
+
+return M

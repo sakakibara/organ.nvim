@@ -1,0 +1,23 @@
+* Plain date
+  SCHEDULED: <2026-05-01 Fri>
+  Body.
+
+* Date with time
+  SCHEDULED: <2026-05-01 Fri 14:00>
+
+* Time range (take start)
+  SCHEDULED: <2026-05-01 Fri 14:00-15:30>
+
+* Repeater
+  DEADLINE: <2026-05-01 Fri +1w>
+
+* Inactive closed
+  CLOSED: [2026-04-30 Thu 09:15]
+
+* Malformed
+  SCHEDULED: <abcde>
+
+* All three fields
+  SCHEDULED: <2026-05-01 Fri>
+  DEADLINE: <2026-05-03 Sun 10:00>
+  CLOSED: [2026-04-29 Wed]

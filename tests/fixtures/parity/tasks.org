@@ -1,0 +1,21 @@
+#+CATEGORY: Tasks
+#+TITLE: Tasks
+
+* TODO Call dentist for cleaning appointment                           :gtd:@phone:
+  SCHEDULED: <2026-05-04 Mon 09:00>
+* NEXT Weekly review                                                          :gtd:
+  SCHEDULED: <2026-05-04 Mon 17:00>
+* NEXT [#A] Submit expense report                                       :gtd:@computer:
+  SCHEDULED: <2026-05-05 Tue>
+  DEADLINE:  <2026-05-07 Thu>
+* NEXT Take out trash                                                          :gtd:
+  SCHEDULED: <2026-05-05 Tue>
+* NEXT Pay rent                                                                :gtd:
+  SCHEDULED: <2026-05-01 Fri>
+* NEXT Pick up dry cleaning                                              :gtd:@errand:
+  SCHEDULED: <2026-05-04 Mon>
+* NEXT Water plants                                                            :gtd:
+  SCHEDULED: <2026-05-04 Mon ++3d>
+* NEXT Draft Q4 OKR proposal                                          :gtd:@office:deep:
+  SCHEDULED: <2026-05-08 Fri>
+  DEADLINE:  <2026-05-08 Fri>

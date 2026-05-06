@@ -1,0 +1,39 @@
+#+TITLE: Demo agenda
+
+* TODO [#A] Ship release                                              :work:
+SCHEDULED: <2026-05-06 Wed>
+:PROPERTIES:
+:Effort:   2h
+:END:
+
+* NEXT [#A] Review PR #42                                     :work:project:
+SCHEDULED: <2026-05-06 Wed>
+:PROPERTIES:
+:Effort:   1h
+:END:
+
+* DONE [#B] Polish README                                             :work:
+CLOSED: [2026-05-06 Wed 11:30]
+SCHEDULED: <2026-05-05 Tue>
+
+* TODO [#A] Code review feedback                                      :work:
+SCHEDULED: <2026-05-07 Thu>
+:PROPERTIES:
+:Effort:   45m
+:END:
+
+* TODO Doctor appointment                                         :personal:
+SCHEDULED: <2026-05-07 Thu 09:00>
+
+* WAIT Pair-program with @sam                                         :work:
+SCHEDULED: <2026-05-08 Fri 14:00-15:30>
+:PROPERTIES:
+:CATEGORY: meet
+:Effort:   1h30
+:END:
+
+* TODO Buy birthday gift                                          :personal:
+SCHEDULED: <2026-05-08 Fri>
+
+* DONE Triage inbox                                                   :work:
+CLOSED: [2026-05-04 Mon 09:15]

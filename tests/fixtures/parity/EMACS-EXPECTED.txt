@@ -1,0 +1,61 @@
+Week-agenda (W19):
+Monday      4 May 2026 W19
+               8:00...... ----------------
+  Tasks:       9:00...... Scheduled:  TODO Call dentist for cleaning appointment :gtd:@phone:
+  playground: 10:00...... Scheduled:  PROJ Sync with Sarah on Q4 product priorities :@office:
+              10:00...... ----------------
+              12:00...... ----------------
+              14:00...... ----------------
+              16:00...... ----------------
+  Habits:     17:00...... Scheduled:  NEXT Weekly review                :habit:
+  Tasks:      17:00...... Scheduled:  NEXT Weekly review                  :gtd:
+              18:00...... ----------------
+              20:00...... ----------------
+  Tasks:      Sched. 3x:  NEXT Pay rent                                   :gtd:
+  playground: Scheduled:  TODO Task with tag           :playground:test:urgent:
+  Tasks:      Scheduled:  NEXT Pick up dry cleaning               :gtd:@errand:
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     NEXT Long run (10km+)                                     :habit:
+  playground: In   6 d.:  WAIT Task with deadline             :playground:test:
+Tuesday     5 May 2026
+  playground: 14:00...... Scheduled:  NEXT Sync with Anil on infra capacity :@office:
+  playground: Scheduled:  NEXT Task with priority [#A] :playground:test:@office:
+  Tasks:      Scheduled:  NEXT [#A] Submit expense report       :gtd:@computer:
+  Tasks:      Scheduled:  NEXT Take out trash                             :gtd:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+Wednesday   6 May 2026
+  playground: Scheduled:  NEXT Marketing alignment                     :@email:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+Thursday    7 May 2026
+  Tasks:      NEXT [#A] Submit expense report                   :gtd:@computer:
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     PROJ Strength training                                    :habit:
+Friday      8 May 2026
+  Tasks:      Scheduled:  NEXT Draft Q4 OKR proposal         :gtd:@office:deep:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     TODO Donate                                               :habit:
+  Tasks:      NEXT Draft Q4 OKR proposal                     :gtd:@office:deep:
+Saturday    9 May 2026
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+Sunday     10 May 2026
+  Tasks:      Scheduled:  NEXT Water plants                               :gtd:
+  Habits:     TODO Morning walk                                         :habit:
+  Habits:     TODO Read for 30 minutes                                  :habit:
+  Habits:     TODO Stretch                                              :habit:
+  Habits:     PROJ Strength training                                    :habit:
+  playground: Deadline:   WAIT Task with deadline             :playground:test:
+

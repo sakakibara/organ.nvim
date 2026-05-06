@@ -1,0 +1,19 @@
+* Task with properties
+  :PROPERTIES:
+  :ID:       abc-123
+  :CATEGORY: work
+  :END:
+  Body paragraph.
+
+* TODO Combined planning and properties
+  SCHEDULED: <2026-04-25 Sat>
+  :PROPERTIES:
+  :CUSTOM_ID: my-task
+  :COLUMNS:   %25ITEM %TODO %TAGS
+  :END:
+  Notes.
+
+* Bare drawer
+  :PROPERTIES:
+  :ONE: one-value
+  :END:

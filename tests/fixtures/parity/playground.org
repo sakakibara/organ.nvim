@@ -1,0 +1,15 @@
+#+CATEGORY: playground
+#+TITLE: Playground
+
+* PROJ Sync with Sarah on Q4 product priorities                            :@office:
+  SCHEDULED: <2026-05-04 Mon 10:00>
+* NEXT Sync with Anil on infra capacity                                    :@office:
+  SCHEDULED: <2026-05-05 Tue 14:00>
+* NEXT Marketing alignment                                                 :@email:
+  SCHEDULED: <2026-05-06 Wed>
+* TODO Task with tag                                                  :playground:test:urgent:
+  SCHEDULED: <2026-05-04 Mon>
+* NEXT Task with priority [#A]                                       :playground:test:@office:
+  SCHEDULED: <2026-05-05 Tue>
+* WAIT Task with deadline                                                  :playground:test:
+  DEADLINE: <2026-05-10 Sun>
