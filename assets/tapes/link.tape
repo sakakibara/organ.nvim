@@ -44,10 +44,10 @@ Ctrl+o
 Sleep 1500ms
 
 # Land on the in-file `*Glossary` heading link and follow it.
-# The `glossary below` text inside the [[*Glossary][...]] description
-# is unique in the buffer; `/` regex would have to escape the literal
-# `*` otherwise.
-Type "/glossary below"
+# `jump-to-glossary` is the description text inside the
+# [[*Glossary][...]] link, unique in the buffer (vim's `/` would
+# need to escape the literal `*` to land on the target itself).
+Type "/jump-to-glossary"
 Enter
 Sleep 800ms
 Enter

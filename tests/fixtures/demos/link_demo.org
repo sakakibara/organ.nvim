@@ -8,8 +8,7 @@
 The README documents the public API.  See
 [[file:link_target.org][the target file]] for the full breakdown.
 
-Heading-internal jumps work too: see [[*Glossary][the glossary
-below]] for terminology.
+Heading-internal jumps work too: see [[*Glossary][jump-to-glossary]] for terminology.
 
 * Glossary
 :PROPERTIES:
