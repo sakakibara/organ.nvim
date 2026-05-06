@@ -15,6 +15,12 @@ require("organ").setup({
 
 local contents = require("organ.fold.contents")
 
+if not contents.is_supported() then
+  print("(skipped: nvim does not support `conceal_lines` extmark)")
+  print("fold_contents_conceal_test: SKIP")
+  os.exit(0)
+end
+
 local fails = 0
 local function check(label, ok, detail)
   if ok then
@@ -53,8 +59,10 @@ vim.wo.concealcursor = ""
 contents.enter(b)
 check("active after enter", contents.is_active(b))
 check("conceallevel bumped >= 2", vim.wo.conceallevel >= 2)
-check("concealcursor includes 'n' (cursor doesn't reveal body)",
-  vim.wo.concealcursor:find("n") ~= nil)
+check(
+  "concealcursor includes 'n' (cursor doesn't reveal body)",
+  vim.wo.concealcursor:find("n") ~= nil
+)
 -- Each contiguous body range becomes one extmark; we have three (lines
 -- 2-3, 5, 7).
 local NS2 = vim.api.nvim_get_namespaces().organ_fold_contents

@@ -16,6 +16,38 @@ local M = {}
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
 local state = {} -- bufnr -> { saved_conceallevel = N }
 
+-- Probe once: nvim_buf_set_extmark with `conceal_lines = ""` is the
+-- primitive this module relies on (added in nvim 0.11).  On 0.10 the
+-- argument is silently ignored; we detect it here and refuse to enter
+-- so callers can fall back to the body_fold strategy.
+local supported = nil
+local function is_supported()
+  if supported ~= nil then
+    return supported
+  end
+  local probe_buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(probe_buf, 0, -1, false, { "a", "b" })
+  local probe_ns = vim.api.nvim_create_namespace("organ_fold_contents_probe")
+  local ok = pcall(function()
+    vim.api.nvim_buf_set_extmark(probe_buf, probe_ns, 0, 0, {
+      end_row = 1,
+      conceal_lines = "",
+    })
+  end)
+  if ok then
+    -- The extmark accepted; verify it actually conceals by inspecting
+    -- the metadata field on get_extmark_by_id.
+    local marks = vim.api.nvim_buf_get_extmarks(probe_buf, probe_ns, 0, -1, { details = true })
+    supported = #marks == 1 and marks[1][4] and marks[1][4].conceal_lines == ""
+  else
+    supported = false
+  end
+  pcall(vim.api.nvim_buf_delete, probe_buf, { force = true })
+  return supported
+end
+
+M.is_supported = is_supported
+
 -- Body range of every heading section: lines between the heading and
 -- the line BEFORE the next heading (any depth).  Sub-headings sit
 -- between, so each "body range" is contiguous lines that aren't
@@ -61,7 +93,7 @@ end
 
 function M.enter(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if state[bufnr] then
+  if state[bufnr] or not is_supported() then
     return
   end
   place_marks(bufnr)

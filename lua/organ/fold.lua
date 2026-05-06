@@ -149,7 +149,7 @@ function M.cycle_global(bufnr)
     else
       vim.wo.foldlevel = 0
     end
-  else
+  elseif contents.is_supported() then
     -- conceal strategy: state is OVERVIEW(foldlevel=0) /
     -- CONTENTS(extmarks active) / SHOW_ALL(foldlevel=99, no extmarks).
     if contents.is_active(bufnr) then
@@ -160,6 +160,19 @@ function M.cycle_global(bufnr)
       contents.enter(bufnr)
     else
       vim.wo.foldlevel = 0
+    end
+  else
+    -- conceal_lines extmark unavailable (nvim < 0.11): no way to hide
+    -- body without folding it.  Use a degraded CONTENTS where only
+    -- level-1 headings stay visible (foldlevel=1) -- body still has
+    -- no fold of its own.
+    --   99 -> 0 (OVERVIEW), 0 -> 1 (CONTENTS-degraded), else -> 99.
+    if lvl == 99 then
+      vim.wo.foldlevel = 0
+    elseif lvl == 0 then
+      vim.wo.foldlevel = 1
+    else
+      vim.wo.foldlevel = 99
     end
   end
   -- Drawers (PROPERTIES, LOGBOOK, etc.) are noise unless the user
