@@ -12,13 +12,16 @@ local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_emphasis_conceal")
 
+-- Tree-sitter node-type → config-key mapping.  Apply() looks up the
+-- config flag for each node it walks; missing or `false` means the
+-- markup stays visible.
 local EMPHASIS_TYPES = {
-  bold = true,
-  italic = true,
-  underline = true,
-  strike = true,
-  verbatim = true,
-  code = true,
+  bold = "bold",
+  italic = "italic",
+  underline = "underline",
+  strike = "strike",
+  verbatim = "verbatim",
+  code = "code",
 }
 
 -- Conceal `[[target][description]]` → `description`, and
@@ -27,8 +30,21 @@ local EMPHASIS_TYPES = {
 -- The conceal walker hides the leading `[[`, the `target][`
 -- separator, and the trailing `]]` when a description is present.
 local LINK_TYPES = {
-  link_regular = true,
+  link_regular = "links",
 }
+
+-- Public list of element keys, ordered for `:Org conceal toggle <Tab>`.
+M.ELEMENTS = { "bold", "italic", "underline", "strike", "verbatim", "code", "links" }
+
+local function element_enabled(name)
+  local cfg = (require("organ").config.emphasis or {})
+  -- Default true if the key is missing -- mirrors Emacs "hide markers".
+  local v = cfg[name]
+  if v == nil then
+    return true
+  end
+  return v ~= false
+end
 
 local function clear(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
@@ -123,7 +139,8 @@ local function apply(bufnr)
         local root = tree:root()
         local function walk(node)
           local t = node:type()
-          if EMPHASIS_TYPES[t] then
+          local emph = EMPHASIS_TYPES[t]
+          if emph and element_enabled(emph) then
             local sr, sc, er, ec = node:range()
             -- One char open + one char close. For verbatim/code those are
             -- `=`/`~`; for bold/italic/etc. they're `*`/`/`/`_`/`+`. All
@@ -132,7 +149,7 @@ local function apply(bufnr)
             if er > sr or ec > sc + 1 then
               conceal_one(bufnr, er, math.max(0, ec - 1))
             end
-          elseif LINK_TYPES[t] then
+          elseif LINK_TYPES[t] and element_enabled(LINK_TYPES[t]) then
             conceal_link_regular(bufnr, node)
           end
           for c in node:iter_children() do
@@ -183,6 +200,29 @@ function M.toggle(bufnr)
   return true
 end
 
+-- Flip a single element's config flag and re-apply.  Returns the
+-- new state (true = concealed, false = visible).  Per-element flag
+-- lives on the in-process config (`require("organ").config.emphasis`)
+-- so toggles persist for the rest of the session; users wanting
+-- persistent preferences set them in `setup()`.
+function M.toggle_element(name)
+  local cfg = require("organ").config
+  cfg.emphasis = cfg.emphasis or {}
+  local cur = cfg.emphasis[name]
+  if cur == nil then
+    cur = true
+  end
+  cfg.emphasis[name] = not cur
+  -- Re-walk every loaded org buffer so the change is reflected
+  -- immediately, not on the next TextChanged.
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "org" then
+      apply(b)
+    end
+  end
+  return cfg.emphasis[name]
+end
+
 M._apply = apply
 
 M.commands = {
@@ -192,6 +232,30 @@ M.commands = {
       require("organ.notify").info("organ: emphasis conceal " .. (on and "ON" or "OFF"))
     end,
     desc = "Hide / show inline emphasis markers (* / _ + = ~) via conceal extmarks",
+  },
+  ["conceal toggle"] = {
+    fn = function(opts)
+      local arg = opts and opts.args or ""
+      if arg == "" or arg == nil then
+        require("organ.notify").warn(
+          "organ: usage `:Org conceal toggle <element>` (" .. table.concat(M.ELEMENTS, " | ") .. ")"
+        )
+        return
+      end
+      if not vim.tbl_contains(M.ELEMENTS, arg) then
+        require("organ.notify").warn(
+          "organ: unknown element `" .. arg .. "`; valid: " .. table.concat(M.ELEMENTS, " ")
+        )
+        return
+      end
+      local on = M.toggle_element(arg)
+      require("organ.notify").info("organ: conceal " .. arg .. " = " .. (on and "ON" or "OFF"))
+    end,
+    nargs = 1,
+    complete = function()
+      return M.ELEMENTS
+    end,
+    desc = "Toggle conceal of one inline element (bold / italic / ... / links)",
   },
 }
 

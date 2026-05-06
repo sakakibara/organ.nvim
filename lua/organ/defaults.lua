@@ -1193,8 +1193,20 @@ return {
   -- (Emacs's `org-link-descriptive = t` default).  Default false
   -- to preserve Neovim's "explicit conceallevel" expectation;
   -- users opt in with `emphasis.enabled = true`.
+  --
+  -- Per-element keys gate which markup is concealed.  Set any to
+  -- `false` to keep that element's syntax visible (e.g. show raw
+  -- `*bold*` markers but still hide link brackets).  Toggle at
+  -- runtime via `:Org conceal toggle <element>`.
   emphasis = {
     enabled = false,
+    bold = true,
+    italic = true,
+    underline = true,
+    strike = true,
+    verbatim = true,
+    code = true,
+    links = true,
   },
 
   -- Agenda alarms: notify before each scheduled time today.  Disabled by
