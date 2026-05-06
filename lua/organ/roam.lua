@@ -3,7 +3,7 @@
 local M = {}
 
 local function slugify(s)
-  s = s:lower():gsub("[^a-z0-9]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+  s = s:lower():gsub("[^a-z0-9]+", "_"):gsub("^_+", ""):gsub("_+$", "")
   return s == "" and "untitled" or s
 end
 
@@ -16,28 +16,44 @@ function M.create_node(title)
   local cfg = require("organ").config.roam or {}
   local dir = cfg.dir or vim.fn.expand("~/org/roam")
   vim.fn.mkdir(dir, "p")
+  local slug = slugify(title)
 
   local fname
   if type(cfg.file_template) == "function" then
     local ok, result = pcall(cfg.file_template, title)
     if not ok then
       require("organ.notify").error(
-        "organ.roam: file_template errored, falling back to slug: " .. tostring(result)
+        "organ.roam: file_template errored, falling back to default: " .. tostring(result)
       )
-      fname = slugify(title) .. ".org"
     else
       fname = result
     end
-  else
-    fname = slugify(title) .. ".org"
   end
-  local full = dir .. "/" .. fname
 
-  if vim.loop.fs_stat(full) then
-    require("organ.notify").info("organ: file exists, opening: " .. full)
-    vim.cmd("edit " .. vim.fn.fnameescape(full))
+  -- Open the existing note rather than writing a timestamped twin.
+  local existing
+  if fname then
+    if vim.loop.fs_stat(dir .. "/" .. fname) then
+      existing = dir .. "/" .. fname
+    end
+  else
+    for _, p in ipairs(vim.fn.glob(dir .. "/*-" .. slug .. ".org", false, true)) do
+      existing = p
+      break
+    end
+  end
+
+  if existing then
+    require("organ.notify").info("organ: file exists, opening: " .. existing)
+    vim.cmd("edit " .. vim.fn.fnameescape(existing))
     return
   end
+
+  -- Default scheme `<YYYYMMDDHHMMSS>-<slug>.org` matches Emacs org-roam.
+  if not fname then
+    fname = os.date("%Y%m%d%H%M%S") .. "-" .. slug .. ".org"
+  end
+  local full = dir .. "/" .. fname
 
   local id = require("organ.uuid").v7()
   local default_body = {

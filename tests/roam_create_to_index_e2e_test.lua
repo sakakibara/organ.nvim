@@ -60,11 +60,12 @@ end
 local roam = require("organ.roam")
 roam.create_node("Project Atlas")
 
-local expected_file = roam_dir .. "/project-atlas.org"
+local matches = vim.fn.glob(roam_dir .. "/*-project_atlas.org", false, true)
+local expected_file = matches[1] or ""
 check(
-  "file: written at expected path",
-  vim.loop.fs_stat(expected_file) ~= nil,
-  "missing " .. expected_file
+  "file: written at expected timestamped path",
+  expected_file ~= "" and vim.loop.fs_stat(expected_file) ~= nil,
+  "expected `<timestamp>-project_atlas.org` in " .. roam_dir .. "; got " .. vim.inspect(matches)
 )
 
 -- Re-scan org_dir (roam_dir is under it). Without the watcher the indexer

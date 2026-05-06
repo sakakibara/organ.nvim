@@ -1,4 +1,5 @@
--- roam.create_node(title) writes a file at <dir>/<slug>.org with :ID:, #+title:,
+-- roam.create_node(title) writes a file at <dir>/<YYYYMMDDHHMMSS>-<slug>.org
+-- (matching Emacs org-roam's default capture template) with :ID:, #+title:,
 -- and the cursor positioned at the trailing blank line. Honors file_template.
 -- Run via: nvim --headless -l tests/roam_create_test.lua
 
@@ -21,12 +22,17 @@ require("organ").setup({
 
 local roam = require("organ.roam")
 
--- Default file path: <roam_dir>/<slug>.org
+-- Default file path: <roam_dir>/<YYYYMMDDHHMMSS>-<slug>.org
 roam.create_node("Hello World!")
-local expected = roam_dir .. "/hello-world.org"
+local matches = vim.fn.glob(roam_dir .. "/*-hello_world.org", false, true)
 assert(
-  vim.loop.fs_stat(expected),
-  "expected file at " .. expected .. "; cwd files: " .. vim.fn.system("ls " .. roam_dir)
+  #matches == 1,
+  "expected one timestamped match for hello_world; got: " .. vim.inspect(matches)
+)
+local expected = matches[1]
+assert(
+  expected:match("/(%d%d%d%d%d%d%d%d%d%d%d%d%d%d)%-hello_world%.org$"),
+  "expected `<14-digit>-hello_world.org`; got " .. vim.fn.fnamemodify(expected, ":t")
 )
 
 -- Body has :ID:, #+title:, blank trailing.
@@ -56,9 +62,14 @@ assert(
   "id doesn't match v7 shape: " .. tostring(id)
 )
 
--- Idempotent: second call with same title opens existing, doesn't overwrite.
+-- Idempotent: second call resolves to the same file, no twin.
 local before = vim.fn.readfile(expected)
 roam.create_node("Hello World!")
+local matches_after = vim.fn.glob(roam_dir .. "/*-hello_world.org", false, true)
+assert(
+  #matches_after == 1 and matches_after[1] == expected,
+  "second create_node call wrote a twin: " .. vim.inspect(matches_after)
+)
 local after = vim.fn.readfile(expected)
 assert(
   table.concat(before, "\n") == table.concat(after, "\n"),
