@@ -230,6 +230,40 @@ function M.new_directive()
   return source
 end
 
+function M.new_src_lang()
+  local source = {}
+  function source:get_keyword_pattern()
+    return [[\k\+]]
+  end
+  function source:get_trigger_characters()
+    return { " " }
+  end
+  function source:complete(_params, callback)
+    if vim.bo.filetype ~= "org" then
+      callback({ items = {} })
+      return
+    end
+    local sl = require("organ.complete.src_lang")
+    local p = sl.cursor_partial(0)
+    if p == nil then
+      callback({ items = {} })
+      return
+    end
+    local items = {}
+    for _, it in ipairs(sl.completion_items(p)) do
+      items[#items + 1] = {
+        label = it.label,
+        insertText = it.insertText,
+        filterText = it.filterText,
+        detail = it.detail,
+        kind = require("cmp").lsp.CompletionItemKind.Module,
+      }
+    end
+    callback({ items = items })
+  end
+  return source
+end
+
 function M.maybe_register()
   local ok, cmp = pcall(require, "cmp")
   if not ok then
@@ -248,6 +282,7 @@ function M.maybe_register()
   cmp.register_source("organ_todo", M.new_todo())
   cmp.register_source("organ_tags", M.new_tags())
   cmp.register_source("organ_directive", M.new_directive())
+  cmp.register_source("organ_src_lang", M.new_src_lang())
   if organ.config.complete.drawer ~= false then
     cmp.register_source("organ_drawer", M.new_drawer())
   end

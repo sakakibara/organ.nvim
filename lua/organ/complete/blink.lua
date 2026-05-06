@@ -219,6 +219,37 @@ function M.new_directive()
   return source
 end
 
+function M.new_src_lang()
+  local source = {}
+  function source:enabled()
+    return vim.bo.filetype == "org"
+  end
+  function source:get_trigger_characters()
+    return { " " }
+  end
+  function source:get_completions(_ctx, callback)
+    local sl = require("organ.complete.src_lang")
+    local p = sl.cursor_partial(0)
+    if p == nil then
+      callback({ items = {} })
+      return
+    end
+    local items = {}
+    for _, it in ipairs(sl.completion_items(p)) do
+      items[#items + 1] = {
+        label = it.label,
+        insertText = it.insertText,
+        filterText = it.filterText,
+        kind = "Module",
+        detail = it.detail,
+        source_name = "organ_src_lang",
+      }
+    end
+    callback({ items = items })
+  end
+  return source
+end
+
 function M.maybe_register()
   local ok, blink = pcall(require, "blink.cmp")
   if not ok then
@@ -244,6 +275,9 @@ function M.maybe_register()
   end)
   pcall(function()
     blink.add_source("organ_directive", M.new_directive())
+  end)
+  pcall(function()
+    blink.add_source("organ_src_lang", M.new_src_lang())
   end)
   if organ.config.complete.drawer ~= false then
     pcall(function()

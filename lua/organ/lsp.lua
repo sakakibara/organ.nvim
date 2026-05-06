@@ -438,6 +438,14 @@ handlers["textDocument/completion"] = function(params)
     end
   end
 
+  local src_lang = require("organ.complete.src_lang")
+  local psl = src_lang.cursor_partial(bufnr, row, col)
+  if psl ~= nil then
+    for _, it in ipairs(src_lang.completion_items(psl)) do
+      add(it.label, it.insertText, KIND.Module, it.detail, it.filterText)
+    end
+  end
+
   -- Drawer source still reads window cursor (it's tied to LSP-driven
   -- contexts where the buffer is current). Acceptable since drawer
   -- completion is interactive-only.
