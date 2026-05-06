@@ -199,16 +199,20 @@ jobs:
             echo "no base commit to diff against — skipping guard"
             exit 0
           fi
-          changed=$(git diff --name-only "$base"...HEAD -- assets/demos/)
+          # `--diff-filter=AM` covers adds + modifications -- the cases
+          # where a human-rendered GIF would drift from the CI render.
+          # Deletions are always allowed (cleanup of stale artifacts is
+          # safe; nothing depends on a stale .log persisting).
+          changed=$(git diff --name-only --diff-filter=AM "$base"...HEAD -- assets/demos/)
           if [ -z "$changed" ]; then
-            echo "PASS: no human commit touched assets/demos/"
+            echo "PASS: no human commit added or modified assets/demos/"
             exit 0
           fi
           # Bot commits use the github-actions[bot] author; allow them.
-          for sha in $(git log --format=%H "$base"...HEAD -- assets/demos/); do
+          for sha in $(git log --diff-filter=AM --format=%H "$base"...HEAD -- assets/demos/); do
             author=$(git log -1 --format=%ae "$sha")
             if [ "$author" != "41898282+github-actions[bot]@users.noreply.github.com" ]; then
-              echo "FAIL: $sha modified assets/demos/ but author is $author"
+              echo "FAIL: $sha added/modified assets/demos/ but author is $author"
               echo ""
               echo "Demo GIFs are CI-only artifacts.  Edit the tape in"
               echo "assets/tapes/ and let the demos workflow regenerate"
