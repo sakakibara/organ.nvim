@@ -34,12 +34,15 @@
 
 A full `org-mode` + `org-roam` reimplementation in Neovim.  Tree-sitter
 grammar, SQLite index, native pickers / completion / icons.  Files
-written by Emacs read back unchanged; files written by organ are valid
-Emacs org.  No background daemon, no external indexing process.
+written by Emacs read back unchanged, and files written by organ stay
+valid Emacs org as long as you don't opt into organ's grammar
+extensions (repeater alarm / repeater filter on timestamps).  No
+background daemon, no external indexing process — the SQLite index is
+updated in-process via a LuaJIT FFI wrapper around libsqlite3.
 
 Built for users who want the org-roam workflow (id-linked notes,
-dailies, backlinks) in Neovim **with byte-level Emacs file
-compatibility** — not a from-scratch reimagining.
+dailies, backlinks) in Neovim **with Emacs file compatibility on
+standard syntax** — not a from-scratch reimagining.
 
 ## Demo
 
