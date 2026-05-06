@@ -445,6 +445,36 @@ function M.foldtext()
   return line .. "  ◉ " .. hidden .. " items hidden"
 end
 
+-- Org-aware fold-marker for custom statuscolumns.  In org buffers,
+-- only heading lines (`^%*+%s`) get a fold-start marker; body lines
+-- never do (the body-level fold layer enables CONTENTS view but is
+-- visual noise on the foldcolumn).  Non-org buffers fall back to
+-- level-compare (`foldlevel(lnum) > foldlevel(lnum - 1)`).
+function M.statuscolumn_marker(lnum, opts)
+  opts = opts or {}
+  local hl = opts.hl or "FoldColumn"
+  local fillchars = vim.opt.fillchars:get()
+  local open_ch = fillchars.foldopen or "v"
+  local close_ch = fillchars.foldclose or ">"
+  local function paint(ch)
+    return "%#" .. hl .. "#" .. ch .. "%*"
+  end
+  if vim.fn.foldlevel(lnum) == 0 then
+    return " "
+  end
+  if vim.fn.foldclosed(lnum) > 0 then
+    return paint(close_ch)
+  end
+  if vim.bo.filetype == "org" then
+    local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ""
+    return line:match("^%*+%s") and paint(open_ch) or " "
+  end
+  if vim.fn.foldlevel(lnum) > vim.fn.foldlevel(lnum - 1) then
+    return paint(open_ch)
+  end
+  return " "
+end
+
 -- Cleanup on BufWipeout.
 function M.forget(bufnr)
   M._state[bufnr] = nil
