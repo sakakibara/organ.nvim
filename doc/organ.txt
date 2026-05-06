@@ -776,6 +776,22 @@ Fold                                                       *organ-config-fold*
     Note: `<Tab>` is shared with table navigation. When the cursor is
     on a table row it navigates cells; on a headline it folds.
 
+                                                  *organ-config-fold-foldtext*
+    `fold.foldtext` (string | function | false, default: `"emacs"`)
+    Custom foldtext renderer used by the foldexpr-driven outline.
+    Accepts:
+
+        "emacs"     -- heading line + ` …` suffix when the fold
+                       hides real content (Emacs `org-ellipsis`
+                       look).  All-blank body is left bare.
+        "items"     -- heading line + `  ◉ N items hidden`.
+                       organ's prior default; opt in for the count.
+        function(foldstart, foldend) -> string -- custom renderer.
+                       Errors from the function fall back to the
+                       heading line so a buggy override can't break
+                       the buffer.
+        false / nil -- vim default (just the first line + `...`).
+
                                                  *organ-config-fold-body_fold*
     `fold.body_fold` (bool, default: `false`)
     Selects the body-fold strategy:

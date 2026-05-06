@@ -437,32 +437,57 @@ M._build_fold_levels = build_fold_levels
 M._headline_level = headline_level
 M._max_heading_depth = max_heading_depth
 
--- Custom foldtext: "* Heading ◉ N items hidden".  When the fold
--- spans zero hidden lines (a 1-line fold whose body collapsed to
--- just whitespace), drop the suffix entirely -- 'N items hidden'
--- with N=0 reads as a confusing artifact.  When the body is only
--- whitespace, also skip -- there's nothing meaningful to summarise.
-function M.foldtext()
-  local lnum = vim.v.foldstart
-  local line = vim.fn.getline(lnum)
-  local hidden = vim.v.foldend - vim.v.foldstart
-  if hidden <= 0 then
-    return line
-  end
-  -- If every line inside the fold is blank/whitespace-only, the
-  -- fold is hiding nothing useful.  Same UX rationale: drop the
-  -- "N items hidden" hint that promises content where there's none.
-  local all_blank = true
-  for i = lnum + 1, vim.v.foldend do
+-- Whether the lines `foldstart+1 .. foldend` contain anything
+-- non-whitespace.  Used by both renderers to drop suffix decoration
+-- on folds that hide nothing meaningful.
+local function fold_has_real_content(foldstart, foldend)
+  for i = foldstart + 1, foldend do
     if vim.fn.getline(i):match("%S") then
-      all_blank = false
-      break
+      return true
     end
   end
-  if all_blank then
+  return false
+end
+
+-- Renderer: heading line + an Emacs-style ellipsis suffix.  Mirrors
+-- Emacs `org-ellipsis` (default `…`).
+function M.emacs_foldtext()
+  local foldstart, foldend = vim.v.foldstart, vim.v.foldend
+  local line = vim.fn.getline(foldstart)
+  if foldend <= foldstart or not fold_has_real_content(foldstart, foldend) then
+    return line
+  end
+  return line .. " …"
+end
+
+-- Renderer: heading line + "◉ N items hidden" suffix.  Organ's
+-- prior default; opt in via `fold.foldtext = "items"`.
+function M.items_foldtext()
+  local foldstart, foldend = vim.v.foldstart, vim.v.foldend
+  local line = vim.fn.getline(foldstart)
+  local hidden = foldend - foldstart
+  if hidden <= 0 or not fold_has_real_content(foldstart, foldend) then
     return line
   end
   return line .. "  ◉ " .. hidden .. " items hidden"
+end
+
+-- Dispatcher.  ftplugin/core.lua wires this as the foldtext expression;
+-- the underlying renderer is selected by `fold.foldtext` config.
+function M.foldtext()
+  local cfg = (require("organ").config.fold or {}).foldtext
+  if type(cfg) == "function" then
+    local ok, out = pcall(cfg, vim.v.foldstart, vim.v.foldend)
+    if ok and type(out) == "string" then
+      return out
+    end
+    return vim.fn.getline(vim.v.foldstart)
+  end
+  if cfg == "items" then
+    return M.items_foldtext()
+  end
+  -- Default ("emacs") and unknown strings fall back to the Emacs renderer.
+  return M.emacs_foldtext()
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,

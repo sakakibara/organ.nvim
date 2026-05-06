@@ -1,0 +1,99 @@
+-- Foldtext renderers + dispatcher: `fold.foldtext` config selects
+-- between "emacs" (default), "items", a custom function, or off.
+--
+-- Run via: nvim --headless -l tests/fold_foldtext_test.lua
+
+local root = vim.fn.getcwd()
+dofile(root .. "/tests/_bootstrap.lua")
+require("organ").setup({})
+
+local fold = require("organ.fold")
+local cfg = require("organ").config.fold
+
+local fails = 0
+local function check(label, ok, detail)
+  if ok then
+    print("PASS  " .. label)
+  else
+    fails = fails + 1
+    print("FAIL  " .. label .. (detail and (": " .. detail) or ""))
+  end
+end
+
+-- Build a buffer with a 3-line fold ("body" + 1 line) under H1.
+local b = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_set_current_buf(b)
+vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })
+vim.bo[b].filetype = "org"
+
+-- vim.v.foldstart / foldend are read by the renderers.  Stub via the
+-- `vim.v` table.
+local function with_fold(foldstart, foldend, fn)
+  local s, e = vim.v.foldstart, vim.v.foldend
+  vim.cmd("let v:foldstart = " .. foldstart)
+  vim.cmd("let v:foldend = " .. foldend)
+  local ok, out = pcall(fn)
+  vim.cmd("let v:foldstart = " .. s)
+  vim.cmd("let v:foldend = " .. e)
+  if not ok then
+    error(out)
+  end
+  return out
+end
+
+-- Default config -> "emacs" -> "* H1 …" with content present.
+check("default config = 'emacs'", cfg.foldtext == "emacs", "got " .. tostring(cfg.foldtext))
+local out = with_fold(1, 3, function()
+  return fold.foldtext()
+end)
+check("emacs renderer ends with ' …'", out:sub(-#" …") == " …", "got " .. tostring(out))
+check("emacs renderer starts with heading", out:find("^%* H1") ~= nil)
+
+-- All-blank body -> no ellipsis suffix.
+vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "", "" })
+local blank_out = with_fold(1, 3, function()
+  return fold.foldtext()
+end)
+check("all-blank body: no ellipsis suffix", blank_out == "* H1", "got " .. tostring(blank_out))
+
+-- Switch to "items" renderer.
+vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H1", "body 1", "body 2" })
+cfg.foldtext = "items"
+local items_out = with_fold(1, 3, function()
+  return fold.foldtext()
+end)
+check(
+  "items renderer ends with 'items hidden'",
+  items_out:find("items hidden$") ~= nil,
+  "got " .. tostring(items_out)
+)
+check("items count = 2", items_out:find("◉ 2") ~= nil, "got " .. tostring(items_out))
+
+-- Custom function.
+cfg.foldtext = function(s, e)
+  return string.format("[%d-%d] custom", s, e)
+end
+local fn_out = with_fold(1, 3, function()
+  return fold.foldtext()
+end)
+check("custom function applied", fn_out == "[1-3] custom", "got " .. tostring(fn_out))
+
+-- Custom function that errors -> safe fallback to heading line.
+cfg.foldtext = function()
+  error("oops")
+end
+local fb_out = with_fold(1, 3, function()
+  return fold.foldtext()
+end)
+check("erroring custom function -> heading line fallback", fb_out == "* H1")
+
+cfg.foldtext = "emacs"
+
+if fails > 0 then
+  print()
+  print("FAILED " .. fails .. " checks")
+  os.exit(1)
+end
+print()
+print("fold_foldtext_test: PASS")
+os.exit(0)

@@ -51,24 +51,28 @@ M.is_supported = is_supported
 -- Body range of every heading section: lines between the heading and
 -- the line BEFORE the next heading (any depth).  Sub-headings sit
 -- between, so each "body range" is contiguous lines that aren't
--- themselves headings.
+-- themselves headings.  Pre-first-heading lines (`#+title:`,
+-- `#+author:`, etc.) are NOT body -- they live outside the outline
+-- and stay visible in CONTENTS view, mirroring Emacs.
 local function each_body_range(bufnr)
   local nlines = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, nlines, false)
   local ranges = {}
   local body_start = nil
+  local seen_heading = false
   for i = 1, nlines do
     local is_heading = (lines[i] or ""):match("^%*+%s") ~= nil
     if is_heading then
+      seen_heading = true
       if body_start then
         ranges[#ranges + 1] = { body_start, i - 1 }
         body_start = nil
       end
-    elseif not body_start then
+    elseif seen_heading and not body_start then
       body_start = i
     end
   end
-  if body_start then
+  if body_start and seen_heading then
     ranges[#ranges + 1] = { body_start, nlines }
   end
   return ranges

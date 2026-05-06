@@ -606,6 +606,13 @@ return {
     --   conceal — pick this if you keep `conceallevel = 0` and don't
     --   want the temporary bump.  `za` on body folds the body line.
     body_fold = false,
+    -- foldtext rendering:
+    --   "emacs"   (default) -- heading line + an ellipsis suffix
+    --                          (Emacs `org-ellipsis` look).
+    --   "items"   -- heading line + "  ◉ N items hidden" suffix.
+    --   function(foldstart, foldend) -> string -- custom renderer.
+    --   false / nil -- vim default (no organ-supplied foldtext).
+    foldtext = "emacs",
     keymaps = {
       cycle = "<Tab>",
       cycle_global = "<S-Tab>",
