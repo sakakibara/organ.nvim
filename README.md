@@ -44,16 +44,61 @@ Built for users who want the org-roam workflow (id-linked notes,
 dailies, backlinks) in Neovim **with Emacs file compatibility on
 standard syntax** — not a from-scratch reimagining.
 
-## Demo
+## Demos
+
+Click a row to expand.  All demos are auto-rendered from
+[`assets/tapes/`](./assets/tapes/) on every push.
+
+<details open>
+<summary><strong>Agenda</strong> — week / day views, log mode, in-place todo cycle</summary>
 
 <p align="center">
-  <img src="assets/demos/agenda.gif" alt="organ.nvim agenda demo" width="780">
+  <img src="assets/demos/agenda.gif" alt="agenda demo" width="780">
 </p>
 
-More: [capture](assets/demos/capture.gif) ·
-[refile](assets/demos/refile.gif) ·
-[roam](assets/demos/roam.gif) ·
-[babel](assets/demos/babel.gif)
+</details>
+
+<details>
+<summary><strong>Capture</strong> — quick task / note from any context</summary>
+
+<p align="center">
+  <img src="assets/demos/capture.gif" alt="capture demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Refile</strong> — move a subtree to a target outline</summary>
+
+<p align="center">
+  <img src="assets/demos/refile.gif" alt="refile demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Roam</strong> — id-linked notes, dailies, backlinks sidebar</summary>
+
+<p align="center">
+  <img src="assets/demos/roam.gif" alt="roam demo" width="780">
+</p>
+
+</details>
+
+<details>
+<summary><strong>Babel</strong> — execute src blocks, results inline</summary>
+
+<p align="center">
+  <img src="assets/demos/babel.gif" alt="babel demo" width="780">
+</p>
+
+</details>
+
+> **Wanted demos** (PRs welcome — drop a `.tape` in `assets/tapes/`):
+> `<S-Tab>` global cycle (SHOW_ALL → OVERVIEW → CONTENTS), heading
+> structure manipulation (`<M-h/j/k/l>`), table editing, formula
+> recompute, archive subtree, link follow + back, OS notification
+> firing on a scheduled item.
 
 ## Install
 
