@@ -53,15 +53,15 @@
  (#set! injection.language "lua"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Bb][Aa][Ss][Hh]|[Ss][Hh]|[Ss][Hh][Ee][Ll][Ll]|[Zz][Ss][Hh])\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Bb][Aa][Ss][Hh]|[Ss][Hh]|[Ss][Hh][Ee][Ll][Ll]|[Zz][Ss][Hh])>")
  (#set! injection.language "bash"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Jj][Ss]|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt])\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Jj][Ss]|[Jj][Aa][Vv][Aa][Ss][Cc][Rr][Ii][Pp][Tt])>")
  (#set! injection.language "javascript"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Tt][Ss]|[Tt][Yy][Pp][Ee][Ss][Cc][Rr][Ii][Pp][Tt])\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Tt][Ss]|[Tt][Yy][Pp][Ee][Ss][Cc][Rr][Ii][Pp][Tt])>")
  (#set! injection.language "typescript"))
 
 ((src_block) @injection.content
@@ -69,7 +69,7 @@
  (#set! injection.language "rust"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Gg][Oo]\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Gg][Oo]>")
  (#set! injection.language "go"))
 
 ((src_block) @injection.content
@@ -77,19 +77,19 @@
  (#set! injection.language "ruby"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Cc]\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Cc]>")
  (#set! injection.language "c"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Cc][Pp][Pp]|[Cc]\\+\\+)\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Cc][Pp][Pp]|[Cc]\\+\\+)>")
  (#set! injection.language "cpp"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Jj][Aa][Vv][Aa]\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Jj][Aa][Vv][Aa]>")
  (#set! injection.language "java"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Hh][Tt][Mm][Ll]|[Hh][Tt][Mm])\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+([Hh][Tt][Mm][Ll]|[Hh][Tt][Mm])>")
  (#set! injection.language "html"))
 
 ((src_block) @injection.content
@@ -149,11 +149,11 @@
  (#set! injection.language "scala"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Rr]\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Rr]>")
  (#set! injection.language "r"))
 
 ((src_block) @injection.content
- (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Dd][Oo][Tt]\\b")
+ (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Dd][Oo][Tt]>")
  (#set! injection.language "dot"))
 
 ((src_block) @injection.content
