@@ -377,7 +377,10 @@ local function build_fold_levels(bufnr)
   local function walk(node)
     if FOLDABLE_NODES[node:type()] then
       local sr = node:start() + 1
-      local er = math.min(node:end_(), nlines)
+      -- Treesitter end is exclusive: bump by 1 when end_col > 0,
+      -- else the closing marker (`#+end_src`, `:END:`) falls outside.
+      local end_row, end_col = node:end_()
+      local er = math.min((end_col == 0) and end_row or (end_row + 1), nlines)
       if sr >= 1 and sr <= er then
         local sub = level_at(sr) + 1
         levels[sr] = ">" .. sub
