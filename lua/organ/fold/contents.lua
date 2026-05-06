@@ -205,70 +205,57 @@ local function restore_buf_mapping(bufnr, mode, lhs, snap)
   end
 end
 
--- Fold-key overrides for CONTENTS state.  The view assumes
--- foldlevel = 99 + extmarks; vim's default fold commands would
--- alter that invariant (e.g. `za` on a heading collapses its
--- sub-tree, hiding sub-headings CONTENTS exists to show).  Two
--- shapes:
---
---   on_za / on_zc / on_zo: special-case heading lines to cycle the
---     heading's individual visibility via `M.cycle` (Emacs
---     `org-cycle`); off a heading, leave CONTENTS state and let
---     the default fold command run.
---   exit_and_replay(key): leave CONTENTS, then re-feed the key so
---     the user's prior mapping (or vim default) takes over.  Used
---     for `zM`, `zR`, `zm`, `zr` -- foldlevel manipulation outside
---     organ's cycle is treated as "user wants out of CONTENTS".
-local function on_heading_cycle(bufnr)
-  return function()
-    local lnum = vim.fn.line(".")
-    local line = vim.fn.getline(lnum) or ""
-    if line:match("^%*+%s") then
-      require("organ.fold").cycle(0, lnum)
-    else
-      M.leave(bufnr)
-      vim.schedule(function()
-        vim.api.nvim_feedkeys("za", "m", false)
-      end)
+-- Public fold-action entry point.  Single function users can map
+-- directly so non-recursive aliases (`vim.keymap.set("n", "<F3>",
+-- function() require("organ.fold.contents").fold_action("za") end)`)
+-- bypass vim's mapping machinery into THIS function rather than
+-- vim's default fold command.  Outside CONTENTS state it just
+-- feeds `key` so the user's normal fold behavior runs.
+function M.fold_action(key)
+  local bufnr = vim.api.nvim_get_current_buf()
+  if not state[bufnr] then
+    vim.api.nvim_feedkeys(key, "m", false)
+    return
+  end
+  -- Per-heading actions stay inside CONTENTS.  Off-heading or
+  -- non-per-heading actions (zM / zR / zm / zr) leave CONTENTS and
+  -- replay the key so the user's normal fold behavior runs.
+  local lnum = vim.fn.line(".")
+  local line = vim.fn.getline(lnum) or ""
+  local on_heading = line:match("^%*+%s") ~= nil
+  local fold = require("organ.fold")
+  if on_heading then
+    if key == "za" then
+      fold.cycle(0, lnum)
+      return
+    elseif key == "zc" then
+      fold.set_heading_state(0, lnum, "folded")
+      return
+    elseif key == "zo" then
+      fold.set_heading_state(0, lnum, "subtree")
+      return
     end
   end
+  M.leave(bufnr)
+  vim.schedule(function()
+    vim.api.nvim_feedkeys(key, "m", false)
+  end)
 end
 
-local function exit_and_replay(bufnr, key)
-  return function()
-    M.leave(bufnr)
-    vim.schedule(function()
-      vim.api.nvim_feedkeys(key, "m", false)
-    end)
-  end
-end
-
--- Buffer-local fold keymaps to install while CONTENTS is active and
--- their saved prior mappings (so we can restore exactly what was
--- there, including custom buffer-local user mappings).  Values are
--- factory functions that build the override given (bufnr) at enter.
-local FOLD_KEY_OVERRIDES = {
-  za = function(bufnr)
-    return on_heading_cycle(bufnr)
-  end,
-  zc = function(bufnr)
-    return exit_and_replay(bufnr, "zc")
-  end,
-  zo = function(bufnr)
-    return exit_and_replay(bufnr, "zo")
-  end,
-  zM = function(bufnr)
-    return exit_and_replay(bufnr, "zM")
-  end,
-  zR = function(bufnr)
-    return exit_and_replay(bufnr, "zR")
-  end,
-  zm = function(bufnr)
-    return exit_and_replay(bufnr, "zm")
-  end,
-  zr = function(bufnr)
-    return exit_and_replay(bufnr, "zr")
-  end,
+-- Buffer-local fold keymaps installed while CONTENTS is active.
+-- Each binding dispatches through `M.fold_action` so the public API
+-- and the buffer-local default share identical semantics.  Descs are
+-- the labels which-key (and `:Telescope keymaps`, etc.) show; keep
+-- them human-readable so the popup explains what each key actually
+-- does in CONTENTS state instead of `organ CONTENTS: za`.
+local FOLD_KEYS = {
+  za = "Cycle heading (CONTENTS)",
+  zc = "Close heading (CONTENTS)",
+  zo = "Open heading subtree (CONTENTS)",
+  zM = "Close all (exits CONTENTS)",
+  zR = "Open all (exits CONTENTS)",
+  zm = "Decrement foldlevel (exits CONTENTS)",
+  zr = "Increment foldlevel (exits CONTENTS)",
 }
 
 function M.enter(bufnr)
@@ -299,11 +286,13 @@ function M.enter(bufnr)
   -- callback / rhs / silent / noremap / expr / desc) instead of just
   -- deleting our override and leaving the slot empty.
   local saved_fold_keys = {}
-  for key, factory in pairs(FOLD_KEY_OVERRIDES) do
+  for key, desc in pairs(FOLD_KEYS) do
     saved_fold_keys[key] = snapshot_buf_mapping(bufnr, "n", key)
-    pcall(vim.keymap.set, "n", key, factory(bufnr), {
+    pcall(vim.keymap.set, "n", key, function()
+      M.fold_action(key)
+    end, {
       buffer = bufnr,
-      desc = "organ CONTENTS: " .. key,
+      desc = desc,
     })
   end
   state[bufnr] = {

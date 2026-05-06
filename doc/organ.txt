@@ -921,22 +921,60 @@ this mode.
 
   Fold-key overrides  `za` / `zc` / `zo` / `zM` / `zR` / `zm` /
                       `zr` are wrapped buffer-local for the
-                      duration of CONTENTS state:
-                        - `za` on a heading line cycles that
-                          heading's individual visibility (Emacs
-                          `org-cycle`) instead of vim's tree-fold
-                          toggle that would hide the very
-                          sub-headings CONTENTS exists to show.
-                        - All other fold keys (and `za` off a
-                          heading) leave CONTENTS first and then
-                          re-feed the key so vim's default OR the
-                          user's prior mapping takes over.  Any
-                          buffer-local mapping the user already had
-                          is snapshotted on enter and restored
-                          verbatim on leave (rhs / callback /
-                          silent / noremap / expr / desc).  Global
-                          mappings always return automatically once
-                          the buffer-local override is removed.
+                      duration of CONTENTS state.  Per-heading keys
+                      stay inside CONTENTS; foldlevel-altering keys
+                      leave it.
+                        - `za` on a heading: cycle that heading's
+                          individual visibility (FOLDED -> CHILDREN
+                          -> SUBTREE), Emacs `org-cycle`.
+                        - `zc` on a heading: close that heading
+                          to FOLDED state.
+                        - `zo` on a heading: open that heading
+                          fully (SUBTREE state).
+                        - `zM` / `zR` / `zm` / `zr` (anywhere) and
+                          `za` / `zc` / `zo` off a heading: leave
+                          CONTENTS first and then re-feed the key
+                          so vim's default OR the user's prior
+                          mapping takes over.
+
+                      Any buffer-local mapping the user already had
+                      for these keys is snapshotted on enter and
+                      restored verbatim on leave (rhs / callback /
+                      silent / noremap / expr / desc).  Global
+                      mappings always return automatically once
+                      the buffer-local override is removed.
+
+                      Hard limit: a NON-RECURSIVE alias --
+                      `:nnoremap <X> za` -- bypasses every mapping
+                      including ours when `<X>` is pressed.  The
+                      override fires on direct `za` and on
+                      recursive aliases (`:nmap <X> za`) but vim's
+                      mapping system gives no hook to intercept a
+                      `nnoremap`'d play of the same key.  This is
+                      a vim-level constraint, not an organ bug.
+                      For bullet-proof coverage on alternate keys,
+                      use the Lua entry point (next).
+
+                                        *organ-fold-contents-view-fold_action*
+    `require("organ.fold.contents").fold_action(key)`
+    Public dispatcher with the same logic as the buffer-local
+    overrides above.  Outside CONTENTS state it just feeds `key`
+    so the user's normal fold behavior runs.  Map any key to it
+    and the right thing happens regardless of recursion settings:
+    >lua
+        vim.keymap.set("n", "<F3>", function()
+          require("organ.fold.contents").fold_action("za")
+        end)
+    <
+    `key` is one of the strings organ wraps in CONTENTS:
+        za | zc | zo | zM | zR | zm | zr
+
+                                          *organ-fold-contents-view-is_active*
+    `require("organ.fold.contents").is_active(bufnr)`
+    True iff CONTENTS extmarks + state are present for `bufnr`.
+    Wrap your own custom logic with `if contents.is_active(0) then
+    ... end` to scope behavior to CONTENTS without touching any
+    mapping.
 
   relnum helper       `statuscolumn_lnum(lnum, relative)` counts
                       closed folds as a single visible row and

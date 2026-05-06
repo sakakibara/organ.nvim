@@ -539,16 +539,37 @@ reverted on exit -- nothing is allowed to persist past the cycle:
 - `BufWipeout` and `FileType` (off-org) trigger automatic cleanup
   so state never leaks past the buffer / filetype it was meant for.
 - Fold keys (`za` / `zc` / `zo` / `zM` / `zR` / `zm` / `zr`) are
-  wrapped buffer-local for the duration of CONTENTS:
-  - `za` on a heading cycles that heading's individual visibility
-    (Emacs `org-cycle`) instead of vim's tree-fold toggle that
-    would hide the very sub-headings CONTENTS exists to show.
-  - The rest (and `za` off a heading) leave CONTENTS first and
-    then replay the key so vim's default OR the user's prior
-    mapping takes over.  Any buffer-local mapping the user already
-    had is snapshotted on enter and restored verbatim on leave
-    (callback / rhs / flags / desc).  Global mappings always
-    return once the buffer-local override is removed.
+  wrapped buffer-local for the duration of CONTENTS.  Per-heading
+  keys stay inside CONTENTS; foldlevel-altering keys leave it.
+  - `za` on a heading: cycle that heading's individual visibility
+    (FOLDED → CHILDREN → SUBTREE).
+  - `zc` on a heading: close to FOLDED state.
+  - `zo` on a heading: open fully (SUBTREE state).
+  - `zM` / `zR` / `zm` / `zr` (anywhere) and `za`/`zc`/`zo` off a
+    heading: leave CONTENTS first, then replay the key so vim's
+    default OR the user's prior mapping takes over.
+  - Buffer-local prior mappings are snapshotted on enter and
+    restored verbatim on leave (callback / rhs / flags / desc).
+    Global mappings always return once the buffer-local override
+    is removed.
+  - **Hard limit**: a non-recursive alias (`nnoremap <X> za`)
+    bypasses our override when `<X>` is pressed -- vim's mapping
+    system gives no way to intercept a `nnoremap`'d play of the
+    same key.  Direct `za` and recursive aliases (`nmap <X> za` /
+    `vim.keymap.set("n", "<X>", "za", { remap = true })`) hit the
+    override.  For bullet-proof coverage on alternate keys, map
+    them to the Lua dispatcher instead:
+
+    ```lua
+    vim.keymap.set("n", "<F3>", function()
+      require("organ.fold.contents").fold_action("za")
+    end)
+    ```
+
+    `fold_action(key)` is a no-op pass-through outside CONTENTS,
+    so the same mapping behaves like vim's `za` whenever you're
+    not in CONTENTS.  Custom logic outside the documented keys
+    can scope itself with `require("organ.fold.contents").is_active(0)`.
 - `statuscolumn_lnum` counts closed folds as a single visible row
   AND skips conceal-extmark rows, so relnum stays correct in both
   OVERVIEW (closed folds) and CONTENTS (concealed body).

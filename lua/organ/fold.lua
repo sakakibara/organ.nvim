@@ -91,6 +91,21 @@ local function find_drawer_at(bufnr, line)
   return nil
 end
 
+-- Set a heading's local visibility state directly: "folded",
+-- "children", or "subtree".  Used by external callers (e.g. CONTENTS
+-- view's `zc` / `zo` overrides) that want a specific outcome rather
+-- than the next state in the cycle.  Heading is located from the
+-- given line; no-op on non-heading lines.
+function M.set_heading_state(bufnr, line, state)
+  local heading, headline_line = find_heading_at(bufnr, line)
+  if not heading then
+    return
+  end
+  apply_state(bufnr, heading, headline_line, state)
+  M._state[bufnr] = M._state[bufnr] or {}
+  M._state[bufnr][headline_line] = state
+end
+
 function M.cycle(bufnr, line)
   -- Cursor on a (property_)drawer line: toggle that drawer's fold
   -- (Emacs `org-cycle` behavior on drawer headers).  Falls through
