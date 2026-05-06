@@ -1,8 +1,10 @@
--- CONTENTS view places a virt_text " …" extmark at end-of-line on
--- every heading whose body is hidden, so the heading reads "* H …"
+-- CONTENTS view places a virt_text "…" extmark at end-of-line on
+-- every heading whose body is hidden, so the heading reads `* H…`
 -- exactly like its OVERVIEW counterpart (where `emacs_foldtext`
 -- renders the same suffix).  Headings whose body is all-blank get
--- no ellipsis (matches `fold_has_real_content`).
+-- no ellipsis (matches `fold_has_real_content`).  Highlight is the
+-- per-level heading-title capture so the ellipsis matches the
+-- heading color, not a separate Folded gray.
 --
 -- Run via: nvim --headless -l tests/fold_contents_ellipsis_test.lua
 
@@ -54,20 +56,28 @@ local function virt_eol_at(row)
     if m[2] == row then
       local d = m[4] or {}
       if d.virt_text and d.virt_text_pos == "eol" then
-        local txt = ""
+        local txt, hl = "", nil
         for _, seg in ipairs(d.virt_text) do
           txt = txt .. seg[1]
+          hl = hl or seg[2]
         end
-        return txt
+        return txt, hl
       end
     end
   end
   return nil
 end
 
-check("H1 (row 0) has ' …' virt_text", virt_eol_at(0) == " …", "got " .. tostring(virt_eol_at(0)))
+local h1_txt, h1_hl = virt_eol_at(0)
+check("H1 (row 0) has '…' virt_text", h1_txt == "…", "got " .. tostring(h1_txt))
+check(
+  "H1 ellipsis hl matches per-level heading title (level 1)",
+  h1_hl == "@org.heading.title.1.org",
+  "got " .. tostring(h1_hl)
+)
 check("H2 (row 3, empty body) has NO virt_text", virt_eol_at(3) == nil)
-check("H3 (row 4) has ' …' virt_text", virt_eol_at(4) == " …", "got " .. tostring(virt_eol_at(4)))
+local h3_txt = virt_eol_at(4)
+check("H3 (row 4) has '…' virt_text", h3_txt == "…", "got " .. tostring(h3_txt))
 
 contents.leave(b)
 local marks_after = vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, {})

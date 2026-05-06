@@ -131,18 +131,22 @@ local function place_marks(bufnr)
       conceal_lines = "",
     })
     -- Visual parity with OVERVIEW state: a closed-fold heading
-    -- renders "* H1 …" via `emacs_foldtext`; in CONTENTS view the
+    -- renders `* H1…` via `emacs_foldtext`; in CONTENTS view the
     -- heading isn't folded (no closed fold), so foldtext never runs
     -- and the line shows raw.  Plant a virt_text ellipsis on the
     -- heading line above each non-empty body range so a heading
     -- whose body is hidden looks the same in CONTENTS as in
-    -- OVERVIEW.  `Folded` hl picks up the same `winhighlight`
-    -- remap (`Folded:OrgFolded`) so the bg is transparent.
+    -- OVERVIEW.  Color comes from the per-level heading-title
+    -- capture (`@org.heading.title.N.org`) so `…` matches the
+    -- heading text it follows -- same rule the foldtext renderer
+    -- applies for the trailing decoration.
     if range_has_real_content(bufnr, r) then
       local hline = heading_above(bufnr, r[1])
       if hline then
+        local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1]
+        local hl = require("organ.fold").heading_title_hl(line)
         pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, 0, {
-          virt_text = { { " …", "Folded" } },
+          virt_text = { { "…", hl } },
           virt_text_pos = "eol",
           hl_mode = "combine",
         })
