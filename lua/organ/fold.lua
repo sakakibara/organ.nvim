@@ -118,42 +118,49 @@ function M.cycle(bufnr, line)
   M._state[bufnr][headline_line] = nxt
 end
 
--- <S-Tab>: cycle the buffer's global foldlevel through three logical
--- states regardless of cursor position.  Mirrors Emacs `org-shifttab`
--- (which calls `org-cycle-internal-global`).  Per-drawer toggling
--- lives on `<Tab>` (cycle()).
+-- <S-Tab>: cycle the global state through SHOW_ALL -> OVERVIEW ->
+-- CONTENTS -> SHOW_ALL.  Mirrors Emacs `org-shifttab`.
+--
+-- SHOW_ALL: everything visible (foldlevel=99, no conceal layer).
+-- OVERVIEW: only top-level headings (foldlevel=0).
+-- CONTENTS: every heading visible, body hidden.  Two strategies:
+--   * body_fold = false (default): conceal-layer over body ranges
+--     (foldlevel stays at 99; body lines are concealed via extmarks).
+--   * body_fold = true: foldlevel = max_heading_depth (body sits at
+--     body_level so this hides body but keeps headings visible).
 function M.cycle_global(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  -- Emacs `org-cycle-internal-global` cycles through three states:
-  --   SHOW_ALL  -> OVERVIEW  -> CONTENTS  -> SHOW_ALL
-  --
-  -- foldlevel mapping:
-  --   SHOW_ALL  foldlevel = 99                everything visible
-  --   OVERVIEW  foldlevel = 0                 only top-level headings
-  --                                           (each sits at the head
-  --                                           of its level-1 fold,
-  --                                           so the line is shown
-  --                                           even though the fold
-  --                                           is closed)
-  --   CONTENTS  foldlevel = max_heading_depth every heading line
-  --                                           visible, all body
-  --                                           hidden (body sits at
-  --                                           body_level = max+1)
-  --
-  -- Cycle decision: from OVERVIEW (0) → CONTENTS; from CONTENTS (md)
-  -- → SHOW_ALL; otherwise → OVERVIEW.  Robust against post-`zR`
-  -- starts and any non-canonical foldlevel.
+  local body_fold = ((require("organ").config.fold or {}).body_fold == true)
+  local contents = require("organ.fold.contents")
   local md = M._max_heading_depth(bufnr)
   if md < 1 then
     md = 1
   end
   local lvl = vim.wo.foldlevel
-  if lvl == 0 then
-    vim.wo.foldlevel = md
-  elseif lvl == md then
-    vim.wo.foldlevel = 99
+  if body_fold then
+    -- body_fold strategy: state encoded in foldlevel alone.
+    --   0  -> CONTENTS (md)
+    --   md -> SHOW_ALL (99)
+    --   else -> OVERVIEW (0)
+    if lvl == 0 then
+      vim.wo.foldlevel = md
+    elseif lvl == md then
+      vim.wo.foldlevel = 99
+    else
+      vim.wo.foldlevel = 0
+    end
   else
-    vim.wo.foldlevel = 0
+    -- conceal strategy: state is OVERVIEW(foldlevel=0) /
+    -- CONTENTS(extmarks active) / SHOW_ALL(foldlevel=99, no extmarks).
+    if contents.is_active(bufnr) then
+      contents.leave(bufnr)
+      vim.wo.foldlevel = 99
+    elseif lvl == 0 then
+      vim.wo.foldlevel = 99
+      contents.enter(bufnr)
+    else
+      vim.wo.foldlevel = 0
+    end
   end
   -- Drawers (PROPERTIES, LOGBOOK, etc.) are noise unless the user
   -- explicitly opens them — Emacs's `org-cycle-hide-drawers` keeps
@@ -284,29 +291,25 @@ local function build_fold_levels(bufnr)
   local nlines = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, nlines, false)
   local levels = {}
-  -- Pass 1a: scan for max heading depth in the buffer.  Used to
-  -- assign body lines to a uniform `body_level = max_depth + 1` so
-  -- CONTENTS (foldlevel = max_depth) hides every body line at once.
-  -- Without this, body of shallow headings would be at lower fold
-  -- levels and stay visible under CONTENTS.
-  local max_depth = 0
-  for _, l in ipairs(lines) do
-    local stars = l:match("^(%*+)%s")
-    if stars and #stars > max_depth then
-      max_depth = #stars
+  local body_fold = ((require("organ").config.fold or {}).body_fold == true)
+  -- body_fold = false (default): body shares the heading's level — the
+  -- whole subtree is one fold.  `za` on body folds the heading.
+  -- CONTENTS view is provided by an extmark layer (organ.fold.contents),
+  -- not by foldlevel.
+  -- body_fold = true (opt-in): body sits at body_level = max_depth + 1
+  -- so `:set foldlevel = max_depth` hides body but keeps headings
+  -- visible.  `za` on body folds just the body.
+  local body_level
+  if body_fold then
+    local max_depth = 0
+    for _, l in ipairs(lines) do
+      local stars = l:match("^(%*+)%s")
+      if stars and #stars > max_depth then
+        max_depth = #stars
+      end
     end
+    body_level = math.max(2, max_depth + 1)
   end
-  local body_level = math.max(2, max_depth + 1)
-  -- Pass 1b: outline.  Heading at depth N starts a level-N fold;
-  -- the FIRST body line under each heading explicitly opens a
-  -- level-`body_level` fold (`>body_level`) so vim creates the body
-  -- fold even when the body is a single line.  All body lines share
-  -- `body_level` so a single foldlevel = max_depth hides every body
-  -- in one stroke (Emacs's CONTENTS view).  Requires
-  -- `foldminlines = 0` on the window (set in ftplugin/core.lua) so
-  -- vim accepts 1-line folds.
-  -- Blank lines stay at cur_level so a content-less heading's
-  -- separator doesn't open a phantom 1-line body fold.
   local cur_level = 0
   local in_body = false
   for i = 1, nlines do
@@ -317,7 +320,11 @@ local function build_fold_levels(bufnr)
       levels[i] = ">" .. cur_level
       in_body = false
     elseif cur_level > 0 then
-      if line:match("^%s*$") then
+      if not body_fold then
+        levels[i] = tostring(cur_level)
+      elseif line:match("^%s*$") then
+        -- Blank lines stay at cur_level so a content-less heading's
+        -- separator doesn't open a phantom 1-line body fold.
         levels[i] = in_body and tostring(body_level) or tostring(cur_level)
       elseif not in_body then
         levels[i] = ">" .. body_level
@@ -329,8 +336,8 @@ local function build_fold_levels(bufnr)
       levels[i] = "0"
     end
   end
-  -- Demote trailing blanks (assigned body_level above) back to cur_level.
-  do
+  if body_fold then
+    -- Demote trailing blanks (assigned body_level above) back to cur_level.
     local section_level = 0
     local trailing_start = nil
     for i = 1, nlines do
@@ -478,6 +485,9 @@ end
 -- Cleanup on BufWipeout.
 function M.forget(bufnr)
   M._state[bufnr] = nil
+  pcall(function()
+    require("organ.fold.contents").forget(bufnr)
+  end)
 end
 
 return M

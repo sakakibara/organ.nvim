@@ -54,30 +54,27 @@ vim.bo[b].filetype = "org"
 
 local levels = fold._build_fold_levels(b)
 
--- Body lines all sit at `body_level = max_heading_depth + 1` (4 here,
--- since the deepest heading is `*** TODO Sub-task`).  The first body
--- line under each heading explicitly opens the body fold (`>4`); the
--- rest share the level (`4`).  CONTENTS (foldlevel = max_depth = 3)
--- hides every body line in one stroke regardless of which heading it
--- sits under.  Drawers / blocks bump one further, so a drawer under
--- any heading is at level 5.
+-- Default `fold.body_fold = false`: body lines share their parent
+-- heading's level, so the whole subtree is one fold and `za` on body
+-- folds the heading.  Drawers / blocks bump one further than their
+-- enclosing heading via the treesitter pass.
 local expected = {
   [1] = ">1", -- * Active
   [2] = ">2", -- ** TODO Item with list
-  [3] = ">5", -- :PROPERTIES: (drawer sub-fold over body level 4)
-  [4] = "5", -- :Effort: 2:00
-  [5] = "5", -- :END:
-  [6] = "4", -- list item: body of H2 (after drawer; in_body still true)
-  [7] = "4",
-  [8] = "4",
-  [9] = "4",
+  [3] = ">3", -- :PROPERTIES: (drawer sub-fold = parent heading level + 1)
+  [4] = "3", -- :Effort: 2:00
+  [5] = "3", -- :END:
+  [6] = "2", -- list item: body of H2 at heading level
+  [7] = "2",
+  [8] = "2",
+  [9] = "2",
   [10] = ">2", -- ** TODO Sibling
-  [11] = ">4", -- first body line of Sibling
+  [11] = "2", -- body of Sibling
   [12] = ">1", -- * Recurring
   [13] = ">2",
-  [14] = ">4", -- first body line of Water plants
+  [14] = "2", -- body of Water plants
   [15] = ">3", -- *** TODO Sub-task
-  [16] = ">4", -- first body line of Sub-task
+  [16] = "3", -- body of Sub-task
 }
 
 for i = 1, #lines do

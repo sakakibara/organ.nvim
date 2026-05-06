@@ -31,14 +31,14 @@ end
 
 do
   local lv = levels_for({ "* H1", "#+begin_src lua", "print('hi')", "#+end_src" })
-  check("`#+begin_src` opens sub-fold", lv[2] == ">3", "got " .. tostring(lv[2]))
-  check("`#+end_src` inside sub-fold", lv[4] == "3", "got " .. tostring(lv[4]))
+  check("`#+begin_src` opens sub-fold", lv[2] == ">2", "got " .. tostring(lv[2]))
+  check("`#+end_src` inside sub-fold", lv[4] == "2", "got " .. tostring(lv[4]))
 end
 
 do
   local lv = levels_for({ "* H1", ":PROPERTIES:", ":Effort: 1:00", ":END:" })
-  check("`:PROPERTIES:` opens sub-fold", lv[2] == ">3", "got " .. tostring(lv[2]))
-  check("`:END:` inside sub-fold", lv[4] == "3", "got " .. tostring(lv[4]))
+  check("`:PROPERTIES:` opens sub-fold", lv[2] == ">2", "got " .. tostring(lv[2]))
+  check("`:END:` inside sub-fold", lv[4] == "2", "got " .. tostring(lv[4]))
 end
 
 if fails > 0 then

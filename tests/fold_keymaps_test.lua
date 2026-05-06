@@ -17,6 +17,10 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
+-- This test asserts the legacy `body_fold = true` strategy where
+-- CONTENTS state hides body via foldlevel = max_heading_depth.
+require("organ").config.fold.body_fold = true
+
 local fails = 0
 local function check(label, ok, detail)
   if ok then

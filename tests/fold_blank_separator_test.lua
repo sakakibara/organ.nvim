@@ -1,6 +1,8 @@
--- Blank lines under a heading must not open a phantom 1-line body
--- fold (which would render as a closed-fold "+" indicator on the
--- separator).  Run via: nvim --headless -l tests/fold_blank_separator_test.lua
+-- Default `fold.body_fold = false`: body lines (including blanks)
+-- share the parent heading's level.  No phantom body fold can exist
+-- because body has no fold of its own.
+--
+-- Run via: nvim --headless -l tests/fold_blank_separator_test.lua
 
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -34,23 +36,26 @@ end
 
 do
   local lv = levels_for({ "* H1", "para", "", "* H2" })
-  check("trailing blank demoted", lv[3] == "1", "got " .. tostring(lv[3]))
+  check("body line at heading level (no body fold)", lv[2] == "1", "got " .. tostring(lv[2]))
+  check("trailing blank at heading level", lv[3] == "1", "got " .. tostring(lv[3]))
 end
 
 do
   local lv = levels_for({ "* H1", "", "para" })
-  check("leading blank stays at heading level", lv[2] == "1", "got " .. tostring(lv[2]))
-  check("first content opens body fold", lv[3] == ">2", "got " .. tostring(lv[3]))
+  check("leading blank at heading level", lv[2] == "1", "got " .. tostring(lv[2]))
+  check("body line at heading level", lv[3] == "1", "got " .. tostring(lv[3]))
 end
 
 do
   local lv = levels_for({ "* H1", "para1", "", "para2" })
-  check("intermediate blank inside body fold", lv[3] == "2", "got " .. tostring(lv[3]))
+  check("body line at heading level", lv[2] == "1", "got " .. tostring(lv[2]))
+  check("intermediate blank at heading level", lv[3] == "1", "got " .. tostring(lv[3]))
+  check("subsequent body at heading level", lv[4] == "1", "got " .. tostring(lv[4]))
 end
 
 do
   local lv = levels_for({ "* H1", "para", "" })
-  check("EOF trailing blank demoted", lv[3] == "1", "got " .. tostring(lv[3]))
+  check("EOF trailing blank at heading level", lv[3] == "1", "got " .. tostring(lv[3]))
 end
 
 if fails > 0 then
