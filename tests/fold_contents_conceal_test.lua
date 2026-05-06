@@ -53,6 +53,8 @@ vim.api.nvim_buf_set_lines(b, 0, -1, false, {
   "body of H3", -- 7
 })
 vim.bo[b].filetype = "org"
+local HEADING_COUNT = 3
+local TOTAL_LINES = 7
 
 vim.wo.conceallevel = 0
 vim.wo.concealcursor = ""
@@ -69,18 +71,22 @@ local NS2 = vim.api.nvim_get_namespaces().organ_fold_contents
 check("extmarks present", NS2 and extmark_count(b) > 0)
 
 -- nvim_win_text_height is the easiest "screen height" probe — concealed
--- lines drop out of the rendered height.
-local h_active = vim.api.nvim_win_text_height(0, { start_row = 0, end_row = 6 }).all
+-- lines drop out of the rendered height.  ALL headings must remain
+-- rendered, ONLY body lines hidden -- if the conceal range overshoots
+-- by even one row, a heading vanishes and the count drops below
+-- HEADING_COUNT.
+local h_active = vim.api.nvim_win_text_height(0, { start_row = 0, end_row = TOTAL_LINES - 1 }).all
 check(
-  "rendered height drops below buffer line count",
-  h_active < 7,
-  "got rendered=" .. tostring(h_active)
+  "rendered height equals heading count (every heading visible, no more)",
+  h_active == HEADING_COUNT,
+  ("got rendered=%d, expected %d (TOTAL_LINES=%d)"):format(h_active, HEADING_COUNT, TOTAL_LINES)
 )
 
 -- Cursor on a body line MUST keep it concealed (Emacs CONTENTS).
 vim.api.nvim_win_set_cursor(0, { 2, 0 }) -- "body of H1"
 vim.cmd("redraw")
-local h_with_cursor_on_body = vim.api.nvim_win_text_height(0, { start_row = 0, end_row = 6 }).all
+local h_with_cursor_on_body =
+  vim.api.nvim_win_text_height(0, { start_row = 0, end_row = TOTAL_LINES - 1 }).all
 check(
   "cursor on body line stays concealed (height unchanged)",
   h_with_cursor_on_body == h_active,
@@ -93,8 +99,8 @@ check("conceallevel restored to 0", vim.wo.conceallevel == 0)
 check("concealcursor restored to ''", vim.wo.concealcursor == "")
 check("extmarks cleared", extmark_count(b) == 0)
 
-local h_after = vim.api.nvim_win_text_height(0, { start_row = 0, end_row = 6 }).all
-check("full height restored after leave", h_after == 7)
+local h_after = vim.api.nvim_win_text_height(0, { start_row = 0, end_row = TOTAL_LINES - 1 }).all
+check("full height restored after leave", h_after == TOTAL_LINES)
 
 -- enter -> refresh after edit -> leave.
 contents.enter(b)

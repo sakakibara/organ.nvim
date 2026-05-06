@@ -81,11 +81,13 @@ end
 local function place_marks(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   for _, r in ipairs(each_body_range(bufnr)) do
-    -- Each contiguous body range becomes one extmark.  end_row in
-    -- nvim_buf_set_extmark is the 0-indexed exclusive end row; for a
-    -- 1-indexed inclusive last line `r[2]`, that's just `r[2]`.
+    -- nvim_buf_set_extmark's `end_row` is 0-indexed INCLUSIVE; the
+    -- body range (`r[1]`, `r[2]`) is 1-indexed inclusive.  Both ends
+    -- need -1 to convert.  Without the second `-1` the mark spills
+    -- onto the heading line that follows and the next heading
+    -- vanishes when CONTENTS is active.
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, r[1] - 1, 0, {
-      end_row = r[2],
+      end_row = r[2] - 1,
       conceal_lines = "",
     })
   end
