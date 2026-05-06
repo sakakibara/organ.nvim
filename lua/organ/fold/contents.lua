@@ -171,6 +171,106 @@ local function on_cursor_moved(bufnr)
   s.last_row = target
 end
 
+-- Snapshot a buffer-local mapping so it can be restored verbatim
+-- after we replace it.  Returns nil when no buffer-local mapping
+-- exists (vim's default or a global mapping handles the key) -- in
+-- that case `vim.keymap.del { buffer = bufnr }` on leave is enough.
+local function snapshot_buf_mapping(bufnr, mode, lhs)
+  local maps = vim.api.nvim_buf_get_keymap(bufnr, mode)
+  for _, m in ipairs(maps) do
+    if m.lhs == lhs then
+      return m
+    end
+  end
+  return nil
+end
+
+local function restore_buf_mapping(bufnr, mode, lhs, snap)
+  pcall(vim.keymap.del, mode, lhs, { buffer = bufnr })
+  if not snap then
+    return
+  end
+  local opts = {
+    buffer = bufnr,
+    silent = snap.silent == 1,
+    noremap = snap.noremap == 1,
+    expr = snap.expr == 1,
+    nowait = snap.nowait == 1,
+    desc = snap.desc,
+  }
+  if snap.callback then
+    pcall(vim.keymap.set, mode, lhs, snap.callback, opts)
+  elseif snap.rhs and snap.rhs ~= "" then
+    pcall(vim.keymap.set, mode, lhs, snap.rhs, opts)
+  end
+end
+
+-- Fold-key overrides for CONTENTS state.  The view assumes
+-- foldlevel = 99 + extmarks; vim's default fold commands would
+-- alter that invariant (e.g. `za` on a heading collapses its
+-- sub-tree, hiding sub-headings CONTENTS exists to show).  Two
+-- shapes:
+--
+--   on_za / on_zc / on_zo: special-case heading lines to cycle the
+--     heading's individual visibility via `M.cycle` (Emacs
+--     `org-cycle`); off a heading, leave CONTENTS state and let
+--     the default fold command run.
+--   exit_and_replay(key): leave CONTENTS, then re-feed the key so
+--     the user's prior mapping (or vim default) takes over.  Used
+--     for `zM`, `zR`, `zm`, `zr` -- foldlevel manipulation outside
+--     organ's cycle is treated as "user wants out of CONTENTS".
+local function on_heading_cycle(bufnr)
+  return function()
+    local lnum = vim.fn.line(".")
+    local line = vim.fn.getline(lnum) or ""
+    if line:match("^%*+%s") then
+      require("organ.fold").cycle(0, lnum)
+    else
+      M.leave(bufnr)
+      vim.schedule(function()
+        vim.api.nvim_feedkeys("za", "m", false)
+      end)
+    end
+  end
+end
+
+local function exit_and_replay(bufnr, key)
+  return function()
+    M.leave(bufnr)
+    vim.schedule(function()
+      vim.api.nvim_feedkeys(key, "m", false)
+    end)
+  end
+end
+
+-- Buffer-local fold keymaps to install while CONTENTS is active and
+-- their saved prior mappings (so we can restore exactly what was
+-- there, including custom buffer-local user mappings).  Values are
+-- factory functions that build the override given (bufnr) at enter.
+local FOLD_KEY_OVERRIDES = {
+  za = function(bufnr)
+    return on_heading_cycle(bufnr)
+  end,
+  zc = function(bufnr)
+    return exit_and_replay(bufnr, "zc")
+  end,
+  zo = function(bufnr)
+    return exit_and_replay(bufnr, "zo")
+  end,
+  zM = function(bufnr)
+    return exit_and_replay(bufnr, "zM")
+  end,
+  zR = function(bufnr)
+    return exit_and_replay(bufnr, "zR")
+  end,
+  zm = function(bufnr)
+    return exit_and_replay(bufnr, "zm")
+  end,
+  zr = function(bufnr)
+    return exit_and_replay(bufnr, "zr")
+  end,
+}
+
 function M.enter(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if state[bufnr] or not is_supported() then
@@ -194,9 +294,22 @@ function M.enter(bufnr)
     end
     pcall(vim.api.nvim_set_option_value, "concealcursor", "nvic", { win = win })
   end
+  -- Snapshot every prior buffer-local fold mapping we're about to
+  -- replace, so leave() restores the user's exact mapping (including
+  -- callback / rhs / silent / noremap / expr / desc) instead of just
+  -- deleting our override and leaving the slot empty.
+  local saved_fold_keys = {}
+  for key, factory in pairs(FOLD_KEY_OVERRIDES) do
+    saved_fold_keys[key] = snapshot_buf_mapping(bufnr, "n", key)
+    pcall(vim.keymap.set, "n", key, factory(bufnr), {
+      buffer = bufnr,
+      desc = "organ CONTENTS: " .. key,
+    })
+  end
   state[bufnr] = {
     saved_conceallevel = saved_cl,
     saved_concealcursor = saved_cc,
+    saved_fold_keys = saved_fold_keys,
     last_row = vim.fn.line("."),
   }
   -- Defensive autocmd surface so state never leaks past the
@@ -255,6 +368,14 @@ function M.leave(bufnr)
     pcall(vim.api.nvim_set_option_value, "conceallevel", s.saved_conceallevel, { win = win })
     pcall(vim.api.nvim_set_option_value, "concealcursor", s.saved_concealcursor, { win = win })
   end
+  -- Restore prior buffer-local fold mappings (or remove ours when
+  -- there was no prior mapping; user's global mapping kicks back in
+  -- automatically once our buffer-local is gone).
+  if s.saved_fold_keys then
+    for key, snap in pairs(s.saved_fold_keys) do
+      restore_buf_mapping(bufnr, "n", key, snap)
+    end
+  end
   state[bufnr] = nil
 end
 
@@ -280,9 +401,20 @@ function M.statuscolumn_lnum(lnum, relative)
   local bufnr = vim.api.nvim_get_current_buf()
   local lo, hi = math.min(lnum, cur), math.max(lnum, cur)
   local visible = 0
-  for i = lo + 1, hi do
-    if not is_concealed_line(bufnr, i) then
-      visible = visible + 1
+  local i = lo + 1
+  while i <= hi do
+    if is_concealed_line(bufnr, i) then
+      i = i + 1
+    else
+      local fold_end = vim.fn.foldclosedend(i)
+      if fold_end > 0 then
+        -- Closed fold: counts as 1 visible row regardless of span.
+        visible = visible + 1
+        i = fold_end + 1
+      else
+        visible = visible + 1
+        i = i + 1
+      end
     end
   end
   return visible

@@ -538,6 +538,20 @@ reverted on exit -- nothing is allowed to persist past the cycle:
   values, so it's safe to wire unconditionally.
 - `BufWipeout` and `FileType` (off-org) trigger automatic cleanup
   so state never leaks past the buffer / filetype it was meant for.
+- Fold keys (`za` / `zc` / `zo` / `zM` / `zR` / `zm` / `zr`) are
+  wrapped buffer-local for the duration of CONTENTS:
+  - `za` on a heading cycles that heading's individual visibility
+    (Emacs `org-cycle`) instead of vim's tree-fold toggle that
+    would hide the very sub-headings CONTENTS exists to show.
+  - The rest (and `za` off a heading) leave CONTENTS first and
+    then replay the key so vim's default OR the user's prior
+    mapping takes over.  Any buffer-local mapping the user already
+    had is snapshotted on enter and restored verbatim on leave
+    (callback / rhs / flags / desc).  Global mappings always
+    return once the buffer-local override is removed.
+- `statuscolumn_lnum` counts closed folds as a single visible row
+  AND skips conceal-extmark rows, so relnum stays correct in both
+  OVERVIEW (closed folds) and CONTENTS (concealed body).
 
 ## Conceal
 

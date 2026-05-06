@@ -919,6 +919,33 @@ this mode.
                       normally.  `M.forget(bufnr)` is a hard reset
                       for any consumer that needs it.
 
+  Fold-key overrides  `za` / `zc` / `zo` / `zM` / `zR` / `zm` /
+                      `zr` are wrapped buffer-local for the
+                      duration of CONTENTS state:
+                        - `za` on a heading line cycles that
+                          heading's individual visibility (Emacs
+                          `org-cycle`) instead of vim's tree-fold
+                          toggle that would hide the very
+                          sub-headings CONTENTS exists to show.
+                        - All other fold keys (and `za` off a
+                          heading) leave CONTENTS first and then
+                          re-feed the key so vim's default OR the
+                          user's prior mapping takes over.  Any
+                          buffer-local mapping the user already had
+                          is snapshotted on enter and restored
+                          verbatim on leave (rhs / callback /
+                          silent / noremap / expr / desc).  Global
+                          mappings always return automatically once
+                          the buffer-local override is removed.
+
+  relnum helper       `statuscolumn_lnum(lnum, relative)` counts
+                      closed folds as a single visible row and
+                      skips conceal-extmark rows entirely, so a
+                      heading 5 buffer rows past a closed
+                      property drawer renders as `1` (visually
+                      adjacent), not `5`.  See
+                      |organ-fold-contents-view-statuscolumn_lnum|.
+
 ------------------------------------------------------------------------------
 Indent                                                   *organ-config-indent*
 
