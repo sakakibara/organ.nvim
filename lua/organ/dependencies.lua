@@ -27,7 +27,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Sequence helpers (mirrors todo.lua locals; deliberately duplicated to
 -- keep dependencies.lua loadable without pulling in todo.lua's mutation
 -- side-effects).
@@ -82,7 +81,6 @@ local function is_done(state, sequence)
   return state ~= nil and in_list(dones, state)
 end
 
--- ---------------------------------------------------------------------------
 -- Headline traversal
 
 -- Stars + body of a headline line, with the leading TODO keyword (if
@@ -195,7 +193,6 @@ function M.previous_siblings_of(lines, hl_line)
   return reversed
 end
 
--- ---------------------------------------------------------------------------
 -- Property lookup (lightweight — does not pull in property.lua to avoid
 -- mutation-side-effect coupling). Reads the PROPERTIES drawer beneath
 -- a headline if present and returns the value of `key` (case-insens),
@@ -238,7 +235,6 @@ function M.property_of(lines, hl_line, key)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- Body-checkbox scanning
 
 -- Returns true when at least one `- [ ]` checkbox in the body of
@@ -266,7 +262,6 @@ function M.has_unchecked_box(lines, hl_line)
   return false
 end
 
--- ---------------------------------------------------------------------------
 -- Dependency check entry point
 
 local function get_config()

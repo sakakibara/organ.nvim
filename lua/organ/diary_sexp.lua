@@ -56,7 +56,6 @@ local function is_last_dow_in_month(iso)
   return (last_d - d) < 7
 end
 
--- ---------------------------------------------------------------------------
 -- Parser. Each `parse_*` returns a normalised AST node or nil.
 
 local function tokenize(s)
@@ -126,7 +125,6 @@ function M.parse(s)
   return nil -- unknown / unsupported form
 end
 
--- ---------------------------------------------------------------------------
 -- Matcher.
 
 function M.matches(node, iso_date)
@@ -220,7 +218,6 @@ function M.matches_in_buffer(bufnr, iso_date)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Agenda integration: scan every indexed .org file for diary sexps, evaluate
 -- them across a date window, and produce synthetic agenda rows.
 --

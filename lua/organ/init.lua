@@ -452,7 +452,6 @@ local function scan_walk(dir, on_done)
   )
 end
 
-----------------------------------------------------------------------
 -- Semi-public helpers exposed so cmd.lua can call them without duplicating code.
 -- Prefixed with _ to signal "internal use only".
 
@@ -469,7 +468,6 @@ function M._poll_scan_completion()
   return poll_scan_completion()
 end
 
-----------------------------------------------------------------------
 -- Setup helpers (extracted to keep M.setup() compact).
 
 local function setup_validate_config()
@@ -820,7 +818,6 @@ local function setup_timezone()
   end
 end
 
-----------------------------------------------------------------------
 -- Public API.
 
 function M.setup(opts)

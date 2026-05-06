@@ -12,7 +12,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Sequence helpers (pulled from organ.todo so we don't depend on its module
 -- loading inside every cookie update).
 
@@ -65,7 +64,6 @@ local function any_todo_kw(input)
   return set
 end
 
--- ---------------------------------------------------------------------------
 -- Cookie patterns.
 
 -- Match `[N/M]` and `[XX%]` cookies. Returns (kind, start_byte, end_byte)
@@ -98,7 +96,6 @@ local function cookies_in(line)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Headline cookie counts.
 
 -- Walk descendants of headline at hl_line. For each direct child headline
@@ -142,7 +139,6 @@ local function count_children(lines, hl_line, opts)
   return done_n, total
 end
 
--- ---------------------------------------------------------------------------
 -- List-item cookie counts.
 
 -- Returns the list-block range [s, e] (1-based) covering the line at `lnum`.
@@ -217,7 +213,6 @@ local function count_checkboxes(lines, lnum)
   return checked, total
 end
 
--- ---------------------------------------------------------------------------
 -- Cookie rewriting.
 
 local function format_cookie(kind, num, den)
@@ -245,7 +240,6 @@ local function rewrite_cookies(line, num, den)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Public API.
 
 -- Update cookies for a single line (1-based) in bufnr. Picks counting

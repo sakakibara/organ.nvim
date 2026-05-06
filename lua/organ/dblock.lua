@@ -156,7 +156,6 @@ function M.register(name, fn)
   M.writers[name] = fn
 end
 
--- ---------------------------------------------------------------------------
 -- Built-in: clocktable.
 
 local function resolve_block(name)
@@ -265,7 +264,6 @@ end
 
 M.register("clocktable", clocktable_writer)
 
--- ---------------------------------------------------------------------------
 -- Built-in: columnview.
 --
 -- Embedded column view (uses #+COLUMNS or :COLUMNS:). The dblock body is
@@ -289,7 +287,6 @@ end
 
 M.register("columnview", columnview_writer)
 
--- ---------------------------------------------------------------------------
 -- Built-in: propertyview.
 --
 -- Renders a table of headlines × explicit property names. Params:

@@ -76,7 +76,6 @@ function M.handle(uri)
   return handler(params or {})
 end
 
--- ---------------------------------------------------------------------------
 -- Per-sub-protocol handlers.
 
 M.handlers = {}

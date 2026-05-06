@@ -31,7 +31,6 @@
 -- NOT fire inside src_block / example_block / verse_block / export_block /
 -- comment_block. That gives us the "inert region" check for free —
 -- callers see no link nodes inside those blocks.
--- ─────────────────────────────────────────────────────────────────────
 
 local M = {}
 

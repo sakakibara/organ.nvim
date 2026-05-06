@@ -22,9 +22,7 @@
 
 local M = {}
 
--- ─────────────────────────────────────────────────────────────────────
 -- Pattern building blocks
--- ─────────────────────────────────────────────────────────────────────
 
 -- Footnote-reference regex.  Captures the label (which may be empty for
 -- `[fn::text]`).  Use string.find to also get start/end positions.
@@ -36,9 +34,7 @@ local function get_line(bufnr, lnum)
   return vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Detection
--- ─────────────────────────────────────────────────────────────────────
 
 -- Find the footnote reference (if any) that contains column `col` of
 -- `text` (1-based byte column).  Returns { label, start_col, end_col }
@@ -100,9 +96,7 @@ function M.find_at_cursor(bufnr)
   return nil
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Find first reference + first definition for a label.
--- ─────────────────────────────────────────────────────────────────────
 
 local function find_first_def(bufnr, label)
   local total = vim.api.nvim_buf_line_count(bufnr)
@@ -136,9 +130,7 @@ local function find_first_ref(bufnr, label)
   return nil
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Public actions
--- ─────────────────────────────────────────────────────────────────────
 
 function M.jump(bufnr)
   bufnr = bufnr or 0
@@ -270,7 +262,6 @@ function M.renumber()
   return #order
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Inline → standalone normalisation.
 --
 -- Walks the buffer, finds every `[fn:LABEL:text]` and `[fn::text]` inline
@@ -283,7 +274,6 @@ end
 --   * Empty labels (`[fn::text]`) get the next available numeric label.
 --
 -- Returns the number of conversions performed.
--- ─────────────────────────────────────────────────────────────────────
 function M.normalize_inline(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   opts = opts or {}
@@ -353,7 +343,6 @@ function M.normalize_inline(bufnr, opts)
   return n_converted
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Sort definitions by reference order.
 --
 -- Walks the buffer to determine the order of FIRST reference for each
@@ -362,7 +351,6 @@ end
 -- following it), removes them in place, and re-inserts in reference
 -- order at the same anchor (the line where the first definition lived).
 -- Numeric labels also get re-sequenced 1..K via M.renumber semantics.
--- ─────────────────────────────────────────────────────────────────────
 function M.sort()
   local bufnr = vim.api.nvim_get_current_buf()
   local total = vim.api.nvim_buf_line_count(bufnr)

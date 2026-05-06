@@ -355,7 +355,6 @@ local function collect_range_values(node, ctx)
   return v == nil and {} or { v }
 end
 
--- ---------------------------------------------------------------------------
 -- Function dispatch — every callable in the evaluator goes through here.
 -- All inputs and outputs are Calc values; conversion to / from Lua
 -- numbers happens at the eval boundary.

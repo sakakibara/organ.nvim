@@ -4,9 +4,7 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- section 3  Pure visibility computation
--- ---------------------------------------------------------------------------
 
 --- Compute which 1-based line numbers should be visible given a predicate.
 ---
@@ -213,9 +211,7 @@ function M._compute_visible(buf_lines, predicate, bufnr)
   return visible
 end
 
--- ---------------------------------------------------------------------------
 -- section 4  Foldexpr
--- ---------------------------------------------------------------------------
 
 --- Foldexpr for sparse-tree mode.  Returns "0" (no fold) for visible lines
 --- and "9" (deep fold) for hidden lines.
@@ -233,9 +229,7 @@ function M.foldexpr(lnum)
   return "9"
 end
 
--- ---------------------------------------------------------------------------
 -- section 5  Apply / clear
--- ---------------------------------------------------------------------------
 
 --- Apply a sparse tree to a buffer: compute visibility and switch foldexpr.
 ---
@@ -280,9 +274,7 @@ function M.clear(bufnr)
   vim.b[bufnr].organ_sparse = nil
 end
 
--- ---------------------------------------------------------------------------
 -- section 6  Predicate factories
--- ---------------------------------------------------------------------------
 
 --- Show only headlines that have a TODO state (optionally a specific state).
 ---

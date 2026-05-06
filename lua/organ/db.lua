@@ -96,7 +96,6 @@ local SQLITE_OPEN_CREATE = 0x00000004
 -- It is the magic constant ((sqlite3_destructor_type)-1).
 local SQLITE_TRANSIENT = ffi.cast("void(*)(void*)", -1)
 
-----------------------------------------------------------------------
 -- Statement wrapper.
 
 local Stmt = {}
@@ -164,7 +163,6 @@ function Stmt:column_type(i)
   return tonumber(C.sqlite3_column_type(self._ptr, i))
 end
 
-----------------------------------------------------------------------
 -- Handle wrapper.
 
 local Handle = {}
@@ -227,7 +225,6 @@ function Handle:close()
   self._ptr = nil
 end
 
-----------------------------------------------------------------------
 -- Entrypoint.
 
 function M.open(path, opts)

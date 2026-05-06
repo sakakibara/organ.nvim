@@ -30,7 +30,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Tokenizer.
 
 local function tokenize(s)
@@ -81,7 +80,6 @@ local function tokenize(s)
   return toks
 end
 
--- ---------------------------------------------------------------------------
 -- Parser.
 
 -- An `atom` token may be a bare tag, a LEVEL=N clause, a PROP="v" clause,
@@ -208,7 +206,6 @@ function M.parse(query)
   return clauses
 end
 
--- ---------------------------------------------------------------------------
 -- Evaluator. headline = { todo_state, tags = {...}, level, title, properties }
 
 -- Resolve config.tags.groups: a parent tag matches when ANY member tag is

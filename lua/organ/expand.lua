@@ -29,7 +29,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Directive scanning
 
 -- Match any `#+KEYWORD: value` line. Returns iterator yielding (key, value)
@@ -80,7 +79,6 @@ local function collect_keywords_local(text, into)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- SETUPFILE chain
 
 local function read_file(path)
@@ -142,7 +140,6 @@ function M.collect_directives(text, base_dir)
   return ctx
 end
 
--- ---------------------------------------------------------------------------
 -- INCLUDE expansion
 
 -- Parse the args of an `#+INCLUDE:` directive. Returns:
@@ -404,7 +401,6 @@ function M.expand_includes(text, base_dir, visited)
   return table.concat(out, "\n")
 end
 
--- ---------------------------------------------------------------------------
 -- Macro expansion
 
 -- Built-in macros. `args` is the parenthesised arg list (already split
@@ -533,7 +529,6 @@ function M.expand_macros(text, ctx, max_passes)
   return text
 end
 
--- ---------------------------------------------------------------------------
 -- High-level driver
 
 -- Run the full directive pass: SETUPFILE → INCLUDE → re-scan macros →

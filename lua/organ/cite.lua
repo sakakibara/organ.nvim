@@ -120,7 +120,6 @@ function M.parse(text)
   return hits[1] and hits[1].parsed
 end
 
--- ---------------------------------------------------------------------------
 -- Per-backend renderers. Each `render(parsed)` returns a single string with
 -- the appropriate substitution.
 
@@ -191,7 +190,6 @@ function M.replace_in(text, backend)
   return table.concat(out)
 end
 
--- ---------------------------------------------------------------------------
 -- Native CSL pipeline: bibliography discovery + load + render. The
 -- functions below complement the per-backend RENDERERS above. They
 -- exist so users who want native, bibliography-aware output (rather
@@ -289,7 +287,6 @@ function M.process(text, opts)
   return render.render_text(text, idx, style, { backend = opts.backend })
 end
 
--- ---------------------------------------------------------------------------
 -- Export-pipeline integration: pre-process raw org source so that the
 -- existing tree-sitter-driven exporters can ship native CSL output
 -- without each one needing to know the rendering rules.
@@ -399,7 +396,6 @@ function M.finalize_native(out_text, native_ctx)
   return render._finalize(out_text, native_ctx.backend)
 end
 
--- ---------------------------------------------------------------------------
 -- Completion / picker support: surface bibliography keys for use in
 -- `[cite:@<partial>` insert-mode completion and a `:Org cite find`
 -- picker.

@@ -70,7 +70,6 @@ local function run_subprocess(cmd, opts, body)
   return table.concat(out_lines, "\n"), table.concat(err_lines, "\n"), rc
 end
 
--- ---------------------------------------------------------------------------
 -- Built-in language runners.
 --
 -- Each runner takes `body` (string) + `opts` ({ vars, dir }), spawns a

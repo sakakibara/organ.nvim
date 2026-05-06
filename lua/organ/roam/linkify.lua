@@ -179,7 +179,6 @@ function M.linkify_buffer(bufnr)
   return M.linkify_range(bufnr, 1, n)
 end
 
--- ---------------------------------------------------------------------------
 -- Completion source: candidates for the partial word the user is typing,
 -- consumed by the blink.cmp / nvim-cmp adapters in lua/organ/complete/.
 --

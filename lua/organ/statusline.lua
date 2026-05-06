@@ -20,7 +20,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Element accessors. Each takes a bufnr and returns a plain string.
 
 -- Display the agenda view name set on the buffer (e.g. "today", "todos",
@@ -97,7 +96,6 @@ function M.buffer_kind(bufnr)
   return ""
 end
 
--- ---------------------------------------------------------------------------
 -- Default composers.
 
 -- Agenda default winbar:
@@ -140,7 +138,6 @@ function M.backlinks_statusline(_bufnr)
     .. "%#OrganStatusKey#g?%* help"
 end
 
--- ---------------------------------------------------------------------------
 -- Resolve helper: turn a config value into the string to set.
 --
 -- A config value can be:
@@ -170,7 +167,6 @@ function M.resolve(value, default_fn, bufnr)
   return nil, "unsupported statusline/winbar value: " .. type(value)
 end
 
--- ---------------------------------------------------------------------------
 -- Apply window-local winbar and buffer-local statusline. Buffer / window
 -- scope only — the user's global vim.o.winbar / vim.o.statusline are
 -- never touched. Returns true on success.
@@ -219,7 +215,6 @@ function M.apply(bufnr, opts)
   return true
 end
 
--- ---------------------------------------------------------------------------
 -- lualine integration. Each element returns a lualine component table —
 -- a function (the value provider) plus a `cond` that gates display to
 -- organ-owned buffers so the component disappears in regular files.

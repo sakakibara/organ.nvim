@@ -29,7 +29,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Helpers shared by multiple styles.
 
 local function authors_short_apa(authors)
@@ -202,7 +201,6 @@ local function alpha_key(e, sfx_map)
   return string.lower(family) .. "\0" .. string.format("%08d", year) .. sfx
 end
 
--- ---------------------------------------------------------------------------
 -- APA
 
 M.apa = {}
@@ -311,7 +309,6 @@ function M.apa.render_bibliography(bib_index, used_keys, ctx)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Chicago author-date
 
 M.chicago = {}
@@ -415,7 +412,6 @@ function M.chicago.render_bibliography(bib_index, used_keys, ctx)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- IEEE numeric
 
 M.ieee = {}

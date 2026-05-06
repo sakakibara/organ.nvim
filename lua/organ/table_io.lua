@@ -11,7 +11,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- CSV parser. Streams over `text`, returns list of rows where each row is a
 -- list of cell strings. Tolerates CRLF, trailing newline.
 function M.parse_csv(text, delim)
@@ -93,7 +92,6 @@ function M.detect_delim(path, text)
   return ","
 end
 
--- ---------------------------------------------------------------------------
 -- CSV emitter. Each row is a list of cells. Cells containing the delimiter,
 -- a quote, or a newline get quoted.
 function M.emit_csv(rows, delim)
@@ -113,7 +111,6 @@ function M.emit_csv(rows, delim)
   return table.concat(out, "\n") .. "\n"
 end
 
--- ---------------------------------------------------------------------------
 -- Org-table → list-of-rows.
 local function lstrip(s)
   return s:gsub("^%s+", "")
@@ -154,7 +151,6 @@ function M.parse_org_table(buf_lines, lnum)
   return rows, s, e
 end
 
--- ---------------------------------------------------------------------------
 -- Render rows as an aligned org table (single divider after the header).
 function M.render_org_table(rows)
   if #rows == 0 then
@@ -201,7 +197,6 @@ function M.render_org_table(rows)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Public commands.
 
 function M.import(bufnr, lnum, path)

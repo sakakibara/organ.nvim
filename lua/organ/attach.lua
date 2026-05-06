@@ -122,7 +122,6 @@ function M.attach(bufnr, line, src_path)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- Attach from URL: download to attachment dir + insert link.
 --
 -- Uses curl (preferred) or wget. Filename derived from URL's last path
@@ -176,7 +175,6 @@ function M.attach_url(bufnr, line, url)
   return nil, filename
 end
 
--- ---------------------------------------------------------------------------
 -- Screenshot to attachment dir + insert link.
 --
 -- Uses an OS-appropriate screenshot tool:
@@ -231,7 +229,6 @@ function M.attach_screenshot(bufnr, line, opts)
   return nil, filename
 end
 
--- ---------------------------------------------------------------------------
 -- org-attach-git: version-control the attachment dir.
 --
 -- Opt-in via config.attach.git = true. On each successful attach (file /

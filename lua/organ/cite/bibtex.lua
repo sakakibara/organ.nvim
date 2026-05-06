@@ -129,7 +129,6 @@ local function parse_name(s)
   }
 end
 
--- ---------------------------------------------------------------------------
 -- Tokeniser-friendly entry parser. Tracks position with explicit `pos`
 -- so we can recover from junk between entries.
 

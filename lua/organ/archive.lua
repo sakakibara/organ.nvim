@@ -4,7 +4,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Helpers
 
 local structure = require("organ.structure")
@@ -180,7 +179,6 @@ local function inject_properties(lines, pairs_list)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- Public API
 
 --- Archive the subtree containing `line` in `bufnr` to the configured archive
@@ -390,7 +388,6 @@ function M.archive_subtree(opts)
   return nil, archive_path
 end
 
--- ---------------------------------------------------------------------------
 -- Archive to a sibling `* Archive` headline within the SAME buffer (Emacs
 -- C-c C-x A). Reuses the metadata-injection + relevel helpers above.
 --- Archive the subtree at cursor under a sibling `* Archive` headline in the

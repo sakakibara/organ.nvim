@@ -17,7 +17,6 @@
 --
 -- The audit test `tests/defaults_opt_in_audit_test.lua` enforces this
 -- against a list of known opt-in fields.
--- ─────────────────────────────────────────────────────────────────────────
 
 local function plugin_root()
   local src = debug.getinfo(1, "S").source:sub(2)

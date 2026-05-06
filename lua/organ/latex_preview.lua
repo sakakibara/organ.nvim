@@ -226,7 +226,6 @@ function M.open(bufnr)
   return open_popup(lines, title)
 end
 
--- ---------------------------------------------------------------------------
 -- Buffer-wide inline LaTeX image rendering (toggle).
 -- bufnr -> { images = {...}, ns = ns_id }
 local _inline_state = {}

@@ -81,7 +81,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Bignum primitives.
 
 local BASE = 10 ^ 7
@@ -372,7 +371,6 @@ local function bn_gcd(a, b)
   return a
 end
 
--- ---------------------------------------------------------------------------
 -- Public Calc-value API.
 
 local function is_int(v)
@@ -822,7 +820,6 @@ function M.pow(v, n)
   return result
 end
 
--- ---------------------------------------------------------------------------
 -- Math functions. Most return float — they're transcendental or
 -- generally produce irrational results. sqrt of a perfect square stays
 -- exact.
@@ -1023,7 +1020,6 @@ function M.binomial(n, k)
   return r
 end
 
--- ---------------------------------------------------------------------------
 -- Logical and conditional. 0 is false; everything else is true (Calc style).
 
 function M.is_true(v)
@@ -1047,7 +1043,6 @@ function M.ifte(cond, then_v, else_v)
   return M.is_true(cond) and then_v or else_v
 end
 
--- ---------------------------------------------------------------------------
 -- Aggregations. Argument is a list of Calc values; result is a Calc value
 -- (or nil when the input is empty and the aggregation has no zero).
 
@@ -1174,7 +1169,6 @@ function M.vsdev(vs)
   return M.sqrt(var)
 end
 
--- ---------------------------------------------------------------------------
 -- Units. SI base + decimal prefixes + common derived. Each unit table
 -- entry maps name → {factor, dim} where factor is a Lua number scaling
 -- value-in-this-unit to value-in-base-SI, and dim is a {axis = power}
@@ -1384,7 +1378,6 @@ function M.convert(v, target)
   return { kind = "unit", v = v.v, dim = u.dim, name = target }
 end
 
--- ---------------------------------------------------------------------------
 -- Symbolic. Bare variables (`x`, `y`) and a small set of simplification
 -- rules so that literal expressions like `x + 0`, `0 * y`, `x - x`
 -- reduce to a numeric or symbolic atom rather than crashing the
@@ -1457,7 +1450,6 @@ function M.simplify_binop(op, a, b)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- Financial functions. Sign convention: outflows negative, inflows
 -- positive (Excel / spreadsheet convention). Computed as Lua doubles
 -- and returned as Calc floats — financial workloads almost never need
@@ -1559,7 +1551,6 @@ function M.irr(cashflows, guess)
   error("calc.irr: did not converge")
 end
 
--- ---------------------------------------------------------------------------
 -- Big-integer primality and factoring. Trial division first (fast for
 -- small primes); Miller-Rabin probabilistic test; Pollard's rho for
 -- large composites.
@@ -1757,7 +1748,6 @@ function M.prime_factors(v)
   return out
 end
 
--- ---------------------------------------------------------------------------
 -- Matrix linear algebra. A matrix is { kind = "mat", rows = R, cols = C,
 -- d = { [r] = { [c] = Calc } } } — element type is Calc, so determinants
 -- of integer matrices stay exact.
@@ -2016,7 +2006,6 @@ function M.inv(a)
   return { kind = "mat", rows = n, cols = n, d = d }
 end
 
--- ---------------------------------------------------------------------------
 -- Eigenvalues. Power iteration + deflation. Works reliably for
 -- symmetric matrices with distinct real eigenvalues; for general
 -- matrices the spectrum may have complex eigenvalues that this
@@ -2132,7 +2121,6 @@ function M.dominant_eig(A)
   return power_iteration(A, A.rows)
 end
 
--- ---------------------------------------------------------------------------
 -- Symbolic differentiation. Pattern matches on the formula AST shape
 -- defined in `lua/organ/table/formula.lua`: nodes have a `kind` field
 -- and operator/function children.
@@ -2337,7 +2325,6 @@ end
 
 M._ast_simplify = ast_simplify
 
--- ---------------------------------------------------------------------------
 -- Polynomial / algebraic manipulation. A pragmatic computer-algebra
 -- subset:
 --
@@ -2496,7 +2483,6 @@ function M.simplify(node)
   return node
 end
 
--- ---------------------------------------------------------------------------
 -- Limits. Two strategies, in order:
 --
 --   1. Direct substitution: bind the variable to its target and try to
@@ -2544,7 +2530,6 @@ function M.limit(ast, var, c, _depth)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- Symbolic integration via a small antiderivative table. Handles:
 --
 --   integ(c)         = c * x
@@ -2665,7 +2650,6 @@ function M.integ_simplify(node, var)
   return ast_simplify(M.integ(node, var))
 end
 
--- ---------------------------------------------------------------------------
 -- Date / time. Stored internally as days since 1970-01-01 (Unix epoch
 -- date) for the date part, plus an optional fractional-day component
 -- for time. Conversion uses Howard Hinnant's proleptic-Gregorian
@@ -2834,7 +2818,6 @@ end
 local DAYS_IN_MONTH_PRIVATE = DAYS_IN_MONTH or { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 }
 DAYS_IN_MONTH = DAYS_IN_MONTH_PRIVATE
 
--- ---------------------------------------------------------------------------
 -- Future-work registry — runtime-discoverable list of "not yet
 -- implemented" Calc capabilities. Keep in sync with the module header.
 

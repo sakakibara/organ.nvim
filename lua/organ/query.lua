@@ -15,7 +15,6 @@ local M = {}
 -- Override point for tests.
 M._now = os.time
 
--- ---------------------------------------------------------------------------
 -- Date input parsing. Accepts:
 --   ISO string:          "2024-01-15" or "2024-01-15T14:00"  (pass-through)
 --   Relative string:     "today", "+7d", "-1w", "+1m", "+1y"
@@ -73,7 +72,6 @@ function M.parse_date(input)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- SQL builder. Turns a filter table into a (sql, params) pair. Emits a
 -- parameterised SELECT against the `headlines` table; joins/subqueries
 -- are added only for filters that need them. All values pass through
@@ -535,7 +533,6 @@ WITH RECURSIVE descendants(id) AS (
   return sql, params
 end
 
--- ---------------------------------------------------------------------------
 -- Execution helpers.
 
 local function default_db()
@@ -992,7 +989,6 @@ function M.by_file(path, opts)
   })
 end
 
--- ---------------------------------------------------------------------------
 -- Links / roam API.
 
 function M.get_by_id(id, opts)

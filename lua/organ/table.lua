@@ -25,7 +25,6 @@ local function is_alignment_row(row)
   return has_marker
 end
 
--- ---------------------------------------------------------------------------
 -- Thin pass-through wrappers so organ's command layer can keep calling
 -- M.realign / M.tab / etc. without depending on the tablature module
 -- directly.
@@ -149,7 +148,6 @@ function M._cursor_to_cell(line_text, col_0_based)
   return #positions - 1
 end
 
--- ---------------------------------------------------------------------------
 -- Org-specific: TBLFM evaluation. is_alignment_row defined above.
 
 function M.find_tblfm(bufnr, table_range)

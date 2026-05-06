@@ -328,7 +328,6 @@ local function standard_actions()
   }
 end
 
--- ---------------------------------------------------------------------------
 -- Multi-criteria prefix-token filter.
 --
 -- Parses a query string and returns:

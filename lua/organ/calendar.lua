@@ -63,7 +63,6 @@ local function format_iso(year, month, day)
   return string.format("%04d-%02d-%02d", year, month, day)
 end
 
--- ---------------------------------------------------------------------------
 -- Render one month into a grid. Returns { lines, extmarks, day_cells } where
 -- day_cells[day_number] = { row, col_start, col_end } (1-based row).
 function M._render_month(year, month, today_iso, selected_iso, week_start, holiday_set, col_offset)
@@ -265,7 +264,6 @@ function M._render_layout(state, today_iso, week_start, holiday_set_for)
   return { lines = lines, extmarks = extmarks, day_cells = mid.day_cells }
 end
 
--- ---------------------------------------------------------------------------
 -- State mutation helpers (pure).
 
 function M._move_selection(state, delta_days)

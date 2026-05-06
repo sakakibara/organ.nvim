@@ -22,9 +22,7 @@
 
 local M = {}
 
--- ─────────────────────────────────────────────────────────────────────
 -- Property recognition
--- ─────────────────────────────────────────────────────────────────────
 
 -- Properties may arrive case-folded ("STYLE") or as-typed; check both.
 function M.is_habit(properties)
@@ -35,9 +33,7 @@ function M.is_habit(properties)
   return style ~= nil and style:lower() == "habit"
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Completion history
--- ─────────────────────────────────────────────────────────────────────
 
 -- Extract State→DONE-(or any "done" keyword) date stamps from the text of
 -- a LOGBOOK drawer.  Lines look like:
@@ -63,9 +59,7 @@ function M.parse_completions(logbook_text, done_keywords)
   return out
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Period math
--- ─────────────────────────────────────────────────────────────────────
 
 local UNIT_DAYS = { d = 1, w = 7, m = 30, y = 365 }
 
@@ -91,9 +85,7 @@ function M.alarm_days(repeater_info)
   return n * (UNIT_DAYS[u] or 1)
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Status / streak
--- ─────────────────────────────────────────────────────────────────────
 
 local function to_time(date_str)
   local y, m, d = date_str:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
@@ -214,9 +206,7 @@ function M.add_days(date_str, n)
   return os.date("%Y-%m-%d", nt)
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Glyph row (org-habit-style consistency graph)
--- ─────────────────────────────────────────────────────────────────────
 
 -- Glyph characters and highlight groups.  Override per user config.
 M.glyphs = {
@@ -284,9 +274,7 @@ function M.glyph_row(info, today, days)
   return out
 end
 
--- ─────────────────────────────────────────────────────────────────────
 -- Convenience: render a glyph row to a single-line string (no HL).
--- ─────────────────────────────────────────────────────────────────────
 
 function M.render_glyph_row(info, today, days)
   local row = M.glyph_row(info, today, days)

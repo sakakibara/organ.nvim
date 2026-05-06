@@ -10,7 +10,6 @@
 
 local M = {}
 
--- ---------------------------------------------------------------------------
 -- Clock reads — funnel through these so the snapshot test (and any
 -- other harness that wants a deterministic agenda) can pin "now" via
 -- `config.agenda.now_override`.  The override accepts:
@@ -1026,7 +1025,6 @@ local function sort_records(records, order_spec)
   end)
 end
 
--- ---------------------------------------------------------------------------
 -- Public pure helpers.
 
 local FLAT_FIELDS = {
@@ -1305,7 +1303,6 @@ function M.foldexpr(lnum)
   return "="
 end
 
--- ---------------------------------------------------------------------------
 -- Public renderer.
 
 -- Per-block primitive. Same logic as the previous M.render: overdue bucket,
@@ -2476,7 +2473,6 @@ function M.render(blocks_with_rows, opts)
   return { lines = lines, extmarks = extmarks, line_index = line_index, block_starts = block_starts }
 end
 
--- ---------------------------------------------------------------------------
 -- Buffer machinery: open, refresh, filetype, event-driven refresh.
 
 local NS = vim.api.nvim_create_namespace("organ-agenda")
@@ -2545,7 +2541,6 @@ local function set_state(bufnr, state)
   vim.b[bufnr].organ_agenda = encode_state(state)
 end
 
--- ---------------------------------------------------------------------------
 -- Public bulk-delete / undo / redo primitives.
 --
 -- The gB action menu and u / <C-r> keymaps in the agenda buffer
@@ -2557,7 +2552,6 @@ end
 -- describing one or more subtrees that were cut. delete_history
 -- (LIFO) holds these so `u` can restore them; redo_history holds
 -- the snapshots `u` undid so `<C-r>` can re-cut.
--- ---------------------------------------------------------------------------
 
 -- Cut the subtrees described by `marked_rows` (each must have file_path
 -- + line_start, OR _source_bufnr + _source_lnum) and append the snapshot
@@ -5001,9 +4995,7 @@ M._run_query = run_query
 -- top-down `local function` declaration order.
 M._register_highlights = register_highlights
 
--- ---------------------------------------------------------------------------
 -- High-level entry points (the cmd.lua shims forward to these).
--- ---------------------------------------------------------------------------
 
 --- Open the day-view agenda (today only).
 function M.day()
