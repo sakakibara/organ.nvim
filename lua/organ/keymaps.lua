@@ -48,7 +48,7 @@ M.defaults = {
   { "<LocalLeader>j", "Org goto", desc = "Fuzzy goto heading" },
   { "<LocalLeader>'", "Org edit_special", desc = "Edit src block" },
   { "<LocalLeader>#", "Org update_statistics", desc = "Update [N/M] cookies" },
-  { "<LocalLeader>=", "Org toggle_emphasis_conceal", desc = "Toggle emphasis conceal" },
+  { "<LocalLeader>=", "Org conceal toggle", desc = "Toggle emphasis conceal" },
   { "<LocalLeader>I", "Org store_link", desc = "Store link to heading" },
   { "<LocalLeader>L", "Org insert_link", desc = "Insert stored link" },
   { "<LocalLeader>@", "Org attach open", desc = "Open attachment" },

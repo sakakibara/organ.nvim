@@ -226,20 +226,12 @@ end
 M._apply = apply
 
 M.commands = {
-  toggle_emphasis_conceal = {
-    fn = function()
-      local on = M.toggle(0)
-      require("organ.notify").info("organ: emphasis conceal " .. (on and "ON" or "OFF"))
-    end,
-    desc = "Hide / show inline emphasis markers (* / _ + = ~) via conceal extmarks",
-  },
   ["conceal toggle"] = {
     fn = function(opts)
       local arg = opts and opts.args or ""
-      if arg == "" or arg == nil then
-        require("organ.notify").warn(
-          "organ: usage `:Org conceal toggle <element>` (" .. table.concat(M.ELEMENTS, " | ") .. ")"
-        )
+      if arg == nil or arg == "" then
+        local on = M.toggle(0)
+        require("organ.notify").info("organ: emphasis conceal " .. (on and "ON" or "OFF"))
         return
       end
       if not vim.tbl_contains(M.ELEMENTS, arg) then
@@ -251,11 +243,11 @@ M.commands = {
       local on = M.toggle_element(arg)
       require("organ.notify").info("organ: conceal " .. arg .. " = " .. (on and "ON" or "OFF"))
     end,
-    nargs = 1,
+    nargs = "?",
     complete = function()
       return M.ELEMENTS
     end,
-    desc = "Toggle conceal of one inline element (bold / italic / ... / links)",
+    desc = "Toggle conceal: master (no arg) or one element (bold / italic / ... / links)",
   },
 }
 

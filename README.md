@@ -281,7 +281,7 @@ default) with example inputs.
 
 `:Org latex_preview`, `:Org latex_render`, `:Org latex_cache_purge`,
 `:Org image_reveal`, `:Org toggle_inline_images`, `:Org pretty_entities`,
-`:Org toggle_emphasis_conceal`, `:Org complete`, `:Org increment` /
+`:Org conceal toggle`, `:Org complete`, `:Org increment` /
 `:Org decrement`, `:Org meta_return`, `:Org indent_mode`, `:Org habits`,
 `:Org fetch_holidays`, `:Org protocol`
 </details>
@@ -448,6 +448,56 @@ direct access to `>N` directives), but adds an indicator on every
 line inside an open fold.  The helper keeps the cleaner "marker at
 fold-start lines, blank elsewhere" policy most custom statuscolumns
 already use.
+
+## Folding
+
+Two strategies, controlled by `fold.body_fold`:
+
+```lua
+require("organ").setup({
+  fold = { body_fold = false },  -- default
+})
+```
+
+**`body_fold = false` (default, Emacs-faithful):** body lines share
+the parent heading's foldlevel.  Each heading section is one fold;
+`za` on body folds the heading.  CONTENTS view (third `<S-Tab>`
+state) hides body via `conceal_lines` extmarks, leaving every
+heading visible at every depth.  Auto-bumps `conceallevel` and
+`concealcursor` while CONTENTS is active and restores both on exit.
+Requires Neovim 0.11+ for the `conceal_lines` primitive; on older
+Neovim CONTENTS degrades to "level-1 headings only" (`foldlevel=1`).
+
+**`body_fold = true`:** body sits at `body_level = max_heading_depth + 1`
+so `:set foldlevel = max_heading_depth` is itself the CONTENTS state.
+No conceal dependency -- pick this if you keep `conceallevel = 0`
+and don't want the temporary bump.  `za` on body folds the body
+line, not the heading.
+
+## Conceal
+
+Per-element switches under `emphasis`.  Each element can be turned
+off independently so users can keep `*bold*` markers visible while
+still concealing link brackets, etc.
+
+```lua
+require("organ").setup({
+  emphasis = {
+    enabled = true,           -- bumps conceallevel = 2 on attach
+    bold     = true,
+    italic   = true,
+    underline = true,
+    strike   = true,
+    verbatim = true,
+    code     = true,
+    links    = true,          -- [[target][description]] -> description
+  },
+})
+```
+
+Runtime: `:Org conceal toggle` toggles all conceal at once;
+`:Org conceal toggle <element>` flips one element and re-applies
+marks across loaded org buffers.
 
 ## Differences from Emacs
 

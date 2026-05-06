@@ -776,6 +776,36 @@ Fold                                                       *organ-config-fold*
     Note: `<Tab>` is shared with table navigation. When the cursor is
     on a table row it navigates cells; on a headline it folds.
 
+                                                 *organ-config-fold-body_fold*
+    `fold.body_fold` (bool, default: `false`)
+    Selects the body-fold strategy:
+
+    `false` -- body lines share the parent heading's foldlevel; each
+    section is one fold; `za` on body folds the heading (Emacs).
+    CONTENTS view (`<S-Tab>` third state) hides body via
+    `conceal_lines` extmarks, leaving every heading visible.  Auto-
+    bumps `conceallevel` and `concealcursor` while CONTENTS is active
+    and restores both on exit.  Requires Neovim 0.11+ for the
+    `conceal_lines` primitive; on older Neovim CONTENTS degrades to
+    "level-1 headings only" (`foldlevel = 1`).
+
+    `true` -- body sits at `body_level = max_heading_depth + 1` so
+    `:set foldlevel = max_heading_depth` is itself the CONTENTS
+    state.  No conceal dependency -- pick this if you keep
+    `conceallevel = 0` and don't want the temporary bump.  `za` on
+    body folds the body line, not the heading.
+
+                                              *organ-fold-statuscolumn_marker*
+    `require("organ.fold").statuscolumn_marker(lnum)`
+    Drop-in fold-marker function for custom statuscolumns that
+    compute markers via `foldlevel(lnum) > foldlevel(lnum - 1)`.
+    That idiom misses heading lines whose foldlevel doesn't strictly
+    exceed the previous line's (sibling headings, or any heading
+    after body in `body_fold = true` mode).  In an org buffer the
+    helper marks every heading line as a fold-start regardless of
+    the level transition and suppresses markers on body lines.
+    Falls back to level-compare on non-org buffers.
+
 ------------------------------------------------------------------------------
 Indent                                                   *organ-config-indent*
 
@@ -843,6 +873,45 @@ not bundled -- wire it via your formatter-runner of choice
     Collapse runs of internal whitespace on headlines (between
     stars / TODO keyword / COMMENT marker / priority cookie /
     title) to a single space.
+
+------------------------------------------------------------------------------
+Emphasis                                               *organ-config-emphasis*
+
+Inline markup conceal: hide the `*` of `*bold*`, the `/` of
+`/italic/`, link brackets in `[[target][description]]`, etc.
+Conceal extmarks have NO visual effect when `conceallevel = 0`
+(default), so users get conceal-on-demand: set `conceallevel = 2`
+on the buffer or window and the marks render immediately.
+
+                                               *organ-config-emphasis-enabled*
+    `emphasis.enabled` (bool, default: `false`)
+    Bumps `conceallevel = 2` on attach so concealment is on by
+    default for org buffers (Emacs's `org-link-descriptive = t`
+    default).  Set true to opt in.
+
+Per-element switches.  Each defaults to `true` so the master
+`enabled` flag flips everything; flip individual elements to
+`false` to keep that specific markup visible.  Toggle at runtime
+via `:Org conceal toggle <element>` (see |:Org-conceal-toggle|).
+
+                                                  *organ-config-emphasis-bold*
+    `emphasis.bold` (bool, default: `true`)
+                                                *organ-config-emphasis-italic*
+    `emphasis.italic` (bool, default: `true`)
+                                             *organ-config-emphasis-underline*
+    `emphasis.underline` (bool, default: `true`)
+                                                *organ-config-emphasis-strike*
+    `emphasis.strike` (bool, default: `true`)
+                                              *organ-config-emphasis-verbatim*
+    `emphasis.verbatim` (bool, default: `true`)
+                                                  *organ-config-emphasis-code*
+    `emphasis.code` (bool, default: `true`)
+                                                 *organ-config-emphasis-links*
+    `emphasis.links` (bool, default: `true`)
+    Hide the `[[`, `target][`, and `]]` of
+    `[[target][description]]` so the link reads as just
+    `description`.  Bare `[[target]]` (no description) is left
+    visible -- the target IS the body.
 
 ------------------------------------------------------------------------------
 LSP                                                         *organ-config-lsp*
@@ -2679,10 +2748,18 @@ DISPLAY TOGGLES                                            *organ-cmd-display*
     Toggle inline image rendering for `[[file:image.png]]` links.
     Requires image.nvim and a Kitty/sixel-capable terminal.
 
-*:Org-toggle_emphasis_conceal*
-    `:Org toggle_emphasis_conceal`
-    Toggle conceal of emphasis markers — when on, `*bold*` shows as
-    `bold` (in bold) without the asterisks.
+*:Org-conceal-toggle*
+    `:Org conceal toggle [{element}]`
+    With no argument, toggles the master conceal layer for the
+    current org buffer (Emacs `org-toggle-link-display`-style: `*bold*`
+    becomes `bold`, `[[id:x][title]]` becomes `title`, etc.).  With
+    an element argument, flips the conceal flag for one specific
+    element and re-applies marks across every loaded org buffer.
+    Element is one of:
+        bold | italic | underline | strike | verbatim | code | links
+    State persists for the rest of the session; for permanent
+    preferences set the matching flag in `setup({ emphasis = ... })`
+    (see |organ-config-emphasis|).
 
 *:Org-pretty_entities*
     `:Org pretty_entities`
