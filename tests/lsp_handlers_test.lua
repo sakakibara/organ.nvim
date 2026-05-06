@@ -218,6 +218,43 @@ check("completion 'T' partial: NEXT filtered out", t_only)
 -- Clean up the appended line.
 vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
 
+-- 5b. completion: src_block language slot — `#+begin_src ` (empty
+-- partial) lists languages; `#+begin_src ba` narrows to bash.
+vim.fn.appendbufline(bufnr, "$", { "#+begin_src " })
+last_line = vim.api.nvim_buf_line_count(bufnr)
+vim.api.nvim_win_set_buf(0, bufnr)
+vim.api.nvim_win_set_cursor(0, { last_line, 12 }) -- right after the space
+local comp_sl = H["textDocument/completion"]({
+  textDocument = { uri = URI },
+  position = { line = last_line - 1, character = 12 },
+})
+local has_bash, has_lua = false, false
+for _, it in ipairs(comp_sl.items) do
+  if it.label == "bash" then
+    has_bash = true
+  end
+  if it.label == "lua" then
+    has_lua = true
+  end
+end
+check("completion src_lang: bash + lua present", has_bash and has_lua)
+
+vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, { "#+begin_src ba" })
+vim.api.nvim_win_set_cursor(0, { last_line, 14 })
+local comp_sl_ba = H["textDocument/completion"]({
+  textDocument = { uri = URI },
+  position = { line = last_line - 1, character = 14 },
+})
+local ba_only_bash = true
+for _, it in ipairs(comp_sl_ba.items) do
+  if it.label == "lua" then
+    ba_only_bash = false
+  end
+end
+check("completion src_lang 'ba' filters out lua", ba_only_bash)
+
+vim.api.nvim_buf_set_lines(bufnr, last_line - 1, last_line, false, {})
+
 -- 6. rename: produces edits for the headline + reference link.
 local ren = H["textDocument/rename"]({
   textDocument = { uri = URI },
