@@ -146,8 +146,11 @@ jobs:
           # `-f` because assets/demos/ is .gitignored: humans never
           # commit GIFs (they're derived artifacts), only this
           # workflow does.  The [skip ci] tag on the regen commit
-          # prevents re-triggering this same workflow.
-          git add -f assets/demos
+          # prevents re-triggering this same workflow.  Only commit
+          # the .gif files; the .gif.log / .gif.vhs.log siblings are
+          # diagnostic captures (read by the verification step above)
+          # and have no value in source control.
+          git add -f assets/demos/*.gif
           if git diff --staged --quiet; then
             echo "no GIF changes -- nothing to commit"
             exit 0
