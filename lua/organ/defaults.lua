@@ -1200,13 +1200,6 @@ return {
   format = {
     enabled = true,
 
-    -- Run `:Org format` on every BufWritePre for org buffers.  Off
-    -- by default -- conform.nvim, none-ls, and LSP format-on-save
-    -- (organ exposes `textDocument/formatting`) are the preferred
-    -- path when you already use one.  Set `true` for the single-
-    -- knob path when you don't.
-    on_save = false,
-
     -- Prose rewrap.
     wrap = {
       enabled = true,

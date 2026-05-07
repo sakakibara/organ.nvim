@@ -1,9 +1,9 @@
 -- Org-mode formatter.  Composable pure passes that read config from
--- `organ.config.format`.  Format-on-save is opt-in via
--- `format.on_save = true` (defaults off; ftplugin wires the
--- BufWritePre autocmd).  Existing format-on-save infrastructures
--- (conform.nvim, none-ls, LSP `textDocument/formatting`) drive
--- `M.format_buffer` directly and ignore the flag.
+-- `organ.config.format`.  Format-on-save is intentionally NOT a
+-- knob here -- conform.nvim, none-ls, the built-in LSP
+-- `textDocument/formatting`, and a 3-line user-wired BufWritePre
+-- autocmd all drive `M.format_buffer` cleanly.  See the README
+-- "Formatting" section for recipes.
 
 local M = {}
 
