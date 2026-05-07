@@ -55,7 +55,7 @@ local function virt_eol_at(row)
   for _, m in ipairs(marks) do
     if m[2] == row then
       local d = m[4] or {}
-      if d.virt_text and d.virt_text_pos == "eol" then
+      if d.virt_text and (d.virt_text_pos == "eol" or d.virt_text_pos == "inline") then
         local txt, hl = "", nil
         for _, seg in ipairs(d.virt_text) do
           txt = txt .. seg[1]

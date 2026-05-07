@@ -85,8 +85,19 @@ local function each_body_range(bufnr)
   return ranges
 end
 
+-- `0` is vim's "current buffer" alias but is truthy in Lua, so the
+-- common `b = b or current_buf()` pattern silently keeps `0` and
+-- desyncs table-keyed state from real bufnrs (state[0] vs state[1]).
+-- Normalize at every entry point that touches `state`.
+local function nbuf(b)
+  if not b or b == 0 then
+    return vim.api.nvim_get_current_buf()
+  end
+  return b
+end
+
 function M.is_active(bufnr)
-  return state[bufnr] ~= nil
+  return state[nbuf(bufnr)] ~= nil
 end
 
 -- Whether body range `r` (1-indexed inclusive) hides anything
@@ -143,11 +154,17 @@ local function place_marks(bufnr)
     if range_has_real_content(bufnr, r) then
       local hline = heading_above(bufnr, r[1])
       if hline then
-        local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1]
+        local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1] or ""
         local hl = require("organ.fold").heading_title_hl(line)
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, 0, {
+        -- `virt_text_pos = "eol"` lands the ellipsis after any
+        -- trailing whitespace on the heading line, which surfaces
+        -- as a gap (`* H1 …` instead of `* H1…`).  Use "inline" at
+        -- the trimmed end of the line content so the ellipsis sits
+        -- flush against the last non-blank char, matching foldtext.
+        local trimmed = line:match("^(.-)%s*$") or line
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, #trimmed, {
           virt_text = { { "…", hl } },
-          virt_text_pos = "eol",
+          virt_text_pos = "inline",
           hl_mode = "combine",
         })
       end
@@ -272,7 +289,16 @@ end
 function M.fold_action(key)
   local bufnr = vim.api.nvim_get_current_buf()
   if not state[bufnr] then
-    vim.api.nvim_feedkeys(key, "m", false)
+    -- Buffer-local mapping fired but state says CONTENTS isn't
+    -- active here.  This used to be a clean "user has another za
+    -- mapping; let it run" -- BUT mode "m" re-applies mappings, so
+    -- if our own mapping is the one feedkeys re-routes through, we
+    -- recurse forever and freeze.  Use "n" (no remap) so vim's
+    -- builtin `za` runs directly.  Has happened in practice when
+    -- contents.enter was called with `0` (Lua truthy) which keyed
+    -- state under 0 instead of the real bufnr -- the keymap was
+    -- live, state[real] was nil.
+    vim.api.nvim_feedkeys(key, "n", false)
     return
   end
   -- Per-heading actions stay inside CONTENTS.  Off-heading or
@@ -317,7 +343,7 @@ local FOLD_KEYS = {
 }
 
 function M.enter(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = nbuf(bufnr)
   if state[bufnr] or not is_supported() then
     return
   end
@@ -400,7 +426,7 @@ function M.enter(bufnr)
 end
 
 function M.leave(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = nbuf(bufnr)
   local s = state[bufnr]
   if not s then
     return
@@ -481,7 +507,7 @@ end
 
 -- Refresh in place (after a buffer edit).  No-op if not active.
 function M.refresh(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = nbuf(bufnr)
   if not state[bufnr] then
     return
   end
@@ -490,7 +516,7 @@ end
 
 -- Forget on BufWipeout.
 function M.forget(bufnr)
-  state[bufnr] = nil
+  state[nbuf(bufnr)] = nil
 end
 
 return M

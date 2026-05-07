@@ -7,6 +7,19 @@ local M = {}
 -- Per-buffer per-line state cache: state ∈ "folded" | "children" | "subtree"
 M._state = {}
 
+-- `0` is vim's "current buffer" alias but truthy in Lua, so a plain
+-- `b = b or vim.api.nvim_get_current_buf()` doesn't expand it -- the
+-- bufnr-keyed state in this module (and in `fold/contents.lua`)
+-- would desync if a caller passed `0`.  Normalize at every entry
+-- point that touches `_state` or that hands `bufnr` to a sibling
+-- module.
+local function nbuf(b)
+  if not b or b == 0 then
+    return vim.api.nvim_get_current_buf()
+  end
+  return b
+end
+
 local function find_heading_at(bufnr, line)
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
@@ -104,6 +117,7 @@ end
 -- than the next state in the cycle.  Heading is located from the
 -- given line; no-op on non-heading lines.
 function M.set_heading_state(bufnr, line, state)
+  bufnr = nbuf(bufnr)
   local heading, headline_line = find_heading_at(bufnr, line)
   if not heading then
     return
@@ -114,6 +128,7 @@ function M.set_heading_state(bufnr, line, state)
 end
 
 function M.cycle(bufnr, line)
+  bufnr = nbuf(bufnr)
   -- Cursor on a (property_)drawer line: toggle that drawer's fold
   -- (Emacs `org-cycle` behavior on drawer headers).  Falls through
   -- to the headline cycle below for any other line.
@@ -151,7 +166,7 @@ end
 --   * body_fold = true: foldlevel = max_heading_depth (body sits at
 --     body_level so this hides body but keeps headings visible).
 function M.cycle_global(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = nbuf(bufnr)
   local body_fold = ((require("organ").config.fold or {}).body_fold == true)
   local contents = require("organ.fold.contents")
   local md = M._max_heading_depth(bufnr)
@@ -243,7 +258,7 @@ M._drawer_close_tok = {}
 -- drawer.  Skipping drawers whose start line is inside a closed
 -- fold keeps the operation idempotent across foldlevel changes.
 function M.close_all_drawers(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = nbuf(bufnr)
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
     return
