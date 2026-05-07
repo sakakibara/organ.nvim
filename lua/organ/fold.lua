@@ -704,6 +704,20 @@ _G._organ_foldtext = function()
   if vim.bo.filetype == "org" then
     return M.foldtext()
   end
+  -- Buffer in this window isn't org, but our win-local 'foldtext'
+  -- (set by ftplugin on the prior org buffer) is still active --
+  -- window options persist across buffer changes.  Eval the
+  -- buffer's effective global 'foldtext' so the user's own wrapper
+  -- (or vim's builtin) handles non-org folds the same as on a
+  -- window that never saw an org buffer.  Skip if the global is
+  -- ALSO our proxy (would recurse).
+  local global = vim.go.foldtext
+  if global and global ~= "" and not global:find("_organ_foldtext", 1, true) then
+    local ok, out = pcall(vim.fn.eval, global)
+    if ok then
+      return out
+    end
+  end
   return vim.fn.foldtext()
 end
 
