@@ -26,6 +26,20 @@ function M.attach(bufnr)
     end,
   })
 
+  -- Format-on-save: opt-in via config.format.on_save.  Buffer-local
+  -- so it only fires for org buffers; conform.nvim / none-ls / LSP
+  -- users keep their existing pipeline by leaving the flag off.
+  if (cfg.format or {}).on_save == true then
+    local fmt_group = vim.api.nvim_create_augroup("organ_format_save_" .. bufnr, { clear = true })
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      group = fmt_group,
+      buffer = bufnr,
+      callback = function()
+        pcall(require("organ.format").format_buffer, bufnr)
+      end,
+    })
+  end
+
   local function map(lhs, fn, desc)
     if lhs == nil or lhs == false then
       return
