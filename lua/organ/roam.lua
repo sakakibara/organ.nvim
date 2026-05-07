@@ -2,10 +2,7 @@
 
 local M = {}
 
-local function slugify(s)
-  s = s:lower():gsub("[^a-z0-9]+", "_"):gsub("^_+", ""):gsub("_+$", "")
-  return s == "" and "untitled" or s
-end
+local slugify = require("organ.slug").slugify
 
 function M.create_node(title)
   if type(title) ~= "string" or title:match("^%s*$") then
