@@ -595,7 +595,7 @@ Both helpers degrade to vim-equivalent values outside the contexts they care abo
 By default `fold.auto_statuscolumn = true` — organ sets win-local
 `'statuscolumn'` on every org buffer to a sensible default (`%s`
 signs column + line# + fold chevron).  No Lua required.  Win-local
-+ ftplugin-scoped, so non-org buffers keep your global
+and ftplugin-scoped, so non-org buffers keep your global
 `'statuscolumn'`; gitsigns / diagnostic signs keep rendering on org
 buffers via the `%s` placeholder.
 
