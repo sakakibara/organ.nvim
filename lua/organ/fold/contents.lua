@@ -670,13 +670,30 @@ function M.statuscolumn_lnum(lnum, relative)
     if is_concealed_line(bufnr, i) then
       i = i + 1
     else
-      local fold_end = vim.fn.foldclosedend(i)
-      if fold_end > 0 then
-        visible = visible + 1
-        i = fold_end + 1
-      else
+      -- foldclosed() returns the START of the closed fold containing
+      -- `i`, or -1 if `i` is not in a closed fold.  Three cases:
+      --   not in any closed fold         -> visible row, count 1
+      --   foldstart of a closed fold     -> the fold's display row
+      --                                     (a single visible row);
+      --                                     count 1, jump past the
+      --                                     fold's tail.
+      --   inside a closed fold (i > start) -> hidden row; jump past
+      --                                     the fold's tail without
+      --                                     counting.
+      -- Using foldclosed (start) instead of foldclosedend (end) is
+      -- what distinguishes case 2 from case 3 -- foldclosedend
+      -- returns the same value for both, so the previous version
+      -- always counted the fold even when iterating from a position
+      -- inside it (double-count when target lnum was the foldstart).
+      local fold_start = vim.fn.foldclosed(i)
+      if fold_start == -1 then
         visible = visible + 1
         i = i + 1
+      elseif fold_start == i then
+        visible = visible + 1
+        i = vim.fn.foldclosedend(i) + 1
+      else
+        i = vim.fn.foldclosedend(i) + 1
       end
     end
   end
