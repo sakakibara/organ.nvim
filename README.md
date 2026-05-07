@@ -684,6 +684,13 @@ vim.opt.foldtext = "v:lua.MyFoldtext()"
 `:checkhealth organ` warns + prints this recipe when foldtext is
 left at vim's default.
 
+The `fold.foldtext` config setting selects what
+`organ.fold.foldtext()` *returns* — `"emacs"` (default) for the
+treesitter-coloured heading line + ellipsis, a custom function
+for your own format, or `false` / `nil` to defer to vim's builtin
+text.  It does NOT change whether organ touches the option (it
+doesn't, regardless of this setting).
+
 To make the row blend with the buffer background instead of vim's
 grey `Folded` ribbon, organ defines `OrgFolded` with `bg = "NONE"`
 and the ftplugin sets window-local `winhighlight = "Folded:OrgFolded"`

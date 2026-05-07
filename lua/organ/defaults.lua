@@ -606,11 +606,18 @@ return {
     --   conceal — pick this if you keep `conceallevel = 0` and don't
     --   want the temporary bump.  `za` on body folds the body line.
     body_fold = false,
-    -- foldtext rendering:
-    --   "emacs"   (default) -- heading line + an ellipsis suffix
-    --                          when there's hidden content.
+    -- Renderer that `organ.fold.foldtext()` returns when YOUR
+    -- 'foldtext' option calls into it.  Organ does NOT set vim's
+    -- 'foldtext' itself -- wire it via your config (see
+    -- |organ-config-fold-foldtext| or the README "Folded heading
+    -- appearance" section).  This setting only chooses the shape
+    -- of the return value:
+    --   "emacs"   (default) -- treesitter-coloured heading line +
+    --                          a trailing `…` when hidden content
+    --                          is non-blank.  Returns a list of
+    --                          {text, hl} segments on nvim 0.10+.
     --   function(foldstart, foldend) -> string -- custom renderer.
-    --   false / nil -- vim default (no organ-supplied foldtext).
+    --   false / nil -- defer to vim's builtin foldtext() text.
     foldtext = "emacs",
     keymaps = {
       cycle = "<Tab>",
