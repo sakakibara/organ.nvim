@@ -217,6 +217,12 @@ require("organ").setup({
 })
 ```
 
+Companion `'fillchars'` for the dotted-line filler vim draws past
+foldtext: `auto_foldtext = true` overrides win-local
+`fillchars.fold` to space on org buffers (your other fillchars
+entries — eob, vert, msgsep — are preserved via merge).  Non-org
+buffers keep your global fillchars unchanged.
+
 See the "Foldtext" and "Statuscolumn" sections below for the
 helpers you can call from your own wrappers.
 
@@ -561,6 +567,15 @@ function _G.MyFoldtext()
   return vim.fn.foldtext()
 end
 vim.opt.foldtext = "v:lua.MyFoldtext()"
+```
+
+When you wire it yourself, organ doesn't touch `'fillchars'`
+either.  Vim's default `fold` fillchar is `·`, which draws a
+dotted line past organ's foldtext.  Drop it to make the row blank
+past the heading:
+
+```lua
+vim.opt.fillchars:append({ fold = " " })
 ```
 
 See "Folded heading appearance" in the Folding section for the

@@ -103,6 +103,26 @@ function M.attach(bufnr)
       vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
       if cfg_fold_top.auto_foldtext == true then
         vim.api.nvim_set_option_value("foldtext", "v:lua._organ_foldtext()", { win = 0 })
+        -- Drop vim's `·` fold filler on this window.  organ's
+        -- foldtext is self-contained -- the dotted fill drawn past
+        -- it across the rest of the folded row is visual noise.
+        -- Win-local fillchars REPLACES (not merges) the global, so
+        -- we manually merge: keep every existing entry, override
+        -- the `fold:` slot to space.
+        local fc = vim.go.fillchars or ""
+        local parts, has_fold = {}, false
+        for piece in (fc .. ","):gmatch("([^,]+),") do
+          if piece:match("^fold:") then
+            parts[#parts + 1] = "fold: "
+            has_fold = true
+          elseif piece ~= "" then
+            parts[#parts + 1] = piece
+          end
+        end
+        if not has_fold then
+          parts[#parts + 1] = "fold: "
+        end
+        pcall(vim.api.nvim_set_option_value, "fillchars", table.concat(parts, ","), { win = 0 })
       end
       if cfg_fold_top.auto_statuscolumn == true then
         vim.api.nvim_set_option_value("statuscolumn", "%!v:lua._organ_statuscolumn()", { win = 0 })

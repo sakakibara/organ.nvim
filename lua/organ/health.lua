@@ -386,7 +386,9 @@ function M.check()
   local foldtext = vim.o.foldtext
   local cfg_fold = (organ.config or {}).fold or {}
   if cfg_fold.auto_foldtext == true then
-    health.ok("foldtext: auto-apply on (organ sets win-local 'foldtext' for org buffers)")
+    health.ok(
+      "foldtext: auto-apply on (organ sets win-local 'foldtext' + drops `·` fold filler on org buffers)"
+    )
   elseif foldtext == "" or foldtext == "foldtext()" then
     health.warn(
       "foldtext is at vim default and auto_foldtext is off; org folds will render `+--  N lines:`",

@@ -47,11 +47,14 @@ vim.opt.number = true
 vim.opt.relativenumber = false
 
 -- Render foldopen / foldclose with single-cell ASCII chars so the
--- chevron is unambiguous in vhs's chromium-rendered terminal.  The
--- foldtext + statuscolumn wiring uses `fold.auto_foldtext = true`
+-- chevron is unambiguous in vhs's chromium-rendered terminal.
+-- `fold = " "` drops vim's default `·` filler that otherwise
+-- stretches a dotted line across the rest of the folded row --
+-- organ's foldtext is self-contained, the dotted fill is noise.
+-- The foldtext + statuscolumn wiring uses `fold.auto_foldtext = true`
 -- and `fold.auto_statuscolumn = true` in setup() below -- showcasing
 -- the opt-in auto-apply path so the GIF doubles as a wiring example.
-vim.opt.fillchars:append({ foldopen = "v", foldclose = ">" })
+vim.opt.fillchars:append({ foldopen = "v", foldclose = ">", fold = " " })
 
 -- Determinism across rendering environments:
 --   * encoding utf-8 + ambiwidth=single match nvim's defaults but

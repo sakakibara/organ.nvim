@@ -809,8 +809,19 @@ Fold                                                       *organ-config-fold*
     fresh install renders org-aware folded headings (treesitter
     colours + ellipsis) without any Lua.  Win-local + ftplugin-
     scoped, so non-org buffers always keep your global `'foldtext'`.
+    Also overrides win-local `'fillchars.fold'` to space on org
+    buffers (your other fillchars entries -- eob, vert, msgsep,
+    etc. -- are merged through), since vim's default `·` filler
+    draws a dotted line past organ's self-contained foldtext.
+
     Set `false` to keep your custom `'foldtext'` on org buffers
-    too -- typical when your wrapper already delegates:
+    too -- typical when your wrapper already delegates.  When you
+    wire it yourself organ also stops touching `'fillchars'`; drop
+    the dotted filler in your own config:
+>lua
+        vim.opt.fillchars:append({ fold = " " })
+<
+    Wire-it-yourself recipe:
 >lua
         function MyFoldtext()
           if vim.bo.filetype == "org" then
