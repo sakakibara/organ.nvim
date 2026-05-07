@@ -620,22 +620,27 @@ return {
     --   function(foldstart, foldend) -> string -- custom renderer.
     --   false / nil -- defer to vim's builtin foldtext() text.
     foldtext = "emacs",
-    -- Opt-in auto-apply: when true, organ sets win-local 'foldtext'
-    -- on every org buffer to call into `organ.fold.foldtext()`.
-    -- Off by default so users with a custom 'foldtext' wrapper
-    -- aren't overridden -- see the README "Foldtext" section for
-    -- the wire-it-yourself recipe.  Use this when you don't want
-    -- to write Lua.
-    auto_foldtext = false,
-    -- Opt-in auto-apply: when true, organ sets win-local
-    -- 'statuscolumn' on every org buffer to a sensible default
-    -- that uses `statuscolumn_marker` (correct fold chevron in
-    -- OVERVIEW + CONTENTS) and the line number.  Off by default
-    -- because most users have their own statuscolumn with signs,
-    -- gitsigns, etc. -- see the README "Statuscolumn" section to
-    -- wire the helpers into yours.  Use this if you want organ's
-    -- minimal default without writing anything.
-    auto_statuscolumn = false,
+    -- Auto-apply: organ sets win-local 'foldtext' on every org
+    -- buffer to call into `organ.fold.foldtext()`.  Default `true`
+    -- so a fresh-install user sees the org-aware folded heading
+    -- (treesitter colours + ellipsis) without any Lua.  Set
+    -- `false` to keep your custom 'foldtext' on org buffers --
+    -- e.g. when your existing wrapper already delegates to
+    -- `organ.fold.foldtext()`, or when you prefer a different
+    -- format entirely.  See the README "Foldtext" section for the
+    -- wire-it-yourself recipe.  Win-local + ftplugin-scoped, so
+    -- non-org buffers always keep your global 'foldtext'.
+    auto_foldtext = true,
+    -- Auto-apply: organ sets win-local 'statuscolumn' on every
+    -- org buffer to a sensible default (`%s` signs column +
+    -- line# + organ.fold.statuscolumn_marker for the fold
+    -- chevron).  Default `true` so the open/close chevron in
+    -- OVERVIEW / CONTENTS state is visible without any Lua; the
+    -- `%s` placeholder keeps gitsigns / diagnostic signs
+    -- rendering as before.  Set `false` to keep your global
+    -- statuscolumn -- pair with the helpers in the README
+    -- "Statuscolumn" section for fold-aware behaviour.
+    auto_statuscolumn = true,
     keymaps = {
       cycle = "<Tab>",
       cycle_global = "<S-Tab>",

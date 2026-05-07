@@ -196,6 +196,30 @@ run):
 - [tree-sitter-organ](https://github.com/sakakibara/tree-sitter-organ) — block-level grammar
 - [tree-sitter-organ-inline](https://github.com/sakakibara/tree-sitter-organ-inline) — inline grammar (emphasis, links, timestamps, ...)
 
+### Heads-up: foldtext + statuscolumn auto-apply
+
+Organ ships with `fold.auto_foldtext = true` and `fold.auto_statuscolumn = true`
+by default.  On org buffers (win-local + ftplugin-scoped), this sets:
+
+- `'foldtext'` to organ's treesitter-coloured heading + ellipsis renderer
+- `'statuscolumn'` to a default of `%s` (signs) + line# + fold chevron
+
+Non-org buffers keep your global settings unchanged.  If you already
+have a custom `'foldtext'` or `'statuscolumn'` you want on org
+buffers too, disable the auto-apply:
+
+```lua
+require("organ").setup({
+  fold = {
+    auto_foldtext = false,
+    auto_statuscolumn = false,
+  },
+})
+```
+
+See the "Foldtext" and "Statuscolumn" sections below for the
+helpers you can call from your own wrappers.
+
 ## Quickstart
 
 ```vim
@@ -515,24 +539,20 @@ Helper for users with a custom `'foldtext'`:
 |---|---|---|
 | `require("organ.fold").foldtext()` | what `'foldtext'` evaluates to | Vim's builtin `foldtext()` returns `+--  N lines: <line>` for any closed fold.  On org buffers that throws away the heading's TODO / title / tag colors and the Emacs-style `…` ellipsis.  The helper returns treesitter-coloured `{text, hl}` segments + ellipsis when the fold hides real content.  Driven by the `fold.foldtext` config (default `"emacs"`, custom function, or `false`/`nil` to defer to vim's builtin). |
 
-By default organ does NOT set the `'foldtext'` option itself (same
-pattern as the statuscolumn helpers below — the user wires the
-option, organ provides the function).  Two paths:
+By default `fold.auto_foldtext = true` — organ sets win-local
+`'foldtext'` on every org buffer to call into
+`organ.fold.foldtext()` for you.  No Lua required.  Win-local +
+ftplugin-scoped, so non-org buffers keep your global `'foldtext'`.
 
-**Opt-in auto-apply** (no Lua required).  Set `fold.auto_foldtext
-= true` and organ wires win-local `'foldtext'` on every org buffer
-to call into `organ.fold.foldtext()` for you:
+If you already have a custom `'foldtext'` you want to keep on org
+buffers (e.g. a wrapper that already delegates to organ), set the
+flag off and wire it yourself:
 
 ```lua
 require("organ").setup({
-  fold = { auto_foldtext = true },
+  fold = { auto_foldtext = false },
 })
-```
 
-**Wire it yourself** (recommended if you already have a custom
-`'foldtext'`).  Delegate to organ on org buffers:
-
-```lua
 function _G.MyFoldtext()
   if vim.bo.filetype == "org" then
     local ok, fold = pcall(require, "organ.fold")
@@ -543,9 +563,8 @@ end
 vim.opt.foldtext = "v:lua.MyFoldtext()"
 ```
 
-`:checkhealth organ` warns + prints the wire-yourself recipe when
-neither path is in effect.  See "Folded heading appearance" in the
-Folding section for the `OrgFolded` highlight that pairs with this.
+See "Folded heading appearance" in the Folding section for the
+`OrgFolded` highlight that pairs with this.
 
 ## Statuscolumn
 
@@ -558,18 +577,22 @@ Two helpers for users with a custom `'statuscolumn'`:
 
 Both helpers degrade to vim-equivalent values outside the contexts they care about, so it's safe to wire both unconditionally.
 
-**Opt-in auto-apply** (no Lua required).  Set `fold.auto_statuscolumn
-= true` and organ sets a sensible default `'statuscolumn'` on every
-org buffer (line number + fold chevron via `statuscolumn_marker`).
-Use this when you don't have your own statuscolumn:
+By default `fold.auto_statuscolumn = true` — organ sets win-local
+`'statuscolumn'` on every org buffer to a sensible default (`%s`
+signs column + line# + fold chevron).  No Lua required.  Win-local
++ ftplugin-scoped, so non-org buffers keep your global
+`'statuscolumn'`; gitsigns / diagnostic signs keep rendering on org
+buffers via the `%s` placeholder.
+
+If you have your own `'statuscolumn'` (with custom signs columns,
+relnum logic, etc.) you want on org buffers too, set the flag off
+and wire the helpers yourself:
 
 ```lua
 require("organ").setup({
-  fold = { auto_statuscolumn = true },
+  fold = { auto_statuscolumn = false },
 })
 ```
-
-Otherwise wire the helpers into your custom statuscolumn yourself:
 
 ```lua
 -- ~/.config/nvim/lua/lib/statuscolumn.lua (or wherever yours lives)

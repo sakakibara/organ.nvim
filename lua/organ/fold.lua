@@ -714,7 +714,10 @@ _G._organ_statuscolumn = function()
     return "    "
   end
   local fold_marker = M.statuscolumn_marker(lnum)
-  return string.format("%4d %s ", lnum, fold_marker)
+  -- `%s` reserves the signs column so plugins like gitsigns / lsp
+  -- diagnostics keep rendering their gutter chars on org buffers
+  -- even when the user opts into organ's auto-applied statuscolumn.
+  return string.format("%%s%4d %s ", lnum, fold_marker)
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,

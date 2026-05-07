@@ -803,11 +803,14 @@ Fold                                                       *organ-config-fold*
                        without writing a custom function.
 
                                              *organ-config-fold-auto_foldtext*
-    `fold.auto_foldtext` (bool, default: `false`)
-    When `true`, organ sets win-local `'foldtext'` on every org
-    buffer to call into `organ.fold.foldtext()`.  When `false`
-    (default), organ leaves `'foldtext'` alone -- you wire it via
-    your own config:
+    `fold.auto_foldtext` (bool, default: `true`)
+    When `true` (default), organ sets win-local `'foldtext'` on
+    every org buffer to call into `organ.fold.foldtext()` -- a
+    fresh install renders org-aware folded headings (treesitter
+    colours + ellipsis) without any Lua.  Win-local + ftplugin-
+    scoped, so non-org buffers always keep your global `'foldtext'`.
+    Set `false` to keep your custom `'foldtext'` on org buffers
+    too -- typical when your wrapper already delegates:
 >lua
         function MyFoldtext()
           if vim.bo.filetype == "org" then
@@ -825,17 +828,18 @@ Fold                                                       *organ-config-fold*
     is in effect.
 
                                          *organ-config-fold-auto_statuscolumn*
-    `fold.auto_statuscolumn` (bool, default: `false`)
-    When `true`, organ sets win-local `'statuscolumn'` on every org
-    buffer to a sensible default that uses
+    `fold.auto_statuscolumn` (bool, default: `true`)
+    When `true` (default), organ sets win-local `'statuscolumn'`
+    on every org buffer to a sensible default that uses
     |organ-fold-statuscolumn_marker| (correct fold chevron in
-    OVERVIEW + CONTENTS) and the line number.  When `false`
-    (default), organ leaves `'statuscolumn'` alone -- you wire the
-    helpers (`organ.fold.statuscolumn_marker` and
-    `organ.fold.contents.statuscolumn_lnum`) into your own
-    statuscolumn.  Off by default because users typically have
-    their own statuscolumn with signs / gitsigns / diagnostics that
-    a blanket override would clobber.
+    OVERVIEW + CONTENTS) and the line number.  Includes `%s` for
+    the signs column so gitsigns / diagnostic signs keep rendering
+    on org buffers.  Win-local + ftplugin-scoped, so non-org
+    buffers always keep your global `'statuscolumn'`.  Set `false`
+    to keep your custom `'statuscolumn'` on org buffers too --
+    pair with the helpers (`organ.fold.statuscolumn_marker` and
+    `organ.fold.contents.statuscolumn_lnum`) for fold-aware
+    rendering.
 
                                                         *organ-fold-OrgFolded*
     Folded org-buffer rows render with the `OrgFolded` highlight
