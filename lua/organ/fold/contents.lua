@@ -702,6 +702,14 @@ function M.statuscolumn_lnum(lnum, relative)
 end
 
 -- Refresh in place (after a buffer edit).  No-op if not active.
+-- Drop the cached visible-line distances.  Fold operations that
+-- don't bump `changedtick` (cycle_global, foldclose / foldopen)
+-- need this to re-render statuscolumn relnum correctly without
+-- waiting for a cursor move.
+function M.invalidate_visible_cache(bufnr)
+  _slnum_cache[nbuf(bufnr)] = nil
+end
+
 function M.refresh(bufnr)
   bufnr = nbuf(bufnr)
   if not state[bufnr] then

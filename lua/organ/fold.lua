@@ -77,6 +77,13 @@ local function apply_state(bufnr, heading, headline_line, state)
   end
 
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
+  -- Invalidate the visible-distance cache: foldclose / foldopen
+  -- changed which lines are inside closed folds, but `changedtick`
+  -- didn't bump so the cache otherwise holds stale entries until
+  -- the cursor moves and changes its key.
+  pcall(function()
+    require("organ.fold.contents").invalidate_visible_cache(bufnr)
+  end)
 end
 
 local function next_state(s)
@@ -241,6 +248,13 @@ function M.cycle_global(bufnr)
       end
     end)
   end
+  -- foldlevel just changed -- the visible-distance cache is now
+  -- stale until something else (cursor move, edit) bumps its key.
+  -- Invalidate explicitly so statuscolumn relnum re-renders without
+  -- the user having to nudge the cursor.
+  pcall(function()
+    require("organ.fold.contents").invalidate_visible_cache(bufnr)
+  end)
 end
 
 -- Per-buffer "latest scheduled close_all_drawers" token; see the
@@ -287,6 +301,9 @@ function M.close_all_drawers(bufnr)
   end
   walk(tree:root())
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
+  pcall(function()
+    require("organ.fold.contents").invalidate_visible_cache(bufnr)
+  end)
 end
 
 -- Headline depth (count of leading `*` chars) for line `lnum` in
