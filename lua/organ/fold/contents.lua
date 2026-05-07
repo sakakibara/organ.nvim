@@ -129,9 +129,51 @@ local function heading_above(bufnr, body_start)
   return nil
 end
 
+-- True when the heading at line `hline` (or any of its ancestor
+-- headings) is in `state[bufnr].revealed` -- meaning the user
+-- pressed `za` on it (or a containing heading) to reveal the
+-- subtree.  When that's the case we skip both the body conceal and
+-- the heading's `…` virt_text.  Walks lines upward from hline,
+-- tracking outline level: a smaller-level heading is an ancestor;
+-- if it's revealed, the descendant body is too.
+local function under_revealed_subtree(bufnr, hline, revealed)
+  if not revealed or not next(revealed) then
+    return false
+  end
+  if revealed[hline] then
+    return true
+  end
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, hline - 1, false) or {}
+  local hline_stars = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or { "" })[1]:match(
+    "^(%*+)%s"
+  )
+  local cur_level = hline_stars and #hline_stars or math.huge
+  for i = #lines, 1, -1 do
+    local stars = (lines[i] or ""):match("^(%*+)%s")
+    if stars then
+      local lvl = #stars
+      if lvl < cur_level then
+        if revealed[i] then
+          return true
+        end
+        cur_level = lvl
+      end
+    end
+  end
+  return false
+end
+
 local function place_marks(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
+  local s = state[bufnr]
+  local revealed = s and s.revealed or nil
   for _, r in ipairs(each_body_range(bufnr)) do
+    local hline = heading_above(bufnr, r[1])
+    -- Skip the conceal + ellipsis when the user has revealed this
+    -- heading (or any ancestor heading) via `za`.
+    if hline and under_revealed_subtree(bufnr, hline, revealed) then
+      goto continue
+    end
     -- nvim_buf_set_extmark's `end_row` is 0-indexed INCLUSIVE; the
     -- body range (`r[1]`, `r[2]`) is 1-indexed inclusive.  Both ends
     -- need -1 to convert.  Without the second `-1` the mark spills
@@ -151,25 +193,43 @@ local function place_marks(bufnr)
     -- capture (`@org.heading.title.N.org`) so `…` matches the
     -- heading text it follows -- same rule the foldtext renderer
     -- applies for the trailing decoration.
-    if range_has_real_content(bufnr, r) then
-      local hline = heading_above(bufnr, r[1])
-      if hline then
-        local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1] or ""
-        local hl = require("organ.fold").heading_title_hl(line)
-        -- `virt_text_pos = "eol"` lands the ellipsis after any
-        -- trailing whitespace on the heading line, which surfaces
-        -- as a gap (`* H1 …` instead of `* H1…`).  Use "inline" at
-        -- the trimmed end of the line content so the ellipsis sits
-        -- flush against the last non-blank char, matching foldtext.
-        local trimmed = line:match("^(.-)%s*$") or line
-        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, #trimmed, {
-          virt_text = { { "…", hl } },
-          virt_text_pos = "inline",
-          hl_mode = "combine",
-        })
-      end
+    if range_has_real_content(bufnr, r) and hline then
+      local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1] or ""
+      local hl = require("organ.fold").heading_title_hl(line)
+      -- `virt_text_pos = "eol"` lands the ellipsis after any
+      -- trailing whitespace on the heading line, which surfaces
+      -- as a gap (`* H1 …` instead of `* H1…`).  Use "inline" at
+      -- the trimmed end of the line content so the ellipsis sits
+      -- flush against the last non-blank char, matching foldtext.
+      local trimmed = line:match("^(.-)%s*$") or line
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, #trimmed, {
+        virt_text = { { "…", hl } },
+        virt_text_pos = "inline",
+        hl_mode = "combine",
+      })
     end
+    ::continue::
   end
+end
+
+-- Toggle the per-heading reveal state for CONTENTS view.  Pressing
+-- `za` on a heading line removes its body's conceal (and ellipsis)
+-- so the user can see the content without leaving CONTENTS; pressing
+-- `za` again puts the body back.  Reveal is subtree-deep: any sub-
+-- heading body inside the revealed subtree also becomes visible
+-- (matches Emacs CONTENTS where subtree expansion shows everything
+-- below).  `_slnum_cache` is invalidated because revealed lines
+-- change visible-distance counts.
+function M.toggle_heading(bufnr, lnum)
+  bufnr = nbuf(bufnr)
+  local s = state[bufnr]
+  if not s then
+    return
+  end
+  s.revealed = s.revealed or {}
+  s.revealed[lnum] = not s.revealed[lnum] and true or nil
+  _slnum_cache[bufnr] = nil
+  place_marks(bufnr)
 end
 
 -- True when row `lnum` (1-indexed) is covered by one of our
@@ -307,16 +367,28 @@ function M.fold_action(key)
   local lnum = vim.fn.line(".")
   local line = vim.fn.getline(lnum) or ""
   local on_heading = line:match("^%*+%s") ~= nil
-  local fold = require("organ.fold")
   if on_heading then
     if key == "za" then
-      fold.cycle(0, lnum)
+      -- CONTENTS-specific toggle: reveal/re-conceal the heading's
+      -- body extmark.  fold.cycle (which apply_state's
+      -- foldclose/foldopen) is irrelevant here because the body is
+      -- hidden via conceal_lines, not folds.
+      M.toggle_heading(bufnr, lnum)
       return
     elseif key == "zc" then
-      fold.set_heading_state(0, lnum, "folded")
+      -- Force heading back to its concealed default.
+      if state[bufnr] and state[bufnr].revealed then
+        state[bufnr].revealed[lnum] = nil
+        _slnum_cache[bufnr] = nil
+        place_marks(bufnr)
+      end
       return
     elseif key == "zo" then
-      fold.set_heading_state(0, lnum, "subtree")
+      -- Force heading subtree revealed.
+      state[bufnr].revealed = state[bufnr].revealed or {}
+      state[bufnr].revealed[lnum] = true
+      _slnum_cache[bufnr] = nil
+      place_marks(bufnr)
       return
     end
   end
