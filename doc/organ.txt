@@ -778,10 +778,25 @@ Fold                                                       *organ-config-fold*
 
                                                   *organ-config-fold-foldtext*
     `fold.foldtext` (string | function | false, default: `"emacs"`)
-    Custom foldtext renderer used by the foldexpr-driven outline.
+    Selects which renderer `organ.fold.foldtext()` returns.  Organ
+    does NOT set the `'foldtext'` option itself (same pattern as
+    statuscolumn / statusline -- the user wires the option).  To
+    get the org-aware foldtext, point your global `'foldtext'` at a
+    Lua function that delegates to `organ.fold.foldtext()` when the
+    buffer is org:
+>lua
+        function MyFoldtext()
+          if vim.bo.filetype == "org" then
+            local ok, fold = pcall(require, "organ.fold")
+            if ok then return fold.foldtext() end
+          end
+          return vim.fn.foldtext()
+        end
+        vim.opt.foldtext = "v:lua.MyFoldtext()"
+<
     Accepts:
 
-        "emacs"     -- heading line + ` …` suffix when the fold
+        "emacs"     -- heading line + `…` suffix when the fold
                        hides real content (Emacs `org-ellipsis`
                        look).  All-blank body is left bare.
                        Returns treesitter-aware highlight segments
@@ -824,13 +839,13 @@ Fold                                                       *organ-config-fold*
     `conceal_lines` extmarks, leaving every heading visible.  Auto-
     bumps `conceallevel` and `concealcursor` while CONTENTS is active
     and restores both on exit.  Each heading whose body is hidden
-    also gets a virt_text " …" suffix (highlight `Folded`, so the
-    `Folded:OrgFolded` window remap covers it too) so the heading
-    line reads identically to its OVERVIEW counterpart where
-    `emacs_foldtext` renders the same suffix on the closed fold.
-    Requires Neovim 0.11+ for the `conceal_lines` primitive; on
-    older Neovim CONTENTS degrades to "level-1 headings only"
-    (`foldlevel = 1`).
+    also gets a virt_text `…` suffix (per-level heading-title hl
+    via `@org.heading.title.<N>.org`, so the ellipsis matches the
+    heading color) -- the heading line reads identically to its
+    OVERVIEW counterpart where `emacs_foldtext` renders the same
+    suffix on the closed fold.  Requires Neovim 0.11+ for the
+    `conceal_lines` primitive; on older Neovim CONTENTS degrades to
+    "level-1 headings only" (`foldlevel = 1`).
 
     `true` -- body sits at `body_level = max_heading_depth + 1` so
     `:set foldlevel = max_heading_depth` is itself the CONTENTS

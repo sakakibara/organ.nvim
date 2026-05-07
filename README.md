@@ -660,12 +660,29 @@ reverted on exit -- nothing is allowed to persist past the cycle:
 
 ### Folded heading appearance
 
-The default `fold.foldtext = "emacs"` renders the folded heading
-line with treesitter-aware highlight segments (nvim 0.10+) — the
-TODO keyword, title, tags keep their natural colors instead of
-collapsing into a single `Folded` ribbon.  An `…` ellipsis is
-appended when the fold hides real content; all-blank body is left
-bare.
+`organ.fold.foldtext()` renders the folded heading line with
+treesitter-aware highlight segments — the TODO keyword, title,
+tags keep their natural colors instead of collapsing into a single
+`Folded` ribbon.  An `…` ellipsis is appended when the fold hides
+real content; all-blank body is left bare.
+
+Organ does not set the `'foldtext'` option itself (same pattern as
+statuscolumn / statusline — the user wires the option, organ
+provides the function).  Wire it through your global foldtext:
+
+```lua
+function _G.MyFoldtext()
+  if vim.bo.filetype == "org" then
+    local ok, fold = pcall(require, "organ.fold")
+    if ok then return fold.foldtext() end
+  end
+  return vim.fn.foldtext()
+end
+vim.opt.foldtext = "v:lua.MyFoldtext()"
+```
+
+`:checkhealth organ` warns + prints this recipe when foldtext is
+left at vim's default.
 
 To make the row blend with the buffer background instead of vim's
 grey `Folded` ribbon, organ defines `OrgFolded` with `bg = "NONE"`

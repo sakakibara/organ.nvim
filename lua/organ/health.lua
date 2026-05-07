@@ -384,8 +384,20 @@ function M.check()
   end
 
   local foldtext = vim.o.foldtext
-  if foldtext == "" then
-    health.ok("foldtext: vim default (organ sets win-local in org buffers)")
+  if foldtext == "" or foldtext == "foldtext()" then
+    health.warn("foldtext is at vim default; org folds will render `+--  N lines:`", {
+      "Recipe: wire your global foldtext to delegate when filetype == 'org':",
+      "    function MyFoldtext()",
+      "      if vim.bo.filetype == 'org' then",
+      "        local ok, fold = pcall(require, 'organ.fold')",
+      "        if ok then return fold.foldtext() end",
+      "      end",
+      "      return vim.fn.foldtext()",
+      "    end",
+      "    vim.opt.foldtext = 'v:lua.MyFoldtext()'",
+      "Same wiring pattern as statuscolumn / statusline -- see",
+      "|organ-config-fold-foldtext|.",
+    })
   elseif references(foldtext, "organ.fold", "organ_fold") then
     health.ok("foldtext references organ.fold")
   elseif is_lua_wrapper(foldtext) then

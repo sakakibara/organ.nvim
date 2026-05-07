@@ -76,10 +76,17 @@ function M.attach(bufnr)
   -- the algorithm.  These are window-local options; setting them
   -- once at FileType time covers the FIRST window the buffer enters,
   -- but a `:vsplit` / `wincmd s` later spawns another window where
-  -- foldtext / foldexpr default to "" and vim shows its built-in
-  -- `+--  N lines:` foldtext instead of organ's renderer.  Re-apply
-  -- on BufWinEnter so every window the buffer ever lands in gets
-  -- the same options.
+  -- foldexpr defaults back to "" -- re-apply on BufWinEnter so every
+  -- window the buffer lands in gets the same options.
+  --
+  -- `foldtext` is intentionally NOT set here.  Setting it via
+  -- `v:lua.require('organ.fold').foldtext()` hits an nvim TUI-mode
+  -- option-eval bug (function call mid-chain doesn't traverse), and
+  -- working around it requires a flat global proxy -- which is
+  -- pollution.  Match the statuscolumn / statusline pattern instead:
+  -- expose `organ.fold.foldtext()` as a Lua function and let users
+  -- wire it through their own foldtext wrapper.  See
+  -- |organ-config-fold-foldtext| for the recipe.
   local function apply_fold_window_opts()
     pcall(function()
       vim.api.nvim_set_option_value("foldmethod", "expr", { win = 0 })
@@ -93,11 +100,6 @@ function M.attach(bufnr)
       -- line under a heading) actually close — the default of 1 silently
       -- drops 1-line folds that sit between adjacent transitions.
       vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
-      vim.api.nvim_set_option_value(
-        "foldtext",
-        "v:lua.require('organ.fold').foldtext()",
-        { win = 0 }
-      )
       -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
       -- so folded heading lines blend with Normal's background.  The
       -- foldtext segments keep their natural foreground (TODO, title,
