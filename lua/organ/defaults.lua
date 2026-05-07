@@ -1199,20 +1199,75 @@ return {
   -- section for recipes.
   format = {
     enabled = true,
-    -- Right-align tags on headlines.  Mirrors Emacs `org-tags-column`:
-    --   positive N  → align tags' right edge to column N
-    --   negative N  → align right edge to (textwidth + N + 1) (so -1
-    --                 puts tags at the buffer's textwidth edge, -10
-    --                 leaves 9 chars of margin).
-    --   0           → exactly one space between title and tags (no
-    --                 right alignment).
-    --   false / nil → leave tags wherever the user typed them.
-    tags_column = 77,
-    -- Normalise whitespace on headlines: collapse runs of spaces
-    -- between stars / todo / comment / priority / title to a single
-    -- space.  Tags are then placed per `tags_column`.  Set false to
-    -- preserve the user's exact spacing.
-    normalize_whitespace = true,
+
+    -- Prose rewrap.
+    wrap = {
+      enabled = true,
+      -- Max line width.  `0` means "use the buffer's `textwidth`,
+      -- falling back to 80 when textwidth is unset".  Any positive
+      -- integer is an explicit cap (overrides textwidth).
+      width = 0,
+    },
+
+    -- Headline normalisation.
+    headline = {
+      -- Collapse runs of spaces between stars / todo / comment /
+      -- priority / title to a single space.
+      normalize_whitespace = true,
+      -- Right-align tags on headlines.  Mirrors Emacs
+      -- `org-tags-column`:
+      --   positive N  → align tags' right edge to column N
+      --   negative N  → align right edge to (textwidth + N + 1)
+      --   0           → exactly one space between title and tags
+      --   false / nil → leave tags wherever the user typed them
+      tags_column = 77,
+    },
+
+    -- Drawer value alignment.  After format, all `:KEY: value`
+    -- lines inside a property drawer get their values aligned to
+    -- a common column (one space past the longest key).  Lines
+    -- that don't match `:KEY: value` (e.g. LOGBOOK note lines)
+    -- are left alone.  Set `align_values = false` to skip.
+    drawers = {
+      align_values = true,
+      -- Minimum spaces between `:KEY:` and `value` even when keys
+      -- are uniform length.  Most users want at least 1.
+      min_value_indent = 1,
+    },
+
+    -- Empty-line policy.
+    blanks = {
+      -- Number of blank lines before each headline.  "auto" leaves
+      -- existing spacing alone; an integer enforces exactly that
+      -- many.  Mirrors Emacs `org-blank-before-new-entry`.
+      before_headline = "auto",
+      -- Same for `#+BEGIN_*` blocks.
+      before_block = "auto",
+      -- Collapse runs of more than N consecutive blank lines to N.
+      -- `0` disables the collapse (any run length is preserved).
+      collapse_runs = 0,
+      -- Strip blank lines at end-of-buffer.
+      trim_trailing = true,
+      -- Buffer ends with exactly one newline.
+      ensure_final_newline = true,
+    },
+
+    -- Per-line cleanup: strip trailing whitespace.
+    trim_trailing_whitespace = true,
+
+    -- Tables.  When enabled, format runs `tablature.realign` on
+    -- every pipe-table region in the buffer (column widths
+    -- normalised, separator rows expanded to match).
+    tables = {
+      realign = true,
+    },
+
+    -- Lists.  Re-sequence ordered list numbering (`1.` `2.` `3.`)
+    -- per contiguous block.  Bullet style (`-`/`+`/`*`) is left
+    -- alone; only the `1.`/`1)` numbering is repaired.
+    lists = {
+      repair_numbering = true,
+    },
   },
 
   -- Inline emphasis + link concealment (mirror Emacs `org-hide-

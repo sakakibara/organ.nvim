@@ -118,11 +118,19 @@ end
 -- 7. End-to-end: format_lines threads the option through.
 -- ---------------------------------------------------------------------------
 do
-  local out = format.format_lines(INPUT, 80, {
+  -- adapt_indentation lives in `indent.*` config; format_lines reads
+  -- the live organ.config.indent inside its body, so set it via setup
+  -- before calling.
+  local prev = require("organ").config.indent
+  require("organ").config.indent = vim.tbl_deep_extend("force", prev or {}, {
     adapt_indentation = "headline-data",
     shift_per_level = 2,
-    normalize_whitespace = true,
   })
+  local out = format.format_lines(INPUT, {
+    headline = { normalize_whitespace = true },
+    blanks = { trim_trailing = false, ensure_final_newline = false },
+  })
+  require("organ").config.indent = prev
   check("format_lines: SCHEDULED indented", out[4] == " SCHEDULED: <2026-05-06 Wed>")
   check("format_lines: src body untouched", out[14] == "  print('verbatim -- never reindented')")
 end

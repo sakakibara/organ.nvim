@@ -669,11 +669,7 @@ local function format_handler(bufnr, lo_0, hi_0)
     return {}
   end
   local lines = vim.api.nvim_buf_get_lines(bufnr, lo_0, hi_0, false)
-  local width = vim.bo[bufnr].textwidth
-  if not width or width <= 0 then
-    width = 80
-  end
-  local out = require("organ.format").format_lines(lines, width)
+  local out = require("organ.format").format_lines(lines, nil, bufnr)
   return {
     {
       range = {
