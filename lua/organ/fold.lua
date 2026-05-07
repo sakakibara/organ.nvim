@@ -709,7 +709,19 @@ function M.statuscolumn_marker(lnum, opts)
   end
   if vim.bo.filetype == "org" then
     local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ""
-    return line:match("^%*+%s") and paint(open_ch) or " "
+    if not line:match("^%*+%s") then
+      return " "
+    end
+    -- CONTENTS view hides body via `conceal_lines` extmarks, not
+    -- folds, so `foldclosed()` above returned -1 even when the body
+    -- is visually concealed.  Ask the contents module whether THIS
+    -- heading has its body concealed in CONTENTS state and reflect
+    -- it as a closed-fold chevron; otherwise show open.
+    local ok, contents = pcall(require, "organ.fold.contents")
+    if ok and contents.heading_concealed and contents.heading_concealed(0, lnum) then
+      return paint(close_ch)
+    end
+    return paint(open_ch)
   end
   if vim.fn.foldlevel(lnum) > vim.fn.foldlevel(lnum - 1) then
     return paint(open_ch)

@@ -14,6 +14,13 @@
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
+-- Separate namespace for "this heading is revealed" markers placed
+-- on the heading line itself.  Using extmarks lets the marker travel
+-- with the heading line under buffer edits (insertions before the
+-- heading shift the marker, deletions remove it).  An lnum-keyed Lua
+-- table loses correctness as soon as the user edits anywhere above a
+-- revealed heading.
+local REVEAL_NS = vim.api.nvim_create_namespace("organ_fold_contents_reveal")
 local state = {} -- bufnr -> { saved_conceallevel = N }
 -- Memoize visible-line distance per (bufnr, cursor_line, changedtick).
 -- statuscolumn renders the same `cur` for every visible line in a
@@ -129,15 +136,33 @@ local function heading_above(bufnr, body_start)
   return nil
 end
 
+-- Snapshot of currently-revealed heading line numbers, derived
+-- from REVEAL_NS extmarks.  Returns a set keyed by 1-based line
+-- number (or nil when nothing is revealed).  Buffer edits move the
+-- underlying extmarks automatically, so this snapshot stays in
+-- sync with current line positions without explicit migration on
+-- TextChanged.
+local function revealed_lines(bufnr)
+  local marks = vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, 0, -1, {})
+  if #marks == 0 then
+    return nil
+  end
+  local set = {}
+  for _, m in ipairs(marks) do
+    set[m[2] + 1] = m[1] -- lnum -> extmark id
+  end
+  return set
+end
+
 -- True when the heading at line `hline` (or any of its ancestor
--- headings) is in `state[bufnr].revealed` -- meaning the user
--- pressed `za` on it (or a containing heading) to reveal the
--- subtree.  When that's the case we skip both the body conceal and
--- the heading's `…` virt_text.  Walks lines upward from hline,
--- tracking outline level: a smaller-level heading is an ancestor;
--- if it's revealed, the descendant body is too.
+-- headings) is in the revealed set -- meaning the user pressed `za`
+-- on it (or on a containing heading) to reveal the subtree.  When
+-- that's the case we skip both the body conceal and the heading's
+-- `…` virt_text.  Walks lines upward from hline, tracking outline
+-- level: a smaller-level heading is an ancestor; if it's revealed,
+-- the descendant body is too.
 local function under_revealed_subtree(bufnr, hline, revealed)
-  if not revealed or not next(revealed) then
+  if not revealed then
     return false
   end
   if revealed[hline] then
@@ -165,8 +190,7 @@ end
 
 local function place_marks(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
-  local s = state[bufnr]
-  local revealed = s and s.revealed or nil
+  local revealed = revealed_lines(bufnr)
   for _, r in ipairs(each_body_range(bufnr)) do
     local hline = heading_above(bufnr, r[1])
     -- Skip the conceal + ellipsis when the user has revealed this
@@ -212,24 +236,81 @@ local function place_marks(bufnr)
   end
 end
 
+-- Reveal-marker primitives (extmark-tracked so buffer edits don't
+-- invalidate the recorded line numbers).  Add: drops a no-op
+-- extmark on the heading line; remove: deletes any existing
+-- extmark there; toggle: flips presence.  Returns true when the
+-- heading is revealed AFTER the operation.
+local function reveal_mark_at(bufnr, lnum)
+  return vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, { lnum - 1, 0 }, { lnum - 1, -1 }, {})[1]
+end
+local function reveal_set(bufnr, lnum)
+  if reveal_mark_at(bufnr, lnum) then
+    return false -- already set, no change
+  end
+  vim.api.nvim_buf_set_extmark(bufnr, REVEAL_NS, lnum - 1, 0, {})
+  return true
+end
+local function reveal_clear(bufnr, lnum)
+  local m = reveal_mark_at(bufnr, lnum)
+  if not m then
+    return false
+  end
+  vim.api.nvim_buf_del_extmark(bufnr, REVEAL_NS, m[1])
+  return true
+end
+
 -- Toggle the per-heading reveal state for CONTENTS view.  Pressing
 -- `za` on a heading line removes its body's conceal (and ellipsis)
 -- so the user can see the content without leaving CONTENTS; pressing
 -- `za` again puts the body back.  Reveal is subtree-deep: any sub-
 -- heading body inside the revealed subtree also becomes visible
 -- (matches Emacs CONTENTS where subtree expansion shows everything
--- below).  `_slnum_cache` is invalidated because revealed lines
--- change visible-distance counts.
+-- below).
+--
+-- Reveal state lives on a REVEAL_NS extmark anchored to the heading
+-- line.  Buffer edits that insert/delete lines elsewhere shift the
+-- extmark with the heading, so a heading the user revealed stays
+-- revealed after edits without explicit migration logic.
 function M.toggle_heading(bufnr, lnum)
   bufnr = nbuf(bufnr)
-  local s = state[bufnr]
-  if not s then
+  if not state[bufnr] then
     return
   end
-  s.revealed = s.revealed or {}
-  s.revealed[lnum] = not s.revealed[lnum] and true or nil
+  if not reveal_clear(bufnr, lnum) then
+    reveal_set(bufnr, lnum)
+  end
   _slnum_cache[bufnr] = nil
   place_marks(bufnr)
+end
+
+-- True iff the heading at `lnum` currently has its body concealed
+-- by a CONTENTS-view extmark (i.e. it has the `…` virt_text marker
+-- planted by `place_marks`).  Public so the statuscolumn helper can
+-- show closed-fold chevron on concealed headings: in CONTENTS state
+-- there's no actual closed FOLD on the heading, so `foldclosed()`
+-- returns -1 even when the body is visually hidden -- the chevron
+-- needs the extmark presence as its source of truth.  Returns false
+-- for non-org buffers, non-CONTENTS state, non-heading lines, and
+-- headings whose body is currently revealed (or that have no body).
+function M.heading_concealed(bufnr, lnum)
+  bufnr = nbuf(bufnr)
+  if not state[bufnr] then
+    return false
+  end
+  local marks = vim.api.nvim_buf_get_extmarks(
+    bufnr,
+    NS,
+    { lnum - 1, 0 },
+    { lnum - 1, -1 },
+    { details = true }
+  )
+  for _, m in ipairs(marks) do
+    if m[4] and m[4].virt_text then
+      return true
+    end
+  end
+  return false
 end
 
 -- True when row `lnum` (1-indexed) is covered by one of our
@@ -376,19 +457,18 @@ function M.fold_action(key)
       M.toggle_heading(bufnr, lnum)
       return
     elseif key == "zc" then
-      -- Force heading back to its concealed default.
-      if state[bufnr] and state[bufnr].revealed then
-        state[bufnr].revealed[lnum] = nil
+      -- Force-conceal: idempotent on already-concealed heading.
+      if reveal_clear(bufnr, lnum) then
         _slnum_cache[bufnr] = nil
         place_marks(bufnr)
       end
       return
     elseif key == "zo" then
-      -- Force heading subtree revealed.
-      state[bufnr].revealed = state[bufnr].revealed or {}
-      state[bufnr].revealed[lnum] = true
-      _slnum_cache[bufnr] = nil
-      place_marks(bufnr)
+      -- Force-reveal: idempotent on already-revealed heading.
+      if reveal_set(bufnr, lnum) then
+        _slnum_cache[bufnr] = nil
+        place_marks(bufnr)
+      end
       return
     end
   end
@@ -493,6 +573,32 @@ function M.enter(bufnr)
       M.forget(bufnr)
     end,
   })
+  -- Buffer edits while CONTENTS is active: re-place the conceal +
+  -- ellipsis marks against the new line layout.  Without this, body
+  -- ranges that grew/shrunk under inserts/deletes would have stale
+  -- conceal extmarks (extmarks track line shifts, but newly-added
+  -- body lines wouldn't be covered).  REVEAL_NS markers anchored to
+  -- heading lines auto-track, so the user's revealed state survives
+  -- edits.  Coalesce via vim.schedule to drop redundant fires
+  -- during multi-line operations.
+  local refresh_pending = false
+  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = group,
+    buffer = bufnr,
+    callback = function()
+      if refresh_pending then
+        return
+      end
+      refresh_pending = true
+      vim.schedule(function()
+        refresh_pending = false
+        if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
+          _slnum_cache[bufnr] = nil
+          place_marks(bufnr)
+        end
+      end)
+    end,
+  })
   state[bufnr].augroup = group
   on_cursor_moved(bufnr)
 end
@@ -504,6 +610,7 @@ function M.leave(bufnr)
     return
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, REVEAL_NS, 0, -1)
   _slnum_cache[bufnr] = nil
   if s.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, s.augroup)

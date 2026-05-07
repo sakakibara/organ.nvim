@@ -139,10 +139,54 @@ check(
   "got " .. rendered_height()
 )
 
+-- heading_concealed mirrors the visible state and powers the
+-- statuscolumn open/close chevron.  In CONTENTS, default = concealed.
+-- After za, revealed.  After za again, concealed.
+check("heading_concealed(H1)=true (default)", contents.heading_concealed(b, 1))
+contents.fold_action("zo")
+check("heading_concealed(H1)=false after zo", not contents.heading_concealed(b, 1))
+contents.fold_action("zc")
+check("heading_concealed(H1)=true after zc", contents.heading_concealed(b, 1))
+check("heading_concealed(non-heading line) = false", not contents.heading_concealed(b, 2))
+
+-- Buffer-edit resilience: insert lines BEFORE a revealed heading;
+-- the heading's reveal state must travel with it (extmark-tracked,
+-- not lnum-keyed).  Reveal H3 (originally line 6), then insert two
+-- lines at the top -- H3 is now line 8.  heading_concealed(8) must
+-- return false.
+contents.fold_action("zc") -- ensure clean H1
+vim.api.nvim_win_set_cursor(0, { 6, 0 })
+contents.fold_action("zo") -- reveal H3
+check("H3 (line 6) revealed", not contents.heading_concealed(b, 6))
+vim.api.nvim_buf_set_lines(b, 0, 0, false, { "new line 1", "new line 2" })
+-- TextChanged autocmd is async via vim.schedule; force it to drain.
+vim.cmd("redraw")
+vim.wait(50, function()
+  return false
+end)
+check(
+  "after inserting 2 lines: H3 still revealed at new lnum 8",
+  not contents.heading_concealed(b, 8),
+  "got " .. tostring(contents.heading_concealed(b, 8))
+)
+check(
+  "old lnum 6 (now ** H2 sub heading) is concealed (not the H3 we revealed)",
+  contents.heading_concealed(b, 6),
+  "got revealed=" .. tostring(not contents.heading_concealed(b, 6))
+)
+
 contents.leave(b)
 local marks_after =
   vim.api.nvim_buf_get_extmarks(b, vim.api.nvim_get_namespaces().organ_fold_contents, 0, -1, {})
-check("leave clears all marks", #marks_after == 0, "got " .. #marks_after)
+local reveal_marks = vim.api.nvim_buf_get_extmarks(
+  b,
+  vim.api.nvim_get_namespaces().organ_fold_contents_reveal,
+  0,
+  -1,
+  {}
+)
+check("leave clears all conceal marks", #marks_after == 0, "got " .. #marks_after)
+check("leave clears all reveal marks", #reveal_marks == 0, "got " .. #reveal_marks)
 
 if fails > 0 then
   print()

@@ -43,6 +43,45 @@ pcall(require, "snacks.picker")
 vim.opt.swapfile = false
 vim.opt.laststatus = 0
 vim.opt.cmdheight = 2
+vim.opt.number = true
+vim.opt.relativenumber = false
+
+-- Wire foldtext + statuscolumn to organ helpers.  Without these the
+-- cycle.tape demo would render vim's default `+--  N lines:`
+-- foldtext for OVERVIEW state and a blank fold column with no
+-- open/close chevron for CONTENTS state -- neither of which shows
+-- the user what organ actually offers.  Match the README "Recipes"
+-- section so the GIF doubles as a wiring example.
+function _G.OrganDemoFoldtext()
+  if vim.bo.filetype == "org" then
+    local ok, fold = pcall(require, "organ.fold")
+    if ok then
+      return fold.foldtext()
+    end
+  end
+  return vim.fn.foldtext()
+end
+vim.opt.foldtext = "v:lua.OrganDemoFoldtext()"
+
+function _G.OrganDemoStatuscolumn()
+  local lnum = vim.v.lnum
+  local relnum = vim.v.relnum
+  local virtnum = vim.v.virtnum
+  if virtnum and virtnum ~= 0 then
+    return "    "
+  end
+  local n = lnum
+  local fold_marker = " "
+  local ok, fmod = pcall(require, "organ.fold")
+  if ok and fmod.statuscolumn_marker then
+    fold_marker = fmod.statuscolumn_marker(lnum)
+  end
+  return string.format("%4d %s ", n, fold_marker)
+end
+vim.opt.statuscolumn = "%!v:lua.OrganDemoStatuscolumn()"
+-- Render foldopen / foldclose with single-cell ASCII chars so the
+-- chevron is unambiguous in vhs's chromium-rendered terminal.
+vim.opt.fillchars:append({ foldopen = "v", foldclose = ">" })
 
 -- Determinism across rendering environments:
 --   * encoding utf-8 + ambiwidth=single match nvim's defaults but
