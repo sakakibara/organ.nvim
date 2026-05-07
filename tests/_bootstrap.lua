@@ -34,6 +34,20 @@ if vim.fn.isdirectory(root .. "/tests/deps/narrow.nvim") == 1 then
 end
 vim.opt.runtimepath:prepend(vim.fn.stdpath("data") .. "/organ")
 
+-- Isolate the test DB.  Without this, every test that triggers the
+-- indexer (e.g. opens an org buffer with a tempfile name) writes rows
+-- into the developer's REAL `organ.db` -- the rows then surface as
+-- stale entries in `:Org find` long after the test process exits.
+-- `defaults.db_path` is read once at module load, so override it
+-- BEFORE the first `require("organ.defaults")` in any test.  Tests
+-- can still pass `db_path = ...` to `setup` to override per-test.
+local test_db = root .. "/tests/.tmp/organ-test.db"
+vim.fn.mkdir(vim.fn.fnamemodify(test_db, ":h"), "p")
+-- Fresh DB per test process so cross-test contamination can't sneak
+-- in either.  The .tmp/ dir is .gitignored.
+pcall(vim.loop.fs_unlink, test_db)
+vim.env.ORGAN_DB_PATH = test_db
+
 -- Register custom tree-sitter predicates (`#org-todo-keyword?`,
 -- `#org-stars-level?`, etc.) used by the highlight queries.  In a
 -- normal nvim run plugin/organ.lua does this; tests that bypass the

@@ -52,7 +52,7 @@ return {
   -- Per-block override: a block spec's own `files = ...` takes
   -- precedence over this top-level setting.
   agenda_files = nil,
-  db_path = vim.fn.stdpath("data") .. "/organ.db",
+  db_path = vim.env.ORGAN_DB_PATH or (vim.fn.stdpath("data") .. "/organ.db"),
   -- Default parser path. `lua/organ/grammar_install.lua` writes the
   -- block parser here from your plugin manager's build hook (see
   -- README). The runtime also probes nvim-treesitter's parser dir if
@@ -624,12 +624,13 @@ return {
   -- the file.
   startup = {
     -- Initial outline fold state (Emacs `org-startup-folded`):
-    --   "overview"        — show only top-level headings (default)
+    --   "overview"        — show only top-level headings
     --   "content"         — show all headings, hide content
     --   "showall" / false — fully unfolded
-    --   "showeverything"  — fully unfolded INCLUDING drawers
+    --   "showeverything"  — fully unfolded INCLUDING drawers (default,
+    --                       matches Emacs `org-startup-folded` default)
     --   "fold" / true     — alias for "overview"
-    folded = "overview",
+    folded = "showeverything",
   },
 
   -- Star concealment (Emacs `org-hide-leading-stars`).

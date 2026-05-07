@@ -1415,12 +1415,36 @@ M.commands = {
     bang = true,
     desc = "Reindex an org file. `:Org index!` clears the DB row first (fixes stale data).",
   },
+  prune_missing = {
+    fn = function()
+      -- Walk every indexed file path and forget any whose file no
+      -- longer exists on disk.  Cleans up rows left behind by tests,
+      -- crash-killed nvim sessions, or files moved out of band.
+      local h = require("organ.runtime").db()
+      local s = h:prepare("SELECT path FROM files")
+      local paths, missing = {}, {}
+      while s:step() == require("organ.db").SQLITE_ROW do
+        paths[#paths + 1] = s:column_text(0)
+      end
+      s:finalize()
+      for _, p in ipairs(paths) do
+        if vim.fn.filereadable(p) == 0 then
+          missing[#missing + 1] = p
+        end
+      end
+      for _, p in ipairs(missing) do
+        pcall(M.forget, h, p)
+      end
+      notify_msg(("pruned %d / %d (missing files dropped from index)"):format(#missing, #paths))
+    end,
+    desc = "Drop DB rows for indexed files that no longer exist on disk",
+  },
   scan = {
     fn = function(cmd)
       local organ = require("organ")
+      local h = require("organ.runtime").db()
       if cmd and cmd.bang then
         notify_msg("force-rescan: clearing index for " .. organ.config.org_dir)
-        local h = require("organ.runtime").db()
         local s = h:prepare("SELECT path FROM files WHERE path LIKE ?")
         s:bind_text(1, organ.config.org_dir .. "%")
         local paths = {}
@@ -1432,6 +1456,26 @@ M.commands = {
           pcall(M.forget, h, p)
         end
       end
+      -- Auto-prune missing files across the WHOLE DB on every scan.
+      -- The watcher only sees deletes inside org_dir; files indexed
+      -- outside (tests, manually edited paths, files moved before
+      -- the watcher was running) accumulate as orphan rows otherwise
+      -- and surface in `:Org find` long after the file is gone.
+      local s = h:prepare("SELECT path FROM files")
+      local paths, missing = {}, 0
+      while s:step() == require("organ.db").SQLITE_ROW do
+        paths[#paths + 1] = s:column_text(0)
+      end
+      s:finalize()
+      for _, p in ipairs(paths) do
+        if vim.fn.filereadable(p) == 0 then
+          pcall(M.forget, h, p)
+          missing = missing + 1
+        end
+      end
+      if missing > 0 then
+        notify_msg(("pruned %d orphan file row(s)"):format(missing))
+      end
       notify_msg("scanning " .. organ.config.org_dir)
       organ._start_scan()
       organ._scan_walk(organ.config.org_dir, function()
@@ -1440,7 +1484,7 @@ M.commands = {
       end)
     end,
     bang = true,
-    desc = "Scan org_dir and index all .org files. `:Org scan!` clears the DB first.",
+    desc = "Scan org_dir, index all .org files, prune missing-file rows. `:Org scan!` also clears org_dir.",
   },
   status = {
     fn = function()

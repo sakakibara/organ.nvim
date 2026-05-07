@@ -46,6 +46,13 @@ vim.api.nvim_buf_set_lines(b, 0, -1, false, {
   ":END:",
   "Body text 2.",
 })
+-- Opt out of `startup.folded` resolution; the default is now
+-- `showeverything` (Emacs default), which would zR every fold open
+-- AFTER `close_all_drawers` runs below, defeating the assertions.
+-- The test verifies drawer-stays-closed under <S-Tab> CYCLES, not
+-- under file-open auto-fold; opting out keeps the cycle behavior
+-- isolated.
+vim.b[b].organ_no_startup_fold = true
 vim.bo[b].filetype = "org"
 vim.wo.foldmethod = "expr"
 vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"

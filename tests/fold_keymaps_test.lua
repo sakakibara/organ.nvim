@@ -35,7 +35,7 @@ end
 -- Buffer fixture: 3-deep heading tree with a drawer + body lines.
 -- `expanded = true` forces foldlevel=99 (showall) post-attach so
 -- assertions about body visibility have a known baseline; otherwise
--- the Emacs default `startup.folded = "overview"` hides body lines.
+-- the configured `startup.folded` (default `showeverything`) decides.
 -- ---------------------------------------------------------------------------
 local function fresh_buffer(opts)
   opts = opts or {}

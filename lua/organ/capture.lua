@@ -33,8 +33,9 @@ local function open_capture_buf(template_name, body_lines, cursor_offset)
   vim.bo[bufnr].bufhidden = "wipe"
   -- Set buffer-local flags BEFORE filetype=org because the FileType
   -- autocmd fires synchronously on assignment.  organ_no_startup_fold
-  -- tells the ftplugin to skip its 'overview' default so the
-  -- 1-2-line capture body isn't folded under the headline.
+  -- tells the ftplugin to skip its `startup.folded` resolution so the
+  -- 1-2-line capture body isn't folded under the headline regardless
+  -- of what the user picked for the default.
   vim.b[bufnr].organ_capture = { template_name = template_name }
   vim.b[bufnr].organ_no_startup_fold = true
   vim.bo[bufnr].filetype = "org"
