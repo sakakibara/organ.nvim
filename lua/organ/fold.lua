@@ -709,15 +709,40 @@ end
 
 _G._organ_statuscolumn = function()
   local lnum = vim.v.lnum
+  local relnum = vim.v.relnum
   local virtnum = vim.v.virtnum
   if virtnum and virtnum ~= 0 then
     return "    "
+  end
+  -- Mirror vim's own number / relativenumber semantics:
+  --   number only          -> absolute on every line
+  --   relativenumber only  -> 0 on cursor, distance elsewhere
+  --   both (hybrid)        -> absolute on cursor, distance elsewhere
+  --   neither              -> blank pad (consistent column width)
+  local nu = vim.wo.number
+  local rnu = vim.wo.relativenumber
+  local n_str
+  if not nu and not rnu then
+    n_str = "    "
+  else
+    local n
+    if rnu and relnum and relnum ~= 0 then
+      -- contents.statuscolumn_lnum counts visible lines crossed
+      -- (closed folds = 1 row, conceal_lines = skip), so relative
+      -- numbering is correct in OVERVIEW + CONTENTS too.
+      n = require("organ.fold.contents").statuscolumn_lnum(lnum, true)
+    elseif rnu and not nu then
+      n = 0
+    else
+      n = lnum
+    end
+    n_str = string.format("%4d", n)
   end
   local fold_marker = M.statuscolumn_marker(lnum)
   -- `%s` reserves the signs column so plugins like gitsigns / lsp
   -- diagnostics keep rendering their gutter chars on org buffers
   -- even when the user opts into organ's auto-applied statuscolumn.
-  return string.format("%%s%4d %s ", lnum, fold_marker)
+  return string.format("%%s%s %s ", n_str, fold_marker)
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,
