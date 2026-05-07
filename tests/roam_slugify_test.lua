@@ -58,6 +58,19 @@ check("  multiple   spaces  ", "multiple_spaces")
 check("name/with/slashes", "name_with_slashes")
 check('illegal:chars*"<>?|', "illegal_chars")
 
+-- Non-Latin punctuation gets stripped (Unicode-aware).  Was kept
+-- under the byte-walker; vim's `[:alnum:]` regex strips it.
+check("質問？はい！", "質問_はい")
+check("「メモ」", "メモ")
+check("topic… continued", "topic_continued")
+check("emoji 🎉 party", "emoji_party")
+-- Ellipsis on its own collapses to fallback.
+check("？？？", "untitled")
+
+-- Latin Extended-B with diacritics: stripped to base.
+check("Bărdaș", "bardas")
+check("Ǎlphǎ", "alpha")
+
 -- Empty / whitespace-only fallback.
 check("", "untitled")
 check("   ", "untitled")

@@ -2,22 +2,17 @@
 --   1. NFKD-equivalent: replace precomposed Latin-with-diacritic
 --      chars with their base letter (folded to lowercase), and
 --      strip Unicode combining marks (U+0300..U+036F) that appear
---      in NFD-form input.
---   2. Replace every non-alphanumeric byte with `_` (Emacs's
---      `[^[:alnum:]]` rule).  Multibyte UTF-8 sequences (>= 0x80)
---      are treated as alphanumeric and pass through, so CJK,
---      Greek, Cyrillic, etc. survive intact.
+--      in NFD-form input.  Covers Latin-1 Supplement, Latin
+--      Extended-A, and the diacritic-bearing subset of Latin
+--      Extended-B.
+--   2. Walk codepoints, keep Unicode `Letter` + `Number` (Latin,
+--      Greek, Cyrillic, Hebrew, Arabic, Devanagari, Thai, CJK,
+--      Hiragana, Katakana, Hangul, fullwidth alnum), replace
+--      everything else with `_`.  CJK punctuation (`？、「」`),
+--      fullwidth punctuation, ellipsis (`…`), emoji, ASCII
+--      punctuation all strip out via this rule.
 --   3. Collapse runs of `_`, strip leading / trailing `_`,
 --      lowercase ASCII.
---
--- Divergences from Emacs:
---   - Non-Latin Unicode punctuation (e.g. fullwidth `？`,
---     ellipsis `…`) is kept since byte-walker can't tell letter
---     from punctuation without full Unicode-property tables.  In
---     practice org-roam titles rarely include these.
---   - Byte-walker is faster than per-codepoint scanning and is
---     safe because UTF-8 continuation bytes never collide with
---     the ASCII control / punctuation set we strip.
 
 local M = {}
 
@@ -207,15 +202,108 @@ local FOLD = {
   ["ż"] = "z",
   ["Ž"] = "z",
   ["ž"] = "z",
+  -- Latin Extended-B: diacritic-bearing chars only.  Atomic
+  -- letters in this range (ƀ Ɓ Ƃ ƃ ƈ Ƈ ƌ Ƌ ƒ Ƒ etc., used in
+  -- IPA / minority languages) lowercase to themselves and are
+  -- left to pass through.  Same goes for ǝ Ǝ Ƣ ƣ Ʒ ʒ etc.
+  ["Ǎ"] = "a",
+  ["ǎ"] = "a",
+  ["Ǐ"] = "i",
+  ["ǐ"] = "i",
+  ["Ǒ"] = "o",
+  ["ǒ"] = "o",
+  ["Ǔ"] = "u",
+  ["ǔ"] = "u",
+  ["Ǖ"] = "u",
+  ["ǖ"] = "u",
+  ["Ǘ"] = "u",
+  ["ǘ"] = "u",
+  ["Ǚ"] = "u",
+  ["ǚ"] = "u",
+  ["Ǜ"] = "u",
+  ["ǜ"] = "u",
+  ["Ǟ"] = "a",
+  ["ǟ"] = "a",
+  ["Ǡ"] = "a",
+  ["ǡ"] = "a",
+  ["Ǣ"] = "æ",
+  ["ǣ"] = "æ",
+  ["Ǥ"] = "g",
+  ["ǥ"] = "g",
+  ["Ǧ"] = "g",
+  ["ǧ"] = "g",
+  ["Ǩ"] = "k",
+  ["ǩ"] = "k",
+  ["Ǫ"] = "o",
+  ["ǫ"] = "o",
+  ["Ǭ"] = "o",
+  ["ǭ"] = "o",
+  ["Ǯ"] = "ʒ",
+  ["ǯ"] = "ʒ",
+  ["Ǵ"] = "g",
+  ["ǵ"] = "g",
+  ["Ǹ"] = "n",
+  ["ǹ"] = "n",
+  ["Ǻ"] = "a",
+  ["ǻ"] = "a",
+  ["Ǽ"] = "æ",
+  ["ǽ"] = "æ",
+  ["Ǿ"] = "ø",
+  ["ǿ"] = "ø",
+  ["Ȁ"] = "a",
+  ["ȁ"] = "a",
+  ["Ȃ"] = "a",
+  ["ȃ"] = "a",
+  ["Ȅ"] = "e",
+  ["ȅ"] = "e",
+  ["Ȇ"] = "e",
+  ["ȇ"] = "e",
+  ["Ȉ"] = "i",
+  ["ȉ"] = "i",
+  ["Ȋ"] = "i",
+  ["ȋ"] = "i",
+  ["Ȍ"] = "o",
+  ["ȍ"] = "o",
+  ["Ȏ"] = "o",
+  ["ȏ"] = "o",
+  ["Ȑ"] = "r",
+  ["ȑ"] = "r",
+  ["Ȓ"] = "r",
+  ["ȓ"] = "r",
+  ["Ȕ"] = "u",
+  ["ȕ"] = "u",
+  ["Ȗ"] = "u",
+  ["ȗ"] = "u",
+  ["Ș"] = "s",
+  ["ș"] = "s",
+  ["Ț"] = "t",
+  ["ț"] = "t",
+  ["Ȟ"] = "h",
+  ["ȟ"] = "h",
+  ["Ȧ"] = "a",
+  ["ȧ"] = "a",
+  ["Ȩ"] = "e",
+  ["ȩ"] = "e",
+  ["Ȫ"] = "o",
+  ["ȫ"] = "o",
+  ["Ȭ"] = "o",
+  ["ȭ"] = "o",
+  ["Ȯ"] = "o",
+  ["ȯ"] = "o",
+  ["Ȱ"] = "o",
+  ["ȱ"] = "o",
+  ["Ȳ"] = "y",
+  ["ȳ"] = "y",
 }
 
 local function strip_diacritics(s)
   -- Replace precomposed Latin chars (2-byte UTF-8 in lead-byte
-  -- range 0xC3..0xC5) with their folded base.  Lead bytes 0xC3,
-  -- 0xC4, 0xC5 cover U+00C0..U+017F (Latin-1 Supplement + Latin
-  -- Extended-A); each is a 2-byte sequence so the pattern matches
-  -- exactly the right span.
-  s = s:gsub("[\xC3-\xC5][\x80-\xBF]", function(c)
+  -- range 0xC3..0xC9) with their folded base.  Lead bytes:
+  --   0xC3       -> U+00C0..U+00FF (Latin-1 Supplement)
+  --   0xC4..0xC5 -> U+0100..U+017F (Latin Extended-A)
+  --   0xC6..0xC9 -> U+0180..U+024F (Latin Extended-B)
+  -- Each is a 2-byte sequence so the pattern matches exactly.
+  s = s:gsub("[\xC3-\xC9][\x80-\xBF]", function(c)
     return FOLD[c] or c
   end)
   -- Strip Unicode combining diacritical marks (U+0300..U+036F) for
@@ -226,21 +314,112 @@ local function strip_diacritics(s)
   return s
 end
 
+-- Approximation of Unicode `Letter` + `Number` general categories.
+-- Vim's POSIX `[:alnum:]` is locale-dependent and doesn't reliably
+-- classify CJK / Cyrillic / etc. in headless tests, so we walk
+-- codepoints ourselves and check against script ranges that cover
+-- the bulk of real-world org-roam titles.  Punctuation ranges
+-- inside these scripts (e.g. CJK Symbols and Punctuation
+-- U+3000..U+303F, Fullwidth ASCII U+FF00..U+FF0F) are deliberately
+-- excluded so `？、「」` strip out while letters survive.
+local function is_alnum(cp)
+  -- ASCII alphanumeric
+  if cp <= 0x7F then
+    return (cp >= 0x30 and cp <= 0x39) -- 0-9
+      or (cp >= 0x41 and cp <= 0x5A) -- A-Z
+      or (cp >= 0x61 and cp <= 0x7A) -- a-z
+  end
+  -- Latin Supplement, Extended-A/B/C, IPA, Spacing modifiers
+  if cp >= 0x00C0 and cp <= 0x02AF then
+    return true
+  end
+  -- Greek + Coptic + Cyrillic + Cyrillic Supp + Armenian + Hebrew
+  if cp >= 0x0370 and cp <= 0x05FF then
+    return true
+  end
+  -- Arabic + Syriac + Thaana
+  if cp >= 0x0600 and cp <= 0x07BF then
+    return true
+  end
+  -- Devanagari .. Tibetan (Indic)
+  if cp >= 0x0900 and cp <= 0x0FFF then
+    return true
+  end
+  -- Myanmar, Georgian, Hangul Jamo, Ethiopic, Cherokee, ...
+  if cp >= 0x1000 and cp <= 0x1FFF then
+    return true
+  end
+  -- Hiragana, Katakana
+  if cp >= 0x3040 and cp <= 0x30FF then
+    return true
+  end
+  -- CJK Unified Ideographs (incl. Extension A)
+  if cp >= 0x3400 and cp <= 0x9FFF then
+    return true
+  end
+  -- Hangul Syllables
+  if cp >= 0xAC00 and cp <= 0xD7AF then
+    return true
+  end
+  -- Fullwidth ASCII letters / digits
+  if
+    (cp >= 0xFF10 and cp <= 0xFF19)
+    or (cp >= 0xFF21 and cp <= 0xFF3A)
+    or (cp >= 0xFF41 and cp <= 0xFF5A)
+  then
+    return true
+  end
+  -- Halfwidth Katakana
+  if cp >= 0xFF66 and cp <= 0xFF9F then
+    return true
+  end
+  -- CJK Unified Ideographs Extension B and beyond (rare but valid)
+  if cp >= 0x20000 and cp <= 0x2FFFF then
+    return true
+  end
+  return false
+end
+
+-- Decode the next UTF-8 codepoint at byte position `i`.  Returns
+-- (codepoint, byte_length).  Falls back to (byte, 1) on invalid.
+local function utf8_cp(s, i)
+  local b1 = s:byte(i)
+  if not b1 then
+    return nil, 0
+  end
+  if b1 < 0x80 then
+    return b1, 1
+  end
+  if b1 < 0xC0 then
+    return b1, 1 -- stray continuation; treat as single byte
+  end
+  if b1 < 0xE0 then
+    local b2 = s:byte(i + 1) or 0
+    return ((b1 - 0xC0) * 0x40) + (b2 - 0x80), 2
+  end
+  if b1 < 0xF0 then
+    local b2 = s:byte(i + 1) or 0
+    local b3 = s:byte(i + 2) or 0
+    return ((b1 - 0xE0) * 0x1000) + ((b2 - 0x80) * 0x40) + (b3 - 0x80), 3
+  end
+  local b2 = s:byte(i + 1) or 0
+  local b3 = s:byte(i + 2) or 0
+  local b4 = s:byte(i + 3) or 0
+  return ((b1 - 0xF0) * 0x40000) + ((b2 - 0x80) * 0x1000) + ((b3 - 0x80) * 0x40) + (b4 - 0x80), 4
+end
+
 function M.slugify(s)
   s = strip_diacritics(s)
   local out = {}
-  for i = 1, #s do
-    local b = s:byte(i)
-    if
-      (b >= 48 and b <= 57) -- 0-9
-      or (b >= 65 and b <= 90) -- A-Z
-      or (b >= 97 and b <= 122) -- a-z
-      or b >= 0x80 -- UTF-8 lead or continuation byte (CJK, Cyrillic, etc.)
-    then
-      out[#out + 1] = s:sub(i, i)
+  local i = 1
+  while i <= #s do
+    local cp, n = utf8_cp(s, i)
+    if cp and is_alnum(cp) then
+      out[#out + 1] = s:sub(i, i + n - 1)
     else
       out[#out + 1] = "_"
     end
+    i = i + n
   end
   s = table.concat(out)
   s = s:gsub("_+", "_"):gsub("^_", ""):gsub("_$", "")
