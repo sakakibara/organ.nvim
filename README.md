@@ -507,6 +507,46 @@ Commands: `:Org notifier install` / `test` / `status` / `doctor` /
 `clear` / `uninstall`.  See `:h organ-notifier` for the install
 layout, manual-removal recipes, and platform-specific setup.
 
+## Foldtext
+
+Helper for users with a custom `'foldtext'`:
+
+| Helper | Replaces | Why |
+|---|---|---|
+| `require("organ.fold").foldtext()` | what `'foldtext'` evaluates to | Vim's builtin `foldtext()` returns `+--  N lines: <line>` for any closed fold.  On org buffers that throws away the heading's TODO / title / tag colors and the Emacs-style `…` ellipsis.  The helper returns treesitter-coloured `{text, hl}` segments + ellipsis when the fold hides real content.  Driven by the `fold.foldtext` config (default `"emacs"`, custom function, or `false`/`nil` to defer to vim's builtin). |
+
+By default organ does NOT set the `'foldtext'` option itself (same
+pattern as the statuscolumn helpers below — the user wires the
+option, organ provides the function).  Two paths:
+
+**Opt-in auto-apply** (no Lua required).  Set `fold.auto_foldtext
+= true` and organ wires win-local `'foldtext'` on every org buffer
+to call into `organ.fold.foldtext()` for you:
+
+```lua
+require("organ").setup({
+  fold = { auto_foldtext = true },
+})
+```
+
+**Wire it yourself** (recommended if you already have a custom
+`'foldtext'`).  Delegate to organ on org buffers:
+
+```lua
+function _G.MyFoldtext()
+  if vim.bo.filetype == "org" then
+    local ok, fold = pcall(require, "organ.fold")
+    if ok then return fold.foldtext() end
+  end
+  return vim.fn.foldtext()
+end
+vim.opt.foldtext = "v:lua.MyFoldtext()"
+```
+
+`:checkhealth organ` warns + prints the wire-yourself recipe when
+neither path is in effect.  See "Folded heading appearance" in the
+Folding section for the `OrgFolded` highlight that pairs with this.
+
 ## Statuscolumn
 
 Two helpers for users with a custom `'statuscolumn'`:
@@ -516,7 +556,20 @@ Two helpers for users with a custom `'statuscolumn'`:
 | `require("organ.fold").statuscolumn_marker(lnum)` | the `foldlevel(lnum) > foldlevel(lnum-1)` "is this a fold start" idiom | That idiom misses heading lines whose foldlevel doesn't strictly exceed the previous line's (sibling headings at the same depth, or any heading after body in `body_fold = true`).  The helper marks every heading line as a fold-start. |
 | `require("organ.fold.contents").statuscolumn_lnum(lnum, relative)` | the value vim feeds into `%l` / `%r` for `'number'` / `'relativenumber'` | Vim counts buffer lines.  Under CONTENTS view body is concealed but its line numbers are still allocated -- a heading 5 buffer rows down with concealed body would render as `5` even though it's visually adjacent.  The helper returns visible-line distance instead. |
 
-Both helpers degrade to vim-equivalent values outside the contexts they care about, so it's safe to wire both unconditionally.  Recipe:
+Both helpers degrade to vim-equivalent values outside the contexts they care about, so it's safe to wire both unconditionally.
+
+**Opt-in auto-apply** (no Lua required).  Set `fold.auto_statuscolumn
+= true` and organ sets a sensible default `'statuscolumn'` on every
+org buffer (line number + fold chevron via `statuscolumn_marker`).
+Use this when you don't have your own statuscolumn:
+
+```lua
+require("organ").setup({
+  fold = { auto_statuscolumn = true },
+})
+```
+
+Otherwise wire the helpers into your custom statuscolumn yourself:
 
 ```lua
 -- ~/.config/nvim/lua/lib/statuscolumn.lua (or wherever yours lives)

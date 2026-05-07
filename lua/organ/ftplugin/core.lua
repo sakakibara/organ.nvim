@@ -79,14 +79,15 @@ function M.attach(bufnr)
   -- foldexpr defaults back to "" -- re-apply on BufWinEnter so every
   -- window the buffer lands in gets the same options.
   --
-  -- `foldtext` is intentionally NOT set here.  Setting it via
-  -- `v:lua.require('organ.fold').foldtext()` hits an nvim TUI-mode
-  -- option-eval bug (function call mid-chain doesn't traverse), and
-  -- working around it requires a flat global proxy -- which is
-  -- pollution.  Match the statuscolumn / statusline pattern instead:
-  -- expose `organ.fold.foldtext()` as a Lua function and let users
-  -- wire it through their own foldtext wrapper.  See
-  -- |organ-config-fold-foldtext| for the recipe.
+  -- `foldtext` and `statuscolumn` are NOT set by default.  Wire them
+  -- via your config (see |organ-config-fold-foldtext| / README
+  -- "Foldtext" / "Statuscolumn").  Opt-in auto-apply is available
+  -- via `fold.auto_foldtext = true` / `fold.auto_statuscolumn = true`
+  -- for users who don't want to write Lua -- when set, organ writes
+  -- those win-local options here using a flat `v:lua.<name>()` form
+  -- (avoids the nvim TUI option-eval bug with chained `v:lua.require`
+  -- calls).
+  local cfg_fold_top = cfg.fold or {}
   local function apply_fold_window_opts()
     pcall(function()
       vim.api.nvim_set_option_value("foldmethod", "expr", { win = 0 })
@@ -100,6 +101,12 @@ function M.attach(bufnr)
       -- line under a heading) actually close — the default of 1 silently
       -- drops 1-line folds that sit between adjacent transitions.
       vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
+      if cfg_fold_top.auto_foldtext == true then
+        vim.api.nvim_set_option_value("foldtext", "v:lua._organ_foldtext()", { win = 0 })
+      end
+      if cfg_fold_top.auto_statuscolumn == true then
+        vim.api.nvim_set_option_value("statuscolumn", "%!v:lua._organ_statuscolumn()", { win = 0 })
+      end
       -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
       -- so folded heading lines blend with Normal's background.  The
       -- foldtext segments keep their natural foreground (TODO, title,

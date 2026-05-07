@@ -673,6 +673,12 @@ end
 -- propagated out of `emacs_foldtext`).
 function M.foldtext()
   local cfg = (require("organ").config.fold or {}).foldtext
+  -- `false` or `nil` -> defer to vim's builtin foldtext() (the
+  -- `+--  N lines: ...` format).  Lets users opt out of organ's
+  -- emacs-style decoration without having to write a custom fn.
+  if cfg == false or cfg == nil then
+    return vim.fn.foldtext()
+  end
   if type(cfg) == "function" then
     local ok, out = pcall(cfg, vim.v.foldstart, vim.v.foldend)
     if ok and type(out) == "string" then
@@ -685,6 +691,30 @@ function M.foldtext()
     return out
   end
   return vim.fn.getline(vim.v.foldstart) or ""
+end
+
+-- Top-level proxies used by `fold.auto_foldtext` /
+-- `fold.auto_statuscolumn` opt-in auto-apply.  Defined unconditionally
+-- so the option strings can reference them without arranging
+-- `require()` order at runtime.  Nvim's option-eval `v:lua` parser
+-- chokes on `v:lua.require('organ.fold').foldtext()` chains in TUI
+-- mode (fine in headless / `:lua`); a flat `v:lua.<name>()` is the
+-- safe shape.  These proxies are dead code unless the user opts in.
+_G._organ_foldtext = function()
+  if vim.bo.filetype == "org" then
+    return M.foldtext()
+  end
+  return vim.fn.foldtext()
+end
+
+_G._organ_statuscolumn = function()
+  local lnum = vim.v.lnum
+  local virtnum = vim.v.virtnum
+  if virtnum and virtnum ~= 0 then
+    return "    "
+  end
+  local fold_marker = M.statuscolumn_marker(lnum)
+  return string.format("%4d %s ", lnum, fold_marker)
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,

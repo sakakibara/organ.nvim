@@ -778,22 +778,11 @@ Fold                                                       *organ-config-fold*
 
                                                   *organ-config-fold-foldtext*
     `fold.foldtext` (string | function | false, default: `"emacs"`)
-    Selects which renderer `organ.fold.foldtext()` returns.  Organ
-    does NOT set the `'foldtext'` option itself (same pattern as
-    statuscolumn / statusline -- the user wires the option).  To
-    get the org-aware foldtext, point your global `'foldtext'` at a
-    Lua function that delegates to `organ.fold.foldtext()` when the
-    buffer is org:
->lua
-        function MyFoldtext()
-          if vim.bo.filetype == "org" then
-            local ok, fold = pcall(require, "organ.fold")
-            if ok then return fold.foldtext() end
-          end
-          return vim.fn.foldtext()
-        end
-        vim.opt.foldtext = "v:lua.MyFoldtext()"
-<
+    Selects what `organ.fold.foldtext()` RETURNS when your
+    `'foldtext'` option calls into it.  This setting only changes
+    the return shape; whether organ writes the `'foldtext'` option
+    is controlled by `fold.auto_foldtext` (off by default).
+
     Accepts:
 
         "emacs"     -- heading line + `…` suffix when the fold
@@ -808,7 +797,45 @@ Fold                                                       *organ-config-fold*
                        per-segment highlights.  Errors from the
                        function fall back to the heading line so a
                        buggy override can't break the buffer.
-        false / nil -- vim default (just the first line + `...`).
+        false / nil -- defer to vim's builtin `foldtext()` (the
+                       `+--  N lines: <line>` format).  Use this
+                       to opt out of organ's emacs-style decoration
+                       without writing a custom function.
+
+                                             *organ-config-fold-auto_foldtext*
+    `fold.auto_foldtext` (bool, default: `false`)
+    When `true`, organ sets win-local `'foldtext'` on every org
+    buffer to call into `organ.fold.foldtext()`.  When `false`
+    (default), organ leaves `'foldtext'` alone -- you wire it via
+    your own config:
+>lua
+        function MyFoldtext()
+          if vim.bo.filetype == "org" then
+            local ok, fold = pcall(require, "organ.fold")
+            if ok then return fold.foldtext() end
+          end
+          return vim.fn.foldtext()
+        end
+        vim.opt.foldtext = "v:lua.MyFoldtext()"
+<
+    Same pattern as statuscolumn / statusline.  The auto-apply path
+    is the no-Lua path; the wire-it-yourself path is for users who
+    already have a custom `'foldtext'` wrapper they want to delegate
+    from.  `:checkhealth organ` prints the recipe when neither path
+    is in effect.
+
+                                         *organ-config-fold-auto_statuscolumn*
+    `fold.auto_statuscolumn` (bool, default: `false`)
+    When `true`, organ sets win-local `'statuscolumn'` on every org
+    buffer to a sensible default that uses
+    |organ-fold-statuscolumn_marker| (correct fold chevron in
+    OVERVIEW + CONTENTS) and the line number.  When `false`
+    (default), organ leaves `'statuscolumn'` alone -- you wire the
+    helpers (`organ.fold.statuscolumn_marker` and
+    `organ.fold.contents.statuscolumn_lnum`) into your own
+    statuscolumn.  Off by default because users typically have
+    their own statuscolumn with signs / gitsigns / diagnostics that
+    a blanket override would clobber.
 
                                                         *organ-fold-OrgFolded*
     Folded org-buffer rows render with the `OrgFolded` highlight

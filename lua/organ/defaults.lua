@@ -606,12 +606,13 @@ return {
     --   conceal — pick this if you keep `conceallevel = 0` and don't
     --   want the temporary bump.  `za` on body folds the body line.
     body_fold = false,
-    -- Renderer that `organ.fold.foldtext()` returns when YOUR
-    -- 'foldtext' option calls into it.  Organ does NOT set vim's
-    -- 'foldtext' itself -- wire it via your config (see
-    -- |organ-config-fold-foldtext| or the README "Folded heading
-    -- appearance" section).  This setting only chooses the shape
-    -- of the return value:
+    -- Renderer that `organ.fold.foldtext()` returns when your
+    -- 'foldtext' option calls into it.  By default organ does NOT
+    -- set 'foldtext' itself -- you wire it via your config (see
+    -- |organ-config-fold-foldtext| or the README "Foldtext"
+    -- section).  Set `auto_foldtext = true` below to have organ
+    -- wire it for you.  This setting only chooses the return
+    -- shape:
     --   "emacs"   (default) -- treesitter-coloured heading line +
     --                          a trailing `…` when hidden content
     --                          is non-blank.  Returns a list of
@@ -619,6 +620,22 @@ return {
     --   function(foldstart, foldend) -> string -- custom renderer.
     --   false / nil -- defer to vim's builtin foldtext() text.
     foldtext = "emacs",
+    -- Opt-in auto-apply: when true, organ sets win-local 'foldtext'
+    -- on every org buffer to call into `organ.fold.foldtext()`.
+    -- Off by default so users with a custom 'foldtext' wrapper
+    -- aren't overridden -- see the README "Foldtext" section for
+    -- the wire-it-yourself recipe.  Use this when you don't want
+    -- to write Lua.
+    auto_foldtext = false,
+    -- Opt-in auto-apply: when true, organ sets win-local
+    -- 'statuscolumn' on every org buffer to a sensible default
+    -- that uses `statuscolumn_marker` (correct fold chevron in
+    -- OVERVIEW + CONTENTS) and the line number.  Off by default
+    -- because most users have their own statuscolumn with signs,
+    -- gitsigns, etc. -- see the README "Statuscolumn" section to
+    -- wire the helpers into yours.  Use this if you want organ's
+    -- minimal default without writing anything.
+    auto_statuscolumn = false,
     keymaps = {
       cycle = "<Tab>",
       cycle_global = "<S-Tab>",
