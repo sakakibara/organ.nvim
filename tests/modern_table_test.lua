@@ -1,8 +1,8 @@
--- Pretty pipe-table conceal: pipe / dash / plus replaced with
--- box-drawing chars; alignment-row markers (<l>/<r>/<c>) collapsed
--- to arrows; optional virt_lines top/bottom borders.
+-- modern.table: pipe / dash / plus replaced with box-drawing chars;
+-- alignment-row markers (<l>/<r>/<c>) collapsed to arrows; optional
+-- virt_lines top/bottom borders.
 --
--- Run via: nvim --headless -l tests/pretty_table_test.lua
+-- Run via: nvim --headless -l tests/modern_table_test.lua
 
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -11,11 +11,11 @@ require("organ").setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   notify = false,
-  pretty_table = { enabled = true, border_virtual = true },
+  modern = { table = { border_virtual = true } },
 })
 
-local pt = require("organ.pretty_table")
-local NS = vim.api.nvim_create_namespace("organ_pretty_table")
+local pt = require("organ.modern.table")
+local NS = vim.api.nvim_create_namespace("organ_modern_table")
 
 local fails = 0
 local function check(label, ok, detail)
@@ -107,7 +107,7 @@ end)
 
 -- preset = "round": top corners ╭╮, bottom ╰╯
 do
-  require("organ").config.pretty_table.preset = "round"
+  require("organ").config.modern.table = { preset = "round", border_virtual = true }
   with_buf({
     "| a |",
     "| 1 |",
@@ -130,7 +130,7 @@ do
     check("round preset: bot has ╰", bot and bot:find("╰") ~= nil)
     check("round preset: bot has ╯", bot and bot:find("╯") ~= nil)
   end)
-  require("organ").config.pretty_table.preset = "light"
+  require("organ").config.modern.table = { border_virtual = true }
 end
 
 -- Non-table content: no extmarks placed.
@@ -143,14 +143,15 @@ with_buf({
   check("non-table content: no extmarks", #ms == 0, "got " .. #ms)
 end)
 
--- enabled = false: refresh is a no-op.
+-- modern.table = false: refresh is a no-op.
 do
-  require("organ").config.pretty_table.enabled = false
+  local saved = require("organ").config.modern.table
+  require("organ").config.modern.table = false
   with_buf({ "| a | b |", "| 1 | 2 |" }, function(b)
     local ms = marks(b)
-    check("enabled=false: no extmarks", #ms == 0, "got " .. #ms)
+    check("modern.table=false: no extmarks", #ms == 0, "got " .. #ms)
   end)
-  require("organ").config.pretty_table.enabled = true
+  require("organ").config.modern.table = saved
 end
 
 if fails > 0 then
@@ -159,5 +160,5 @@ if fails > 0 then
   os.exit(1)
 end
 print()
-print("pretty_table_test: PASS")
+print("modern_table_test: PASS")
 os.exit(0)

@@ -8,7 +8,7 @@
 
 local M = {}
 
-local NS = vim.api.nvim_create_namespace("organ_pretty_table")
+local NS = vim.api.nvim_create_namespace("organ_modern_table")
 
 local PRESETS = {
   light = {
@@ -221,10 +221,11 @@ end
 
 function M.refresh(bufnr)
   bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
-  local cfg = (require("organ").config.pretty_table or {})
-  if cfg.enabled ~= true then
+  local raw = (require("organ").config.modern or {}).table
+  if not raw then
     return
   end
+  local cfg = type(raw) == "table" and raw or {}
   local p = preset_for(cfg)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   local total = vim.api.nvim_buf_line_count(bufnr)
@@ -250,12 +251,13 @@ function M.attach(bufnr)
   if _attached[bufnr] then
     return
   end
-  local cfg = (require("organ").config.pretty_table or {})
-  if cfg.enabled ~= true then
+  local raw = (require("organ").config.modern or {}).table
+  if not raw then
     return
   end
+  local cfg = type(raw) == "table" and raw or {}
   _attached[bufnr] = true
-  local group = vim.api.nvim_create_augroup("organ_pretty_table_" .. bufnr, { clear = true })
+  local group = vim.api.nvim_create_augroup("organ_modern_table_" .. bufnr, { clear = true })
   -- Refresh events.  TextChangedI is intentionally OMITTED by
   -- default: re-running conceal placement on every keystroke makes
   -- the visible chars flicker as cells shift, which is more

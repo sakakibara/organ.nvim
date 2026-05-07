@@ -691,6 +691,20 @@ return {
     blocks = false,
     -- TODO state and timestamp pill rendering. Planned.
     pills = false,
+    -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
+    -- smart edge corners on rule rows and optional `┌─┬─┐` /
+    -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
+    -- alignment-row markers collapse to ←/→/· arrows.
+    --   `true` -- enable with defaults
+    --   `false` (default) -- disabled
+    --   table -- enable with overrides:
+    --     {
+    --       preset = "light"|"round"|"heavy"|"double",
+    --       border_virtual = true|false,        -- default true
+    --       alignment_indicator = true|false,   -- default true
+    --       pause_in_insert = true|false,       -- default true
+    --     }
+    table = false,
   },
 
   indent = {
@@ -1197,30 +1211,6 @@ return {
   -- (organ exposes textDocument/formatting) all do it cleanly with
   -- their own format-on-save hooks.  See the README "Formatting"
   -- section for recipes.
-  -- Pretty pipe-table rendering.  When enabled, ASCII `|` `+` `-`
-  -- in tables are concealed and replaced with Unicode box-drawing
-  -- equivalents; optional virtual top / bottom borders frame the
-  -- table.  Off by default because concealment changes what the
-  -- user sees vs. what's on disk.
-  pretty_table = {
-    enabled = false,
-    -- Box-drawing preset: "light" (─│┼), "round" (rounded corners),
-    -- "heavy" (━┃╋), "double" (═║╬).
-    preset = "light",
-    -- Render `┌─┬─┐` above and `└─┴─┘` below each table as virtual
-    -- lines.  When false, only inline chars are concealed.
-    border_virtual = true,
-    -- `| <l> | <r> | <c> |` alignment-row markers conceal as
-    -- ←/→/· arrows so the column alignment is visible at a
-    -- glance without parsing the marker syntax.
-    alignment_indicator = true,
-    -- Don't refresh extmarks while in insert mode.  Re-running
-    -- conceal placement on every keystroke flickers as cells
-    -- shift; the buffer re-syncs on InsertLeave.  Set false to
-    -- refresh on every TextChangedI keystroke.
-    pause_in_insert = true,
-  },
-
   format = {
     enabled = true,
 

@@ -28,8 +28,10 @@ TABLE OF CONTENTS                                                  *organ-toc*
     Backlinks ............................ |organ-config-backlinks|
     Sparse trees ......................... |organ-config-sparse|
     Fold ................................. |organ-config-fold|
+    Pretty tables ........................ |organ-config-pretty_table|
     Indent ............................... |organ-config-indent|
     Format ............................... |organ-config-format|
+    Startup .............................. |organ-config-startup|
     LSP .................................. |organ-config-lsp|
     Global keymaps ....................... |organ-config-global-keymaps|
   Commands ............................... |organ-commands|

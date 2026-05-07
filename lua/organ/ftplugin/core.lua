@@ -15,11 +15,6 @@ function M.attach(bufnr)
   pcall(function()
     require("organ.highlights").register_buffer_todo_keywords(bufnr)
   end)
-  -- Pretty-table conceal (opt-in via pretty_table.enabled).  Attach
-  -- is a no-op when disabled; refreshes only fire when enabled.
-  pcall(function()
-    require("organ.pretty_table").attach(bufnr)
-  end)
   local hl_group = vim.api.nvim_create_augroup("organ_buftodo_" .. bufnr, { clear = true })
   vim.api.nvim_create_autocmd({ "BufWritePost", "TextChanged" }, {
     group = hl_group,

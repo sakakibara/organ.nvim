@@ -4,8 +4,9 @@
 -- bullets without committing to block frames or pills:
 --   modern = {
 --     bullets = true,    -- per-level headline bullets (◉ ○ ◈ ◇ …)
---     blocks  = true,    -- src/quote/example block frames (planned)
---     pills   = true,    -- TODO/timestamp pill rendering (planned)
+--     blocks  = true,    -- src/quote/example block frames
+--     pills   = true,    -- TODO/timestamp pill rendering
+--     table   = true,    -- pipe-table conceal (│ ─ ┼ + virt borders)
 --   }
 
 local M = {}
@@ -22,19 +23,18 @@ function M.attach(bufnr)
   if cfg.pills then
     require("organ.modern.pills").attach(bufnr)
   end
+  if cfg.table then
+    require("organ.modern.table").attach(bufnr)
+  end
 end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  pcall(function()
-    require("organ.modern.bullets").detach(bufnr)
-  end)
-  pcall(function()
-    require("organ.modern.blocks").detach(bufnr)
-  end)
-  pcall(function()
-    require("organ.modern.pills").detach(bufnr)
-  end)
+  for _, sub in ipairs({ "bullets", "blocks", "pills", "table" }) do
+    pcall(function()
+      require("organ.modern." .. sub).detach(bufnr)
+    end)
+  end
 end
 
 return M
