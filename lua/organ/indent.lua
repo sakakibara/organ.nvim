@@ -185,7 +185,7 @@ function M.attach(bufnr)
     end,
   })
   M._attached[bufnr] = group
-  M.refresh(bufnr)
+  require("organ.debounce").apply_initial(bufnr, M.refresh)
 end
 
 -- Remove autocmds, stop any pending timer, and clear all extmarks.

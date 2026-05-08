@@ -52,4 +52,17 @@ function M.trailing(ms, fn)
   end
 end
 
+-- Defer `fn(bufnr)` to the next event-loop tick so attach() returns
+-- immediately.  Decoration catches up one frame later.  Synchronous
+-- apply()s inside attach() walk the whole buffer; under picker
+-- previews ftplugin fires per item and N modules' applies stack into
+-- a freeze on every cycle.
+function M.apply_initial(bufnr, fn)
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      fn(bufnr)
+    end
+  end)
+end
+
 return M

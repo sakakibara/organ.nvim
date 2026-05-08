@@ -168,7 +168,7 @@ end
 -- means marks have no visual effect, so attach is harmless without it.
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  apply(bufnr)
+  require("organ.debounce").apply_initial(bufnr, apply)
   local group = vim.api.nvim_create_augroup("organ_conceal_" .. bufnr, { clear = true })
   local trigger = require("organ.debounce").trailing(150, function(b)
     if vim.api.nvim_buf_is_valid(b) then

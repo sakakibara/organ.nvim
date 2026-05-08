@@ -34,6 +34,7 @@ vim.bo[bufnr].filetype = "org"
 vim.api.nvim_set_current_buf(bufnr)
 
 require("organ.modern.bullets").attach(bufnr)
+vim.wait(0) -- drain deferred initial apply
 
 local fails = 0
 local function check(label, ok, detail)

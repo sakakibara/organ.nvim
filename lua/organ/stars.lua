@@ -92,7 +92,7 @@ function M.attach(bufnr)
     vim.wo.conceallevel = 2
   end
 
-  apply(bufnr)
+  require("organ.debounce").apply_initial(bufnr, apply)
   local group = vim.api.nvim_create_augroup("organ_stars_" .. bufnr, { clear = true })
   local trigger = require("organ.debounce").trailing(150, function(b)
     if vim.api.nvim_buf_is_valid(b) then

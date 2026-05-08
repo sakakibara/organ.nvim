@@ -35,6 +35,7 @@ vim.api.nvim_set_current_buf(bufnr)
 
 local stars = require("organ.stars")
 stars.attach(bufnr)
+vim.wait(0) -- drain deferred initial apply
 
 local fails = 0
 local function check(label, ok, detail)

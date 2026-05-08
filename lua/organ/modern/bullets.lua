@@ -168,7 +168,10 @@ function M.attach(bufnr)
     vim.wo.conceallevel = 2
   end
 
-  apply(bufnr)
+  -- Synchronous on normal file buffers (decoration on the first frame);
+  -- deferred for transient/preview buffers (snacks/telescope picker
+  -- previews stacked 7 module applies per item cycle = freeze).
+  require("organ.debounce").apply_initial(bufnr, apply)
   local group = vim.api.nvim_create_augroup("organ_modern_bullets_" .. bufnr, { clear = true })
   -- Trailing debounce: apply() walks the whole buffer (TS captures +
   -- line scan) so running per keystroke froze typing in non-trivial

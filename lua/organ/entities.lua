@@ -179,7 +179,7 @@ function M.attach(bufnr)
     return
   end
   attached[bufnr] = true
-  decorate_buffer(bufnr)
+  require("organ.debounce").apply_initial(bufnr, decorate_buffer)
 
   vim.api.nvim_buf_attach(bufnr, false, {
     on_lines = function(_, b, _, first, _, last_new)
