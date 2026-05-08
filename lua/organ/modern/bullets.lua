@@ -170,11 +170,25 @@ function M.attach(bufnr)
 
   apply(bufnr)
   local group = vim.api.nvim_create_augroup("organ_modern_bullets_" .. bufnr, { clear = true })
+  -- Coalesce TextChangedI fires: apply() walks the whole buffer (TS
+  -- captures + line scan).  Running it synchronously on every keystroke
+  -- froze typing in non-trivial files; a deferred + pending-flag
+  -- pattern absorbs bursts into a single re-apply per redraw cycle.
+  local pending = false
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
     group = group,
     buffer = bufnr,
     callback = function()
-      apply(bufnr)
+      if pending then
+        return
+      end
+      pending = true
+      vim.schedule(function()
+        pending = false
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          apply(bufnr)
+        end
+      end)
     end,
   })
 end

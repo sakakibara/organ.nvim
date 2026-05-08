@@ -170,11 +170,21 @@ function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   apply(bufnr)
   local group = vim.api.nvim_create_augroup("organ_conceal_" .. bufnr, { clear = true })
+  local pending = false
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
     group = group,
     buffer = bufnr,
     callback = function()
-      apply(bufnr)
+      if pending then
+        return
+      end
+      pending = true
+      vim.schedule(function()
+        pending = false
+        if vim.api.nvim_buf_is_valid(bufnr) then
+          apply(bufnr)
+        end
+      end)
     end,
   })
 end
