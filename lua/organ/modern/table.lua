@@ -418,11 +418,21 @@ function M.attach(bufnr)
   if cfg.pause_in_insert == false then
     events[#events + 1] = "TextChangedI"
   end
+  -- Trailing debounce: refresh walks every table in the buffer, parses
+  -- each via tablature, and places extmarks per cell.  150ms means
+  -- continuous typing skips refresh entirely and only fires once the
+  -- user pauses -- much better than per-keystroke refresh on buffers
+  -- with many tables.
+  local trigger = require("organ.debounce").trailing(150, function(b)
+    if vim.api.nvim_buf_is_valid(b) then
+      M.refresh(b)
+    end
+  end)
   vim.api.nvim_create_autocmd(events, {
     group = group,
     buffer = bufnr,
     callback = function()
-      M.refresh(bufnr)
+      trigger(bufnr)
     end,
   })
   vim.api.nvim_create_autocmd("BufWipeout", {

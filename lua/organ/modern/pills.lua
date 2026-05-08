@@ -131,21 +131,16 @@ function M.attach(bufnr)
   register_pill_highlights()
   apply(bufnr)
   local group = vim.api.nvim_create_augroup("organ_modern_pills_" .. bufnr, { clear = true })
-  local pending = false
+  local trigger = require("organ.debounce").trailing(150, function(b)
+    if vim.api.nvim_buf_is_valid(b) then
+      apply(b)
+    end
+  end)
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
     group = group,
     buffer = bufnr,
     callback = function()
-      if pending then
-        return
-      end
-      pending = true
-      vim.schedule(function()
-        pending = false
-        if vim.api.nvim_buf_is_valid(bufnr) then
-          apply(bufnr)
-        end
-      end)
+      trigger(bufnr)
     end,
   })
 end
