@@ -194,10 +194,161 @@ local function decorate_row(bufnr, row, line, p, edges)
   end
 end
 
+-- Compute the visual width every column should occupy across this
+-- table (max display width of any cell content + 2 for the standard
+-- ` content ` padding).  Same widths tablature.align would produce,
+-- so the visual rendering is identical to what pressing Tab would
+-- write to the buffer.
+local function aligned_cell_widths(rows)
+  local widths = {}
+  for _, r in ipairs(rows) do
+    if not r.sep then
+      for c, cell in ipairs(r.cells) do
+        local w = vim.fn.strdisplaywidth(cell)
+        if not widths[c] or widths[c] < w then
+          widths[c] = w
+        end
+      end
+    end
+  end
+  return widths
+end
+
+-- Pad a single data-row cell (between pipes `lp` and `rp`, byte
+-- positions 1-based) to occupy `target` visual columns by adding
+-- inline virt_text where the source is short and concealing extra
+-- whitespace where the source is over-padded.  Source content stays
+-- in the buffer; only the visual rendering changes.  Cells that
+-- already have the right widths produce no extmarks.
+local function pad_cell_to(bufnr, row, line, lp, rp, target)
+  local cell = line:sub(lp + 1, rp - 1)
+  local leading = cell:match("^(%s*)") or ""
+  local trailing = cell:match("(%s*)$") or ""
+  local content_chars = #cell - #leading - #trailing
+  -- Aligned form is ` content<pad> `: 1 leading space, then content,
+  -- then enough trailing spaces to fill `target`.
+  local target_leading = 1
+  local target_trailing = target - 1 - content_chars
+  if target_trailing < 1 then
+    target_trailing = 1
+  end
+  local function insert(col, count)
+    if count <= 0 then
+      return
+    end
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, col, {
+      virt_text = { { string.rep(" ", count) } },
+      virt_text_pos = "inline",
+    })
+  end
+  local function conceal_range(start_col, end_col)
+    if end_col <= start_col then
+      return
+    end
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, start_col, {
+      end_col = end_col,
+      conceal = "",
+    })
+  end
+  -- Leading side.
+  local lead_diff = target_leading - #leading
+  if lead_diff > 0 then
+    insert(lp, lead_diff)
+  elseif lead_diff < 0 then
+    conceal_range(lp, lp + -lead_diff)
+  end
+  -- Trailing side.
+  local trail_diff = target_trailing - #trailing
+  if trail_diff > 0 then
+    insert(rp - 1, trail_diff)
+  elseif trail_diff < 0 then
+    conceal_range(rp - 1 - -trail_diff, rp - 1)
+  end
+end
+
+-- Rule-row segment boundaries: `|` AND `+` both delimit a rule
+-- row's column segments (the source `+` is conceal-replaced with
+-- the preset's cross by decorate_row).  Returns 1-based byte
+-- positions of every boundary char.
+local function rule_boundaries(line)
+  local out = {}
+  for i = 1, #line do
+    local c = line:sub(i, i)
+    if c == "|" or c == "+" then
+      out[#out + 1] = i
+    end
+  end
+  return out
+end
+
+-- Pad a rule-row segment with the preset's horizontal char so the
+-- divider extends to match the data-cell width of the same column.
+-- Source `-` chars stay (decorate_row's per-char conceal converts
+-- them to `─`); we only fill the deficit.
+local function pad_rule_segment_to(bufnr, row, lp, rp, target, p)
+  local current = rp - lp - 1
+  local diff = target - current
+  if diff > 0 then
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1, {
+      virt_text = { { string.rep(p.horiz, diff), "@org.table.delimiter" } },
+      virt_text_pos = "inline",
+    })
+  elseif diff < 0 then
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1 - -diff, {
+      end_col = rp - 1,
+      conceal = "",
+    })
+  end
+end
+
+-- Visual alignment pass: enforce per-column width across every row
+-- of the table without modifying the buffer.  Uses tablature's
+-- parser so the width math matches `tablature.align` exactly --
+-- same widths the buffer would have if the user hit Tab.  Skips
+-- silently on a parse failure (malformed table) so the existing
+-- glyph conceal still runs.
+local function decorate_alignment(bufnr, lines, row_first, row_last, p)
+  local table_lines = {}
+  for r = row_first, row_last do
+    table_lines[#table_lines + 1] = lines[r + 1] or ""
+  end
+  local ok, tab = pcall(require, "tablature")
+  if not ok then
+    return
+  end
+  local parsed = nil
+  pcall(function()
+    parsed = tab.parse(table_lines, 1, { dialect = "org" })
+  end)
+  if not parsed or not parsed.rows then
+    return
+  end
+  local widths = aligned_cell_widths(parsed.rows)
+  if next(widths) == nil then
+    return
+  end
+  for ri, prow in ipairs(parsed.rows) do
+    local row = row_first + ri - 1
+    local line = table_lines[ri] or ""
+    if prow.sep then
+      local bounds = rule_boundaries(line)
+      for c = 1, #bounds - 1 do
+        pad_rule_segment_to(bufnr, row, bounds[c], bounds[c + 1], (widths[c] or 0) + 2, p)
+      end
+    else
+      local pipes = pipe_positions(line)
+      for c = 1, #pipes - 1 do
+        pad_cell_to(bufnr, row, line, pipes[c], pipes[c + 1], (widths[c] or 0) + 2)
+      end
+    end
+  end
+end
+
 local function decorate_table(bufnr, lines, row_first, row_last, p, cfg)
   for row = row_first, row_last do
     decorate_row(bufnr, row, lines[row + 1] or "", p, true)
   end
+  decorate_alignment(bufnr, lines, row_first, row_last, p)
   if cfg.border_virtual ~= false then
     local first_line = lines[row_first + 1] or ""
     local first_pipes = pipe_positions(first_line)
