@@ -745,11 +745,25 @@ _G._organ_statuscolumn = function()
   if virtnum and virtnum ~= 0 then
     return "    "
   end
+  -- Vim sets `v:lnum` / `v:relnum` to the line being drawn and its
+  -- distance from the rendering window's cursor.  Other "current
+  -- window" reads (`vim.fn.line('.')`, `nvim_get_current_win()`,
+  -- `vim.bo.filetype`) DO NOT switch context to the rendering window
+  -- during statuscolumn eval -- they keep returning the focused
+  -- window's values.  Compute everything off `v:*` so an unfocused
+  -- pane renders its own state, not the focused pane's.
+  --
   -- Mirror vim's own number / relativenumber semantics:
   --   number only          -> absolute on every line
   --   relativenumber only  -> 0 on cursor, distance elsewhere
   --   both (hybrid)        -> absolute on cursor, distance elsewhere
   --   neither              -> blank pad (consistent column width)
+  --
+  -- Reading 'number' / 'relativenumber' via `vim.wo` would also see
+  -- the focused window's values, but in practice the auto-applied
+  -- statuscolumn is set per-window with the same option set, so
+  -- mismatch doesn't surface here.  Read the actual line-number
+  -- value from `v:` since those ARE rendering-window-local.
   local nu = vim.wo.number
   local rnu = vim.wo.relativenumber
   local n_str
@@ -758,10 +772,7 @@ _G._organ_statuscolumn = function()
   else
     local n
     if rnu and relnum and relnum ~= 0 then
-      -- contents.statuscolumn_lnum counts visible lines crossed
-      -- (closed folds = 1 row, conceal_lines = skip), so relative
-      -- numbering is correct in OVERVIEW + CONTENTS too.
-      n = require("organ.fold.contents").statuscolumn_lnum(lnum, true)
+      n = relnum
     elseif rnu and not nu then
       n = 0
     else
