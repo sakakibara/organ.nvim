@@ -15,8 +15,13 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 -- Snapshot tests assert inline tag chars; opt out of the new
 -- virt_text right-align path so the buffer-line text contains tags.
+-- Pin "today" so the rendered labels (Scheduled: vs Sched. Nx:, Deadline:
+-- vs Past-due, etc.) are deterministic regardless of when CI runs.
+-- Must match the snapshot script's value -- the agenda_parity_diff_test
+-- pins the same date.
 require("organ").config.agenda = require("organ").config.agenda or {}
 require("organ").config.agenda.tags_virt_align = false
+require("organ").config.agenda.now_override = "2026-05-04T12:00"
 
 local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp, "p")
