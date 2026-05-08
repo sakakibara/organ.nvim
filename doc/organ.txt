@@ -28,7 +28,6 @@ TABLE OF CONTENTS                                                  *organ-toc*
     Backlinks ............................ |organ-config-backlinks|
     Sparse trees ......................... |organ-config-sparse|
     Fold ................................. |organ-config-fold|
-    Pretty tables ........................ |organ-config-pretty_table|
     Indent ............................... |organ-config-indent|
     Format ............................... |organ-config-format|
     Startup .............................. |organ-config-startup|
@@ -3219,12 +3218,13 @@ runner (no persistence).
 ==============================================================================
 ORG-MODERN VISUAL UPGRADES                                      *organ-modern*
 
-Three composable visual stages that decorate org buffers, all opt-in: >lua
+Four composable visual stages that decorate org buffers, all opt-in: >lua
     require("organ").setup({
       modern = {
         bullets = true,    -- per-level glyphs
         blocks  = true,    -- block-frame decoration
         pills   = true,    -- TODO + timestamp pills
+        table   = true,    -- pipe-table conceal + virtual borders
       },
     })
 <
@@ -3249,6 +3249,27 @@ true + bold` overlay so they look like solid color blocks. Cosmetic
 only (no buffer text changes). The pill background comes from the
 existing fg color of the @org.todo / @org.timestamp groups via vim's
 inverse-video, so a single colorscheme override propagates.
+
+                                                          *organ-modern-table*
+`table` — pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
+smart edge corners on rule rows and optional `┌─┬─┐` / `└─┴─┘` virtual
+top/bottom borders. Org alignment-row markers (`<l>`/`<r>`/`<c>`)
+collapse to `←` / `→` / `·` arrows. Pauses redraw during insert mode
+by default so typing inside cells doesn't flicker.
+
+Bool form (defaults): >lua
+    modern = { table = true }
+<
+Override form: >lua
+    modern = {
+      table = {
+        preset              = "light",   -- "light" | "round" | "heavy" | "double"
+        border_virtual      = true,      -- top/bottom virtual borders
+        alignment_indicator = true,      -- <l>/<r>/<c> -> ←/→/·
+        pause_in_insert     = true,      -- skip redraw while in insert mode
+      },
+    }
+<
 
 ==============================================================================
 STAR CONCEALMENT                                                 *organ-stars*
