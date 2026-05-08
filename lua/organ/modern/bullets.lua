@@ -123,12 +123,11 @@ local function apply(bufnr)
   local list_glyph = get_list_glyph()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   for i, line in ipairs(lines) do
-    local indent_end, marker_end, marker = line:find("^(%s*)([%-%+])%s")
-    if marker_end then
-      _ = indent_end
-      -- Conceal the bullet marker (- or +) with the list glyph.
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, i - 1, marker_end - 1, {
-        end_col = marker_end,
+    local indent, marker = line:match("^(%s*)([%-%+])%s")
+    if marker then
+      local col = #indent
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, i - 1, col, {
+        end_col = col + 1,
         conceal = list_glyph,
       })
     end
@@ -136,7 +135,7 @@ local function apply(bufnr)
     -- We only conceal inside list items (line that has a list marker
     -- OR is a numbered list `N.`/`N)`); checkboxes on plain text are
     -- left alone.
-    if marker_end or line:match("^%s*%d+[%.%)]%s") then
+    if marker or line:match("^%s*%d+[%.%)]%s") then
       local s, e, ch = line:find("%[([ xX%-])%]")
       if s and ch then
         local g

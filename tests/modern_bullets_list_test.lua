@@ -28,6 +28,7 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
   "- [-] half box",
   "1. numbered with [ ] checkbox",
   "Body text [ ] not in a list — should NOT decorate",
+  "  - indented item",
 })
 vim.bo[bufnr].filetype = "org"
 vim.api.nvim_set_current_buf(bufnr)
@@ -71,10 +72,20 @@ local function row_has_conceal(row, ch)
   return false
 end
 
+local function row_has_conceal_at(row, col, ch)
+  for _, m in ipairs(by_row[row] or {}) do
+    local d = m[4] or {}
+    if d.conceal == ch and m[3] == col and d.end_col == col + 1 then
+      return true
+    end
+  end
+  return false
+end
+
 check("row 0 (heading): bullet glyph (◉)", row_has_conceal(0, "◉"))
 
-check("row 1 (- plain): list bullet (•)", row_has_conceal(1, "•"))
-check("row 2 (+ alt):  list bullet (•)", row_has_conceal(2, "•"))
+check("row 1 (- plain): list bullet (•) at col 0", row_has_conceal_at(1, 0, "•"))
+check("row 2 (+ alt):  list bullet (•) at col 0", row_has_conceal_at(2, 0, "•"))
 
 check("row 3 (- [ ]): TODO checkbox (˟)", row_has_conceal(3, "˟"))
 check("row 4 (- [X]): DONE checkbox (✓)", row_has_conceal(4, "✓"))
@@ -96,6 +107,8 @@ check(
   not has_box_glyph,
   "got conceals: " .. vim.inspect(row8)
 )
+
+check("row 9 (  - indented): list bullet (•) at col 2", row_has_conceal_at(9, 2, "•"))
 
 if fails > 0 then
   print()
