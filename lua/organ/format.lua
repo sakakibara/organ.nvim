@@ -448,22 +448,34 @@ local function trim_eof(lines, cfg)
   return out
 end
 
-local function realign_tables(bufnr)
+-- Realign every pipe-table that intersects [lo, hi].  When lo/hi are
+-- nil the whole buffer is walked.  Realign goes through tablature
+-- (organ.table.realign -> tablature.realign) so the output matches
+-- exactly what pressing Tab in a table cell produces -- consistency
+-- across `:Org format`, `:Org format <range>`, `gq`/formatexpr and
+-- format-on-save is the contract.
+local function realign_tables(bufnr, lo, hi)
   local ok, table_mod = pcall(require, "organ.table")
   if not ok or not table_mod or not table_mod.realign then
     return
   end
+  lo = lo or 1
   local i = 1
   while i <= vim.api.nvim_buf_line_count(bufnr) do
     local line = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
     if line:match("^%s*|") then
-      pcall(table_mod.realign, bufnr, i)
+      local table_start = i
       while i <= vim.api.nvim_buf_line_count(bufnr) do
         local l = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
         if not l:match("^%s*|") then
           break
         end
         i = i + 1
+      end
+      local table_end = i - 1
+      local within = table_end >= lo and (not hi or table_start <= hi)
+      if within then
+        pcall(table_mod.realign, bufnr, table_start)
       end
     else
       i = i + 1
@@ -529,15 +541,15 @@ function M.format_range(bufnr, lo, hi)
   local lines = vim.api.nvim_buf_get_lines(bufnr, lo - 1, hi, false)
   local out = M.format_lines(lines, cfg, bufnr)
   vim.api.nvim_buf_set_lines(bufnr, lo - 1, hi, false, out)
+  if (cfg.tables or {}).realign ~= false then
+    realign_tables(bufnr, lo, hi)
+  end
 end
 
 function M.format_buffer(bufnr)
   bufnr = bufnr or 0
   local cfg = format_cfg()
   M.format_range(bufnr, 1, vim.api.nvim_buf_line_count(bufnr))
-  if (cfg.tables or {}).realign ~= false then
-    realign_tables(bufnr)
-  end
   if (cfg.lists or {}).repair_numbering ~= false then
     repair_lists(bufnr)
   end
