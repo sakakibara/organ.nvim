@@ -86,6 +86,22 @@ do
   assert_contains(out, "| name | age |")
   assert_contains(out, "| --- | --- |")
   assert_contains(out, "| ada | 36 |")
+  -- No phantom trailing column.  The regex that splits cells used to
+  -- append `|` to the line, which produced TWO trailing-empty captures
+  -- on a properly-closed org row -- the single-pop drop only removed
+  -- one, leaving a stray empty column in every row.
+  for line in out:gmatch("[^\n]+") do
+    if line:match("^|") then
+      local pipes = 0
+      for _ in line:gmatch("|") do
+        pipes = pipes + 1
+      end
+      assert(
+        pipes == 3,
+        ("row should have 3 pipes (2 cells + edges), got %d in %q"):format(pipes, line)
+      )
+    end
+  end
 end
 
 -- 7. Drawers / planning / properties dropped by default.

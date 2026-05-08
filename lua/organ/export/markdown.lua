@@ -197,7 +197,12 @@ local function emit_table(node, src, out)
       divider_at = #rows + 1 -- divider goes between header and body
     elseif line:match("^%s*|") then
       local cells = {}
-      for c in (line .. "|"):gmatch("|([^|]*)") do
+      -- Don't append `|` here -- org rows already end with `|`, so the
+      -- pattern naturally produces one trailing-empty capture from
+      -- that closing pipe.  Appending an extra `|` produced TWO
+      -- trailing empties; the single-pop drop below only removed one,
+      -- leaking a phantom column into the rendered markdown.
+      for c in line:gmatch("|([^|]*)") do
         cells[#cells + 1] = lstrip(c):gsub("%s+$", "")
       end
       -- Last gmatch capture is empty trailing — drop it.
