@@ -26,7 +26,7 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
   "Arrow: A \\to B",
 })
 ent.attach(bufnr)
-vim.wait(0) -- drain deferred initial apply
+vim.wait(50) -- drain deferred initial apply
 
 local NS = vim.api.nvim_create_namespace("organ_entities")
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })

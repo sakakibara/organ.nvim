@@ -38,7 +38,7 @@ vim.api.nvim_set_current_buf(bufnr)
 
 local modern = require("organ.modern")
 modern.attach(bufnr)
-vim.wait(0) -- drain deferred initial apply
+vim.wait(50) -- drain deferred initial apply
 
 local fails = 0
 local function check(label, ok, detail)
