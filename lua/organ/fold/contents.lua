@@ -22,13 +22,31 @@ local NS = vim.api.nvim_create_namespace("organ_fold_contents")
 -- revealed heading.
 local REVEAL_NS = vim.api.nvim_create_namespace("organ_fold_contents_reveal")
 local state = {} -- bufnr -> { saved_conceallevel = N }
--- Memoize visible-line distance per (bufnr, cursor_line, changedtick).
+-- Memoize visible-line distance per (winid, cursor_line, changedtick).
 -- statuscolumn renders the same `cur` for every visible line in a
 -- redraw, so the cache absorbs ~all repeated work; first line pays
 -- the loop, the rest of the visible window is O(1).  Cleared on
 -- enter/leave so adding/removing extmarks invalidates correctly
 -- (extmark changes don't bump changedtick).
+--
+-- Keyed by WINDOW, not buffer: two splits showing the same buffer
+-- have independent cursors and need independent cache entries.
+-- Window-keyed avoids cache thrashing and prevents the dist[] of
+-- window A from being read by window B (each entry stays scoped to
+-- a single (winid, cur) pair).
 local _slnum_cache = {}
+
+-- Drop every cache entry tied to `bufnr` (across all windows showing
+-- it).  All buffer-level invalidation paths (place_marks, fold ops,
+-- enter / leave) call this so a stale entry can't survive on a
+-- non-active window.
+local function invalidate_buf_cache(bufnr)
+  for winid, entry in pairs(_slnum_cache) do
+    if entry.bufnr == bufnr then
+      _slnum_cache[winid] = nil
+    end
+  end
+end
 
 -- Probe once: nvim_buf_set_extmark with `conceal_lines = ""` is the
 -- primitive this module relies on (added in nvim 0.11).  On 0.10 the
@@ -280,7 +298,7 @@ function M.toggle_heading(bufnr, lnum)
   if not reveal_clear(bufnr, lnum) then
     reveal_set(bufnr, lnum)
   end
-  _slnum_cache[bufnr] = nil
+  invalidate_buf_cache(bufnr)
   place_marks(bufnr)
 end
 
@@ -459,14 +477,14 @@ function M.fold_action(key)
     elseif key == "zc" then
       -- Force-conceal: idempotent on already-concealed heading.
       if reveal_clear(bufnr, lnum) then
-        _slnum_cache[bufnr] = nil
+        invalidate_buf_cache(bufnr)
         place_marks(bufnr)
       end
       return
     elseif key == "zo" then
       -- Force-reveal: idempotent on already-revealed heading.
       if reveal_set(bufnr, lnum) then
-        _slnum_cache[bufnr] = nil
+        invalidate_buf_cache(bufnr)
         place_marks(bufnr)
       end
       return
@@ -499,7 +517,7 @@ function M.enter(bufnr)
   if state[bufnr] or not is_supported() then
     return
   end
-  _slnum_cache[bufnr] = nil
+  invalidate_buf_cache(bufnr)
   place_marks(bufnr)
   -- Save+raise conceallevel and concealcursor on every window
   -- currently showing this buffer.  Default `concealcursor = ""`
@@ -593,7 +611,7 @@ function M.enter(bufnr)
       vim.schedule(function()
         refresh_pending = false
         if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
-          _slnum_cache[bufnr] = nil
+          invalidate_buf_cache(bufnr)
           place_marks(bufnr)
         end
       end)
@@ -611,7 +629,7 @@ function M.leave(bufnr)
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, REVEAL_NS, 0, -1)
-  _slnum_cache[bufnr] = nil
+  invalidate_buf_cache(bufnr)
   if s.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, s.augroup)
   end
@@ -653,11 +671,12 @@ function M.statuscolumn_lnum(lnum, relative)
     return lnum
   end
   local bufnr = vim.api.nvim_get_current_buf()
+  local winid = vim.api.nvim_get_current_win()
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
-  local entry = _slnum_cache[bufnr]
-  if not entry or entry.tick ~= tick or entry.cur ~= cur then
-    entry = { tick = tick, cur = cur, dist = {} }
-    _slnum_cache[bufnr] = entry
+  local entry = _slnum_cache[winid]
+  if not entry or entry.bufnr ~= bufnr or entry.tick ~= tick or entry.cur ~= cur then
+    entry = { bufnr = bufnr, tick = tick, cur = cur, dist = {} }
+    _slnum_cache[winid] = entry
   end
   local cached = entry.dist[lnum]
   if cached ~= nil then
@@ -701,13 +720,12 @@ function M.statuscolumn_lnum(lnum, relative)
   return visible
 end
 
--- Refresh in place (after a buffer edit).  No-op if not active.
 -- Drop the cached visible-line distances.  Fold operations that
 -- don't bump `changedtick` (cycle_global, foldclose / foldopen)
 -- need this to re-render statuscolumn relnum correctly without
 -- waiting for a cursor move.
 function M.invalidate_visible_cache(bufnr)
-  _slnum_cache[nbuf(bufnr)] = nil
+  invalidate_buf_cache(nbuf(bufnr))
 end
 
 function M.refresh(bufnr)
