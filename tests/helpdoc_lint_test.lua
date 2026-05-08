@@ -30,12 +30,21 @@ end
 
 local cmd = {
   vim.v.progpath,
-  "-u", "NONE", "-i", "NONE", "--headless",
-  "--cmd", "set rtp+=" .. plugin_dir,
-  "--cmd", "filetype plugin on",
-  "-c", "edit " .. root .. "/doc/organ.txt",
-  "-c", "verb VimhelpLintEcho",
-  "-c", "qa",
+  "-u",
+  "NONE",
+  "-i",
+  "NONE",
+  "--headless",
+  "--cmd",
+  "set rtp+=" .. plugin_dir,
+  "--cmd",
+  "filetype plugin on",
+  "-c",
+  "edit " .. root .. "/doc/organ.txt",
+  "-c",
+  "verb VimhelpLintEcho",
+  "-c",
+  "qa",
 }
 
 local out = vim.fn.system(cmd)
@@ -56,7 +65,9 @@ end
 print(("vimhelplint: %d error(s), %d warning(s)"):format(errors, warns))
 if errors > 0 then
   print()
-  print("FAIL  vimhelplint reported " .. errors .. " error(s) -- run `make lint-doc` for full report")
+  print(
+    "FAIL  vimhelplint reported " .. errors .. " error(s) -- run `make lint-doc` for full report"
+  )
   os.exit(1)
 end
 print("helpdoc_lint_test: PASS")
