@@ -74,6 +74,56 @@ print("hi")
   assert_contains(out, "```")
 end
 
+-- 6a. Multi-rule org table flattens to a single markdown table.
+-- Tree-sitter parses every `|---|` rule as a table boundary, so a
+-- naive emit produced one markdown table per AST `table` node with
+-- a stray blank line and a duplicated divider in between.  Markdown
+-- only allows one divider per table, so extra rules are dropped.
+do
+  local out = md.export([[
+* H
+| a | b |
+|---+---|
+| c | d |
+|---+---|
+| e | f |
+]])
+  -- Collect contiguous block of pipe-rows, no blanks allowed within.
+  local lines = vim.split(out, "\n", { plain = true })
+  local in_table, blanks_inside = false, 0
+  local table_rows, table_done = {}, false
+  for _, line in ipairs(lines) do
+    if line:match("^|") then
+      in_table = true
+      table_rows[#table_rows + 1] = line
+    elseif in_table and line == "" and not table_done then
+      blanks_inside = blanks_inside + 1
+      in_table = false
+      table_done = true
+    end
+  end
+  assert(
+    blanks_inside <= 1,
+    "no blank line inside the merged markdown table; got " .. blanks_inside
+  )
+  -- 1 header + 1 divider + 2 data rows (`| c | d |`, `| e | f |`).
+  -- Mid-table rules collapsed.
+  assert(
+    #table_rows == 4,
+    "merged table should have 4 rows, got "
+      .. #table_rows
+      .. ":\n"
+      .. table.concat(table_rows, "\n")
+  )
+  local divider_count = 0
+  for _, r in ipairs(table_rows) do
+    if r:match("^| %-%-%-") then
+      divider_count = divider_count + 1
+    end
+  end
+  assert(divider_count == 1, "exactly one markdown divider, got " .. divider_count)
+end
+
 -- 6. Table with header divider.
 do
   local out = md.export([[

@@ -188,13 +188,45 @@ local function emit_example_block(node, src, out)
   out[#out + 1] = ""
 end
 
-local function emit_table(node, src, out)
-  local sr, _, er = node:range()
+-- Consume every consecutive `^%s*|...` line starting at `start_lnum`
+-- (1-indexed in `src`) and return the last consumed row.  Tree-sitter
+-- splits a single org table into multiple `table` nodes whenever a
+-- `|---|` rule appears mid-table, so the AST-derived `node:range()`
+-- doesn't span the whole user-visible table.  Walking the source
+-- forwards on our own keeps adjacent table-shaped lines unified into
+-- one markdown table.
+local function table_end(src, start_lnum)
+  local r = start_lnum
+  while src[r + 1] and src[r + 1]:match("^%s*|") do
+    r = r + 1
+  end
+  return r
+end
+
+local function emit_table(node, src, out, state)
+  local sr = node:range() -- 0-indexed first row
+  local first_lnum = sr + 1 -- 1-indexed Lua source row
+  -- If a previous emit_table call already consumed past this node
+  -- (multi-rule tables that the AST split), skip silently.
+  if state and state.last_table_end and first_lnum <= state.last_table_end then
+    return
+  end
+  local last_lnum = table_end(src, first_lnum)
+  if state then
+    state.last_table_end = last_lnum
+  end
   local rows, divider_at = {}, nil
-  for r = sr + 1, er do
+  for r = first_lnum, last_lnum do
     local line = src[r] or ""
     if line:match("^%s*|%-") then
-      divider_at = #rows + 1 -- divider goes between header and body
+      -- First separator marks where the markdown header divider goes.
+      -- Subsequent rules are dropped: markdown's spec only allows ONE
+      -- divider per table (between header and body).  Mid-table rules
+      -- in org are conventional grouping markers, not header markers,
+      -- so the most faithful conversion is to flatten them away.
+      if not divider_at then
+        divider_at = #rows + 1
+      end
     elseif line:match("^%s*|") then
       local cells = {}
       -- Don't append `|` here -- org rows already end with `|`, so the
@@ -258,7 +290,8 @@ local DROP_TYPES = {
   diary_sexp = true,
 }
 
-local function walk(node, src, out, opts)
+local function walk(node, src, out, opts, state)
+  state = state or {}
   local t = node:type()
   if DROP_TYPES[t] then
     return
@@ -268,13 +301,13 @@ local function walk(node, src, out, opts)
     -- Recurse into the section + any nested headlines.
     for c in node:iter_children() do
       if c:named() then
-        walk(c, src, out, opts)
+        walk(c, src, out, opts, state)
       end
     end
   elseif t == "section" or t == "zeroth_section" or t == "document" then
     for c in node:iter_children() do
       if c:named() then
-        walk(c, src, out, opts)
+        walk(c, src, out, opts, state)
       end
     end
   elseif t == "paragraph" then
@@ -288,7 +321,7 @@ local function walk(node, src, out, opts)
   elseif t == "horizontal_rule" then
     emit_horizontal_rule(node, src, out)
   elseif t == "table" then
-    emit_table(node, src, out)
+    emit_table(node, src, out, state)
   elseif t == "footnote_definition" then
     emit_paragraph(node, src, out)
   end
