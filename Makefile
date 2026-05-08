@@ -10,7 +10,7 @@ GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
                  -c 'lua io.write(vim.fn.stdpath("data") .. "/organ/parser/org.so")' \
                  -c 'qa' 2>&1 | tr -d '\r')
 
-.PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md clean \
+.PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
         demos demos-force clean-demos parity parity-emacs parity-organ parity-update parity-check
 
 help:
@@ -25,6 +25,7 @@ help:
 	@echo "  make grammar         build the tree-sitter grammars"
 	@echo "  make lint            stylua --check on lua/ plugin/ tests/"
 	@echo "  make lint-md         markdownlint-cli2 on **/*.md (CI-enforced)"
+	@echo "  make lint-doc        vimhelplint on doc/organ.txt (CI-enforced via test suite)"
 	@echo "  make demos           rebuild stale assets/demos/*.gif from assets/tapes/*.tape (incremental)"
 	@echo "  make demos-force     remove assets/demos/ + rebuild every GIF (use when an init / theme change should regen all)"
 	@echo "  make clean-demos     remove assets/demos/ without rebuilding"
@@ -96,6 +97,15 @@ lint-md:
 	  echo "  brew install markdownlint-cli2"; \
 	  exit 1; }
 	@markdownlint-cli2 "**/*.md" "#node_modules" "#tests/deps"
+
+lint-doc:
+	@test -d $(DEPS_DIR)/vim-vimhelplint || (echo "vim-vimhelplint not in $(DEPS_DIR)/ -- run 'make deps'" && exit 1)
+	@$(NVIM) -u NONE -i NONE --headless \
+	  --cmd 'set rtp+=$(DEPS_DIR)/vim-vimhelplint' \
+	  --cmd 'filetype plugin on' \
+	  -c 'edit doc/organ.txt' \
+	  -c 'verb VimhelpLintEcho' \
+	  -c qa
 
 # ---------------------------------------------------------------------------
 # Demos: render each `.tape` script in assets/tapes/ to an animated

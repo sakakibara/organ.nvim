@@ -30,7 +30,6 @@ TABLE OF CONTENTS                                                  *organ-toc*
     Fold ................................. |organ-config-fold|
     Indent ............................... |organ-config-indent|
     Format ............................... |organ-config-format|
-    Startup .............................. |organ-config-startup|
     LSP .................................. |organ-config-lsp|
     Global keymaps ....................... |organ-config-global-keymaps|
   Commands ............................... |organ-commands|
@@ -870,7 +869,7 @@ Fold                                                       *organ-config-fold*
     the `OrgFolded` group itself:
     >lua
         vim.api.nvim_set_hl(0, "OrgFolded", { bg = "#333333" })
-    <
+<
 
                                                  *organ-config-fold-body_fold*
     `fold.body_fold` (bool, default: `false`)
@@ -943,7 +942,7 @@ Fold                                                       *organ-config-fold*
           })
         end
         return M
-    <
+<
     Then `vim.o.statuscolumn = "%!v:lua.require'lib.statuscolumn'.render()"`.
 
                                                     *organ-fold-contents-view*
@@ -1052,7 +1051,7 @@ this mode.
         vim.keymap.set("n", "<F3>", function()
           require("organ.fold.contents").fold_action("za")
         end)
-    <
+<
     `key` is one of the strings organ wraps in CONTENTS:
         za | zc | zo | zM | zR | zm | zr
 
@@ -1869,7 +1868,7 @@ Disabled by default; opt in with: >
     })
 <
 Defaults:
-    `lead_minutes`           `{ 10, 0 }` — fire 10 min before, and again at due time
+    `lead_minutes`           `{ 10, 0 }` — fire 10 min before and at due time
     `scan_interval_seconds`  `600`       — rescan today's agenda every 10 min
     `notify`                 nil          — use vim.notify with a default body
 
@@ -2314,7 +2313,7 @@ ID locations file ~
     scan (`scan_done` event hook).  Emacs's
     `org-id-locations-load` reads it on startup so cross-file ID
     links resolve in both tools without a full directory scan.
-    Manual export: |:Org-id_export_locations|.
+    Manual export: `:Org id export_locations`.
 
 Reserved hierarchical action names ~
     organ's `:Org` dispatcher uses sub-action names under the
@@ -2366,7 +2365,7 @@ Property key case ~
 
 TODO repeater skip filters ~
     Emacs: No calendar awareness.
-    organ.nvim: `+/++/.+` extended with `[wd|we|dow-list|cal:NAME]`.
+    organ.nvim: `+/++/.+` extended with `[wd | we | dow-list | cal:NAME]`.
     Why: Superset — weekday-only, weekend-only, holiday-aware repeats.
 
 Datetree headline format ~
@@ -3263,7 +3262,7 @@ Bool form (defaults): >lua
 Override form: >lua
     modern = {
       table = {
-        preset              = "light",   -- "light" | "round" | "heavy" | "double"
+        preset              = "light",   -- "light"|"round"|"heavy"|"double"
         border_virtual      = true,      -- top/bottom virtual borders
         alignment_indicator = true,      -- <l>/<r>/<c> -> ←/→/·
         pause_in_insert     = true,      -- skip redraw while in insert mode
