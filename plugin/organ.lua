@@ -18,6 +18,19 @@ pcall(function()
   require("organ.treesitter_directives").register()
 end)
 
+-- Eagerly define `_G._organ_foldtext` and `_G._organ_statuscolumn`
+-- (loaded via `organ.fold`).  These globals are referenced by the
+-- win-local `'foldtext'` / `'statuscolumn'` option strings the ftplugin
+-- writes for org buffers; vim evaluates those strings on every redraw
+-- regardless of which buffer is current.  If a window has the option
+-- still set (session restore, window-option inheritance into a non-org
+-- split, etc.) but `organ.fold` was never required in this nvim
+-- session, eval throws "attempt to call global '_organ_statuscolumn'
+-- (a nil value)".  Loading at plugin time is cheap (the module just
+-- defines functions; no parser / db / autocmd work) and guarantees
+-- the globals exist for any redraw vim performs.
+pcall(require, "organ.fold")
+
 -- nvim-treesitter integration (only when that plugin is loaded).
 --
 -- We CLAIM the `org` and `org_inline` slots in nvim-treesitter's parser-

@@ -101,6 +101,16 @@ function M.attach(bufnr)
       -- line under a heading) actually close — the default of 1 silently
       -- drops 1-line folds that sit between adjacent transitions.
       vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
+      -- Both auto-foldtext and auto-statuscolumn point at globals
+      -- (`_organ_foldtext`, `_organ_statuscolumn`) defined when
+      -- `organ.fold` is required.  Setting the option strings before
+      -- the module loads leaves a window where vim evaluates the
+      -- option and hits a nil global -- e.g. CursorMoved firing
+      -- elsewhere triggers a redraw before the foldexpr (which
+      -- lazily requires organ.fold) runs.  Force the require so the
+      -- globals are guaranteed defined by the time vim reads either
+      -- option string.
+      pcall(require, "organ.fold")
       if cfg_fold_top.auto_foldtext == true then
         vim.api.nvim_set_option_value("foldtext", "v:lua._organ_foldtext()", { win = 0 })
         -- Drop vim's `·` fold filler on this window.  organ's
