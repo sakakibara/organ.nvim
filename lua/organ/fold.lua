@@ -738,32 +738,38 @@ _G._organ_foldtext = function()
   return vim.fn.foldtext()
 end
 
-_G._organ_statuscolumn = function()
+-- Statuscolumn eval doesn't switch curwin to the rendering window, so
+-- vim.fn.foldclosed / vim.wo.* read the focused pane's state.  But the
+-- redraw pipeline tells decoration providers which window is being
+-- drawn (on_win fires before that window's lines), so we stash the
+-- winid for `_organ_statuscolumn` to re-enter via nvim_win_call.
+-- Cleared by on_end so synthetic eval paths (nvim_eval_statusline)
+-- fall through to current-window behavior.
+local _render_winid
+local _DECO_NS = vim.api.nvim_create_namespace("organ.fold._render")
+vim.api.nvim_set_decoration_provider(_DECO_NS, {
+  on_win = function(_, winid)
+    _render_winid = winid
+    return true
+  end,
+  on_line = function(_, winid)
+    _render_winid = winid
+  end,
+  on_end = function()
+    _render_winid = nil
+  end,
+})
+
+local function _statuscolumn_body()
   local lnum = vim.v.lnum
   local relnum = vim.v.relnum
   local virtnum = vim.v.virtnum
   if virtnum and virtnum ~= 0 then
     return "    "
   end
-  -- Vim sets `v:lnum` / `v:relnum` to the line being drawn and its
-  -- distance from the rendering window's cursor.  Other "current
-  -- window" reads (`vim.fn.line('.')`, `nvim_get_current_win()`,
-  -- `vim.bo.filetype`) DO NOT switch context to the rendering window
-  -- during statuscolumn eval -- they keep returning the focused
-  -- window's values.  Compute everything off `v:*` so an unfocused
-  -- pane renders its own state, not the focused pane's.
-  --
-  -- Mirror vim's own number / relativenumber semantics:
-  --   number only          -> absolute on every line
-  --   relativenumber only  -> 0 on cursor, distance elsewhere
-  --   both (hybrid)        -> absolute on cursor, distance elsewhere
-  --   neither              -> blank pad (consistent column width)
-  --
-  -- Reading 'number' / 'relativenumber' via `vim.wo` would also see
-  -- the focused window's values, but in practice the auto-applied
-  -- statuscolumn is set per-window with the same option set, so
-  -- mismatch doesn't surface here.  Read the actual line-number
-  -- value from `v:` since those ARE rendering-window-local.
+  -- Mirror vim's number / relativenumber semantics: number-only ->
+  -- absolute everywhere, rnu-only -> 0 on cursor / distance elsewhere,
+  -- hybrid -> absolute on cursor / distance elsewhere, neither -> pad.
   local nu = vim.wo.number
   local rnu = vim.wo.relativenumber
   local n_str
@@ -787,14 +793,20 @@ _G._organ_statuscolumn = function()
   return string.format("%%s%s %s ", n_str, fold_marker)
 end
 
+_G._organ_statuscolumn = function()
+  local winid = _render_winid
+  if winid and vim.api.nvim_win_is_valid(winid) then
+    return vim.api.nvim_win_call(winid, _statuscolumn_body)
+  end
+  return _statuscolumn_body()
+end
+
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,
 -- only heading lines (`^%*+%s`) get a fold-start marker; body lines
 -- never do (the body-level fold layer enables CONTENTS view but is
 -- visual noise on the foldcolumn).  Non-org buffers fall back to
 -- level-compare (`foldlevel(lnum) > foldlevel(lnum - 1)`).
-function M.statuscolumn_marker(lnum, opts)
-  opts = opts or {}
-  local hl = opts.hl or "FoldColumn"
+local function _marker_impl(lnum, hl)
   local fillchars = vim.opt.fillchars:get()
   local open_ch = fillchars.foldopen or "v"
   local close_ch = fillchars.foldclose or ">"
@@ -827,6 +839,20 @@ function M.statuscolumn_marker(lnum, opts)
     return paint(open_ch)
   end
   return " "
+end
+
+function M.statuscolumn_marker(lnum, opts)
+  opts = opts or {}
+  local hl = opts.hl or "FoldColumn"
+  -- vim.fn.foldclosed / foldlevel and vim.bo.filetype are window-local
+  -- reads.  `opts.winid` re-enters that window via nvim_win_call so
+  -- the marker reflects THAT pane's fold state, not the focused pane's.
+  if opts.winid and vim.api.nvim_win_is_valid(opts.winid) then
+    return vim.api.nvim_win_call(opts.winid, function()
+      return _marker_impl(lnum, hl)
+    end)
+  end
+  return _marker_impl(lnum, hl)
 end
 
 -- Cleanup on BufWipeout.
