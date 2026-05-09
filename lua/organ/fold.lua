@@ -793,12 +793,20 @@ local function _statuscolumn_body()
   return string.format("%%s%s %s ", n_str, fold_marker)
 end
 
-_G._organ_statuscolumn = function()
-  local winid = _render_winid
+-- Compute the auto-applied statuscolumn output for a specific window.
+-- `winid = nil` (or invalid) -> use the focused window's context.  This
+-- is the testable seam: callers (and tests) can ask for a specific
+-- pane's column without changing focus, and `_G._organ_statuscolumn`
+-- calls it with `_render_winid` resolved from the decoration provider.
+function M.statuscolumn(winid)
   if winid and vim.api.nvim_win_is_valid(winid) then
     return vim.api.nvim_win_call(winid, _statuscolumn_body)
   end
   return _statuscolumn_body()
+end
+
+_G._organ_statuscolumn = function()
+  return M.statuscolumn(_render_winid)
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,

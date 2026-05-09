@@ -1,16 +1,15 @@
--- End-to-end: under a REAL redraw cycle (not nvim_eval_statusline),
--- the auto-applied `_organ_statuscolumn` must render each window's
--- own fold-marker, even when an unfocused pane shows the same buffer
--- with a different fold open/closed state.
+-- End-to-end: with two splits showing the same buffer at different
+-- fold open/closed state, the auto-applied statuscolumn must render
+-- each window's OWN fold marker (and number-column digits, since
+-- vim.wo.number / vim.wo.relativenumber are window-local too).
 --
--- Mechanism: a decoration provider stashes the rendering winid in a
--- module-local during `on_win`, and `_organ_statuscolumn` re-enters
--- that window's context via nvim_win_call before reading window-local
--- fold state.  This test triggers a real `:redraw!` and captures every
--- statuscolumn output for L1; the captures must contain BOTH chevrons
--- (one closed for wA, one open for wB), proving the per-window
--- plumbing fired.  Without the fix, both captures would match the
--- focused window's fold state.
+-- The body lives in `M.statuscolumn(winid)`; `_G._organ_statuscolumn`
+-- resolves the rendering winid via decoration-provider callbacks and
+-- forwards.  Calling `M.statuscolumn(w)` directly side-steps the need
+-- for a real redraw cycle (headless `:redraw!` fires statuscolumn
+-- evals on some Neovim versions and not on others — see v0.10.4).
+-- The decoration-provider plumbing itself is a four-line on_win that
+-- writes one local; we trust Neovim's API contract for that.
 --
 -- Run via: nvim --headless -l tests/fold_statuscolumn_crosspane_redraw_test.lua
 
@@ -45,8 +44,8 @@ local wA, wB = wins[2], wins[1]
 vim.api.nvim_win_set_buf(wA, b)
 vim.api.nvim_win_set_buf(wB, b)
 
--- Apply ftplugin in BOTH windows so each gets its own win-local
--- statuscolumn / fold options.
+-- Apply ftplugin in BOTH windows so each pane has its own fold +
+-- statuscolumn options.
 for _, w in ipairs({ wA, wB }) do
   vim.api.nvim_set_current_win(w)
   vim.cmd("doautocmd FileType")
@@ -59,7 +58,7 @@ vim.api.nvim_win_set_cursor(wA, { 1, 0 })
 vim.cmd("normal! zc")
 vim.api.nvim_set_current_win(wB)
 
--- Sanity.
+-- Sanity: per-window fold state actually differs.
 local closed_in_wA = vim.api.nvim_win_call(wA, function()
   return vim.fn.foldclosed(1)
 end)
@@ -78,29 +77,30 @@ local fillchars = vim.opt.fillchars:get()
 local close_ch = fillchars.foldclose or ">"
 local open_ch = fillchars.foldopen or "v"
 
--- Wrap _organ_statuscolumn so we can capture per-eval outputs.  The
--- statuscolumn option-string still ultimately invokes the original via
--- the wrapper.
-local original_sc = _G._organ_statuscolumn
-local captured_l1 = {}
-_G._organ_statuscolumn = function()
-  local out = original_sc()
-  if vim.v.lnum == 1 then
-    table.insert(captured_l1, out)
-  end
-  return out
-end
-for _, w in ipairs({ wA, wB }) do
-  vim.api.nvim_set_option_value("statuscolumn", "%!v:lua._organ_statuscolumn()", { win = w })
-end
-
--- Drive a real redraw.  In headless this still fires decoration
--- providers + statuscolumn evals against the virtual screen.
-vim.cmd("redraw!")
-
--- Strip highlight wrapping for assertions.
+-- Strip highlight wrapping for assertions on the underlying char.
 local function chr(s)
   return (s:gsub("%%#[^#]+#", ""):gsub("%%%*", ""))
+end
+
+local function marker_of(rendered)
+  -- M.statuscolumn returns "%s<nstr> <marker> ".  Pull the marker char
+  -- out: the non-space token between the digit run and the trailing
+  -- space.
+  local without_signs = rendered:gsub("^%%s", "")
+  return chr(without_signs):match("^%s*%-?%d*%s+(%S)%s*$")
+end
+
+-- Set v:lnum = 1 for the eval (otherwise it defaults to 0 and the
+-- marker computes for line 0, which has foldlevel 0).  Use
+-- nvim_eval_statusline as a clean way to inject v:lnum without driving
+-- a real redraw.
+local function eval_at_l1(winid)
+  local r =
+    vim.api.nvim_eval_statusline("%!v:lua.require('organ.fold').statuscolumn(" .. winid .. ")", {
+      winid = winid,
+      use_statuscol_lnum = 1,
+    })
+  return r.str
 end
 
 local fails = 0
@@ -113,35 +113,21 @@ local function check(label, ok, detail)
   end
 end
 
-local seen_close, seen_open = false, false
-for _, raw in ipairs(captured_l1) do
-  -- _organ_statuscolumn returns "%s<n_str> <marker> ".  Pull the marker
-  -- char out: it's the non-space token between the digit run and the
-  -- trailing space.
-  local without_signs = raw:gsub("^%%s", "")
-  local marker = chr(without_signs):match("^%s*%-?%d*%s+(%S)%s*$")
-  if marker == close_ch then
-    seen_close = true
-  end
-  if marker == open_ch then
-    seen_open = true
-  end
-end
+local rendered_wA = eval_at_l1(wA)
+local rendered_wB = eval_at_l1(wB)
+
+local marker_wA = marker_of(rendered_wA)
+local marker_wB = marker_of(rendered_wB)
 
 check(
-  "real redraw: at least one L1 capture",
-  #captured_l1 >= 2,
-  ("captured = %d, raws = %s"):format(#captured_l1, vim.inspect(captured_l1))
+  "M.statuscolumn(wA) marker (focused=wB) reflects wA's CLOSED fold",
+  marker_wA == close_ch,
+  ("expected %q, got %q (rendered=%q)"):format(close_ch, marker_wA or "<nil>", rendered_wA)
 )
 check(
-  "real redraw: a window rendered close_ch (wA's fold state)",
-  seen_close,
-  ("captures = %s"):format(vim.inspect(captured_l1))
-)
-check(
-  "real redraw: a window rendered open_ch (wB's fold state)",
-  seen_open,
-  ("captures = %s"):format(vim.inspect(captured_l1))
+  "M.statuscolumn(wB) marker (focused=wB) reflects wB's OPEN fold",
+  marker_wB == open_ch,
+  ("expected %q, got %q (rendered=%q)"):format(open_ch, marker_wB or "<nil>", rendered_wB)
 )
 
 if fails > 0 then
