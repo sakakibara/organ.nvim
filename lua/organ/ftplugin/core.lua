@@ -79,14 +79,12 @@ function M.attach(bufnr)
   -- foldexpr defaults back to "" -- re-apply on BufWinEnter so every
   -- window the buffer lands in gets the same options.
   --
-  -- `foldtext` and `statuscolumn` are NOT set by default.  Wire them
-  -- via your config (see |organ-config-fold-foldtext| / README
-  -- "Foldtext" / "Statuscolumn").  Opt-in auto-apply is available
-  -- via `fold.auto_foldtext = true` / `fold.auto_statuscolumn = true`
-  -- for users who don't want to write Lua -- when set, organ writes
-  -- those win-local options here using a flat `v:lua.<name>()` form
-  -- (avoids the nvim TUI option-eval bug with chained `v:lua.require`
-  -- calls).
+  -- `foldtext` and `statuscolumn` are auto-applied (defaults.lua sets
+  -- both `fold.auto_foldtext` and `fold.auto_statuscolumn` to `true`).
+  -- Opt out by setting either to `false` in your config.  When on,
+  -- organ writes the win-local option here using a flat `v:lua.<name>()`
+  -- form (avoids the nvim TUI option-eval bug with chained
+  -- `v:lua.require` calls).
   local cfg_fold_top = cfg.fold or {}
   -- `nvim_set_option_value(name, val, { win = 0 })` without a scope is
   -- equivalent to `:set` -- it sets BOTH the win-local AND the global

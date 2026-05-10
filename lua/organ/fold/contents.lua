@@ -645,6 +645,24 @@ function M.enter(target)
       end
     end,
   })
+  -- BufWinLeave: the org buffer is leaving a window (user did `:edit
+  -- other_file`, `:bnext`, etc.).  ftplugin's BufWinLeave handler
+  -- restores the leaving window's win-local options; we must also
+  -- drop the per-winid state so the contents module stops thinking
+  -- that window is in CONTENTS forever.  Without this, M.is_active
+  -- (winid) returns true long after the window switched to a
+  -- different buffer, and the buffer-level extmarks placed by our
+  -- decoration provider's on_win keep being placed for that winid.
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    group = group,
+    buffer = bufnr,
+    callback = function()
+      local winid = vim.api.nvim_get_current_win()
+      if _win_active[winid] then
+        M.leave(winid)
+      end
+    end,
+  })
   vim.api.nvim_create_autocmd("BufWipeout", {
     group = group,
     buffer = bufnr,
