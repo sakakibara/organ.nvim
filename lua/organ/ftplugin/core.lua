@@ -88,19 +88,25 @@ function M.attach(bufnr)
   -- (avoids the nvim TUI option-eval bug with chained `v:lua.require`
   -- calls).
   local cfg_fold_top = cfg.fold or {}
+  -- `nvim_set_option_value(name, val, { win = 0 })` without a scope is
+  -- equivalent to `:set` -- it sets BOTH the win-local AND the global
+  -- value.  For visually-customised options (foldtext, statuscolumn,
+  -- fillchars, winhighlight, conceallevel) clobbering the global means
+  -- the user's own setting is gone, and our wrappers' non-org fallback
+  -- (which reads vim.go.foldtext) hits its own string and falls to
+  -- vim's default.  Always pass `scope = "local"` for win-only writes.
+  local function setlocal(name, value)
+    pcall(vim.api.nvim_set_option_value, name, value, { win = 0, scope = "local" })
+  end
   local function apply_fold_window_opts()
     pcall(function()
-      vim.api.nvim_set_option_value("foldmethod", "expr", { win = 0 })
-      vim.api.nvim_set_option_value(
-        "foldexpr",
-        "v:lua.require'organ.fold'.foldexpr(v:lnum)",
-        { win = 0 }
-      )
-      vim.api.nvim_set_option_value("foldenable", true, { win = 0 })
+      setlocal("foldmethod", "expr")
+      setlocal("foldexpr", "v:lua.require'organ.fold'.foldexpr(v:lnum)")
+      setlocal("foldenable", true)
       -- `foldminlines = 0` lets the foldexpr's body folds (often a single
       -- line under a heading) actually close — the default of 1 silently
       -- drops 1-line folds that sit between adjacent transitions.
-      vim.api.nvim_set_option_value("foldminlines", 0, { win = 0 })
+      setlocal("foldminlines", 0)
       -- Both auto-foldtext and auto-statuscolumn point at globals
       -- (`_organ_foldtext`, `_organ_statuscolumn`) defined when
       -- `organ.fold` is required.  Setting the option strings before
@@ -112,7 +118,7 @@ function M.attach(bufnr)
       -- option string.
       pcall(require, "organ.fold")
       if cfg_fold_top.auto_foldtext == true then
-        vim.api.nvim_set_option_value("foldtext", "v:lua._organ_foldtext()", { win = 0 })
+        setlocal("foldtext", "v:lua._organ_foldtext()")
         -- Drop vim's `·` fold filler on this window.  organ's
         -- foldtext is self-contained -- the dotted fill drawn past
         -- it across the rest of the folded row is visual noise.
@@ -132,10 +138,10 @@ function M.attach(bufnr)
         if not has_fold then
           parts[#parts + 1] = "fold: "
         end
-        pcall(vim.api.nvim_set_option_value, "fillchars", table.concat(parts, ","), { win = 0 })
+        setlocal("fillchars", table.concat(parts, ","))
       end
       if cfg_fold_top.auto_statuscolumn == true then
-        vim.api.nvim_set_option_value("statuscolumn", "%!v:lua._organ_statuscolumn()", { win = 0 })
+        setlocal("statuscolumn", "%!v:lua._organ_statuscolumn()")
       end
       -- Remap the per-window Folded highlight to OrgFolded (bg = NONE)
       -- so folded heading lines blend with Normal's background.  The
@@ -145,7 +151,7 @@ function M.attach(bufnr)
       local prev_wh = vim.api.nvim_get_option_value("winhighlight", { win = 0 })
       if not prev_wh:find("Folded:") then
         local new_wh = (prev_wh == "" and "Folded:OrgFolded") or (prev_wh .. ",Folded:OrgFolded")
-        vim.api.nvim_set_option_value("winhighlight", new_wh, { win = 0 })
+        setlocal("winhighlight", new_wh)
       end
     end)
   end
@@ -153,7 +159,7 @@ function M.attach(bufnr)
   -- foldlevel only on the initial attach -- BufWinEnter shouldn't
   -- reset it back to 99 every time the user re-enters the window
   -- (would override <S-Tab> state).
-  pcall(vim.api.nvim_set_option_value, "foldlevel", 99, { win = 0 })
+  setlocal("foldlevel", 99)
   local fold_win_group = vim.api.nvim_create_augroup("organ_foldwin_" .. bufnr, { clear = true })
   vim.api.nvim_create_autocmd("BufWinEnter", {
     group = fold_win_group,
@@ -252,13 +258,23 @@ function M.attach(bufnr)
             return
           end
           if folded == "overview" then
-            pcall(vim.api.nvim_set_option_value, "foldlevel", 1, { win = target_winid })
+            pcall(
+              vim.api.nvim_set_option_value,
+              "foldlevel",
+              1,
+              { win = target_winid, scope = "local" }
+            )
           elseif folded == "content" then
             local depth = max_heading_depth()
             if depth < 1 then
               depth = 1
             end
-            pcall(vim.api.nvim_set_option_value, "foldlevel", depth, { win = target_winid })
+            pcall(
+              vim.api.nvim_set_option_value,
+              "foldlevel",
+              depth,
+              { win = target_winid, scope = "local" }
+            )
             -- Drawers (level depth+1) close as a side effect of the
             -- foldlevel; close_all_drawers above already collapsed
             -- them, no extra work needed.
@@ -376,7 +392,7 @@ function M.attach(bufnr)
   end
   if (cfg.emphasis or {}).enabled then
     pcall(function()
-      vim.api.nvim_set_option_value("conceallevel", 2, { win = 0 })
+      setlocal("conceallevel", 2)
     end)
   end
 
