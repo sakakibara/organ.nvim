@@ -1,6 +1,9 @@
--- Org-style fold cycling for organ.nvim. <Tab> advances 3-state per
--- headline (folded → children → subtree). <S-Tab> cycles foldlevel
--- globally (99 → 1 → 0 → 99).
+-- Org-style fold cycling for organ.nvim.  Mirrors Emacs `org-cycle`
+-- and `org-shifttab`:
+--   <Tab>   per-headline 3-state cycle: folded -> children -> subtree.
+--   <S-Tab> global cycle: SHOW_ALL -> OVERVIEW -> CONTENTS -> SHOW_ALL.
+-- Names and semantics match Emacs; see cycle_global below for the
+-- foldlevel / conceal-layer mapping per state.
 
 local M = {}
 
