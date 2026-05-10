@@ -51,10 +51,11 @@ check("namespace registered", NS ~= nil)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })
 
--- Marks: 3 begin lines + 3 end lines + 3 body lines = 9.  Body lines
--- get a `│ ` left side bar via inline virt_text; begin / end lines
--- get top / bottom overlay decoration.
-check("9 extmarks placed (3 begin + 3 end + 3 body)", #marks == 9, "got " .. #marks)
+-- Marks: 3 begin lines + 3 end lines + 3 body lines × 2 (left bar +
+-- right bar) = 12.  Begin / end get a single overlay; body lines get
+-- two inline virt_text marks (`│ ` at the left, ` <pad>│` at the
+-- right) so the box closes on both sides.
+check("12 extmarks placed (3 begin + 3 end + 3 body × 2 bars)", #marks == 12, "got " .. #marks)
 
 -- Helper: find the mark on a given row.
 local function mark_on(row)

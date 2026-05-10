@@ -27,14 +27,20 @@ local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)%s*$"
 -- raw `#+begin_…` text.
 M._saved_conceallevel = M._saved_conceallevel or {}
 
-local TOP_GLYPH = "┌── "
--- BOT_GLYPH is just the corner; everything after is continuous
--- horizontal so the bottom reads as an unbroken rule (no "disjointed
--- space" between the corner and the dashes).  Top retains the "── "
--- visual padding because it surrounds the label.
-local BOT_GLYPH = "└"
-local SIDE_GLYPH = "│ " -- left side bar + 1 col of inner padding
-local TRAILING_RULE_LEN = 30 -- dashes after the (label + space) on the begin line
+-- Box drawing primitives.  `TL`/`TR`/`BL`/`BR` are the four corners;
+-- `H` is the horizontal rule char; `V` is the vertical bar.  `LBL_LEAD`
+-- and `LBL_TAIL` decorate the label on the top line; `LSIDE` is the
+-- left side bar plus 1 col of inner padding.
+local TL = "┌"
+local TR = "┐"
+local BL = "└"
+local BR = "┘"
+local H = "─"
+local V = "│"
+local LBL_LEAD = "── "
+local LBL_TAIL = " "
+local LSIDE = V .. " "
+local TRAILING_RULE_LEN = 30 -- horizontal chars after the label on the top line
 
 local function compute_label(kind, suffix)
   -- For src_block: `#+begin_src lua` -> first token "lua" is the
@@ -50,12 +56,21 @@ local function compute_label(kind, suffix)
   return kind
 end
 
+-- Inner cols of the box (display width between the left/right corners).
+-- Top fills it with: LBL_LEAD + label + LBL_TAIL + TRAILING_RULE_LEN
+-- dashes.  Body / bottom must match.
+local LBL_LEAD_W = vim.fn.strdisplaywidth(LBL_LEAD)
+local LBL_TAIL_W = vim.fn.strdisplaywidth(LBL_TAIL)
+local function inner_width(label_width)
+  return LBL_LEAD_W + label_width + LBL_TAIL_W + TRAILING_RULE_LEN
+end
+
 local function decorate_top(bufnr, lnum0, leading, label)
-  local trailing_rule = " " .. string.rep("─", TRAILING_RULE_LEN)
+  local trailing = LBL_TAIL .. string.rep(H, TRAILING_RULE_LEN) .. TR
   local virt_text = {
-    { leading .. TOP_GLYPH, "@organ.modern.block_frame" },
+    { leading .. TL .. LBL_LEAD, "@organ.modern.block_frame" },
     { label, "@organ.modern.block_label" },
-    { trailing_rule, "@organ.modern.block_frame" },
+    { trailing, "@organ.modern.block_frame" },
   }
   local line_text = vim.api.nvim_buf_get_lines(bufnr, lnum0, lnum0 + 1, false)[1] or ""
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
@@ -68,13 +83,9 @@ local function decorate_top(bufnr, lnum0, leading, label)
 end
 
 local function decorate_bottom(bufnr, lnum0, leading, label_width)
-  -- Match the top's total display width.  Top is `TOP_GLYPH + label
-  -- + " " + 30 dashes` = 4 + label + 1 + 30 cols.  Bottom is `└` + N
-  -- dashes; pick N so the totals match -> N = 3 + label + 1 + 30.
-  local rule_len = 3 + label_width + 1 + TRAILING_RULE_LEN
-  local rule = string.rep("─", rule_len)
+  local rule = string.rep(H, inner_width(label_width))
   local virt_text = {
-    { leading .. BOT_GLYPH .. rule, "@organ.modern.block_frame" },
+    { leading .. BL .. rule .. BR, "@organ.modern.block_frame" },
   }
   local line_text = vim.api.nvim_buf_get_lines(bufnr, lnum0, lnum0 + 1, false)[1] or ""
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
@@ -86,15 +97,28 @@ local function decorate_bottom(bufnr, lnum0, leading, label_width)
   })
 end
 
--- Decorate a body line with the left side bar (`│ ` prefix).  The
--- source line is left intact; an inline virt_text at col 0 pushes the
--- existing content right by 2 visual cols, leaving the bar to render
--- in the leftmost column.  Begin / end lines of nested blocks are
--- skipped at the call site -- they get their own top/bottom decoration
--- and stacking `│ ` over an overlay extmark looks wrong.
-local function decorate_body(bufnr, lnum0)
+-- Decorate a body line with `│ ` at the left and ` <pad>│` at the
+-- right so the body sits flush inside the top/bottom corners.  Source
+-- line text is left intact; inline virt_text at col 0 pushes the
+-- existing content 2 cols right, and a second inline mark at the line's
+-- end byte adds the trailing padding + right bar.  Lines too long for
+-- the box (content >= inner_width - 1) get only the left bar -- forcing
+-- a right bar past the end would visually mangle the box, so we accept
+-- the open right side on overflow.
+local function decorate_body(bufnr, lnum0, source, label_width)
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
-    virt_text = { { SIDE_GLYPH, "@organ.modern.block_frame" } },
+    virt_text = { { LSIDE, "@organ.modern.block_frame" } },
+    virt_text_pos = "inline",
+  })
+  -- Total cols available BETWEEN the bars = inner_width(label_width).
+  -- After LSIDE (2 cols) the source content starts; we need
+  -- inner_width - 1 - source_display cols of trailing pad before V.
+  local pad = inner_width(label_width) - 1 - vim.fn.strdisplaywidth(source)
+  if pad < 0 then
+    return
+  end
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, #source, {
+    virt_text = { { string.rep(" ", pad) .. V, "@organ.modern.block_frame" } },
     virt_text_pos = "inline",
   })
 end
@@ -157,7 +181,7 @@ local function apply(bufnr)
         if matched then
           for body = matched.lnum0 + 1, i - 2 do
             if not frame_lines[body] then
-              decorate_body(bufnr, body)
+              decorate_body(bufnr, body, lines[body + 1] or "", label_width)
             end
           end
         end

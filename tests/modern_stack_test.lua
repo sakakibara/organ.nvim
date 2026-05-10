@@ -75,8 +75,8 @@ check(
   "got " .. n_bullets
 )
 check(
-  "blocks produced extmarks (1 begin_src + 1 end_src + 1 body line = 3)",
-  n_blocks == 3,
+  "blocks produced extmarks (1 begin_src + 1 end_src + 1 body × 2 bars = 4)",
+  n_blocks == 4,
   "got " .. n_blocks
 )
 check("pills produced extmarks (3 TODO kw + 2 timestamps)", n_pills == 5, "got " .. n_pills)
