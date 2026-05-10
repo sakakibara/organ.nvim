@@ -121,6 +121,15 @@ M.commands = {
     bang = true,
     desc = "Export the current org buffer to GNU Texinfo (.texi)",
   },
+  ["export pdf"] = {
+    fn = function(cmd)
+      generic_export(cmd, "organ.export.pdf", "export_pdf")
+    end,
+    nargs = "?",
+    complete = "file",
+    bang = true,
+    desc = "Export the current org buffer to PDF via LaTeX (requires pdflatex / xelatex / lualatex in PATH)",
+  },
   ["table import"] = {
     fn = function(cmd)
       local path = cmd.args
