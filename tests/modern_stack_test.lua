@@ -74,7 +74,11 @@ check(
   n_bullets >= 6,
   "got " .. n_bullets
 )
-check("blocks produced extmarks (1 begin_src + 1 end_src = 2)", n_blocks == 2, "got " .. n_blocks)
+check(
+  "blocks produced extmarks (1 begin_src + 1 end_src + 1 body line = 3)",
+  n_blocks == 3,
+  "got " .. n_blocks
+)
 check("pills produced extmarks (3 TODO kw + 2 timestamps)", n_pills == 5, "got " .. n_pills)
 
 -- conceallevel was bumped (bullets + blocks both need it).

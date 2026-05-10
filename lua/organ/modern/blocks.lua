@@ -28,7 +28,12 @@ local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)%s*$"
 M._saved_conceallevel = M._saved_conceallevel or {}
 
 local TOP_GLYPH = "┌── "
-local BOT_GLYPH = "└── "
+-- BOT_GLYPH is just the corner; everything after is continuous
+-- horizontal so the bottom reads as an unbroken rule (no "disjointed
+-- space" between the corner and the dashes).  Top retains the "── "
+-- visual padding because it surrounds the label.
+local BOT_GLYPH = "└"
+local SIDE_GLYPH = "│ " -- left side bar + 1 col of inner padding
 local TRAILING_RULE_LEN = 30 -- dashes after the (label + space) on the begin line
 
 local function compute_label(kind, suffix)
@@ -63,11 +68,11 @@ local function decorate_top(bufnr, lnum0, leading, label)
 end
 
 local function decorate_bottom(bufnr, lnum0, leading, label_width)
-  -- Match the top's total width: top is `leading + TOP_GLYPH + label
-  -- + " " + 30 dashes`.  Bottom replaces `label + " "` with dashes of
-  -- the same display width so the two lines line up vertically.
-  local fill_len = label_width + 1
-  local rule = string.rep("─", fill_len + TRAILING_RULE_LEN)
+  -- Match the top's total display width.  Top is `TOP_GLYPH + label
+  -- + " " + 30 dashes` = 4 + label + 1 + 30 cols.  Bottom is `└` + N
+  -- dashes; pick N so the totals match -> N = 3 + label + 1 + 30.
+  local rule_len = 3 + label_width + 1 + TRAILING_RULE_LEN
+  local rule = string.rep("─", rule_len)
   local virt_text = {
     { leading .. BOT_GLYPH .. rule, "@organ.modern.block_frame" },
   }
@@ -78,6 +83,19 @@ local function decorate_bottom(bufnr, lnum0, leading, label_width)
     virt_text = virt_text,
     virt_text_pos = "overlay",
     hl_mode = "combine",
+  })
+end
+
+-- Decorate a body line with the left side bar (`│ ` prefix).  The
+-- source line is left intact; an inline virt_text at col 0 pushes the
+-- existing content right by 2 visual cols, leaving the bar to render
+-- in the leftmost column.  Begin / end lines of nested blocks are
+-- skipped at the call site -- they get their own top/bottom decoration
+-- and stacking `│ ` over an overlay extmark looks wrong.
+local function decorate_body(bufnr, lnum0)
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
+    virt_text = { { SIDE_GLYPH, "@organ.modern.block_frame" } },
+    virt_text_pos = "inline",
   })
 end
 
@@ -94,27 +112,35 @@ local function apply(bufnr)
   -- Stack of pending begins so an end line can recover the matching
   -- begin's label width and produce a bottom line of identical
   -- visual width.  Pairs by `kind` so nested blocks (greater_block
-  -- containing src_block etc.) match correctly.
+  -- containing src_block etc.) match correctly.  begin's lnum is
+  -- also tracked so we can decorate body rows on the way out.
   local begins = {}
+  -- Lines that already get top/bottom decoration -- skip body
+  -- decoration on these so the side bar doesn't stack over the
+  -- top/bottom overlay.
+  local frame_lines = {}
   for i, line in ipairs(lines) do
     local lead, kind, suffix = line:match(BEGIN_PAT)
     if lead then
       local label = compute_label(kind, suffix)
       table.insert(begins, {
         kind = kind,
+        lnum0 = i - 1,
         label_width = vim.fn.strdisplaywidth(label),
       })
       decorate_top(bufnr, i - 1, lead, label)
+      frame_lines[i - 1] = true
     else
       lead, kind = line:match(END_PAT)
       if lead then
         -- Pop topmost begin with matching kind.  Stale begins
         -- (kind mismatch caused by malformed source) stay on the
         -- stack; the end falls back to its own kind for the width.
-        local label_width
+        local matched, label_width
         for j = #begins, 1, -1 do
           if begins[j].kind == kind then
-            label_width = begins[j].label_width
+            matched = begins[j]
+            label_width = matched.label_width
             table.remove(begins, j)
             break
           end
@@ -123,6 +149,18 @@ local function apply(bufnr)
           label_width = vim.fn.strdisplaywidth(kind)
         end
         decorate_bottom(bufnr, i - 1, lead, label_width)
+        frame_lines[i - 1] = true
+        -- Decorate body lines between begin and end with the side
+        -- bar.  Nested begin / end lines (also marked in frame_lines)
+        -- are skipped so their own top/bottom decoration shows
+        -- without a redundant prefix.
+        if matched then
+          for body = matched.lnum0 + 1, i - 2 do
+            if not frame_lines[body] then
+              decorate_body(bufnr, body)
+            end
+          end
+        end
       end
     end
   end

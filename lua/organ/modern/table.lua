@@ -114,16 +114,16 @@ end
 
 -- Build the top or bottom virtual border line, sized to match the
 -- per-column display widths the data rows are visually padded to.
--- `widths` is a 1-indexed array of "content" display widths per
--- column (max content across rows); each segment between pipes is
--- (widths[c] + 2) horizontal chars to account for the standard
--- ` content ` padding.  `indent` preserves lead-in whitespace so
--- the border lines up under indented tables.
+-- `widths` is a 1-indexed array of "source cell" display widths per
+-- column (max across rows, leading/trailing whitespace included);
+-- each segment between corners is `widths[c]` horizontal chars.
+-- `indent` preserves lead-in whitespace so the border lines up under
+-- indented tables.
 local function build_border_line(indent, widths, p, kind)
   local out = { indent }
   out[#out + 1] = (kind == "top") and p.topl or p.botl
   for c, w in ipairs(widths) do
-    out[#out + 1] = string.rep(p.horiz, w + 2)
+    out[#out + 1] = string.rep(p.horiz, w)
     if c < #widths then
       out[#out + 1] = (kind == "top") and p.topm or p.botm
     end
@@ -182,17 +182,26 @@ local function decorate_row(bufnr, row, line, p, edges)
   end
 end
 
--- Compute the visual width every column should occupy across this
--- table (max display width of any cell content + 2 for the standard
--- ` content ` padding).  Same widths tablature.align would produce,
--- so the visual rendering is identical to what pressing Tab would
--- write to the buffer.
-local function aligned_cell_widths(rows)
+-- Per-column target display width.  Pad-up-only strategy -- we never
+-- shrink over-padded cells (conceal-based shrinking is unreliable
+-- across nvim versions and renders inconsistently).  Target is the
+-- max of (a) the widest pipe-to-pipe source cell display width and
+-- (b) the natural ` content ` form (max trimmed-content + 2).  This
+-- preserves an over-padded source row's width while still giving
+-- tight sources (e.g. `|qty|`) the canonical 1-col-leading + content
+-- + 1-col-trailing breathing room.
+local function aligned_cell_widths(parsed_rows, table_lines)
   local widths = {}
-  for _, r in ipairs(rows) do
-    if not r.sep then
-      for c, cell in ipairs(r.cells) do
-        local w = vim.fn.strdisplaywidth(cell)
+  for ri, prow in ipairs(parsed_rows) do
+    if not prow.sep then
+      local line = table_lines[ri] or ""
+      local pipes = pipe_positions(line)
+      for c = 1, #pipes - 1 do
+        local cell = line:sub(pipes[c] + 1, pipes[c + 1] - 1)
+        local source_w = vim.fn.strdisplaywidth(cell)
+        local trimmed = (cell:gsub("^%s+", ""):gsub("%s+$", ""))
+        local content_w = vim.fn.strdisplaywidth(trimmed) + 2
+        local w = source_w > content_w and source_w or content_w
         if not widths[c] or widths[c] < w then
           widths[c] = w
         end
@@ -203,55 +212,21 @@ local function aligned_cell_widths(rows)
 end
 
 -- Pad a single data-row cell (between pipes `lp` and `rp`, byte
--- positions 1-based) to occupy `target` visual columns by adding
--- inline virt_text where the source is short and concealing extra
--- whitespace where the source is over-padded.  Source content stays
--- in the buffer; only the visual rendering changes.  Cells that
--- already have the right widths produce no extmarks.
+-- positions 1-based) up to `target` display columns.  When the source
+-- already has display width >= target, do nothing -- never shrink.
+-- Source bytes stay; only inline virt_text spaces are added just
+-- before the right pipe.
 local function pad_cell_to(bufnr, row, line, lp, rp, target)
   local cell = line:sub(lp + 1, rp - 1)
-  local leading = cell:match("^(%s*)") or ""
-  local trailing = cell:match("(%s*)$") or ""
-  local content_chars = #cell - #leading - #trailing
-  -- Aligned form is ` content<pad> `: 1 leading space, then content,
-  -- then enough trailing spaces to fill `target`.
-  local target_leading = 1
-  local target_trailing = target - 1 - content_chars
-  if target_trailing < 1 then
-    target_trailing = 1
+  local current = vim.fn.strdisplaywidth(cell)
+  local diff = target - current
+  if diff <= 0 then
+    return
   end
-  local function insert(col, count)
-    if count <= 0 then
-      return
-    end
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, col, {
-      virt_text = { { string.rep(" ", count) } },
-      virt_text_pos = "inline",
-    })
-  end
-  local function conceal_range(start_col, end_col)
-    if end_col <= start_col then
-      return
-    end
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, start_col, {
-      end_col = end_col,
-      conceal = "",
-    })
-  end
-  -- Leading side.
-  local lead_diff = target_leading - #leading
-  if lead_diff > 0 then
-    insert(lp, lead_diff)
-  elseif lead_diff < 0 then
-    conceal_range(lp, lp + -lead_diff)
-  end
-  -- Trailing side.
-  local trail_diff = target_trailing - #trailing
-  if trail_diff > 0 then
-    insert(rp - 1, trail_diff)
-  elseif trail_diff < 0 then
-    conceal_range(rp - 1 - -trail_diff, rp - 1)
-  end
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1, {
+    virt_text = { { string.rep(" ", diff) } },
+    virt_text_pos = "inline",
+  })
 end
 
 -- Rule-row segment boundaries: `|` AND `+` both delimit a rule
@@ -272,21 +247,18 @@ end
 -- Pad a rule-row segment with the preset's horizontal char so the
 -- divider extends to match the data-cell width of the same column.
 -- Source `-` chars stay (decorate_row's per-char conceal converts
--- them to `─`); we only fill the deficit.
+-- them to `─`); we only fill the deficit.  Pad-up-only -- never
+-- shrink, matching the data-cell strategy.
 local function pad_rule_segment_to(bufnr, row, lp, rp, target, p)
   local current = rp - lp - 1
   local diff = target - current
-  if diff > 0 then
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1, {
-      virt_text = { { string.rep(p.horiz, diff), "@org.table.delimiter" } },
-      virt_text_pos = "inline",
-    })
-  elseif diff < 0 then
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1 - -diff, {
-      end_col = rp - 1,
-      conceal = "",
-    })
+  if diff <= 0 then
+    return
   end
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, rp - 1, {
+    virt_text = { { string.rep(p.horiz, diff), "@org.table.delimiter" } },
+    virt_text_pos = "inline",
+  })
 end
 
 -- Visual alignment pass: enforce per-column width across every row
@@ -315,15 +287,18 @@ local function table_aligned_widths(lines, row_first, row_last)
   if not parsed or not parsed.rows then
     return nil, nil
   end
-  local widths_map = aligned_cell_widths(parsed.rows)
+  -- Build the per-column max source-cell display width AND fill in
+  -- zeros for any column index that didn't appear in a non-sep row
+  -- (defensive: shouldn't happen for well-formed tables but keeps
+  -- callers honest).
+  local widths_map = aligned_cell_widths(parsed.rows, table_lines)
   if next(widths_map) == nil then
     return nil, nil
   end
-  -- Number of columns = max cell index across non-sep rows.
   local ncols = 0
-  for _, r in ipairs(parsed.rows) do
-    if not r.sep and #r.cells > ncols then
-      ncols = #r.cells
+  for c, _ in pairs(widths_map) do
+    if c > ncols then
+      ncols = c
     end
   end
   local widths = {}
@@ -347,12 +322,12 @@ local function decorate_alignment(bufnr, lines, row_first, row_last, p, widths, 
     if prow.sep then
       local bounds = rule_boundaries(line)
       for c = 1, #bounds - 1 do
-        pad_rule_segment_to(bufnr, row, bounds[c], bounds[c + 1], (widths[c] or 0) + 2, p)
+        pad_rule_segment_to(bufnr, row, bounds[c], bounds[c + 1], widths[c] or 0, p)
       end
     else
       local pipes = pipe_positions(line)
       for c = 1, #pipes - 1 do
-        pad_cell_to(bufnr, row, line, pipes[c], pipes[c + 1], (widths[c] or 0) + 2)
+        pad_cell_to(bufnr, row, line, pipes[c], pipes[c + 1], widths[c] or 0)
       end
     end
   end

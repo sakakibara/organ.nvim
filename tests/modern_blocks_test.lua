@@ -51,8 +51,10 @@ check("namespace registered", NS ~= nil)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })
 
--- Count: 6 block-marker lines (3 begin + 3 end) → 6 marks.
-check("6 extmarks placed (3 begin + 3 end)", #marks == 6, "got " .. #marks)
+-- Marks: 3 begin lines + 3 end lines + 3 body lines = 9.  Body lines
+-- get a `│ ` left side bar via inline virt_text; begin / end lines
+-- get top / bottom overlay decoration.
+check("9 extmarks placed (3 begin + 3 end + 3 body)", #marks == 9, "got " .. #marks)
 
 -- Helper: find the mark on a given row.
 local function mark_on(row)
