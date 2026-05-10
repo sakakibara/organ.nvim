@@ -112,35 +112,23 @@ local function pipe_positions(line)
   return out
 end
 
--- Build the top or bottom virtual border line for a table whose
--- row uses pipe positions `pipes` (1-based byte indices).  Lead-in
--- whitespace is preserved so the border lines up under indented
--- tables.
-local function build_border_line(line, pipes, p, kind)
-  local indent = line:match("^(%s*)") or ""
+-- Build the top or bottom virtual border line, sized to match the
+-- per-column display widths the data rows are visually padded to.
+-- `widths` is a 1-indexed array of "content" display widths per
+-- column (max content across rows); each segment between pipes is
+-- (widths[c] + 2) horizontal chars to account for the standard
+-- ` content ` padding.  `indent` preserves lead-in whitespace so
+-- the border lines up under indented tables.
+local function build_border_line(indent, widths, p, kind)
   local out = { indent }
-  local first_pipe = pipes[1]
-  local last_pipe = pipes[#pipes]
-  for i = first_pipe, last_pipe do
-    if i == first_pipe then
-      out[#out + 1] = (kind == "top") and p.topl or p.botl
-    elseif i == last_pipe then
-      out[#out + 1] = (kind == "top") and p.topr or p.botr
-    else
-      local is_pipe = false
-      for _, pp in ipairs(pipes) do
-        if pp == i then
-          is_pipe = true
-          break
-        end
-      end
-      if is_pipe then
-        out[#out + 1] = (kind == "top") and p.topm or p.botm
-      else
-        out[#out + 1] = p.horiz
-      end
+  out[#out + 1] = (kind == "top") and p.topl or p.botl
+  for c, w in ipairs(widths) do
+    out[#out + 1] = string.rep(p.horiz, w + 2)
+    if c < #widths then
+      out[#out + 1] = (kind == "top") and p.topm or p.botm
     end
   end
+  out[#out + 1] = (kind == "top") and p.topr or p.botr
   return table.concat(out)
 end
 
@@ -307,25 +295,51 @@ end
 -- same widths the buffer would have if the user hit Tab.  Skips
 -- silently on a parse failure (malformed table) so the existing
 -- glyph conceal still runs.
-local function decorate_alignment(bufnr, lines, row_first, row_last, p)
+-- Returns the per-column display widths the data rows are padded to,
+-- or nil on parse failure.  Splitting this out from `decorate_alignment`
+-- so `decorate_table` can use the same widths to size the virtual
+-- top/bottom borders.
+local function table_aligned_widths(lines, row_first, row_last)
   local table_lines = {}
   for r = row_first, row_last do
     table_lines[#table_lines + 1] = lines[r + 1] or ""
   end
   local ok, tab = pcall(require, "tablature")
   if not ok then
-    return
+    return nil, nil
   end
   local parsed = nil
   pcall(function()
     parsed = tab.parse(table_lines, 1, { dialect = "org" })
   end)
   if not parsed or not parsed.rows then
+    return nil, nil
+  end
+  local widths_map = aligned_cell_widths(parsed.rows)
+  if next(widths_map) == nil then
+    return nil, nil
+  end
+  -- Number of columns = max cell index across non-sep rows.
+  local ncols = 0
+  for _, r in ipairs(parsed.rows) do
+    if not r.sep and #r.cells > ncols then
+      ncols = #r.cells
+    end
+  end
+  local widths = {}
+  for c = 1, ncols do
+    widths[c] = widths_map[c] or 0
+  end
+  return widths, parsed
+end
+
+local function decorate_alignment(bufnr, lines, row_first, row_last, p, widths, parsed)
+  if not (widths and parsed) then
     return
   end
-  local widths = aligned_cell_widths(parsed.rows)
-  if next(widths) == nil then
-    return
+  local table_lines = {}
+  for r = row_first, row_last do
+    table_lines[#table_lines + 1] = lines[r + 1] or ""
   end
   for ri, prow in ipairs(parsed.rows) do
     local row = row_first + ri - 1
@@ -348,25 +362,23 @@ local function decorate_table(bufnr, lines, row_first, row_last, p, cfg)
   for row = row_first, row_last do
     decorate_row(bufnr, row, lines[row + 1] or "", p, true)
   end
-  decorate_alignment(bufnr, lines, row_first, row_last, p)
-  if cfg.border_virtual ~= false then
+  local widths, parsed = table_aligned_widths(lines, row_first, row_last)
+  decorate_alignment(bufnr, lines, row_first, row_last, p, widths, parsed)
+  if cfg.border_virtual ~= false and widths and #widths > 0 then
+    -- Use the aligned widths to build the virtual borders so they line
+    -- up with the (post-pad) data rows -- not with the source pipe
+    -- positions, which can be uneven for a misaligned source.
     local first_line = lines[row_first + 1] or ""
-    local first_pipes = pipe_positions(first_line)
-    if #first_pipes >= 2 then
-      local top = build_border_line(first_line, first_pipes, p, "top")
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row_first, 0, {
-        virt_lines = { { { top, "@org.table.delimiter" } } },
-        virt_lines_above = true,
-      })
-    end
-    local last_line = lines[row_last + 1] or ""
-    local last_pipes = pipe_positions(last_line)
-    if #last_pipes >= 2 then
-      local bot = build_border_line(last_line, last_pipes, p, "bot")
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row_last, 0, {
-        virt_lines = { { { bot, "@org.table.delimiter" } } },
-      })
-    end
+    local indent = first_line:match("^(%s*)") or ""
+    local top = build_border_line(indent, widths, p, "top")
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row_first, 0, {
+      virt_lines = { { { top, "@org.table.delimiter" } } },
+      virt_lines_above = true,
+    })
+    local bot = build_border_line(indent, widths, p, "bot")
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row_last, 0, {
+      virt_lines = { { { bot, "@org.table.delimiter" } } },
+    })
   end
 end
 

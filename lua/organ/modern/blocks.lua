@@ -27,32 +27,50 @@ local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)%s*$"
 -- raw `#+begin_…` text.
 M._saved_conceallevel = M._saved_conceallevel or {}
 
-local function decorate_line(bufnr, lnum0, leading, kind, suffix, is_end)
-  local label = kind
-  if not is_end and suffix and suffix ~= "" then
-    -- Strip leading whitespace from suffix; first whitespace-separated
-    -- token is the language (for src_block) or first param.
+local TOP_GLYPH = "┌── "
+local BOT_GLYPH = "└── "
+local TRAILING_RULE_LEN = 30 -- dashes after the (label + space) on the begin line
+
+local function compute_label(kind, suffix)
+  -- For src_block: `#+begin_src lua` -> first token "lua" is the
+  -- language, render that as the label.  Other blocks: `#+begin_quote`
+  -- -> just the kind.  Suffix-with-content but not first-token-able
+  -- (`#+begin_src ` with trailing whitespace only) falls back to kind.
+  if suffix and suffix ~= "" then
     local first = suffix:match("^%s*(%S+)")
     if first then
-      label = first
+      return first
     end
   end
-  local glyph_top = "┌── "
-  local glyph_bot = "└── "
-  local rule =
-    " ──────────────────────────────"
-  local virt_text
-  if is_end then
-    virt_text = { { leading .. glyph_bot .. rule, "@organ.modern.block_frame" } }
-  else
-    virt_text = {
-      { leading .. glyph_top, "@organ.modern.block_frame" },
-      { label, "@organ.modern.block_label" },
-      { rule, "@organ.modern.block_frame" },
-    }
-  end
-  -- Hide the original line bytes via conceal — extmark with conceal=""
-  -- across the whole line range.
+  return kind
+end
+
+local function decorate_top(bufnr, lnum0, leading, label)
+  local trailing_rule = " " .. string.rep("─", TRAILING_RULE_LEN)
+  local virt_text = {
+    { leading .. TOP_GLYPH, "@organ.modern.block_frame" },
+    { label, "@organ.modern.block_label" },
+    { trailing_rule, "@organ.modern.block_frame" },
+  }
+  local line_text = vim.api.nvim_buf_get_lines(bufnr, lnum0, lnum0 + 1, false)[1] or ""
+  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
+    end_col = #line_text,
+    conceal = "",
+    virt_text = virt_text,
+    virt_text_pos = "overlay",
+    hl_mode = "combine",
+  })
+end
+
+local function decorate_bottom(bufnr, lnum0, leading, label_width)
+  -- Match the top's total width: top is `leading + TOP_GLYPH + label
+  -- + " " + 30 dashes`.  Bottom replaces `label + " "` with dashes of
+  -- the same display width so the two lines line up vertically.
+  local fill_len = label_width + 1
+  local rule = string.rep("─", fill_len + TRAILING_RULE_LEN)
+  local virt_text = {
+    { leading .. BOT_GLYPH .. rule, "@organ.modern.block_frame" },
+  }
   local line_text = vim.api.nvim_buf_get_lines(bufnr, lnum0, lnum0 + 1, false)[1] or ""
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, lnum0, 0, {
     end_col = #line_text,
@@ -73,14 +91,38 @@ local function apply(bufnr)
   end
   clear(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  -- Stack of pending begins so an end line can recover the matching
+  -- begin's label width and produce a bottom line of identical
+  -- visual width.  Pairs by `kind` so nested blocks (greater_block
+  -- containing src_block etc.) match correctly.
+  local begins = {}
   for i, line in ipairs(lines) do
     local lead, kind, suffix = line:match(BEGIN_PAT)
     if lead then
-      decorate_line(bufnr, i - 1, lead, kind, suffix, false)
+      local label = compute_label(kind, suffix)
+      table.insert(begins, {
+        kind = kind,
+        label_width = vim.fn.strdisplaywidth(label),
+      })
+      decorate_top(bufnr, i - 1, lead, label)
     else
       lead, kind = line:match(END_PAT)
       if lead then
-        decorate_line(bufnr, i - 1, lead, kind, "", true)
+        -- Pop topmost begin with matching kind.  Stale begins
+        -- (kind mismatch caused by malformed source) stay on the
+        -- stack; the end falls back to its own kind for the width.
+        local label_width
+        for j = #begins, 1, -1 do
+          if begins[j].kind == kind then
+            label_width = begins[j].label_width
+            table.remove(begins, j)
+            break
+          end
+        end
+        if not label_width then
+          label_width = vim.fn.strdisplaywidth(kind)
+        end
+        decorate_bottom(bufnr, i - 1, lead, label_width)
       end
     end
   end
