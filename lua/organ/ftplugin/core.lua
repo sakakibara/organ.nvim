@@ -166,6 +166,28 @@ function M.attach(bufnr)
     buffer = bufnr,
     callback = apply_fold_window_opts,
   })
+  -- BufWinLeave: org buffer is leaving this window (user did :e foo.lua,
+  -- :bnext, etc.).  Clear our win-local overrides so the next buffer in
+  -- this window inherits its own / global values.  Without this, the
+  -- win-local 'foldtext = v:lua._organ_foldtext()' / 'winhighlight =
+  -- Folded:OrgFolded' / 'fillchars = fold: ' / raised conceallevel can
+  -- linger and visibly degrade the next buffer's fold display
+  -- (`_organ_foldtext`'s non-org fallback returns vim.fn.foldtext() which
+  -- in nvim 0.12 is a plain string -- vim renders it with Folded only,
+  -- losing per-token syntax highlights that a treesitter-aware default
+  -- would have shown).  `:setlocal opt<` reverts the win-local override
+  -- to inherit from global.
+  vim.api.nvim_create_autocmd("BufWinLeave", {
+    group = fold_win_group,
+    buffer = bufnr,
+    callback = function()
+      pcall(
+        vim.cmd,
+        "setlocal foldtext< statuscolumn< fillchars< winhighlight<"
+          .. " conceallevel< concealcursor<"
+      )
+    end,
+  })
   vim.api.nvim_create_autocmd("BufWipeout", {
     group = fold_win_group,
     buffer = bufnr,
