@@ -6,14 +6,32 @@
 -- layer over each section's body line range.  All headings stay
 -- visible regardless of depth; body disappears.
 --
+-- CONTENTS is a PER-WINDOW state.  Two splits showing the same buffer
+-- can independently be in SHOW_ALL, OVERVIEW, or CONTENTS.  The decoration
+-- provider's on_win callback re-applies the buffer's body extmarks to
+-- match THIS window's state right before vim lays out its lines, so
+-- each pane's draw sees a different extmark set within the same redraw
+-- cycle.
+--
 -- Lifecycle:
---   M.enter(bufnr): place extmarks, save+raise window conceallevel.
---   M.leave(bufnr): drop extmarks, restore conceallevel.
---   M.is_active(bufnr): query.
+--   M.enter(target): place extmarks, save+raise THAT window's
+--     conceallevel.  `target` may be a winid (preferred) or a bufnr
+--     (back-compat: defaults to current window showing the buffer).
+--   M.leave(target): drop extmarks for that window, restore conceallevel.
+--   M.is_active(target): query (winid or bufnr).
 
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
+-- Decoration-provider namespace: distinct from NS so the provider's
+-- on_win can clear its own work without disturbing user-placed extmarks
+-- in NS that shouldn't move (currently none, but future-proofing).
+local DECO_NS = vim.api.nvim_create_namespace("organ_fold_contents_deco")
+-- Per-window CONTENTS state.  Keyed by winid; value is `true` when
+-- that window has CONTENTS active.  Saved-options for restoration on
+-- leave() live in `state[bufnr].win_saved[winid]` (one entry per winid
+-- in CONTENTS for that buffer).
+local _win_active = {}
 -- Separate namespace for "this heading is revealed" markers placed
 -- on the heading line itself.  Using extmarks lets the marker travel
 -- with the heading line under buffer edits (insertions before the
@@ -121,8 +139,38 @@ local function nbuf(b)
   return b
 end
 
-function M.is_active(bufnr)
-  return state[nbuf(bufnr)] ~= nil
+-- Resolve a public-API argument that may be a winid OR a bufnr (or
+-- nil/0 for "current") into a (winid, bufnr) pair.  Old call sites
+-- pass bufnr; new call sites pass winid.  Cheaply distinguish by
+-- asking nvim whether the number is a valid window.
+local function resolve(target)
+  if not target or target == 0 then
+    local winid = vim.api.nvim_get_current_win()
+    return winid, vim.api.nvim_win_get_buf(winid)
+  end
+  if vim.api.nvim_win_is_valid(target) then
+    return target, vim.api.nvim_win_get_buf(target)
+  end
+  -- Treat as bufnr.  Pick the first window currently showing it; if
+  -- none, fall back to the current window (caller probably set up the
+  -- buffer but it isn't visible yet).
+  local bufnr = nbuf(target)
+  local wins = vim.fn.win_findbuf(bufnr) or {}
+  return wins[1] or vim.api.nvim_get_current_win(), bufnr
+end
+
+-- True iff `target` is currently in CONTENTS.  Accepts a winid (true
+-- when THAT window is in CONTENTS) or a bufnr (true when ANY window
+-- showing it is in CONTENTS -- back-compat for tests that ask buffer
+-- questions).
+function M.is_active(target)
+  if not target or target == 0 then
+    return _win_active[vim.api.nvim_get_current_win()] == true
+  end
+  if vim.api.nvim_win_is_valid(target) then
+    return _win_active[target] == true
+  end
+  return state[nbuf(target)] ~= nil
 end
 
 -- Whether body range `r` (1-indexed inclusive) hides anything
@@ -512,30 +560,42 @@ local FOLD_KEYS = {
   zr = "Increment foldlevel (exits CONTENTS)",
 }
 
-function M.enter(bufnr)
-  bufnr = nbuf(bufnr)
-  if state[bufnr] or not is_supported() then
+function M.enter(target)
+  if not is_supported() then
+    return
+  end
+  local winid, bufnr = resolve(target)
+  if not (winid and bufnr and vim.api.nvim_win_is_valid(winid)) then
+    return
+  end
+  if _win_active[winid] then
+    return -- already in CONTENTS for this window
+  end
+  -- Save THIS window's conceallevel + concealcursor for restoration
+  -- on leave().  Default `concealcursor = ""` reveals concealed text
+  -- when the cursor lands on the line -- that would expose body the
+  -- moment the user does `j` from a heading.  `nvic` keeps
+  -- concealment in normal/visual/insert/cmdline.
+  local saved_cl = vim.api.nvim_get_option_value("conceallevel", { win = winid })
+  local saved_cc = vim.api.nvim_get_option_value("concealcursor", { win = winid })
+  if saved_cl < 2 then
+    pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = winid, scope = "local" })
+  end
+  pcall(vim.api.nvim_set_option_value, "concealcursor", "nvic", { win = winid, scope = "local" })
+  _win_active[winid] = true
+  if state[bufnr] then
+    -- Buffer-level setup already done by an earlier winid; just record
+    -- this winid's per-window saved options for its eventual leave().
+    state[bufnr].win_saved[winid] =
+      { saved_conceallevel = saved_cl, saved_concealcursor = saved_cc }
+    -- Refresh body extmarks against the current buffer state so any
+    -- redraw (decoration provider hasn't fired yet) sees them.
+    invalidate_buf_cache(bufnr)
+    place_marks(bufnr)
     return
   end
   invalidate_buf_cache(bufnr)
   place_marks(bufnr)
-  -- Save+raise conceallevel and concealcursor on every window
-  -- currently showing this buffer.  Default `concealcursor = ""`
-  -- reveals concealed text when the cursor lands on the line --
-  -- that would expose body the moment the user does `j` from a
-  -- heading.  `nvic` keeps concealment in normal/visual/insert/
-  -- cmdline.  Snapshot one window's value as the "saved" baseline
-  -- (typical case: the buffer is in one window).
-  local wins = vim.fn.win_findbuf(bufnr) or {}
-  local probe_win = wins[1] or 0
-  local saved_cl = vim.api.nvim_get_option_value("conceallevel", { win = probe_win })
-  local saved_cc = vim.api.nvim_get_option_value("concealcursor", { win = probe_win })
-  for _, win in ipairs(wins) do
-    if vim.api.nvim_get_option_value("conceallevel", { win = win }) < 2 then
-      pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = win })
-    end
-    pcall(vim.api.nvim_set_option_value, "concealcursor", "nvic", { win = win })
-  end
   -- Snapshot every prior buffer-local fold mapping we're about to
   -- replace, so leave() restores the user's exact mapping (including
   -- callback / rhs / silent / noremap / expr / desc) instead of just
@@ -551,10 +611,11 @@ function M.enter(bufnr)
     })
   end
   state[bufnr] = {
-    saved_conceallevel = saved_cl,
-    saved_concealcursor = saved_cc,
     saved_fold_keys = saved_fold_keys,
     last_row = vim.fn.line("."),
+    win_saved = {
+      [winid] = { saved_conceallevel = saved_cl, saved_concealcursor = saved_cc },
+    },
   }
   -- Defensive autocmd surface so state never leaks past the
   -- circumstances it was meant for.  Buffer-local so the events fire
@@ -621,28 +682,62 @@ function M.enter(bufnr)
   on_cursor_moved(bufnr)
 end
 
-function M.leave(bufnr)
-  bufnr = nbuf(bufnr)
-  local s = state[bufnr]
-  if not s then
+function M.leave(target)
+  local winid, bufnr = resolve(target)
+  if not bufnr then
     return
   end
+  local s = state[bufnr]
+  if not s then
+    -- _win_active may still hold winid (defensive cleanup).
+    _win_active[winid] = nil
+    return
+  end
+  -- Restore THIS window's saved conceallevel + concealcursor.
+  local ws = s.win_saved and s.win_saved[winid]
+  if ws and vim.api.nvim_win_is_valid(winid) then
+    pcall(
+      vim.api.nvim_set_option_value,
+      "conceallevel",
+      ws.saved_conceallevel,
+      { win = winid, scope = "local" }
+    )
+    pcall(
+      vim.api.nvim_set_option_value,
+      "concealcursor",
+      ws.saved_concealcursor,
+      { win = winid, scope = "local" }
+    )
+  end
+  if s.win_saved then
+    s.win_saved[winid] = nil
+  end
+  _win_active[winid] = nil
+  -- Are any other winids still in CONTENTS for this buffer?  If yes,
+  -- keep buffer-level setup (extmarks, augroup, mappings) intact for
+  -- those windows.
+  local any_left = false
+  for w in pairs(s.win_saved or {}) do
+    if vim.api.nvim_win_is_valid(w) and _win_active[w] then
+      any_left = true
+      break
+    end
+  end
+  if any_left then
+    -- Refresh extmarks so the remaining winids' next redraw renders
+    -- against a current view of body ranges.
+    invalidate_buf_cache(bufnr)
+    place_marks(bufnr)
+    return
+  end
+  -- Last winid for this buffer left CONTENTS -- tear down buffer-level
+  -- state.
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, REVEAL_NS, 0, -1)
   invalidate_buf_cache(bufnr)
   if s.augroup then
     pcall(vim.api.nvim_del_augroup_by_id, s.augroup)
   end
-  -- Restore window options ONLY on windows actually showing this
-  -- buffer right now -- writing vim.wo blindly would poison whichever
-  -- buffer's window happens to be current.
-  for _, win in ipairs(vim.fn.win_findbuf(bufnr) or {}) do
-    pcall(vim.api.nvim_set_option_value, "conceallevel", s.saved_conceallevel, { win = win })
-    pcall(vim.api.nvim_set_option_value, "concealcursor", s.saved_concealcursor, { win = win })
-  end
-  -- Restore prior buffer-local fold mappings (or remove ours when
-  -- there was no prior mapping; user's global mapping kicks back in
-  -- automatically once our buffer-local is gone).
   if s.saved_fold_keys then
     for key, snap in pairs(s.saved_fold_keys) do
       restore_buf_mapping(bufnr, "n", key, snap)
@@ -740,5 +835,47 @@ end
 function M.forget(bufnr)
   state[nbuf(bufnr)] = nil
 end
+
+-- Decoration provider: per-window CONTENTS state via on_win swap.  The
+-- buffer-level body extmarks placed in NS are buffer-shared, so a
+-- naive multi-window setup would render every pane in the same
+-- conceal state.  Instead, on EVERY redraw we re-apply the extmarks
+-- right before each window's draw -- if the rendering window is in
+-- _win_active, place body marks; otherwise clear them.  Vim does
+-- layout per window, so each pane sees a different extmark set within
+-- the same redraw cycle (verified empirically: extmark state at the
+-- moment of on_win is what THAT window's layout uses).
+vim.api.nvim_set_decoration_provider(DECO_NS, {
+  on_win = function(_, winid, bufnr)
+    if not state[bufnr] then
+      return false -- no winid showing this buffer is in CONTENTS; nothing to do
+    end
+    pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+    if _win_active[winid] then
+      place_marks(bufnr)
+    end
+    return true
+  end,
+})
+
+-- Cleanup on WinClosed: drop the closed winid from _win_active so we
+-- don't keep stale entries around (and so leave() refcount logic for
+-- "any winids still active" stays honest).
+vim.api.nvim_create_autocmd("WinClosed", {
+  group = vim.api.nvim_create_augroup("organ_fold_contents_winclosed", { clear = true }),
+  callback = function(args)
+    local winid = tonumber(args.match)
+    if winid and _win_active[winid] then
+      _win_active[winid] = nil
+      -- Sweep any state[bufnr].win_saved entry for this winid so the
+      -- "any winids left" check on leave() doesn't see a ghost.
+      for _, s in pairs(state) do
+        if s.win_saved then
+          s.win_saved[winid] = nil
+        end
+      end
+    end
+  end,
+})
 
 return M

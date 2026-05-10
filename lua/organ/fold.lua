@@ -195,13 +195,19 @@ function M.cycle_global(bufnr)
     end
   elseif contents.is_supported() then
     -- conceal strategy: state is OVERVIEW(foldlevel=0) /
-    -- CONTENTS(extmarks active) / SHOW_ALL(foldlevel=99, no extmarks).
-    if contents.is_active(bufnr) then
-      contents.leave(bufnr)
+    -- CONTENTS(extmarks active for THIS window) / SHOW_ALL
+    -- (foldlevel=99, no extmarks for THIS window).  The per-window
+    -- focus is intentional: two splits showing the same buffer must
+    -- cycle independently (S-Tab in window A leaves window B alone).
+    -- contents.* accept a winid; pass current explicitly so the
+    -- intent is unambiguous at the call site.
+    local winid = vim.api.nvim_get_current_win()
+    if contents.is_active(winid) then
+      contents.leave(winid)
       vim.wo.foldlevel = 99
     elseif lvl == 0 then
       vim.wo.foldlevel = 99
-      contents.enter(bufnr)
+      contents.enter(winid)
     else
       vim.wo.foldlevel = 0
     end
