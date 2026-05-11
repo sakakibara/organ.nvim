@@ -1,8 +1,11 @@
 -- Org tree-sitter tree -> document AST.
 --
--- Phase 1a: covers the common case (document with headlines, paragraphs,
--- lists, code blocks, basic emphasis + links).  More node kinds will
--- be added as the per-format renderers need them.
+-- Covers headlines, paragraphs, lists, code blocks, basic emphasis +
+-- links, directives (#+KEYWORD: value), horizontal rules, blocks
+-- (quote / verse / example / export), tables, free-standing images,
+-- inline + display math, and footnotes (inline ref + block definition).
+-- This is the input layer for organ.pdf and (eventually) the other
+-- export backends as they migrate from direct tree-sitter walking.
 
 local A = require("organ.ast")
 

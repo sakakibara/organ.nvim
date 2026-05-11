@@ -1,9 +1,9 @@
 -- Document AST -> org text.
 --
--- Phase 1a renderer: covers what `from_org` Phase 1a emits (headlines,
--- paragraphs, lists, code blocks, basic emphasis + links).  Inline
--- nodes round-trip through `parse_inline` / `emit_inline` -- emphasis
--- markers and link bracket forms are preserved.
+-- Companion to from_org.lua.  Renders every AST kind that from_org
+-- emits, so the round trip `from_org(to_org(doc))` produces a
+-- semantically equivalent AST (whitespace, comment-trimming, and
+-- inline-form normalization apart).
 
 local M = {}
 
