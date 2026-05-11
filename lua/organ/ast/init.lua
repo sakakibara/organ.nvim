@@ -32,6 +32,7 @@ M.BLOCK = {
   rule = true, -- horizontal rule (no fields)
   directive = true, -- { name = "TITLE", value = "string" }
   drawer = true, -- { name = "PROPERTIES", entries = { {key, value}, ... } }
+  footnote_definition = true, -- { label = "string", content = block[] }
   comment = true, -- { body = "string" } (line / multi-line org `# ` comment)
 }
 
@@ -171,6 +172,10 @@ end
 
 function M.directive(name, value)
   return { kind = "directive", name = name, value = value or "" }
+end
+
+function M.footnote_definition(label, content)
+  return { kind = "footnote_definition", label = label, content = content or {} }
 end
 
 function M.rule()
