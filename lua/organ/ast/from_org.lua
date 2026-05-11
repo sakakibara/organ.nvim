@@ -102,10 +102,11 @@ local function clean_title(line, todo_keywords)
 end
 
 -- Parse one line of inline org text into AST inline nodes.
--- Phase 1a covers: emphasis (*bold*, /italic/, _und_, +strike+,
--- =verb=, ~code~) and links ([[target][desc]] / [[target]]).  Mixed
--- / nested emphasis falls back to plain text -- the emitters can
--- still reproduce it via to_org.
+-- Recognized inline forms: emphasis (*bold*, /italic/, _und_,
+-- +strike+, =verb=, ~code~), links ([[target][desc]] / [[target]]),
+-- math ($...$, $$...$$, \(...\), \[...\]), and footnote refs
+-- ([fn:LABEL]).  Mixed / nested emphasis falls back to plain text;
+-- the emitters can still reproduce it via to_org.
 local function parse_inline(s)
   if s == "" then
     return {}
@@ -121,8 +122,8 @@ local function parse_inline(s)
   end
   while i <= #s do
     local c = s:sub(i, i)
-    -- Try footnote ref: [fn:LABEL].  Anonymous [fn::body] form is left
-    -- as plain text in this phase.
+    -- Try footnote ref: [fn:LABEL].  Anonymous [fn::body] form is
+    -- left as plain text.
     if c == "[" and s:sub(i + 1, i + 3) == "fn:" then
       local close = s:find("]", i + 4, true)
       if close then
@@ -338,7 +339,8 @@ end
 
 -- Convert a single TS node inside a `section` into an AST block (or
 -- a list of blocks for special cases).  Returns nil for nodes we
--- don't yet model -- those just drop in this phase.
+-- don't yet model -- other node types drop silently (drawers,
+-- planning, comments, etc.).
 local function emit_section_child(node, src)
   local t = node:type()
   if t == "paragraph" then

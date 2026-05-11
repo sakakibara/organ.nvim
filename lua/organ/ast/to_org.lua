@@ -203,7 +203,7 @@ local function emit_block(node, out)
     end
     out[#out + 1] = ""
   end
-  -- Other kinds drop silently in this phase.
+  -- Other kinds drop silently (unimplemented in this renderer).
 end
 M._emit_block = emit_block
 

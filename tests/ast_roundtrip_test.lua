@@ -3,9 +3,10 @@
 -- normalization, comment trimming), but it must parse to the SAME AST
 -- on a second pass.
 --
--- Phase 1a node coverage: headlines, paragraphs, lists, code blocks,
--- basic emphasis + links.  Other kinds are added as the per-format
--- exporters that need them are migrated.
+-- Covers headlines, paragraphs, lists, code blocks, emphasis, links,
+-- directives, horizontal rules, blocks (quote/verse/example/export),
+-- tables, free-standing images, inline + display math, and footnotes
+-- (inline ref + block definition).
 --
 -- Run via: nvim --headless -l tests/ast_roundtrip_test.lua
 
