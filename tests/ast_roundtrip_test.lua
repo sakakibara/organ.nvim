@@ -379,6 +379,66 @@ do
   check("image: survives round-trip", has_img)
 end
 
+-- ---------- math (inline + display) ----------
+do
+  local INPUT = {
+    "Inline math: $x^2 + y^2 = z^2$ here.",
+    "And paren form: \\(a + b\\) here.",
+    "",
+    "Display math:",
+    "$$\\int_0^1 f(x)\\,dx$$",
+    "",
+    "And bracket form:",
+    "\\[\\sum_{i=0}^n i\\]",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local maths = {}
+  local function collect(n)
+    if n.kind == "math" then
+      maths[#maths + 1] = n
+    end
+    for _, slot in ipairs({ "children", "content", "inline", "title" }) do
+      if n[slot] then
+        for _, c in ipairs(n[slot]) do
+          collect(c)
+        end
+      end
+    end
+  end
+  collect(doc)
+  check("math: 4 nodes collected", #maths == 4, "got " .. #maths)
+  if #maths >= 4 then
+    check("math: first is inline ($)", maths[1].display == false)
+    check("math: second is inline (\\(\\))", maths[2].display == false)
+    check("math: third is display ($$)", maths[3].display == true)
+    check("math: fourth is display (\\[\\])", maths[4].display == true)
+    check(
+      "math: first body preserved",
+      maths[1].body == "x^2 + y^2 = z^2",
+      "got " .. tostring(maths[1].body)
+    )
+  end
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local maths2 = {}
+  local function collect2(n)
+    if n.kind == "math" then
+      maths2[#maths2 + 1] = n
+    end
+    for _, slot in ipairs({ "children", "content", "inline", "title" }) do
+      if n[slot] then
+        for _, c in ipairs(n[slot]) do
+          collect2(c)
+        end
+      end
+    end
+  end
+  collect2(doc2)
+  check("math: 4 nodes survive round-trip", #maths2 == 4, "got " .. #maths2)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

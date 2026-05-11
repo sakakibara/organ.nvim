@@ -130,6 +130,41 @@ local function parse_inline(s)
         goto continue
       end
     end
+    -- Try math: $...$ (inline), $$...$$ (display), \(...\) (inline alt),
+    -- \[...\] (display alt).  Order matters: check $$ before $.
+    if c == "$" and s:sub(i + 1, i + 1) == "$" then
+      local close = s:find("$$", i + 2, true)
+      if close then
+        flush()
+        out[#out + 1] = { kind = "math", display = true, body = s:sub(i + 2, close - 1) }
+        i = close + 2
+        goto continue
+      end
+    elseif c == "$" then
+      local close = s:find("%$", i + 1)
+      if close and close > i + 1 then
+        flush()
+        out[#out + 1] = { kind = "math", display = false, body = s:sub(i + 1, close - 1) }
+        i = close + 1
+        goto continue
+      end
+    elseif c == "\\" and s:sub(i + 1, i + 1) == "(" then
+      local close = s:find("\\)", i + 2, true)
+      if close then
+        flush()
+        out[#out + 1] = { kind = "math", display = false, body = s:sub(i + 2, close - 1) }
+        i = close + 2
+        goto continue
+      end
+    elseif c == "\\" and s:sub(i + 1, i + 1) == "[" then
+      local close = s:find("\\]", i + 2, true)
+      if close then
+        flush()
+        out[#out + 1] = { kind = "math", display = true, body = s:sub(i + 2, close - 1) }
+        i = close + 2
+        goto continue
+      end
+    end
     -- Try emphasis: paired delimiters (*, /, _, +, =, ~).
     -- For simplicity we accept any delimiter that has a matching
     -- close on the same line and contains no whitespace at the open
