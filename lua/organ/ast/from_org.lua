@@ -47,8 +47,15 @@ end
 -- Image-target sniff.  An image extension is one of the common bitmap
 -- / vector extensions, case-insensitive.
 local IMAGE_EXT = {
-  png = true, jpg = true, jpeg = true, gif = true, svg = true,
-  webp = true, bmp = true, tiff = true, tif = true,
+  png = true,
+  jpg = true,
+  jpeg = true,
+  gif = true,
+  svg = true,
+  webp = true,
+  bmp = true,
+  tiff = true,
+  tif = true,
 }
 local function is_image_target(target)
   if type(target) ~= "string" then

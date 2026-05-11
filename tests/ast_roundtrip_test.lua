@@ -155,21 +155,9 @@ do
       seen[c.name] = c.value
     end
   end
-  check(
-    "directive: TITLE captured",
-    seen.TITLE == "My Document",
-    "got " .. tostring(seen.TITLE)
-  )
-  check(
-    "directive: AUTHOR captured",
-    seen.AUTHOR == "Jane Doe",
-    "got " .. tostring(seen.AUTHOR)
-  )
-  check(
-    "directive: DATE captured",
-    seen.DATE == "2026-05-11",
-    "got " .. tostring(seen.DATE)
-  )
+  check("directive: TITLE captured", seen.TITLE == "My Document", "got " .. tostring(seen.TITLE))
+  check("directive: AUTHOR captured", seen.AUTHOR == "Jane Doe", "got " .. tostring(seen.AUTHOR))
+  check("directive: DATE captured", seen.DATE == "2026-05-11", "got " .. tostring(seen.DATE))
   check(
     "directive: OPTIONS captured (lowercase / unknown still preserved)",
     seen.OPTIONS == "toc:nil",
@@ -363,10 +351,7 @@ do
   }
   local doc_inline = from_org.from_lines(INPUT2)
   local first = doc_inline.children[1]
-  check(
-    "image: inline-with-text stays inside paragraph",
-    first and first.kind == "paragraph"
-  )
+  check("image: inline-with-text stays inside paragraph", first and first.kind == "paragraph")
 
   local rendered = to_org.render(doc)
   local doc2 = from_org.from_lines(lines_of(rendered))
@@ -483,7 +468,9 @@ do
     check("footnote: first def label", defs[1].label == "1", "got " .. tostring(defs[1].label))
     check(
       "footnote: first def content is a list of blocks",
-      type(defs[1].content) == "table" and defs[1].content[1] and defs[1].content[1].kind == "paragraph"
+      type(defs[1].content) == "table"
+        and defs[1].content[1]
+        and defs[1].content[1].kind == "paragraph"
     )
   end
 
