@@ -23,14 +23,84 @@ local function read_lines(path)
   return vim.fn.readfile(path)
 end
 
+-- Default TODO keyword list used to strip leading TODO tokens from
+-- a headline title when the user hasn't configured `todo.sequence`.
+-- Mirrors lua/organ/defaults.lua:861 (kept here to avoid a heavy
+-- require during target resolution).
+local FALLBACK_TODO_KEYWORDS = {
+  "TODO",
+  "NEXT",
+  "WAITING",
+  "HOLD",
+  "PROJ",
+  "DONE",
+  "CANCELLED",
+}
+
+local function todo_keywords()
+  local cfg = require("organ").config
+  local seq = cfg and cfg.todo and cfg.todo.sequence
+  if not seq then
+    return FALLBACK_TODO_KEYWORDS
+  end
+  local out = {}
+  for _, kw in ipairs(seq) do
+    if kw ~= "|" then
+      out[#out + 1] = kw
+    end
+  end
+  return out
+end
+
+-- Strip Emacs `org-complex-heading-regexp-format` decorations from a
+-- raw headline title so equality matching ignores: TODO keyword,
+-- priority cookie `[#A]`, leading COMMENT prefix, leading and trailing
+-- stats cookies `[1/3]` / `[33%]`, and trailing tags `:foo:bar:`.
+--
+-- See org-mode/lisp/org.el `org-complex-heading-regexp-format` for the
+-- canonical structure we mirror.
+local function bare_title(raw, kws)
+  local s = raw or ""
+  -- Trailing tags `:foo:bar:`.
+  s = s:gsub("%s+:[%w_:@]+:%s*$", "")
+  -- Trailing stats cookies `[2/5]` / `[40%%]`.
+  s = s:gsub("%s*%[[%d%%/]+%]%s*$", "")
+  -- Leading TODO keyword.
+  for _, kw in ipairs(kws or FALLBACK_TODO_KEYWORDS) do
+    local pat = "^" .. kw:gsub("(%W)", "%%%1") .. "%s+"
+    if s:match(pat) then
+      s = s:gsub(pat, "", 1)
+      break
+    end
+  end
+  -- Leading priority cookie `[#A]`.
+  s = s:gsub("^%[#%w%]%s*", "")
+  -- Leading COMMENT prefix.
+  s = s:gsub("^COMMENT%s+", "")
+  -- Leading stats cookies `[1/3]` / `[33%%]`.
+  s = s:gsub("^%[[%d%%/]+%]%s*", "")
+  -- Final trim.
+  s = s:gsub("^%s+", ""):gsub("%s+$", "")
+  return s
+end
+
 -- Parse the file into a list of headline records:
---   { line = 1-based, level = N, title = "Heading text" }
+--   { line = 1-based, level = N, title = "Heading text", bare = "matchable" }
+-- `title` is the raw text after stars (TODO/priority/tags preserved, used
+-- for display in errors).  `bare` is what `find_headline` compares against
+-- and what mirrors Emacs's `org-complex-heading-regexp-format` capture group.
 local function parse_headlines(lines)
+  local kws = todo_keywords()
   local hls = {}
   for i, l in ipairs(lines) do
     local stars, title = l:match("^(%*+)%s+(.-)%s*$")
     if stars then
-      hls[#hls + 1] = { line = i, level = #stars, title = title }
+      hls[#hls + 1] = {
+        line = i,
+        level = #stars,
+        title = title,
+        bare = bare_title(title, kws),
+      }
     end
   end
   return hls
@@ -53,6 +123,10 @@ local function section_bounds(hls, hl_idx, total_lines)
 end
 
 -- Walk an outline path; returns the index in `hls` of the leaf, or nil.
+-- Comparison uses each headline's bare title (TODO / priority / tags
+-- stripped) so an olp like `{"Projects","Tasks"}` matches a real outline
+-- like `* TODO Projects / ** [#A] Tasks :work:` (Emacs `org-find-olp`
+-- behavior via org-complex-heading-regexp-format).
 local function find_olp(hls, olp)
   if not olp or #olp == 0 then
     return nil
@@ -60,7 +134,7 @@ local function find_olp(hls, olp)
   local depth = 0
   local last_idx
   for i, hl in ipairs(hls) do
-    if hl.level == depth + 1 and hl.title == olp[depth + 1] then
+    if hl.level == depth + 1 and hl.bare == olp[depth + 1] then
       depth = depth + 1
       last_idx = i
       if depth == #olp then
@@ -74,10 +148,12 @@ local function find_olp(hls, olp)
   return nil
 end
 
--- Find first headline whose title exactly matches (any level).
+-- Find first headline whose bare title (TODO / priority / COMMENT /
+-- stats cookies / tags stripped per Emacs `org-complex-heading-regexp-format`)
+-- exactly matches `title`.  Matches at any level.
 local function find_headline(hls, title)
   for i, hl in ipairs(hls) do
-    if hl.title == title then
+    if hl.bare == title then
       return i
     end
   end
@@ -160,7 +236,13 @@ function M.resolve(spec, ctx, prepend)
   if kind == "file_headline" then
     local idx = find_headline(hls, spec.headline)
     if not idx then
-      error("capture.target: headline not found: " .. spec.headline)
+      -- Emacs `org-capture` for (file+headline ...) auto-creates the
+      -- missing headline at end of file when not found; see
+      -- org-mode/lisp/org-capture.el ~L1091-1098.  Mirror that here.
+      -- The new headline lands as a top-level node; the captured
+      -- entry re-levels to become its child via the standard
+      -- parent_level path in capture.finalise.
+      return path, #lines + 1, { "* " .. spec.headline }, 1
     end
     local s, e = section_bounds(hls, idx, #lines)
     -- Return the target's level as 4th value so capture.finalise

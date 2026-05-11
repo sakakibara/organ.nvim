@@ -66,17 +66,90 @@ do
   assert(#prelude == 0)
 end
 
--- 4. file_headline: not found → error.
+-- 4. file_headline: not found → auto-create the headline at end of file
+-- (Emacs org-capture parity, see org-capture.el `(file+headline ...)` clause).
 do
   local p = fixture("tasks2.org", "* Foo\n  body\n")
-  local ok, err = pcall(
-    target.resolve,
-    { kind = "file_headline", path = p, headline = "Bogus" },
+  local path, line, prelude, level = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
     {},
     false
   )
-  assert(not ok, "expected error on missing headline")
-  assert(err:find("Bogus", 1, true), "err should name missing headline: " .. tostring(err))
+  assert(path == p, "path=" .. tostring(path))
+  -- File has 2 lines; new headline appended → prelude carries it, insert_line
+  -- positions captured entry AFTER the prelude headline.
+  assert(line == 3, "expected line 3 (after existing content); got " .. tostring(line))
+  assert(#prelude == 1, "expected 1 prelude line; got " .. #prelude)
+  assert(prelude[1] == "* Tasks", "expected prelude `* Tasks`; got: " .. tostring(prelude[1]))
+  assert(level == 1, "auto-created headline is top-level; got level=" .. tostring(level))
+end
+
+-- 4a. file_headline: auto-create on EMPTY file (the user's actual bug).
+do
+  local p = vim.fn.resolve(tmp .. "/empty-inbox.org")
+  vim.fn.delete(p)
+  local path, line, prelude, level = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
+    {},
+    false
+  )
+  assert(vim.loop.fs_stat(p), "ensure_file should have created the empty file")
+  assert(line == 1, "empty file: insert_line = 1; got " .. tostring(line))
+  assert(prelude[1] == "* Tasks", "prelude should add the missing headline")
+  assert(level == 1)
+end
+
+-- 4b. file_headline: match a `* TODO Tasks` headline (TODO keyword does not
+-- break match — Emacs org-complex-heading-regexp-format consumes it before
+-- the name).
+do
+  local p = fixture("tasks_todo.org", "* TODO Tasks\n  body\n* Other\n")
+  local path, line, prelude, level = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
+    {},
+    false
+  )
+  assert(#prelude == 0, "headline EXISTS (* TODO Tasks) — no auto-create expected")
+  -- "* TODO Tasks" + body is lines 1-2; "* Other" starts at line 3.
+  -- End-of-section = line 3.
+  assert(line == 3, "expected line 3 (end of TODO Tasks section); got " .. tostring(line))
+  assert(level == 1)
+end
+
+-- 4c. file_headline: match a headline with priority cookie `* [#A] Tasks`.
+do
+  local p = fixture("tasks_pri.org", "* [#A] Tasks\n  body\n* Other\n")
+  local _, line, prelude = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
+    {},
+    false
+  )
+  assert(#prelude == 0, "priority does not break match")
+  assert(line == 3, "expected line 3; got " .. tostring(line))
+end
+
+-- 4d. file_headline: match a headline with trailing tags `* Tasks :work:`.
+do
+  local p = fixture("tasks_tags.org", "* Tasks :work:home:\n  body\n* Other\n")
+  local _, line, prelude = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
+    {},
+    false
+  )
+  assert(#prelude == 0, "tags do not break match")
+  assert(line == 3, "expected line 3; got " .. tostring(line))
+end
+
+-- 4e. file_headline: match a headline with stats cookies `* Tasks [2/5]`.
+do
+  local p = fixture("tasks_stats.org", "* Tasks [2/5]\n  body\n* Other\n")
+  local _, line, prelude = target.resolve(
+    { kind = "file_headline", path = p, headline = "Tasks" },
+    {},
+    false
+  )
+  assert(#prelude == 0, "stats cookie does not break match")
+  assert(line == 3, "expected line 3; got " .. tostring(line))
 end
 
 -- 5. file_olp: nested headline walk.
