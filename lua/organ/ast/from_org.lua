@@ -160,6 +160,42 @@ local function parse_inline(s)
   return out
 end
 
+local function parse_table(node, src)
+  local sr, _, er = node:range()
+  local rows = {}
+  local ncols = 0
+  for r = sr, er - 1 do
+    local line = src[r + 1] or ""
+    if line:match("^%s*|%-") then
+      rows[#rows + 1] = { sep = true, cells = {} }
+    elseif line:match("^%s*|") then
+      local cells = {}
+      for cell in line:gmatch("|([^|]*)") do
+        local trimmed = cell:gsub("^%s+", ""):gsub("%s+$", "")
+        cells[#cells + 1] = trimmed
+      end
+      -- Drop trailing empties (org tables end on `|`).
+      while #cells > 0 and cells[#cells] == "" do
+        cells[#cells] = nil
+      end
+      if #cells > ncols then
+        ncols = #cells
+      end
+      -- Parse each cell as inline.
+      local parsed = {}
+      for _, c in ipairs(cells) do
+        parsed[#parsed + 1] = parse_inline(c)
+      end
+      rows[#rows + 1] = { cells = parsed, sep = false }
+    end
+  end
+  local alignments = {}
+  for _ = 1, ncols do
+    alignments[#alignments + 1] = "l"
+  end
+  return { kind = "table", alignments = alignments, rows = rows }
+end
+
 -- Scan the whole buffer for #+TODO directives so headline TODO
 -- keywords (extended sequences) parse correctly.  Mirrors the same
 -- helper in export/markdown.lua etc.
@@ -335,6 +371,8 @@ local function emit_section_child(node, src)
     return A.block("verse", { body = block_body(node, src) })
   elseif t == "export_block" then
     return A.block("export", { body = block_body(node, src) })
+  elseif t == "table" then
+    return parse_table(node, src)
   end
   return nil
 end

@@ -280,6 +280,56 @@ do
   check("block: export survives round-trip", seen2.export ~= nil)
 end
 
+-- ---------- table ----------
+do
+  local INPUT = {
+    "| name  | age |",
+    "|-------+-----|",
+    "| Alice |  30 |",
+    "| Bob   |  25 |",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local tbl
+  for _, c in ipairs(doc.children) do
+    if c.kind == "table" then
+      tbl = c
+    end
+  end
+  check("table: emitted", tbl ~= nil)
+  if tbl then
+    check(
+      "table: 3 rows (header + 2 data; separator stored as sep=true rows)",
+      #tbl.rows == 3,
+      "got " .. tostring(#tbl.rows)
+    )
+    check(
+      "table: header row first cell text is 'name'",
+      tbl.rows[1].cells[1][1] and tbl.rows[1].cells[1][1].text == "name"
+    )
+    check(
+      "table: separator row marked",
+      tbl.rows[2].sep == true,
+      "got " .. tostring(tbl.rows[2] and tbl.rows[2].sep)
+    )
+    check(
+      "table: alignments defaults to 'l' per column",
+      tbl.alignments and #tbl.alignments == 2 and tbl.alignments[1] == "l",
+      "got " .. vim.inspect(tbl.alignments)
+    )
+  end
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local tbl2
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "table" then
+      tbl2 = c
+    end
+  end
+  check("table: survives round-trip", tbl2 ~= nil and #tbl2.rows == 3)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

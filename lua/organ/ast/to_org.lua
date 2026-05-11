@@ -103,6 +103,29 @@ local function emit_list(node, out, depth)
   out[#out + 1] = ""
 end
 
+local function emit_table(node, out)
+  local ncols = #(node.alignments or {})
+  if ncols == 0 and node.rows and node.rows[1] then
+    ncols = #(node.rows[1].cells or {})
+  end
+  for _, row in ipairs(node.rows or {}) do
+    if row.sep then
+      local sep_cells = {}
+      for _ = 1, math.max(1, ncols) do
+        sep_cells[#sep_cells + 1] = "----"
+      end
+      out[#out + 1] = "|" .. table.concat(sep_cells, "+") .. "|"
+    else
+      local cells = {}
+      for _, cell in ipairs(row.cells or {}) do
+        cells[#cells + 1] = " " .. emit_inline(cell) .. " "
+      end
+      out[#out + 1] = "|" .. table.concat(cells, "|") .. "|"
+    end
+  end
+  out[#out + 1] = ""
+end
+
 local function emit_headline(node, out)
   local stars = string.rep("*", node.level or 1)
   local pieces = { stars }
@@ -151,6 +174,8 @@ local function emit_block(node, out)
     end
     out[#out + 1] = "#+end_" .. style
     out[#out + 1] = ""
+  elseif node.kind == "table" then
+    emit_table(node, out)
   end
   -- Other kinds drop silently in this phase.
 end
