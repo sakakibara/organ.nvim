@@ -439,6 +439,68 @@ do
   check("math: 4 nodes survive round-trip", #maths2 == 4, "got " .. #maths2)
 end
 
+-- ---------- footnotes (inline ref + block definition) ----------
+do
+  local INPUT = {
+    "Some claim[fn:1] in the text.",
+    "Another sentence[fn:2] follows.",
+    "",
+    "[fn:1] First footnote body.",
+    "[fn:2] Second footnote, with *emphasis*.",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  -- Collect inline footnote_refs.
+  local refs = {}
+  local function collect_refs(n)
+    if n.kind == "footnote_ref" then
+      refs[#refs + 1] = n
+    end
+    for _, slot in ipairs({ "children", "content", "inline", "title" }) do
+      if n[slot] then
+        for _, c in ipairs(n[slot]) do
+          collect_refs(c)
+        end
+      end
+    end
+  end
+  collect_refs(doc)
+  check("footnote: 2 inline refs", #refs == 2, "got " .. #refs)
+  if #refs >= 2 then
+    check("footnote: first ref label", refs[1].label == "1", "got " .. tostring(refs[1].label))
+    check("footnote: second ref label", refs[2].label == "2", "got " .. tostring(refs[2].label))
+  end
+
+  -- Collect block footnote_definitions.
+  local defs = {}
+  for _, c in ipairs(doc.children) do
+    if c.kind == "footnote_definition" then
+      defs[#defs + 1] = c
+    end
+  end
+  check("footnote: 2 block definitions", #defs == 2, "got " .. #defs)
+  if #defs >= 2 then
+    check("footnote: first def label", defs[1].label == "1", "got " .. tostring(defs[1].label))
+    check(
+      "footnote: first def content is a list of blocks",
+      type(defs[1].content) == "table" and defs[1].content[1] and defs[1].content[1].kind == "paragraph"
+    )
+  end
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  refs = {}
+  collect_refs(doc2)
+  check("footnote: 2 refs survive round-trip", #refs == 2, "got " .. #refs)
+  local defs2 = 0
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "footnote_definition" then
+      defs2 = defs2 + 1
+    end
+  end
+  check("footnote: 2 definitions survive round-trip", defs2 == 2, "got " .. defs2)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

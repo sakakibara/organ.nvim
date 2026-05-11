@@ -111,6 +111,21 @@ local function parse_inline(s)
   end
   while i <= #s do
     local c = s:sub(i, i)
+    -- Try footnote ref: [fn:LABEL].  Anonymous [fn::body] form is left
+    -- as plain text in this phase.
+    if c == "[" and s:sub(i + 1, i + 3) == "fn:" then
+      local close = s:find("]", i + 4, true)
+      if close then
+        local label = s:sub(i + 4, close - 1)
+        if not label:match(":") then
+          -- Named/numbered ref (not anonymous).
+          flush()
+          out[#out + 1] = { kind = "footnote_ref", label = label }
+          i = close + 1
+          goto continue
+        end
+      end
+    end
     -- Try a link [[target][desc]] or [[target]].
     if c == "[" and s:sub(i + 1, i + 1) == "[" then
       local close = s:find("]]", i + 2, true)
@@ -455,6 +470,24 @@ local function emit_section_child(node, src)
     return A.block("export", { body = block_body(node, src) })
   elseif t == "table" then
     return parse_table(node, src)
+  elseif t == "footnote_definition" then
+    -- The grammar's `footnote_definition` node spans from `[fn:LABEL]`
+    -- to the next blank line / next definition / next headline.  Read
+    -- the source text, strip the leading `[fn:LABEL]` token, and parse
+    -- the remainder as a paragraph.
+    local sr, _, er, ec = node:range()
+    local last_row = ec > 0 and er or er - 1
+    local pieces = {}
+    for r = sr, last_row do
+      pieces[#pieces + 1] = src[r + 1] or ""
+    end
+    local raw = table.concat(pieces, "\n")
+    local label, body = raw:match("^%s*%[fn:([^%]:]+)%]%s*(.*)$")
+    if not label then
+      return nil
+    end
+    -- Body may span multiple lines; treat as one paragraph for now.
+    return A.footnote_definition(label, { A.paragraph(parse_inline(body)) })
   end
   return nil
 end

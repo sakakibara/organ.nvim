@@ -184,6 +184,24 @@ local function emit_block(node, out)
       out[#out + 1] = "[[" .. (node.target or "") .. "]]"
     end
     out[#out + 1] = ""
+  elseif node.kind == "footnote_definition" then
+    -- Render as `[fn:LABEL] <paragraph content>` on one line, then blank.
+    local first_body = ""
+    if node.content and node.content[1] and node.content[1].kind == "paragraph" then
+      first_body = emit_inline(node.content[1].inline)
+    end
+    out[#out + 1] = "[fn:" .. (node.label or "") .. "] " .. first_body
+    -- Additional paragraphs in content render below, indented like
+    -- continuation lines.
+    if node.content and #node.content > 1 then
+      for i = 2, #node.content do
+        local b = node.content[i]
+        if b.kind == "paragraph" then
+          out[#out + 1] = "  " .. emit_inline(b.inline)
+        end
+      end
+    end
+    out[#out + 1] = ""
   end
   -- Other kinds drop silently in this phase.
 end
