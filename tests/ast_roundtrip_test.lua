@@ -192,6 +192,36 @@ do
   )
 end
 
+-- ---------- rule (horizontal rule) ----------
+do
+  local INPUT = {
+    "Above the line.",
+    "",
+    "-----",
+    "",
+    "Below the line.",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local has_rule = false
+  for _, c in ipairs(doc.children) do
+    if c.kind == "rule" then
+      has_rule = true
+    end
+  end
+  check("rule: emitted from -----", has_rule)
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local has_rule2 = false
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "rule" then
+      has_rule2 = true
+    end
+  end
+  check("rule: survives round-trip", has_rule2)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

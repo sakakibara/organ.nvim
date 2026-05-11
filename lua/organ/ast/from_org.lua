@@ -284,6 +284,8 @@ local function emit_section_child(node, src)
       return A.directive(name:upper(), value or "")
     end
     return nil
+  elseif t == "horizontal_rule" then
+    return A.rule()
   end
   return nil
 end
