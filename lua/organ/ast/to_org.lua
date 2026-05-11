@@ -176,6 +176,14 @@ local function emit_block(node, out)
     out[#out + 1] = ""
   elseif node.kind == "table" then
     emit_table(node, out)
+  elseif node.kind == "image" then
+    -- Block-level image: render the link form on its own line.
+    if node.alt and node.alt ~= "" then
+      out[#out + 1] = "[[" .. (node.target or "") .. "][" .. node.alt .. "]]"
+    else
+      out[#out + 1] = "[[" .. (node.target or "") .. "]]"
+    end
+    out[#out + 1] = ""
   end
   -- Other kinds drop silently in this phase.
 end

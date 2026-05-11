@@ -330,6 +330,55 @@ do
   check("table: survives round-trip", tbl2 ~= nil and #tbl2.rows == 3)
 end
 
+-- ---------- image (free-standing block) ----------
+do
+  local INPUT = {
+    "Some text before.",
+    "",
+    "[[./figures/diagram.png]]",
+    "",
+    "Some text after.",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local img
+  for _, c in ipairs(doc.children) do
+    if c.kind == "image" then
+      img = c
+    end
+  end
+  check("image: free-standing emitted as block", img ~= nil)
+  if img then
+    check(
+      "image: target preserved",
+      img.target == "./figures/diagram.png",
+      "got " .. tostring(img.target)
+    )
+  end
+
+  -- Inline image inside a paragraph should still be an inline `image`
+  -- under a `paragraph`, NOT a free-standing block.
+  local INPUT2 = {
+    "See [[./figures/diagram.png]] for details.",
+  }
+  local doc_inline = from_org.from_lines(INPUT2)
+  local first = doc_inline.children[1]
+  check(
+    "image: inline-with-text stays inside paragraph",
+    first and first.kind == "paragraph"
+  )
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local has_img = false
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "image" then
+      has_img = true
+    end
+  end
+  check("image: survives round-trip", has_img)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

@@ -44,6 +44,20 @@ local function block_body(node, src)
   return table.concat(lines, "\n")
 end
 
+-- Image-target sniff.  An image extension is one of the common bitmap
+-- / vector extensions, case-insensitive.
+local IMAGE_EXT = {
+  png = true, jpg = true, jpeg = true, gif = true, svg = true,
+  webp = true, bmp = true, tiff = true, tif = true,
+}
+local function is_image_target(target)
+  if type(target) ~= "string" then
+    return false
+  end
+  local ext = target:match("%.([%w]+)$")
+  return ext and IMAGE_EXT[ext:lower()] or false
+end
+
 local function clean_title(line, todo_keywords)
   -- Strip stars.
   line = line:gsub("^%*+%s+", "")
@@ -276,7 +290,40 @@ local function emit_section_child(node, src)
       pieces[#pieces + 1] = src[r + 1] or ""
     end
     local raw = table.concat(pieces, "\n")
-    return A.paragraph(parse_inline(raw))
+    local inline = parse_inline(raw)
+    -- Free-standing image rewrite: paragraph containing exactly one
+    -- link whose target has an image extension (with optional
+    -- leading/trailing whitespace text nodes) becomes a block-level
+    -- image node.
+    local non_ws_count, the_link = 0, nil
+    for _, n in ipairs(inline) do
+      if n.kind == "text" and n.text:match("^%s*$") then
+        -- whitespace-only text; ignore
+      elseif n.kind == "link" then
+        non_ws_count = non_ws_count + 1
+        the_link = n
+      else
+        non_ws_count = non_ws_count + 2 -- force the heuristic to fail
+      end
+    end
+    if non_ws_count == 1 and the_link and is_image_target(the_link.target) then
+      return {
+        kind = "image",
+        target = the_link.target,
+        alt = the_link.description and (function()
+          -- description is inline[]; flatten any text leaves into a string.
+          local s = {}
+          for _, d in ipairs(the_link.description) do
+            if d.kind == "text" then
+              s[#s + 1] = d.text
+            end
+          end
+          local joined = table.concat(s)
+          return joined ~= "" and joined or nil
+        end)() or nil,
+      }
+    end
+    return A.paragraph(inline)
   elseif t == "src_block" then
     local lang
     local lang_node = node:field("language")[1]
