@@ -136,6 +136,62 @@ end
 find_code(doc2)
 check("round-trip preserves a python code block", found_code)
 
+-- ---------- directive (#+TITLE, #+AUTHOR, #+DATE, other) ----------
+do
+  local INPUT = {
+    "#+TITLE: My Document",
+    "#+AUTHOR: Jane Doe",
+    "#+DATE: 2026-05-11",
+    "#+OPTIONS: toc:nil",
+    "",
+    "* Heading",
+    "Some text.",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local seen = {}
+  for _, c in ipairs(doc.children) do
+    if c.kind == "directive" then
+      seen[c.name] = c.value
+    end
+  end
+  check(
+    "directive: TITLE captured",
+    seen.TITLE == "My Document",
+    "got " .. tostring(seen.TITLE)
+  )
+  check(
+    "directive: AUTHOR captured",
+    seen.AUTHOR == "Jane Doe",
+    "got " .. tostring(seen.AUTHOR)
+  )
+  check(
+    "directive: DATE captured",
+    seen.DATE == "2026-05-11",
+    "got " .. tostring(seen.DATE)
+  )
+  check(
+    "directive: OPTIONS captured (lowercase / unknown still preserved)",
+    seen.OPTIONS == "toc:nil",
+    "got " .. tostring(seen.OPTIONS)
+  )
+
+  -- Round-trip: render then parse again, directives must survive.
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local seen2 = {}
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "directive" then
+      seen2[c.name] = c.value
+    end
+  end
+  check(
+    "directive: TITLE survives round-trip",
+    seen2.TITLE == "My Document",
+    "got " .. tostring(seen2.TITLE)
+  )
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

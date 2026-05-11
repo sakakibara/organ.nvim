@@ -274,6 +274,16 @@ local function emit_section_child(node, src)
       end
     end
     return A.list(ordered, items)
+  elseif t == "keyword" then
+    -- Tree-sitter `keyword` is `#+NAME: value`. Get the raw line and
+    -- split on the first `:`.
+    local sr = node:start()
+    local line = src[sr + 1] or ""
+    local name, value = line:match("^%s*#%+([%w_]+):%s*(.-)%s*$")
+    if name then
+      return A.directive(name:upper(), value or "")
+    end
+    return nil
   end
   return nil
 end
