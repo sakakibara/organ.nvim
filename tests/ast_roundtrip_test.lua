@@ -222,6 +222,64 @@ do
   check("rule: survives round-trip", has_rule2)
 end
 
+-- ---------- block (quote / verse / example / export) ----------
+do
+  local INPUT = {
+    "#+begin_quote",
+    "A quote with *emphasis*.",
+    "#+end_quote",
+    "",
+    "#+begin_example",
+    "raw monospace; *no* emphasis parsing here.",
+    "#+end_example",
+    "",
+    "#+begin_verse",
+    "Line one.",
+    "Line two.",
+    "#+end_verse",
+    "",
+    "#+begin_export html",
+    "<p>passthrough</p>",
+    "#+end_export",
+  }
+  local doc = from_org.from_lines(INPUT)
+
+  local seen = {}
+  for _, c in ipairs(doc.children) do
+    if c.kind == "block" then
+      seen[c.style] = c
+    end
+  end
+  check("block: quote present", seen.quote ~= nil)
+  check("block: example present", seen.example ~= nil)
+  check("block: verse present", seen.verse ~= nil)
+  check("block: export present", seen.export ~= nil)
+
+  check(
+    "block: example has body string (verbatim)",
+    seen.example and type(seen.example.body) == "string",
+    seen.example and ("type=" .. type(seen.example.body)) or "missing"
+  )
+  check(
+    "block: quote has content list (parsed)",
+    seen.quote and type(seen.quote.content) == "table",
+    seen.quote and ("type=" .. type(seen.quote.content)) or "missing"
+  )
+
+  local rendered = to_org.render(doc)
+  local doc2 = from_org.from_lines(lines_of(rendered))
+  local seen2 = {}
+  for _, c in ipairs(doc2.children) do
+    if c.kind == "block" then
+      seen2[c.style] = c
+    end
+  end
+  check("block: quote survives round-trip", seen2.quote ~= nil)
+  check("block: example survives round-trip", seen2.example ~= nil)
+  check("block: verse survives round-trip", seen2.verse ~= nil)
+  check("block: export survives round-trip", seen2.export ~= nil)
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")

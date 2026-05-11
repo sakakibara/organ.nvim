@@ -35,6 +35,15 @@ local function heading_level(node, src)
   return #(line:match("^(%*+)%s") or "")
 end
 
+local function block_body(node, src)
+  local sr, _, er = node:range()
+  local lines = {}
+  for r = sr + 1, er - 1 do
+    lines[#lines + 1] = src[r + 1] or ""
+  end
+  return table.concat(lines, "\n")
+end
+
 local function clean_title(line, todo_keywords)
   -- Strip stars.
   line = line:gsub("^%*+%s+", "")
@@ -286,6 +295,46 @@ local function emit_section_child(node, src)
     return nil
   elseif t == "horizontal_rule" then
     return A.rule()
+  elseif t == "greater_block" then
+    -- The org grammar emits `greater_block` for `#+begin_X` where X has
+    -- no dedicated node type.  In practice that's `quote` plus any
+    -- user-defined block.  Read the block name from the begin line.
+    local sr = node:start()
+    local name = (src[sr + 1] or ""):match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_([%w_]+)")
+    if not name then
+      return nil
+    end
+    name = name:lower()
+    if name == "quote" then
+      -- Quote: parse inner content as a sequence of paragraphs
+      -- (blank-line delimited).  Each line runs through parse_inline
+      -- so emphasis / links work.
+      local body = block_body(node, src)
+      local paragraphs = {}
+      local cur = {}
+      for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+        if line == "" then
+          if #cur > 0 then
+            paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
+            cur = {}
+          end
+        else
+          cur[#cur + 1] = line
+        end
+      end
+      if #cur > 0 then
+        paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
+      end
+      return A.block("quote", { content = paragraphs })
+    end
+    -- Unknown / custom greater_block: keep body opaque, style = name.
+    return A.block(name, { body = block_body(node, src) })
+  elseif t == "example_block" then
+    return A.block("example", { body = block_body(node, src) })
+  elseif t == "verse_block" then
+    return A.block("verse", { body = block_body(node, src) })
+  elseif t == "export_block" then
+    return A.block("export", { body = block_body(node, src) })
   end
   return nil
 end
