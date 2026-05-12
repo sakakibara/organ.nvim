@@ -17,10 +17,12 @@
 -- checkbox glyphs (`[ ]` -> `˟`, `[X]` -> `✓`, `[-]` -> `▣`) for
 -- parity with org-bullets.nvim.
 --
--- Runs as an `organ.decoration` provider: `on_lines` rebuilds a per-
--- buffer row cache (tree-sitter headline walk + line scan for list
--- markers / checkboxes), and `on_line` emits ephemeral conceal
--- extmarks for the visible row.
+-- Runs as an `organ.decoration` provider: `on_win` queries tree-sitter
+-- for headlines in the visible range and scans the same range for list
+-- markers and checkboxes (the org grammar doesn't surface those
+-- uniformly as nodes, so a flat byte-prefix scan is the right tool);
+-- results land in a module-local frame-row map.  `on_line` reads the
+-- map and emits ephemeral conceal extmarks for the current row.
 
 local M = {}
 
@@ -73,67 +75,80 @@ local function get_query()
   return _q
 end
 
--- Per-buffer row cache: cache_by_buf[bufnr][row] = { entry, ... } where
--- each entry is { col = N, end_col = N, conceal = "<char>" }.  Rows that
--- have no concealment are absent.
-local cache_by_buf = {}
+-- Per-window saved conceallevel so detach() restores rather than nukes.
+M._saved_conceallevel = M._saved_conceallevel or {}
 
--- Build the per-row cache by walking the headline tree (tree-sitter)
--- for star concealment, then scanning lines for list bullets and
--- checkboxes.  Same logic as the pre-migration apply(), bucketed by
--- row for the on_line dispatcher.
-local function build_cache(bufnr)
-  local rows = {}
+-- Frame-local row map: frame_map[row] = { { col, end_col, conceal }, ... }.
+-- Reset at the start of every on_win call; read by on_line for the
+-- same frame.  No per-buffer keying: only one window's on_win runs
+-- before its on_line callbacks for the same frame.
+local frame_map = {}
+
+M._frame_map = function()
+  return frame_map
+end
+
+local function on_win(bufnr, _winid, topline, botline)
+  frame_map = {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
-    return rows
+    return
   end
   if vim.bo[bufnr].filetype ~= "org" then
-    return rows
+    return
+  end
+  local cfg = require("organ").config
+  if not ((cfg.modern or {}).bullets) then
+    return
   end
 
   local function push(row, col, end_col, conceal)
-    rows[row] = rows[row] or {}
-    rows[row][#rows[row] + 1] = { col = col, end_col = end_col, conceal = conceal }
+    if row < topline or row > botline then
+      return
+    end
+    frame_map[row] = frame_map[row] or {}
+    frame_map[row][#frame_map[row] + 1] = { col = col, end_col = end_col, conceal = conceal }
   end
 
-  -- Headline stars: walk `(headline)` nodes via tree-sitter.
+  -- Headline stars: tree-sitter `(headline) @h` captures, scoped to
+  -- the visible range.  Range-bounded incremental parse; tree-sitter's
+  -- edit tracking keeps the rest of the tree correct.
   local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if ok_parser and parser then
-    local tree = (parser:parse() or {})[1]
+    parser:parse({ topline, 0, botline + 1, 0 })
+    local tree = (parser:trees() or {})[1]
     local q = get_query()
     if tree and q then
       local glyphs = get_glyphs()
-      for _, node in q:iter_captures(tree:root(), bufnr, 0, -1) do
+      for _, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
         local sr, sc = node:start()
-        local ok_line, line = pcall(vim.api.nvim_buf_get_lines, bufnr, sr, sr + 1, false)
-        if ok_line and line and line[1] then
-          local stars = line[1]:match("^(%*+)") or ""
-          local n = #stars
-          if n >= 1 then
-            -- Conceal leading N-1 stars as spaces.
-            for i = 0, n - 2 do
-              push(sr, sc + i, sc + i + 1, " ")
+        if sr >= topline and sr <= botline then
+          local ok_line, line = pcall(vim.api.nvim_buf_get_lines, bufnr, sr, sr + 1, false)
+          if ok_line and line and line[1] then
+            local stars = line[1]:match("^(%*+)") or ""
+            local n = #stars
+            if n >= 1 then
+              for i = 0, n - 2 do
+                push(sr, sc + i, sc + i + 1, " ")
+              end
+              local glyph = glyphs[((n - 1) % #glyphs) + 1]
+              push(sr, sc + n - 1, sc + n, glyph)
             end
-            -- Conceal the trailing star with a level-specific glyph.
-            local glyph = glyphs[((n - 1) % #glyphs) + 1]
-            push(sr, sc + n - 1, sc + n, glyph)
           end
         end
       end
     end
   end
 
-  -- List-item bullets and checkboxes: scan all lines for `<indent>- ` /
-  -- `<indent>+ ` markers and `[ ]`/`[X]`/`[x]`/`[-]` checkboxes inside
-  -- list items.  The org grammar doesn't expose marker / checkbox
-  -- nodes uniformly, so a line scan is more direct than a tree walk
-  -- here.  (The headline path above IS tree-sitter; this is a fallback
-  -- for shapes the grammar doesn't surface as nodes.)
+  -- List-item bullets and checkboxes: scan visible lines for
+  -- `<indent>- ` / `<indent>+ ` markers and `[ ]`/`[X]`/`[x]`/`[-]`
+  -- checkboxes inside list items.  The org grammar doesn't expose
+  -- marker / checkbox nodes uniformly, so a line scan is more direct
+  -- than a tree walk here.
   local cb_glyphs = get_checkbox_glyphs()
   local list_glyph = get_list_glyph()
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, topline, botline + 1, false)
   for i, line in ipairs(lines) do
-    local row = i - 1
+    local row = topline + i - 1
     local indent, marker = line:match("^(%s*)([%-%+])%s")
     if marker then
       local col = #indent
@@ -158,19 +173,18 @@ local function build_cache(bufnr)
       end
     end
   end
-
-  return rows
 end
 
--- Emit all cached extmarks for one row.  Shared between the ephemeral
--- on_line path and the non-ephemeral _apply path; the caller sets
--- `ephemeral`.
-local function place_row(bufnr, row, entries, ephemeral)
+local function on_line(bufnr, _winid, row)
+  local entries = frame_map[row]
+  if not entries then
+    return
+  end
   for _, e in ipairs(entries) do
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.col, {
       end_col = e.end_col,
       conceal = e.conceal,
-      ephemeral = ephemeral or nil,
+      ephemeral = true,
     })
   end
 end
@@ -182,43 +196,28 @@ require("organ.decoration").register({
     local cfg = require("organ").config
     return (cfg.modern or {}).bullets and true or false
   end,
-  on_lines = function(bufnr, _first, _last_old, _last_new)
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    -- Full rebuild: tree-sitter's incremental parse keeps the cost
-    -- bounded.  Range-bounded walks are a future optimization.
-    cache_by_buf[bufnr] = build_cache(bufnr)
-  end,
-  on_line = function(bufnr, _winid, row)
-    local rows = cache_by_buf[bufnr]
-    if not rows then
-      return
-    end
-    local entries = rows[row]
-    if not entries then
-      return
-    end
-    place_row(bufnr, row, entries, true)
-  end,
+  on_win = on_win,
+  on_line = on_line,
 })
 
--- Per-window saved conceallevel so detach() restores rather than nukes.
-M._saved_conceallevel = M._saved_conceallevel or {}
-
--- Test-facing + ftplugin entrypoint.  Rebuild the cache + place non-
--- ephemeral extmarks so callers asserting via `nvim_buf_get_extmarks`
--- see them without waiting for a frame.
+-- Test-facing + ftplugin entrypoint.  Drive on_win across the full
+-- buffer and place non-ephemeral extmarks so callers asserting via
+-- `nvim_buf_get_extmarks` see them without waiting for a frame.
 function M._apply(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  local rows = build_cache(bufnr)
-  cache_by_buf[bufnr] = rows
-  for row, entries in pairs(rows) do
-    place_row(bufnr, row, entries, false)
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  on_win(bufnr, 0, 0, n - 1)
+  for row, entries in pairs(frame_map) do
+    for _, e in ipairs(entries) do
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.col, {
+        end_col = e.end_col,
+        conceal = e.conceal,
+      })
+    end
   end
 end
 
@@ -240,7 +239,6 @@ end
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  cache_by_buf[bufnr] = nil
   local winid = vim.api.nvim_get_current_win()
   if M._saved_conceallevel[winid] ~= nil then
     vim.wo.conceallevel = M._saved_conceallevel[winid]
@@ -250,11 +248,14 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { limit = 1 })
-  if #marks > 0 then
+  local cfg = require("organ").config
+  cfg.modern = cfg.modern or {}
+  if cfg.modern.bullets then
+    cfg.modern.bullets = false
     M.detach(bufnr)
     return false
   end
+  cfg.modern.bullets = true
   M.attach(bufnr)
   return true
 end

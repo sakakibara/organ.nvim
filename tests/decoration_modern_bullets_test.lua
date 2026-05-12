@@ -41,10 +41,14 @@ local providers, _ = decoration._providers()
 check("modern_bullets provider registered", providers.modern_bullets ~= nil)
 check("provider exposes ns", providers.modern_bullets and providers.modern_bullets.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.modern_bullets
-    and type(providers.modern_bullets.on_lines) == "function"
+    and type(providers.modern_bullets.on_win) == "function"
     and type(providers.modern_bullets.on_line) == "function"
+)
+check(
+  "provider has no on_lines",
+  providers.modern_bullets and providers.modern_bullets.on_lines == nil
 )
 
 -- Three-level nested headlines + list items + checkboxes.
