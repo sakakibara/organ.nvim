@@ -74,11 +74,10 @@ function M.read(bufnr, line)
 end
 
 -- Replace the headline's tag block with `new_tags`. Re-emits the headline as:
---   <stars> <body> <pad> <tag-block>
--- where pad keeps the existing column alignment when feasible (a single space
--- if the body would otherwise abut the colons; longer pad preserved when the
--- prior tag block had its own padding via right-alignment isn't reproduced —
--- we keep it simple and use a single space).
+--   <stars> <body><pad><tag-block>
+-- where pad right-aligns the tag block to `config.format.headline.tags_column`
+-- via `format.align_tag_block`. Empty `new_tags` removes the tag block and
+-- leaves only `<stars> <body>` (no trailing whitespace).
 function M.write(bufnr, line, new_tags)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local hl = find_headline(lines, line)
@@ -90,14 +89,14 @@ function M.write(bufnr, line, new_tags)
     return "headline parse failed"
   end
   local block = render_tag_block(new_tags)
-  local new_line
-  if block == "" then
-    new_line = parsed.stars .. (parsed.body == "" and "" or (" " .. parsed.body))
-  elseif parsed.body == "" then
-    new_line = parsed.stars .. " " .. block
+  local left
+  if parsed.body == "" then
+    left = parsed.stars
   else
-    new_line = parsed.stars .. " " .. parsed.body .. " " .. block
+    left = parsed.stars .. " " .. parsed.body
   end
+  local format = require("organ.format")
+  local new_line = format.align_tag_block(left, block)
   vim.api.nvim_buf_set_lines(bufnr, hl - 1, hl, false, { new_line })
   return nil
 end

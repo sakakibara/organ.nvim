@@ -78,6 +78,61 @@ local function split_trailing_tags(s)
   return s, nil
 end
 
+-- Compute the padded headline string for "<left><pad><tags>" so the tag
+-- block right-aligns to `tags_column`.
+--
+-- opts (all optional):
+--   tags_column = N | nil | false | 0
+--                  positive N -> absolute column for tag block's right edge
+--                  negative N -> offset from `textwidth` (textwidth + N + 1)
+--                  0 / false  -> flush, single space between left and tags
+--                  nil        -> read from `config.format.headline.tags_column`
+--   textwidth    = N (defaults to `config.format._effective_width`, then 80)
+--
+-- When `tags` is "" or nil, returns `left` unchanged (no trailing space).
+function M.align_tag_block(left, tags, opts)
+  if tags == nil or tags == "" then
+    return left
+  end
+  opts = opts or {}
+  local cfg
+  local function load_cfg()
+    if cfg then
+      return cfg
+    end
+    cfg = format_cfg()
+    return cfg
+  end
+  local target = opts.tags_column
+  if target == nil then
+    target = (load_cfg().headline or {}).tags_column
+    if target == nil then
+      target = 77
+    end
+  end
+  if target == false or target == 0 then
+    return left .. " " .. tags
+  end
+  local effective
+  if target < 0 then
+    local tw = opts.textwidth
+    if tw == nil then
+      tw = load_cfg()._effective_width
+      if tw == nil then
+        tw = 80
+      end
+    end
+    effective = tw + target + 1
+  else
+    effective = target
+  end
+  local pad = effective - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(tags)
+  if pad < 1 then
+    pad = 1
+  end
+  return left .. string.rep(" ", pad) .. tags
+end
+
 local function normalize_headline(line, opts)
   opts = opts or {}
   if opts.normalize_whitespace == false and not opts.tags_column then
@@ -139,25 +194,19 @@ local function normalize_headline(line, opts)
   if not tags then
     return left
   end
-
+  -- `opts.tags_column == nil` here means "caller did not pass an explicit
+  -- target", which inside the formatter pipeline (`normalize_headlines`)
+  -- means "leave tags wherever the user typed them"; flip nil to false so
+  -- the helper takes the flush-with-one-space branch rather than reading
+  -- the config default.
   local target = opts.tags_column
-  if target == nil or target == false then
-    return left .. " " .. tags
+  if target == nil then
+    target = false
   end
-  local effective
-  if target < 0 then
-    local tw = opts.textwidth or 80
-    effective = tw + target + 1
-  elseif target == 0 then
-    return left .. " " .. tags
-  else
-    effective = target
-  end
-  local pad = effective - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(tags)
-  if pad < 1 then
-    pad = 1
-  end
-  return left .. string.rep(" ", pad) .. tags
+  return M.align_tag_block(left, tags, {
+    tags_column = target,
+    textwidth = opts.textwidth,
+  })
 end
 M._normalize_headline = normalize_headline
 

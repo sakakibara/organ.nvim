@@ -136,11 +136,13 @@ local function emit_headline(node, out)
     pieces[#pieces + 1] = "[#" .. node.priority .. "]"
   end
   pieces[#pieces + 1] = emit_inline(node.title)
-  local line = table.concat(pieces, " ")
+  local left = table.concat(pieces, " ")
+  local block = ""
   if node.tags and #node.tags > 0 then
-    line = line .. " :" .. table.concat(node.tags, ":") .. ":"
+    block = ":" .. table.concat(node.tags, ":") .. ":"
   end
-  out[#out + 1] = line
+  local format = require("organ.format")
+  out[#out + 1] = format.align_tag_block(left, block)
   for _, c in ipairs(node.children or {}) do
     M._emit_block(c, out)
   end

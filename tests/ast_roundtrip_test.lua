@@ -489,6 +489,89 @@ do
   check("footnote: 2 definitions survive round-trip", defs2 == 2, "got " .. defs2)
 end
 
+-- ---------- headline tag-block alignment (`config.format.headline.tags_column`) ----------
+-- The to_org emitter right-aligns tags to `tags_column` (default 77),
+-- using the same `format.align_tag_block` helper as `:Org format` and
+-- `tag_writer`.  Verify the rendered headline line has correct padding.
+do
+  local INPUT = { "* DONE [#A] Second heading :work:urgent:" }
+  local doc = from_org.from_lines(INPUT)
+  local rendered = to_org.render(doc)
+  -- Find the headline line in the output.
+  local headline_line
+  for line in (rendered .. "\n"):gmatch("([^\n]*)\n") do
+    if line:match("^%* DONE") then
+      headline_line = line
+      break
+    end
+  end
+  check("headline tag align: line emitted", headline_line ~= nil)
+  if headline_line then
+    local right_edge = vim.fn.strdisplaywidth(headline_line)
+    check(
+      "headline tag align: right edge at column 77",
+      right_edge == 77,
+      "got width " .. right_edge .. " line=[" .. headline_line .. "]"
+    )
+    check(
+      "headline tag align: tag block present at end",
+      headline_line:sub(-#":work:urgent:") == ":work:urgent:",
+      "line=[" .. headline_line .. "]"
+    )
+    -- Body text is "* DONE [#A] Second heading" -> width 26.  Tag block
+    -- ":work:urgent:" -> width 13.  Pad to 77 = 77 - 26 - 13 = 38 spaces.
+    local left = "* DONE [#A] Second heading"
+    local block = ":work:urgent:"
+    local want_pad = 77 - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(block)
+    local want_line = left .. string.rep(" ", want_pad) .. block
+    check(
+      "headline tag align: exact pad width",
+      headline_line == want_line,
+      "got [" .. headline_line .. "] want [" .. want_line .. "]"
+    )
+  end
+end
+
+-- A headline without tags has no trailing whitespace introduced by the
+-- aligner.
+do
+  local INPUT = { "* Untagged heading" }
+  local doc = from_org.from_lines(INPUT)
+  local rendered = to_org.render(doc)
+  local headline_line
+  for line in (rendered .. "\n"):gmatch("([^\n]*)\n") do
+    if line:match("^%* ") then
+      headline_line = line
+      break
+    end
+  end
+  check(
+    "headline no tags: no trailing whitespace",
+    headline_line == "* Untagged heading",
+    "got [" .. tostring(headline_line) .. "]"
+  )
+end
+
+-- Long headline (already past tags_column) falls back to one space of pad.
+do
+  local long_title = string.rep("x", 80)
+  local INPUT = { "* " .. long_title .. " :t:" }
+  local doc = from_org.from_lines(INPUT)
+  local rendered = to_org.render(doc)
+  local headline_line
+  for line in (rendered .. "\n"):gmatch("([^\n]*)\n") do
+    if line:match("^%* ") then
+      headline_line = line
+      break
+    end
+  end
+  check(
+    "headline overflow: pad clamps to one space",
+    headline_line == "* " .. long_title .. " :t:",
+    "got [" .. tostring(headline_line) .. "]"
+  )
+end
+
 if fails > 0 then
   print()
   print("--- rendered output ---")
