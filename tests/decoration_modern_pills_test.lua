@@ -49,11 +49,12 @@ local providers, _ = decoration._providers()
 check("modern_pills provider registered", providers.modern_pills ~= nil)
 check("provider exposes ns", providers.modern_pills and providers.modern_pills.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.modern_pills
-    and type(providers.modern_pills.on_lines) == "function"
+    and type(providers.modern_pills.on_win) == "function"
     and type(providers.modern_pills.on_line) == "function"
 )
+check("provider has no on_lines", providers.modern_pills and providers.modern_pills.on_lines == nil)
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.bo[bufnr].filetype = "org"
