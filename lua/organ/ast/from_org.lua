@@ -300,6 +300,33 @@ local function scan_keywords(src)
   return kws
 end
 
+-- Tree-sitter splits a single user-visible org table into multiple
+-- `table` grammar nodes whenever an interior `|---|` rule appears,
+-- because each rule terminates a `table` production.  At the AST
+-- level a table is "one user-visible table", so fold runs of
+-- consecutive `table` blocks into one by concatenating their rows.
+-- A single divider row is preserved between the merged segments so
+-- the to_md/to_org emitters can decide whether to keep or drop it.
+local function merge_adjacent_tables(blocks)
+  local out = {}
+  for _, b in ipairs(blocks) do
+    local prev = out[#out]
+    if b.kind == "table" and prev and prev.kind == "table" then
+      prev.rows[#prev.rows + 1] = { sep = true, cells = {} }
+      for _, r in ipairs(b.rows or {}) do
+        prev.rows[#prev.rows + 1] = r
+      end
+      -- Widen alignments to the wider of the two segments.
+      if (#(b.alignments or {})) > (#(prev.alignments or {})) then
+        prev.alignments = b.alignments
+      end
+    else
+      out[#out + 1] = b
+    end
+  end
+  return out
+end
+
 -- Walk an org `headline` (TS node) emitting an AST headline.  Recurses
 -- into children for sub-headlines / body content.  Body content is
 -- everything between the title line and the next sub-headline.
@@ -333,7 +360,7 @@ local function emit_headline(node, src, todo_kws)
     priority = priority,
     tags = tags,
     title = parse_inline(title_str),
-    children = children_blocks,
+    children = merge_adjacent_tables(children_blocks),
   })
 end
 
@@ -530,7 +557,7 @@ function M.from_lines(src)
       end
     end
   end
-  return A.document(doc_children)
+  return A.document(merge_adjacent_tables(doc_children))
 end
 
 function M.from_buffer(bufnr)
