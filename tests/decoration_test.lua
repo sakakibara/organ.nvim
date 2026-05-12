@@ -305,12 +305,13 @@ do
   local ok, err = pcall(decoration.register, {
     name = "p_on_lines_only_field",
     ns = ns,
-    enabled = function() return true end,
+    enabled = function()
+      return true
+    end,
     on_lines = function() end,
     on_line = function() end,
   })
-  check("on_lines (non-only) is no longer accepted",
-    not ok and err and err:match("on_lines"))
+  check("on_lines (non-only) is no longer accepted", not ok and err and err:match("on_lines"))
 end
 
 -- on_win without on_line is rejected.

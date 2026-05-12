@@ -47,8 +47,7 @@ local function validate(p)
     return true
   end
   if p.on_lines then
-    return false,
-      "organ.decoration.register: on_lines is no longer supported; use on_win"
+    return false, "organ.decoration.register: on_lines is no longer supported; use on_win"
   end
   if type(p.on_win) ~= "function" or type(p.on_line) ~= "function" then
     return false,

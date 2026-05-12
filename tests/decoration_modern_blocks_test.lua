@@ -46,7 +46,10 @@ check(
     and type(providers.modern_blocks.on_win) == "function"
     and type(providers.modern_blocks.on_line) == "function"
 )
-check("provider has no on_lines", providers.modern_blocks and providers.modern_blocks.on_lines == nil)
+check(
+  "provider has no on_lines",
+  providers.modern_blocks and providers.modern_blocks.on_lines == nil
+)
 
 -- The provider gate reads `cfg.modern.blocks`; with the setup above
 -- that's truthy.  Verify it returns true for any buffer (the gate is

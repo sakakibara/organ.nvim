@@ -70,14 +70,18 @@ local function get_block_query()
   if _block_query then
     return _block_query
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org",
+    [[
     (src_block) @b
     (example_block) @b
     (verse_block) @b
     (export_block) @b
     (comment_block) @b
     (greater_block) @b
-  ]])
+  ]]
+  )
   if ok then
     _block_query = parsed
   end
@@ -198,7 +202,7 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
   local cfg = require("organ").config
-  if not ((cfg.modern or {}).blocks) then
+  if not (cfg.modern or {}).blocks then
     return
   end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
@@ -281,8 +285,12 @@ local function on_win(bufnr, _winid, topline, botline)
     end
     -- Width the begin / end overlays must cover so source bytes don't
     -- leak past the rendered virt_text.
-    local begin_src_w = vim.fn.strdisplaywidth(vim.api.nvim_buf_get_lines(bufnr, p.begin_lnum, p.begin_lnum + 1, false)[1] or "")
-    local end_src_w = vim.fn.strdisplaywidth(vim.api.nvim_buf_get_lines(bufnr, p.end_lnum, p.end_lnum + 1, false)[1] or "")
+    local begin_src_w = vim.fn.strdisplaywidth(
+      vim.api.nvim_buf_get_lines(bufnr, p.begin_lnum, p.begin_lnum + 1, false)[1] or ""
+    )
+    local end_src_w = vim.fn.strdisplaywidth(
+      vim.api.nvim_buf_get_lines(bufnr, p.end_lnum, p.end_lnum + 1, false)[1] or ""
+    )
     local source_max = begin_src_w > end_src_w and begin_src_w or end_src_w
     local inner = inner_width(p.label_width, body_max, source_max)
 

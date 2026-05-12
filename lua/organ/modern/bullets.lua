@@ -97,7 +97,7 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
   local cfg = require("organ").config
-  if not ((cfg.modern or {}).bullets) then
+  if not (cfg.modern or {}).bullets then
     return
   end
 
