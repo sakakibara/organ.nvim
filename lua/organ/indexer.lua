@@ -450,7 +450,29 @@ end
 -- YYYY-MM-DD strings.  Used by habit tracking.
 local DONE_KEYWORDS = { DONE = true, CANCELLED = true }
 
-local function collect_habit_completions(heading_node, src)
+-- Return the lines of a heading's `section` node, in the [sr, er)
+-- half-open row range tree-sitter reports.  Buffer-source uses
+-- nvim_buf_get_lines; string-source slices the caller-supplied
+-- pre-split `src_lines` array.  Both are O(er - sr).
+--
+-- The string-source path REQUIRES src_lines.  Callers that pass a
+-- string `src` must split it once at the top of the enclosing
+-- extract loop and thread the resulting array through -- splitting
+-- per-heading is the asymptotic trap (O(N_headings * file_size))
+-- that this helper exists to prevent.
+local function section_lines_for(section_node, src, src_lines)
+  local sr, _, er = section_node:range()
+  if type(src) == "number" then
+    return vim.api.nvim_buf_get_lines(src, sr, er, false)
+  end
+  local out = {}
+  for i = sr + 1, math.min(er, #src_lines) do
+    out[#out + 1] = src_lines[i]
+  end
+  return out
+end
+
+local function collect_habit_completions(heading_node, src, src_lines)
   local section_node = nil
   for c in heading_node:iter_children() do
     if c:type() == "section" then
@@ -462,20 +484,7 @@ local function collect_habit_completions(heading_node, src)
     return {}
   end
 
-  local sr, _, er = section_node:range()
-  local section_lines
-  if type(src) == "number" then
-    section_lines = vim.api.nvim_buf_get_lines(src, sr, er, false)
-  else
-    section_lines = {}
-    local i = 0
-    for line in (src .. "\n"):gmatch("([^\n]*)\n") do
-      if i >= sr and i < er then
-        section_lines[#section_lines + 1] = line
-      end
-      i = i + 1
-    end
-  end
+  local section_lines = section_lines_for(section_node, src, src_lines)
 
   local drawer_re = log_drawer_pattern()
   local seen, out = {}, {}
@@ -536,7 +545,7 @@ end
 -- \\\n  optional note`); `from "" ` (transitioning from no state) is
 -- normalised to from_state = nil.  Notes are collected from
 -- continuation lines until the next `- ` bullet or :END:.
-local function collect_state_changes(heading_node, src)
+local function collect_state_changes(heading_node, src, src_lines)
   local section_node = nil
   for c in heading_node:iter_children() do
     if c:type() == "section" then
@@ -548,20 +557,7 @@ local function collect_state_changes(heading_node, src)
     return {}
   end
 
-  local sr, _, er = section_node:range()
-  local section_lines
-  if type(src) == "number" then
-    section_lines = vim.api.nvim_buf_get_lines(src, sr, er, false)
-  else
-    section_lines = {}
-    local i = 0
-    for line in (src .. "\n"):gmatch("([^\n]*)\n") do
-      if i >= sr and i < er then
-        section_lines[#section_lines + 1] = line
-      end
-      i = i + 1
-    end
-  end
+  local section_lines = section_lines_for(section_node, src, src_lines)
 
   local drawer_re = log_drawer_pattern()
   local out = {}
@@ -858,6 +854,15 @@ function M.extract(source, file_path, parser_path)
 
   local all_inline_links = collect_all_inline_links(string_parser, src_for_text)
 
+  -- Pre-split string-source ONCE so per-heading helpers
+  -- (collect_habit_completions, collect_state_changes) can slice
+  -- the array in O(section_size) instead of re-scanning the whole
+  -- source per heading (which is O(N_headings * file_size) and
+  -- caused multi-second freezes on large org files).
+  local src_lines = type(src_for_text) == "string"
+      and vim.split(src_for_text, "\n", { plain = true })
+    or nil
+
   local all_heading_nodes = {}
   collect_all_headings(root_node, all_heading_nodes)
 
@@ -930,8 +935,8 @@ function M.extract(source, file_path, parser_path)
       properties = props,
       links = collect_links(hnode, all_inline_links),
       clocks = collect_clocks(hnode, src_for_text),
-      habit_completions = collect_habit_completions(hnode, src_for_text),
-      state_changes = collect_state_changes(hnode, src_for_text),
+      habit_completions = collect_habit_completions(hnode, src_for_text, src_lines),
+      state_changes = collect_state_changes(hnode, src_for_text, src_lines),
     })
 
     table.insert(stack, { level = level, id = id })
