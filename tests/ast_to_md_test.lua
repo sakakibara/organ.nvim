@@ -279,6 +279,62 @@ do
     out:find("```lua\nlocal x = 1\nprint(x)\n```", 1, true) ~= nil)
 end
 
+-- ---- block: quote --------------------------------------------------
+do
+  local doc = A.document({
+    A.block("quote", { content = { A.paragraph({ A.text("wisdom") }) } }),
+  })
+  local out = to_md.render(doc)
+  check("quote -> '> wisdom'", out:find("> wisdom", 1, true) ~= nil, "got: " .. out)
+end
+
+-- Multi-line quote: each line prefixed with '> '.
+do
+  local doc = A.document({
+    A.block("quote", {
+      content = {
+        A.paragraph({ A.text("line one") }),
+        A.paragraph({ A.text("line two") }),
+      },
+    }),
+  })
+  local out = to_md.render(doc)
+  check("multi-paragraph quote: both prefixed",
+    out:find("> line one", 1, true) ~= nil and out:find("> line two", 1, true) ~= nil)
+end
+
+-- ---- block: example / verse (body as fenced code) ------------------
+do
+  local doc = A.document({
+    A.block("example", { body = "raw text\nline 2" }),
+  })
+  local out = to_md.render(doc)
+  check("example -> fenced code (no language)",
+    out:find("```\nraw text\nline 2\n```", 1, true) ~= nil, "got: " .. out)
+end
+
+do
+  local doc = A.document({
+    A.block("verse", { body = "verse 1\nverse 2" }),
+  })
+  local out = to_md.render(doc)
+  check("verse -> fenced code (no language)",
+    out:find("```\nverse 1\nverse 2\n```", 1, true) ~= nil)
+end
+
+-- ---- block: export (dropped) ---------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    A.block("export", { body = "<html>" }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_md.render(doc)
+  check("export block dropped", out:find("<html>", 1, true) == nil, "got: " .. out)
+  check("paragraphs around export still present",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

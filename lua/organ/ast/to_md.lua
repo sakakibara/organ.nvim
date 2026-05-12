@@ -7,7 +7,10 @@
 
 local M = {}
 
-local function emit_inline(nodes)
+local emit_inline
+local emit_block
+
+function emit_inline(nodes)
   if not nodes or #nodes == 0 then
     return ""
   end
@@ -120,7 +123,44 @@ local function emit_code_block(node, out)
   out[#out + 1] = ""
 end
 
-local function emit_block(node, out)
+-- Org-style block kinds (quote / verse / example / export).
+-- Named emit_org_block to disambiguate from the AST kind "block".
+local function emit_org_block(node, out)
+  local style = node.style
+  if style == "quote" then
+    -- Render content into a sub-buffer, then prefix each line with "> ".
+    local sub = {}
+    for _, b in ipairs(node.content or {}) do
+      emit_block(b, sub)
+    end
+    -- Drop the trailing empty the inner emitters add so we don't get
+    -- a `> ` on a blank line.
+    while #sub > 0 and sub[#sub] == "" do
+      sub[#sub] = nil
+    end
+    for _, line in ipairs(sub) do
+      if line == "" then
+        out[#out + 1] = ">"
+      else
+        out[#out + 1] = "> " .. line
+      end
+    end
+    out[#out + 1] = ""
+  elseif style == "verse" or style == "example" then
+    out[#out + 1] = "```"
+    for line in ((node.body or "") .. "\n"):gmatch("([^\n]*)\n") do
+      out[#out + 1] = line
+    end
+    if out[#out] == "" then
+      out[#out] = nil
+    end
+    out[#out + 1] = "```"
+    out[#out + 1] = ""
+  end
+  -- export and unknown styles drop silently.
+end
+
+function emit_block(node, out)
   local kind = node.kind
   if kind == "headline" then
     emit_headline(node, out)
@@ -133,6 +173,8 @@ local function emit_block(node, out)
     emit_list(node, out, 0)
   elseif kind == "code_block" then
     emit_code_block(node, out)
+  elseif kind == "block" then
+    emit_org_block(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
