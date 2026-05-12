@@ -12,7 +12,7 @@ local M = {}
 
 -- providers: name -> { name, ns, enabled, on_lines, on_line, on_lines_only }
 local providers = {}
-local provider_order = {}  -- preserves registration order for stable dispatch
+local provider_order = {} -- preserves registration order for stable dispatch
 
 -- attached_buffers: bufnr -> true
 local attached_buffers = {}
@@ -85,15 +85,25 @@ function M.unregister(name)
   -- Clear per-buffer caches + state for this provider.
   for bufnr, by_name in pairs(caches) do
     by_name[name] = nil
-    if warn_once[bufnr] then warn_once[bufnr][name] = nil end
-    if disabled[bufnr] then disabled[bufnr][name] = nil end
+    if warn_once[bufnr] then
+      warn_once[bufnr][name] = nil
+    end
+    if disabled[bufnr] then
+      disabled[bufnr][name] = nil
+    end
   end
 end
 
 -- Internal accessor for tests.
-M._providers = function() return providers, provider_order end
-M._caches = function() return caches end
-M._attached = function() return attached_buffers end
+M._providers = function()
+  return providers, provider_order
+end
+M._caches = function()
+  return caches
+end
+M._attached = function()
+  return attached_buffers
+end
 
 -- Internal: dispatch an on_lines notification to all enabled providers.
 local function dispatch_on_lines(bufnr, first, last_old, last_new)
@@ -113,8 +123,11 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
             local notify_ok, notify = pcall(require, "organ.notify")
             if notify_ok and type(notify.warn) == "function" then
               notify.warn(
-                "decoration provider '" .. name .. "' raised in on_lines: "
-                  .. tostring(err_call) .. ".  Disabling for this buffer."
+                "decoration provider '"
+                  .. name
+                  .. "' raised in on_lines: "
+                  .. tostring(err_call)
+                  .. ".  Disabling for this buffer."
               )
             end
           end
@@ -144,7 +157,7 @@ function M.attach(bufnr)
     error("organ.decoration: not a valid buffer: " .. tostring(bufnr))
   end
   if attached_buffers[bufnr] then
-    return  -- idempotent
+    return -- idempotent
   end
   attached_buffers[bufnr] = true
   caches[bufnr] = {}
@@ -154,7 +167,7 @@ function M.attach(bufnr)
   vim.api.nvim_buf_attach(bufnr, false, {
     on_lines = function(_, b, _changedtick, first, last_old, last_new)
       if not attached_buffers[b] then
-        return true  -- detach signal
+        return true -- detach signal
       end
       dispatch_on_lines(b, first, last_old, last_new)
     end,
@@ -205,8 +218,11 @@ local function dispatch_on_line(_tick, winid, bufnr, row)
             local notify_ok, notify = pcall(require, "organ.notify")
             if notify_ok and type(notify.warn) == "function" then
               notify.warn(
-                "decoration provider '" .. name .. "' raised in on_line: "
-                  .. tostring(err_call) .. ".  Disabling for this buffer."
+                "decoration provider '"
+                  .. name
+                  .. "' raised in on_line: "
+                  .. tostring(err_call)
+                  .. ".  Disabling for this buffer."
               )
             end
           end

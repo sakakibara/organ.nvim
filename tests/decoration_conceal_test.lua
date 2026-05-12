@@ -46,10 +46,12 @@ end
 local providers, _ = decoration._providers()
 check("conceal provider registered", providers.conceal ~= nil)
 check("provider exposes ns", providers.conceal and providers.conceal.ns ~= nil)
-check("provider exposes on_lines + on_line",
+check(
+  "provider exposes on_lines + on_line",
   providers.conceal
     and type(providers.conceal.on_lines) == "function"
-    and type(providers.conceal.on_line) == "function")
+    and type(providers.conceal.on_line) == "function"
+)
 
 -- Buffer with emphasis content.
 local bufnr = vim.api.nvim_create_buf(false, true)

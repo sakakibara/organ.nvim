@@ -35,12 +35,9 @@ check(
     and providers.fold_contents.on_lines_only ~= nil
     and providers.fold_contents.on_line == nil,
   providers.fold_contents
-      and (
-        "on_lines_only="
-        .. tostring(providers.fold_contents.on_lines_only)
-        .. " on_line="
-        .. tostring(providers.fold_contents.on_line)
-      )
+      and ("on_lines_only=" .. tostring(providers.fold_contents.on_lines_only) .. " on_line=" .. tostring(
+        providers.fold_contents.on_line
+      ))
     or "missing"
 )
 

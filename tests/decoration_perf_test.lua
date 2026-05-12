@@ -24,8 +24,12 @@ local decoration = require("organ.decoration")
 
 local fails = 0
 local function check(label, ok, detail)
-  if ok then print("PASS  " .. label)
-  else fails = fails + 1; print("FAIL  " .. label .. (detail and ("\n     " .. detail) or "")) end
+  if ok then
+    print("PASS  " .. label)
+  else
+    fails = fails + 1
+    print("FAIL  " .. label .. (detail and ("\n     " .. detail) or ""))
+  end
 end
 
 local lines = vim.fn.readfile(root .. "/tests/fixtures/decoration_10k.org")
@@ -41,8 +45,11 @@ do
   decoration.attach(bufnr)
   local elapsed_ms = (vim.uv.hrtime() - t0) / 1e6
   print(("       initial attach: %.1f ms"):format(elapsed_ms))
-  check("initial attach + population under 500ms",
-    elapsed_ms < 500, ("took %.1f ms"):format(elapsed_ms))
+  check(
+    "initial attach + population under 500ms",
+    elapsed_ms < 500,
+    ("took %.1f ms"):format(elapsed_ms)
+  )
 end
 
 -- Per-edit cost (debounced -- timer fires asynchronously; we measure
@@ -52,8 +59,11 @@ do
   vim.api.nvim_buf_set_text(bufnr, 100, 0, 100, 0, { "a" })
   local elapsed_ms = (vim.uv.hrtime() - t0) / 1e6
   print(("       single-edit synchronous dispatch: %.1f ms"):format(elapsed_ms))
-  check("single edit synchronous dispatch under 20ms",
-    elapsed_ms < 20, ("took %.1f ms"):format(elapsed_ms))
+  check(
+    "single edit synchronous dispatch under 20ms",
+    elapsed_ms < 20,
+    ("took %.1f ms"):format(elapsed_ms)
+  )
 end
 
 -- Per-frame (simulated) cost.
@@ -66,11 +76,16 @@ do
   end
   local elapsed_ms = (vim.uv.hrtime() - t0) / 1e6
   print(("       100-row simulated frame: %.1f ms"):format(elapsed_ms))
-  check("100-row simulated frame under 30ms",
-    elapsed_ms < 30, ("took %.1f ms"):format(elapsed_ms))
+  check("100-row simulated frame under 30ms", elapsed_ms < 30, ("took %.1f ms"):format(elapsed_ms))
 end
 
 vim.api.nvim_buf_delete(bufnr, { force = true })
 
-if fails > 0 then print(); print("FAILED " .. fails .. " checks"); os.exit(1) end
-print(); print("decoration_perf_test: PASS"); os.exit(0)
+if fails > 0 then
+  print()
+  print("FAILED " .. fails .. " checks")
+  os.exit(1)
+end
+print()
+print("decoration_perf_test: PASS")
+os.exit(0)

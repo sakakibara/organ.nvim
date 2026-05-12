@@ -26,7 +26,9 @@ do
   local ok, err = pcall(decoration.register, {
     name = "test_a",
     ns = ns,
-    enabled = function() return true end,
+    enabled = function()
+      return true
+    end,
     on_lines = function() end,
     on_line = function() end,
   })
@@ -36,7 +38,9 @@ do
   local ok2, err2 = pcall(decoration.register, {
     name = "test_a",
     ns = ns,
-    enabled = function() return true end,
+    enabled = function()
+      return true
+    end,
     on_lines = function() end,
     on_line = function() end,
   })
@@ -67,7 +71,9 @@ do
   decoration.register({
     name = "test_c",
     ns = vim.api.nvim_create_namespace("organ_decoration_test_c"),
-    enabled = function() return true end,
+    enabled = function()
+      return true
+    end,
     on_lines = function() end,
     on_line = function() end,
   })
@@ -76,7 +82,9 @@ do
   local ok, err = pcall(decoration.register, {
     name = "test_c",
     ns = vim.api.nvim_create_namespace("organ_decoration_test_c2"),
-    enabled = function() return true end,
+    enabled = function()
+      return true
+    end,
     on_lines = function() end,
     on_line = function() end,
   })
@@ -90,7 +98,9 @@ do
   decoration.register({
     name = "p1",
     ns = vim.api.nvim_create_namespace("organ_decoration_p1"),
-    enabled = function(_) return true end,
+    enabled = function(_)
+      return true
+    end,
     on_lines = function(bufnr, first, last_old, last_new)
       on_lines_calls[#on_lines_calls + 1] = { bufnr, first, last_old, last_new }
     end,
@@ -104,8 +114,10 @@ do
   -- attach should synthesize an initial on_lines covering the whole buffer.
   check(
     "attach synthesizes initial on_lines",
-    #on_lines_calls == 1 and on_lines_calls[1][1] == bufnr
-      and on_lines_calls[1][2] == 0 and on_lines_calls[1][4] == 3,
+    #on_lines_calls == 1
+      and on_lines_calls[1][1] == bufnr
+      and on_lines_calls[1][2] == 0
+      and on_lines_calls[1][4] == 3,
     "got: " .. vim.inspect(on_lines_calls)
   )
 
@@ -145,16 +157,23 @@ do
   decoration.register({
     name = "p2",
     ns = vim.api.nvim_create_namespace("organ_decoration_p2"),
-    enabled = function(_) return false end,
-    on_lines = function() p2_calls = p2_calls + 1 end,
+    enabled = function(_)
+      return false
+    end,
+    on_lines = function()
+      p2_calls = p2_calls + 1
+    end,
     on_line = function() end,
   })
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
   decoration.attach(bufnr)
-  check("disabled provider's on_lines NOT called on attach",
-    p2_calls == 0, "got " .. p2_calls .. " calls")
+  check(
+    "disabled provider's on_lines NOT called on attach",
+    p2_calls == 0,
+    "got " .. p2_calls .. " calls"
+  )
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
@@ -166,7 +185,9 @@ do
   decoration.register({
     name = "p3",
     ns = ns,
-    enabled = function(_) return true end,
+    enabled = function(_)
+      return true
+    end,
     on_lines = function() end,
     on_line = function(bufnr, winid, row)
       on_line_calls[#on_line_calls + 1] = { bufnr, winid, row }
@@ -181,9 +202,11 @@ do
   vim.api.nvim_win_set_buf(winid, bufnr)
   decoration._dispatch_on_line(0, winid, bufnr, 0)
   decoration._dispatch_on_line(0, winid, bufnr, 1)
-  check("on_line fans out to provider per row",
+  check(
+    "on_line fans out to provider per row",
     #on_line_calls == 2 and on_line_calls[1][3] == 0 and on_line_calls[2][3] == 1,
-    "got: " .. vim.inspect(on_line_calls))
+    "got: " .. vim.inspect(on_line_calls)
+  )
 
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
@@ -195,28 +218,38 @@ do
   decoration.register({
     name = "raises",
     ns = vim.api.nvim_create_namespace("organ_decoration_raises"),
-    enabled = function() return true end,
-    on_lines = function() error("intentional") end,
+    enabled = function()
+      return true
+    end,
+    on_lines = function()
+      error("intentional")
+    end,
     on_line = function() end,
   })
   decoration.register({
     name = "good",
     ns = vim.api.nvim_create_namespace("organ_decoration_good"),
-    enabled = function() return true end,
-    on_lines = function() good_calls = good_calls + 1 end,
+    enabled = function()
+      return true
+    end,
+    on_lines = function()
+      good_calls = good_calls + 1
+    end,
     on_line = function() end,
   })
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
   decoration.attach(bufnr)
-  check("pcall isolates raising provider in on_lines",
-    good_calls >= 1, "good_calls=" .. good_calls)
+  check("pcall isolates raising provider in on_lines", good_calls >= 1, "good_calls=" .. good_calls)
   good_calls = 0
   vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { "y" })
   vim.wait(50)
-  check("good provider keeps firing after another's failure",
-    good_calls >= 1, "good_calls=" .. good_calls)
+  check(
+    "good provider keeps firing after another's failure",
+    good_calls >= 1,
+    "good_calls=" .. good_calls
+  )
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
@@ -227,8 +260,12 @@ do
   decoration.register({
     name = "ref",
     ns = vim.api.nvim_create_namespace("organ_decoration_ref"),
-    enabled = function() return true end,
-    on_lines = function() call_count = call_count + 1 end,
+    enabled = function()
+      return true
+    end,
+    on_lines = function()
+      call_count = call_count + 1
+    end,
     on_line = function() end,
   })
   local bufnr = vim.api.nvim_create_buf(false, true)
@@ -236,8 +273,7 @@ do
   decoration.attach(bufnr)
   call_count = 0
   decoration.refresh(bufnr)
-  check("refresh triggers a fresh on_lines pass",
-    call_count == 1, "got " .. call_count)
+  check("refresh triggers a fresh on_lines pass", call_count == 1, "got " .. call_count)
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 

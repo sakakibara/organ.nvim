@@ -82,14 +82,18 @@ local function schedule_rebuild(bufnr)
     return
   end
   rebuild_timers[bufnr] = t
-  t:start(REBUILD_DEBOUNCE_MS, 0, vim.schedule_wrap(function()
-    rebuild_timers[bufnr] = nil
-    pcall(t.stop, t)
-    pcall(t.close, t)
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      cache_by_buf[bufnr] = build_cache(bufnr)
-    end
-  end))
+  t:start(
+    REBUILD_DEBOUNCE_MS,
+    0,
+    vim.schedule_wrap(function()
+      rebuild_timers[bufnr] = nil
+      pcall(t.stop, t)
+      pcall(t.close, t)
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        cache_by_buf[bufnr] = build_cache(bufnr)
+      end
+    end)
+  )
 end
 
 require("organ.decoration").register({
