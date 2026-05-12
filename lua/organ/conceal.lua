@@ -1,20 +1,23 @@
--- Inline emphasis-marker concealment.
+-- Inline emphasis-marker + link-bracket concealment.
 --
--- Walks the org_inline tree per buffer change and adds extmarks that hide
--- the surrounding `*` `/` `_` `+` `=` `~` of bold / italic / underline /
--- strikethrough / verbatim / code regions when conceallevel is ≥ 2. The
--- styled body text remains visible (with its own highlight).
+-- Walks the `org_inline` tree per buffer change and places conceal
+-- extmarks that hide the surrounding `*` `/` `_` `+` `=` `~` of bold,
+-- italic, underline, strikethrough, verbatim and code spans, plus the
+-- `[[target][` prefix and trailing `]]` of `[[target][description]]`
+-- links.  Marks have no visual effect at `conceallevel = 0` (Neovim
+-- default); the user opts in by setting `conceallevel = 2` on the
+-- window or via `:Org conceal toggle`.
 --
--- Concealment is a buffer-attached service: M.attach(bufnr) installs an
--- autocmd that reapplies marks on TextChanged + TextChangedI. Idempotent.
+-- Concealment runs as an `organ.decoration` provider: `on_lines`
+-- rewrites a per-buffer span cache for the changed range, and `on_line`
+-- emits ephemeral conceal extmarks for the visible row.
 
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_emphasis_conceal")
 
--- Tree-sitter node-type → config-key mapping.  Apply() looks up the
--- config flag for each node it walks; missing or `false` means the
--- markup stays visible.
+-- Tree-sitter node-type -> config-key.  Missing or `false` config keeps
+-- the markup visible.
 local EMPHASIS_TYPES = {
   bold = "bold",
   italic = "italic",
@@ -24,11 +27,10 @@ local EMPHASIS_TYPES = {
   code = "code",
 }
 
--- Conceal `[[target][description]]` → `description`, and
--- `[[target]]` (no description) → keep the target visible (no
--- conceal).  Mirrors Emacs `org-link-descriptive` (default true).
--- The conceal walker hides the leading `[[`, the `target][`
--- separator, and the trailing `]]` when a description is present.
+-- `link_regular` covers `[[target][description]]` and `[[target]]`.
+-- When a description is present, hide the leading `[[target][` and the
+-- trailing `]]` so only the description renders.  Bare `[[target]]`
+-- stays visible (target IS the body).
 local LINK_TYPES = {
   link_regular = "links",
 }
@@ -38,7 +40,6 @@ M.ELEMENTS = { "bold", "italic", "underline", "strike", "verbatim", "code", "lin
 
 local function element_enabled(name)
   local cfg = (require("organ").config.emphasis or {})
-  -- Default true if the key is missing -- mirrors Emacs "hide markers".
   local v = cfg[name]
   if v == nil then
     return true
@@ -46,93 +47,79 @@ local function element_enabled(name)
   return v ~= false
 end
 
-local function clear(bufnr)
-  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-end
+-- Per-buffer row span cache: cache_by_buf[bufnr][row] = { span, ... }.
+-- Each span: { start_col, end_col, conceal_char }.
+local cache_by_buf = {}
 
--- Place a 1-char conceal extmark at (row, col) (0-based).
-local function conceal_one(bufnr, row, col)
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, col, {
-    end_col = col + 1,
-    conceal = "",
-  })
-end
-
--- Place a multi-byte conceal extmark covering [start_col, end_col)
--- on a single row.  Used for link bracket runs (`[[`, `][`, `]]`).
-local function conceal_range(bufnr, row, start_col, end_col)
-  if end_col <= start_col then
-    return
-  end
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, start_col, {
-    end_col = end_col,
-    conceal = "",
-  })
-end
-
--- Conceal the `[[`, `][`, `]]` bytes of a `[[target][description]]`
--- link so the rendered result reads as just `description`.  When the
--- link has no description, leave it untouched (target IS the body).
-local function conceal_link_regular(bufnr, node)
-  local desc_node
-  for c in node:iter_children() do
-    if c:type() == "link_description" then
-      desc_node = c
-      break
-    end
-  end
-  if not desc_node then
-    return
-  end -- bare [[target]] — show as-is
-  local sr, sc = node:range()
-  -- Conceal the entire `[[target][` prefix as one range so only the
-  -- description (`organ.nvim`) is visible.  Concealing `[[` + target
-  -- + `][` separately leaves the target text rendered between the
-  -- two hidden bracket runs (visible: `id:organ-nvimorgan.nvim`).
-  local target_node
-  for c in node:iter_children() do
-    if c:type() == "link_target" then
-      target_node = c
-      break
-    end
-  end
-  if target_node then
-    local _, _, ter, tec = target_node:range()
-    -- target_end .. target_end+2 covers `][` (single-line links).
-    if ter == sr then
-      conceal_range(bufnr, sr, sc, tec + 2)
-    end
-  else
-    -- No target node (parser quirk): fall back to just the leading `[[`.
-    conceal_range(bufnr, sr, sc, sc + 2)
-  end
-  -- Trailing `]]` (2 bytes before node end).
-  local _, _, er, ec = node:range()
-  if er == sr then
-    conceal_range(bufnr, er, ec - 2, ec)
-  end
-end
-
-local function apply(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+-- Build a per-row span list from the inline tree.  Single tree walk;
+-- spans are bucketed by row.  Spans whose open/close sit on different
+-- rows (multi-line emphasis) produce one entry per affected row.
+local function build_cache(bufnr)
+  local rows = {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
-    return
+    return rows
   end
   if vim.bo[bufnr].filetype ~= "org" then
-    return
+    return rows
   end
-  clear(bufnr)
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
-    return
+    return rows
   end
-  -- Force inline parsing.
   pcall(function()
     parser:parse(true)
   end)
 
-  -- parser:children() returns a string-keyed table (lang → child); ipairs
-  -- sees nothing, so iterate via pairs.
+  local function push(row, start_col, end_col)
+    if end_col <= start_col then
+      return
+    end
+    rows[row] = rows[row] or {}
+    rows[row][#rows[row] + 1] = { start_col = start_col, end_col = end_col }
+  end
+
+  local function walk_emphasis(node)
+    local sr, sc, er, ec = node:range()
+    -- Open marker: one byte at (sr, sc).
+    push(sr, sc, sc + 1)
+    -- Close marker: one byte at (er, ec-1), but only if open != close.
+    if er > sr or ec > sc + 1 then
+      push(er, math.max(0, ec - 1), ec)
+    end
+  end
+
+  local function walk_link(node)
+    local desc_node, target_node
+    for c in node:iter_children() do
+      local t = c:type()
+      if t == "link_description" then
+        desc_node = c
+      elseif t == "link_target" then
+        target_node = c
+      end
+    end
+    if not desc_node then
+      return -- bare `[[target]]` -- show as-is
+    end
+    local sr, sc, er, ec = node:range()
+    if target_node then
+      local _, _, ter, tec = target_node:range()
+      -- target_end .. target_end+2 covers `][` (single-line links).
+      if ter == sr then
+        push(sr, sc, tec + 2)
+      end
+    else
+      -- Parser quirk: no target node.  Fall back to leading `[[`.
+      push(sr, sc, sc + 2)
+    end
+    -- Trailing `]]`.
+    if er == sr then
+      push(er, ec - 2, ec)
+    end
+  end
+
+  -- parser:children() returns a string-keyed table (lang -> child); ipairs
+  -- skips it, so iterate via pairs.
   for _, child in pairs(parser:children()) do
     if child:lang() == "org_inline" then
       for _, tree in ipairs(child:trees() or {}) do
@@ -141,16 +128,9 @@ local function apply(bufnr)
           local t = node:type()
           local emph = EMPHASIS_TYPES[t]
           if emph and element_enabled(emph) then
-            local sr, sc, er, ec = node:range()
-            -- One char open + one char close. For verbatim/code those are
-            -- `=`/`~`; for bold/italic/etc. they're `*`/`/`/`_`/`+`. All
-            -- are single bytes, so col arithmetic is safe.
-            conceal_one(bufnr, sr, sc)
-            if er > sr or ec > sc + 1 then
-              conceal_one(bufnr, er, math.max(0, ec - 1))
-            end
+            walk_emphasis(node)
           elseif LINK_TYPES[t] and element_enabled(LINK_TYPES[t]) then
-            conceal_link_regular(bufnr, node)
+            walk_link(node)
           end
           for c in node:iter_children() do
             walk(c)
@@ -160,34 +140,86 @@ local function apply(bufnr)
       end
     end
   end
+
+  return rows
 end
 
--- Public: attach buffer-wide concealment. Re-applies on text changes
--- (cheap because we re-walk the tree, not the buffer). Caller decides
--- conceallevel via a window option; default Neovim conceallevel = 0
--- means marks have no visual effect, so attach is harmless without it.
-function M.attach(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  require("organ.debounce").apply_initial(bufnr, apply)
-  local group = vim.api.nvim_create_augroup("organ_conceal_" .. bufnr, { clear = true })
-  local trigger = require("organ.debounce").trailing(150, function(b)
-    if vim.api.nvim_buf_is_valid(b) then
-      apply(b)
+-- Place all cached spans for `bufnr` as non-ephemeral extmarks.  Used
+-- by `_apply` (test-facing) and by `toggle_element` for an immediate
+-- visible refresh independent of frame dispatch.
+local function place_marks(bufnr, rows)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  for row, spans in pairs(rows) do
+    for _, s in ipairs(spans) do
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
+        end_col = s.end_col,
+        conceal = "",
+      })
     end
-  end)
-  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
-    group = group,
-    buffer = bufnr,
-    callback = function()
-      trigger(bufnr)
-    end,
-  })
+  end
 end
+
+require("organ.decoration").register({
+  name = "conceal",
+  ns = NS,
+  enabled = function(_bufnr)
+    -- Walker is always on; per-element gating happens in `build_cache`
+    -- via `element_enabled()`.  The conceallevel check in `on_line`
+    -- skips actual extmark placement when the window won't render
+    -- conceal anyway.
+    return true
+  end,
+  on_lines = function(bufnr, _first, _last_old, _last_new)
+    -- Inline emphasis can span unbounded text; an edit that closes or
+    -- opens a marker shifts every span on subsequent rows.  Rebuilding
+    -- the whole cache is the only correct option.
+    cache_by_buf[bufnr] = build_cache(bufnr)
+  end,
+  on_line = function(bufnr, winid, row)
+    if vim.wo[winid].conceallevel == 0 then
+      return
+    end
+    local rows = cache_by_buf[bufnr]
+    if not rows then
+      return
+    end
+    local spans = rows[row]
+    if not spans or #spans == 0 then
+      return
+    end
+    for _, s in ipairs(spans) do
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
+        end_col = s.end_col,
+        conceal = "",
+        ephemeral = true,
+      })
+    end
+  end,
+})
+
+-- Test-facing: rebuild the cache + place non-ephemeral extmarks now.
+-- Useful when callers need to assert via `nvim_buf_get_extmarks` without
+-- waiting for a frame, and as a fallback path for buffers that aren't
+-- attached to `organ.decoration` (no FileType=org autocmd fired yet).
+local function apply(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local rows = build_cache(bufnr)
+  cache_by_buf[bufnr] = rows
+  place_marks(bufnr, rows)
+end
+
+M._apply = apply
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  clear(bufnr)
-  pcall(vim.api.nvim_del_augroup_by_name, "organ_conceal_" .. bufnr)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  cache_by_buf[bufnr] = nil
 end
 
 function M.toggle(bufnr)
@@ -198,18 +230,17 @@ function M.toggle(bufnr)
     vim.wo.conceallevel = 0
     return false
   end
-  M.attach(bufnr)
+  apply(bufnr)
   if vim.wo.conceallevel == 0 then
     vim.wo.conceallevel = 2
   end
   return true
 end
 
--- Flip a single element's config flag and re-apply.  Returns the
--- new state (true = concealed, false = visible).  Per-element flag
--- lives on the in-process config (`require("organ").config.emphasis`)
--- so toggles persist for the rest of the session; users wanting
--- persistent preferences set them in `setup()`.
+-- Flip a single element's config flag and re-apply.  Returns the new
+-- state (true = concealed, false = visible).  Per-element flags live
+-- on the in-process config so toggles persist for the rest of the
+-- session; users wanting persistent preferences set them in `setup()`.
 function M.toggle_element(name)
   local cfg = require("organ").config
   cfg.emphasis = cfg.emphasis or {}
@@ -219,7 +250,10 @@ function M.toggle_element(name)
   end
   cfg.emphasis[name] = not cur
   -- Re-walk every loaded org buffer so the change is reflected
-  -- immediately, not on the next TextChanged.
+  -- immediately, not on the next TextChanged.  `apply` rebuilds the
+  -- cache AND places non-ephemeral extmarks for the current rendered
+  -- frame; the decoration provider's on_line path will pick the new
+  -- cache up on subsequent redraws.
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "org" then
       apply(b)
@@ -227,8 +261,6 @@ function M.toggle_element(name)
   end
   return cfg.emphasis[name]
 end
-
-M._apply = apply
 
 M.commands = {
   ["conceal toggle"] = {

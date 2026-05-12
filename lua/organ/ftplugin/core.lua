@@ -377,21 +377,17 @@ function M.attach(bufnr)
     require("organ.entities").attach(bufnr)
   end
 
-  -- Inline emphasis + link concealment (Emacs `org-hide-emphasis-
-  -- markers` + `org-link-descriptive`).  The walker is ALWAYS
-  -- attached so the conceal extmarks are placed; they have no
-  -- visual effect at `conceallevel = 0`, but the moment the user
-  -- (or the `emphasis.enabled = true` shortcut) sets
-  -- `conceallevel = 2`, marks render immediately — no manual
-  -- `:Org emphasis toggle` needed.
-  pcall(function()
-    require("organ.conceal").attach(bufnr)
-  end)
-
   -- Shared decoration provider infrastructure (organ.decoration).
-  -- Individual decoration modules register as providers during their
-  -- own setup; this single attach wires the per-buffer nvim_buf_attach
-  -- + nvim_set_decoration_provider dispatch.
+  -- Individual decoration modules register as providers when their
+  -- module is loaded (top-level `decoration.register`); this single
+  -- attach wires the per-buffer `nvim_buf_attach` + `on_line` dispatch.
+  -- Inline emphasis + link concealment (Emacs `org-hide-emphasis-
+  -- markers` + `org-link-descriptive`) runs through this path -- its
+  -- marks have no visual effect at `conceallevel = 0`, so the user
+  -- opts in by setting `conceallevel = 2` or via `:Org conceal toggle`.
+  pcall(function()
+    require("organ.conceal")
+  end)
   pcall(function()
     require("organ.decoration").attach(bufnr)
   end)
