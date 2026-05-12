@@ -181,4 +181,54 @@ function M.detach(bufnr)
   disabled[bufnr] = nil
 end
 
+-- Internal: dispatch an on_line callback to all enabled providers.
+-- Each provider's namespace is cleared for this single row before its
+-- on_line runs, so stale extmarks don't accumulate when cache[row]
+-- becomes empty.
+local function dispatch_on_line(_tick, winid, bufnr, row)
+  if not attached_buffers[bufnr] then
+    return
+  end
+  for _, name in ipairs(provider_order) do
+    local p = providers[name]
+    if p and p.on_line and not (disabled[bufnr] and disabled[bufnr][name]) then
+      local ok_enabled, enabled = pcall(p.enabled, bufnr)
+      if ok_enabled and enabled then
+        pcall(vim.api.nvim_buf_clear_namespace, bufnr, p.ns, row, row + 1)
+        local ok_call, err_call = pcall(p.on_line, bufnr, winid, row)
+        if not ok_call then
+          warn_once[bufnr] = warn_once[bufnr] or {}
+          disabled[bufnr] = disabled[bufnr] or {}
+          if not warn_once[bufnr][name] then
+            warn_once[bufnr][name] = true
+            disabled[bufnr][name] = true
+            local notify_ok, notify = pcall(require, "organ.notify")
+            if notify_ok and type(notify.warn) == "function" then
+              notify.warn(
+                "decoration provider '" .. name .. "' raised in on_line: "
+                  .. tostring(err_call) .. ".  Disabling for this buffer."
+              )
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+M._dispatch_on_line = dispatch_on_line
+
+-- Register the singleton decoration provider once at module load.
+do
+  local provider_ns = vim.api.nvim_create_namespace("organ_decoration_provider")
+  vim.api.nvim_set_decoration_provider(provider_ns, {
+    on_win = function(_, _winid, _bufnr, _topline, _botline)
+      return true
+    end,
+    on_line = function(_, winid, bufnr, row)
+      dispatch_on_line(0, winid, bufnr, row)
+    end,
+  })
+end
+
 return M

@@ -158,6 +158,36 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
+-- ---- on_line dispatch ------------------------------------------------
+do
+  decoration._reset()
+  local on_line_calls = {}
+  local ns = vim.api.nvim_create_namespace("organ_decoration_p3")
+  decoration.register({
+    name = "p3",
+    ns = ns,
+    enabled = function(_) return true end,
+    on_lines = function() end,
+    on_line = function(bufnr, winid, row)
+      on_line_calls[#on_line_calls + 1] = { bufnr, winid, row }
+    end,
+  })
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "a", "b", "c" })
+  decoration.attach(bufnr)
+
+  local winid = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(winid, bufnr)
+  decoration._dispatch_on_line(0, winid, bufnr, 0)
+  decoration._dispatch_on_line(0, winid, bufnr, 1)
+  check("on_line fans out to provider per row",
+    #on_line_calls == 2 and on_line_calls[1][3] == 0 and on_line_calls[2][3] == 1,
+    "got: " .. vim.inspect(on_line_calls))
+
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
