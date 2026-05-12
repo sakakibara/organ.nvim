@@ -54,10 +54,7 @@ check(
 -- attached should report enabled=false even though the provider exists.
 -- Use a non-org buffer so the ftplugin auto-attach path doesn't fire.
 local pre_bufnr = vim.api.nvim_create_buf(false, true)
-check(
-  "enabled() is false on un-attached buffer",
-  providers.indent.enabled(pre_bufnr) == false
-)
+check("enabled() is false on un-attached buffer", providers.indent.enabled(pre_bufnr) == false)
 vim.api.nvim_buf_delete(pre_bufnr, { force = true })
 
 local bufnr = vim.api.nvim_create_buf(false, true)
@@ -75,10 +72,7 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
 
 indent.attach(bufnr)
 check("attach() sets _attached[bufnr]", indent._attached[bufnr] == true)
-check(
-  "enabled() is true after attach()",
-  providers.indent.enabled(bufnr) == true
-)
+check("enabled() is true after attach()", providers.indent.enabled(bufnr) == true)
 
 -- refresh writes non-ephemeral extmarks so nvim_buf_get_extmarks sees
 -- them.  The ephemeral path is exercised by the real decoration-
@@ -95,46 +89,18 @@ for _, m in ipairs(marks) do
   end
 end
 
-check(
-  "row 0 (* Top): no pad",
-  pad_per_row[0] == nil,
-  "got " .. tostring(pad_per_row[0])
-)
-check(
-  "row 1 (Body of top): no pad",
-  pad_per_row[1] == nil,
-  "got " .. tostring(pad_per_row[1])
-)
-check(
-  "row 2 (** Sub): 2-space pad",
-  pad_per_row[2] == 2,
-  "got " .. tostring(pad_per_row[2])
-)
-check(
-  "row 3 (body sub): 2-space pad",
-  pad_per_row[3] == 2,
-  "got " .. tostring(pad_per_row[3])
-)
-check(
-  "row 4 (*** Deep): 4-space pad",
-  pad_per_row[4] == 4,
-  "got " .. tostring(pad_per_row[4])
-)
-check(
-  "row 5 (body deep): 4-space pad",
-  pad_per_row[5] == 4,
-  "got " .. tostring(pad_per_row[5])
-)
+check("row 0 (* Top): no pad", pad_per_row[0] == nil, "got " .. tostring(pad_per_row[0]))
+check("row 1 (Body of top): no pad", pad_per_row[1] == nil, "got " .. tostring(pad_per_row[1]))
+check("row 2 (** Sub): 2-space pad", pad_per_row[2] == 2, "got " .. tostring(pad_per_row[2]))
+check("row 3 (body sub): 2-space pad", pad_per_row[3] == 2, "got " .. tostring(pad_per_row[3]))
+check("row 4 (*** Deep): 4-space pad", pad_per_row[4] == 4, "got " .. tostring(pad_per_row[4]))
+check("row 5 (body deep): 4-space pad", pad_per_row[5] == 4, "got " .. tostring(pad_per_row[5]))
 check(
   "row 6 (* Next): cascade resets, no pad",
   pad_per_row[6] == nil,
   "got " .. tostring(pad_per_row[6])
 )
-check(
-  "row 7 (body next): no pad",
-  pad_per_row[7] == nil,
-  "got " .. tostring(pad_per_row[7])
-)
+check("row 7 (body next): no pad", pad_per_row[7] == nil, "got " .. tostring(pad_per_row[7]))
 
 -- Verify the highlight group matches config.
 local hl_ok = true
@@ -152,16 +118,9 @@ check("all virt_text uses Conceal hl_group", hl_ok)
 -- detach clears all extmarks in the namespace and drops _attached.
 indent.detach(bufnr)
 local after = vim.api.nvim_buf_get_extmarks(bufnr, indent._ns, 0, -1, {})
-check(
-  "detach() clears all extmarks",
-  #after == 0,
-  "got " .. #after .. " leftover marks"
-)
+check("detach() clears all extmarks", #after == 0, "got " .. #after .. " leftover marks")
 check("detach() drops _attached entry", indent._attached[bufnr] == nil)
-check(
-  "enabled() is false after detach()",
-  providers.indent.enabled(bufnr) == false
-)
+check("enabled() is false after detach()", providers.indent.enabled(bufnr) == false)
 
 vim.api.nvim_buf_delete(bufnr, { force = true })
 
