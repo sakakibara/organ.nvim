@@ -7,83 +7,140 @@
 --
 -- Off by default; opt in via `config.stars.hide = true`.
 --
--- Implementation: iterate headline nodes from the org parser, place
--- one extmark per leading star. Re-applies on TextChanged + BufWinEnter
--- (cheap because we walk only headline nodes, not the whole buffer).
--- Concealment is visible only when `conceallevel >= 2` — we set the
--- window option to 2 on attach and restore on detach.
+-- Runs as an `organ.decoration` provider: a per-buffer row cache maps
+-- row -> leading-star count, rebuilt on `on_lines` via a single regex
+-- per affected line.  Initial population is synchronous; subsequent
+-- edits debounce 150ms so per-keystroke rebuilds don't run when the
+-- user is mid-burst.  Concealment is visible only when
+-- `conceallevel >= 2` -- `attach()` bumps it to 2 (restored by detach).
 
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_stars_hide")
 
-local function clear(bufnr)
-  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-end
+-- Per-buffer row cache: cache_by_buf[bufnr][row] = leading-star count.
+-- Rows that aren't headlines are absent.
+local cache_by_buf = {}
 
--- Cached query (parsed once per session).
-local _q
-local function get_query()
-  if _q then
-    return _q
-  end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", "(headline) @h")
-  if ok then
-    _q = parsed
-  end
-  return _q
-end
+-- Trailing-debounce timers for the on_lines rebuild path, keyed by
+-- bufnr.  Matches the conceal provider's pattern: even though the
+-- per-row regex is trivial, coalescing edits avoids running on every
+-- keystroke during a burst.
+local rebuild_timers = {}
+local REBUILD_DEBOUNCE_MS = 150
 
-local function apply(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if not vim.api.nvim_buf_is_valid(bufnr) then
+local function cancel_rebuild_timer(bufnr)
+  local t = rebuild_timers[bufnr]
+  if not t then
     return
+  end
+  rebuild_timers[bufnr] = nil
+  pcall(t.stop, t)
+  pcall(t.close, t)
+end
+
+local function build_cache(bufnr)
+  local rows = {}
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return rows
   end
   if vim.bo[bufnr].filetype ~= "org" then
-    return
+    return rows
   end
-  clear(bufnr)
-  local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
-  if not ok or not parser then
-    return
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  for i, line in ipairs(lines) do
+    local stars = line:match("^(%*+)%s")
+    if stars then
+      rows[i - 1] = #stars
+    end
   end
-  local tree = parser:parse()[1]
-  if not tree then
-    return
-  end
-  local q = get_query()
-  if not q then
-    return
-  end
+  return rows
+end
 
-  -- Use a TS query to find every headline node — node:iter_children is
-  -- depth-1 only, and the org grammar nests headlines under their
-  -- parent's `section` so a recursive walk would miss them too.
-  for _, node in q:iter_captures(tree:root(), bufnr, 0, -1) do
-    local sr, sc = node:start()
-    local ok_line, line = pcall(vim.api.nvim_buf_get_lines, bufnr, sr, sr + 1, false)
-    if ok_line and line and line[1] then
-      local stars = line[1]:match("^(%*+)") or ""
-      local n = #stars
-      if n > 1 then
-        for i = 0, n - 2 do
-          pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, sr, sc + i, {
-            end_col = sc + i + 1,
-            conceal = " ",
-          })
-        end
+-- Place all cached marks for `bufnr` as non-ephemeral extmarks.  Used
+-- by `_apply` (test-facing) for an immediate visible refresh independent
+-- of frame dispatch.
+local function place_marks(bufnr, rows)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  for row, n in pairs(rows) do
+    if n > 1 then
+      for i = 0, n - 2 do
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, i, {
+          end_col = i + 1,
+          conceal = " ",
+        })
       end
     end
   end
 end
 
+local function schedule_rebuild(bufnr)
+  cancel_rebuild_timer(bufnr)
+  local t = vim.uv.new_timer()
+  if not t then
+    cache_by_buf[bufnr] = build_cache(bufnr)
+    return
+  end
+  rebuild_timers[bufnr] = t
+  t:start(REBUILD_DEBOUNCE_MS, 0, vim.schedule_wrap(function()
+    rebuild_timers[bufnr] = nil
+    pcall(t.stop, t)
+    pcall(t.close, t)
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      cache_by_buf[bufnr] = build_cache(bufnr)
+    end
+  end))
+end
+
+require("organ.decoration").register({
+  name = "stars",
+  ns = NS,
+  enabled = function(_bufnr)
+    local cfg = require("organ").config
+    return (cfg.stars or {}).hide == true
+  end,
+  on_lines = function(bufnr, _first, _last_old, _last_new)
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    if cache_by_buf[bufnr] == nil then
+      cache_by_buf[bufnr] = build_cache(bufnr)
+      return
+    end
+    schedule_rebuild(bufnr)
+  end,
+  on_line = function(bufnr, winid, row)
+    if vim.wo[winid].conceallevel == 0 then
+      return
+    end
+    local rows = cache_by_buf[bufnr]
+    if not rows then
+      return
+    end
+    local n = rows[row]
+    if not n or n < 2 then
+      return
+    end
+    for i = 0, n - 2 do
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, i, {
+        end_col = i + 1,
+        conceal = " ",
+        ephemeral = true,
+      })
+    end
+  end,
+})
+
 -- Per-window saved conceallevel so detach() restores rather than nukes.
 M._saved_conceallevel = M._saved_conceallevel or {}
 
+-- Test-facing + ftplugin entrypoint.  Bumps the window's conceallevel
+-- to 2 (saving the previous value), attaches the decoration provider
+-- to the buffer, and synchronously applies non-ephemeral extmarks so
+-- callers that assert via `nvim_buf_get_extmarks` see them without
+-- waiting for a frame.
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  -- Window-local (not buffer-local) — conceallevel is a window option.
-  -- Save the current value so detach can restore it.
   local winid = vim.api.nvim_get_current_win()
   if M._saved_conceallevel[winid] == nil then
     M._saved_conceallevel[winid] = vim.wo.conceallevel
@@ -91,27 +148,17 @@ function M.attach(bufnr)
   if vim.wo.conceallevel < 2 then
     vim.wo.conceallevel = 2
   end
-
-  require("organ.debounce").apply_initial(bufnr, apply)
-  local group = vim.api.nvim_create_augroup("organ_stars_" .. bufnr, { clear = true })
-  local trigger = require("organ.debounce").trailing(150, function(b)
-    if vim.api.nvim_buf_is_valid(b) then
-      apply(b)
-    end
+  pcall(function()
+    require("organ.decoration").attach(bufnr)
   end)
-  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
-    group = group,
-    buffer = bufnr,
-    callback = function()
-      trigger(bufnr)
-    end,
-  })
+  M._apply(bufnr)
 end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  clear(bufnr)
-  pcall(vim.api.nvim_del_augroup_by_name, "organ_stars_" .. bufnr)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  cache_by_buf[bufnr] = nil
+  cancel_rebuild_timer(bufnr)
   local winid = vim.api.nvim_get_current_win()
   if M._saved_conceallevel[winid] ~= nil then
     vim.wo.conceallevel = M._saved_conceallevel[winid]
@@ -130,6 +177,20 @@ function M.toggle(bufnr)
   return true
 end
 
-M._apply = apply
+-- Test-facing: rebuild the cache + place non-ephemeral extmarks now.
+-- Ephemeral marks from on_line live only for the rendered frame;
+-- assertions via nvim_buf_get_extmarks need real extmarks.
+function M._apply(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local rows = build_cache(bufnr)
+  cache_by_buf[bufnr] = rows
+  place_marks(bufnr, rows)
+end
 
 return M
