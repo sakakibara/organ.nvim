@@ -12,8 +12,9 @@
 -- of: src_block, example_block, quote_block, verse_block, export_block,
 -- comment_block, special_block, greater_block.
 --
--- Runs as an `organ.decoration` provider: `on_win` walks ALL `*_block`
--- nodes in the tree (cheap, O(tree size)), computes each block's
+-- Runs as an `organ.decoration` provider: `on_win` queries `*_block`
+-- nodes intersecting `[topline, botline+1)` via a range-bounded
+-- tree-sitter query (O(visible_blocks)), computes each block's
 -- inner_width from its widest body line (which may extend past the
 -- visible range), and populates a module-local frame-row map for rows
 -- in `[topline, botline]`.  `on_line` reads from that map and emits
@@ -58,17 +59,30 @@ local MIN_TRAILING_DASHES = 3
 local BEGIN_PAT = "^(%s*)#%+[bB][eE][gG][iI][nN]_([%w]+)(.*)$"
 local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)%s*$"
 
--- Tree-sitter `*_block` node types we treat as frames.  greater_block
--- subsumes `#+begin_quote`, `#+begin_<arbitrary>`, etc.; the kind/label
--- comes from the begin-line text in all cases.
-local BLOCK_NODES = {
-  src_block = true,
-  example_block = true,
-  verse_block = true,
-  export_block = true,
-  comment_block = true,
-  greater_block = true,
-}
+-- Range-bounded block query.  greater_block subsumes `#+begin_quote`,
+-- `#+begin_<arbitrary>`, etc.; the kind/label comes from the begin-line
+-- text in all cases.  `iter_captures` with (topline, botline+1) is
+-- range-bounded at the C-level tree-sitter library and skips subtrees
+-- that don't intersect, so per-frame work is O(visible_blocks) rather
+-- than O(all_blocks).  Parsed lazily and cached at module scope.
+local _block_query
+local function get_block_query()
+  if _block_query then
+    return _block_query
+  end
+  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+    (src_block) @b
+    (example_block) @b
+    (verse_block) @b
+    (export_block) @b
+    (comment_block) @b
+    (greater_block) @b
+  ]])
+  if ok then
+    _block_query = parsed
+  end
+  return _block_query
+end
 
 local function compute_label(kind, suffix)
   -- For src_block: `#+begin_src lua` -> first token "lua" is the
@@ -199,52 +213,45 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
 
+  local q = get_block_query()
+  if not q then
+    return
+  end
+
   local n_lines = vim.api.nvim_buf_line_count(bufnr)
   local pairs_ = {}
 
-  -- Walk every `*_block` node in the tree and pair its begin/end rows.
-  -- Cheap because tree walks are O(tree size).  We need the FULL block
-  -- list (not just visible blocks) so inner_width can include body
-  -- lines that extend past botline.
-  local function visit(node)
-    if BLOCK_NODES[node:type()] then
-      local sr, _sc, er, ec = node:range()
-      -- end_col == 0 means the node ends at the START of er, so the
-      -- last actual row is er - 1.  end_col > 0 means er itself is
-      -- the last row (the `#+end_*` line).
-      local end_row = ec > 0 and er or er - 1
-      if end_row > sr and end_row < n_lines then
-        local begin_line = vim.api.nvim_buf_get_lines(bufnr, sr, sr + 1, false)[1] or ""
-        local end_line = vim.api.nvim_buf_get_lines(bufnr, end_row, end_row + 1, false)[1] or ""
-        local lead, kind, suffix = begin_line:match(BEGIN_PAT)
-        local end_lead, end_kind = end_line:match(END_PAT)
-        if lead and end_lead and kind:lower() == end_kind:lower() then
-          local label = compute_label(kind, suffix)
-          pairs_[#pairs_ + 1] = {
-            begin_lnum = sr,
-            end_lnum = end_row,
-            lead = lead,
-            end_lead = end_lead,
-            label = label,
-            label_width = vim.fn.strdisplaywidth(label),
-          }
-        end
+  -- Range-bounded query: only blocks whose extent intersects
+  -- [topline, botline+1) are yielded.  Subtrees that don't overlap are
+  -- skipped at the C level, so cost is O(visible_blocks).
+  for _, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
+    local sr, _sc, er, ec = node:range()
+    -- end_col == 0 means the node ends at the START of er, so the last
+    -- actual row is er - 1.  end_col > 0 means er itself is the last
+    -- row (the `#+end_*` line).
+    local end_row = ec > 0 and er or er - 1
+    if end_row > sr and end_row < n_lines then
+      local begin_line = vim.api.nvim_buf_get_lines(bufnr, sr, sr + 1, false)[1] or ""
+      local end_line = vim.api.nvim_buf_get_lines(bufnr, end_row, end_row + 1, false)[1] or ""
+      local lead, kind, suffix = begin_line:match(BEGIN_PAT)
+      local end_lead, end_kind = end_line:match(END_PAT)
+      if lead and end_lead and kind:lower() == end_kind:lower() then
+        local label = compute_label(kind, suffix)
+        pairs_[#pairs_ + 1] = {
+          begin_lnum = sr,
+          end_lnum = end_row,
+          lead = lead,
+          end_lead = end_lead,
+          label = label,
+          label_width = vim.fn.strdisplaywidth(label),
+        }
       end
     end
-    for child in node:iter_children() do
-      visit(child)
-    end
   end
-  visit(tree:root())
 
   if #pairs_ == 0 then
     return
   end
-
-  -- Read all buffer lines once.  inner_width pass needs them across
-  -- the whole block (not just [topline, botline]) so a block whose body
-  -- extends past the visible bottom still sizes correctly.
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
   -- Frame lines (begin / end of every paired block) are NOT body lines
   -- in the parent block -- a nested block's frame replaces its row's
@@ -256,19 +263,26 @@ local function on_win(bufnr, _winid, topline, botline)
   end
 
   for _, p in ipairs(pairs_) do
+    -- inner_width must reflect the WHOLE block (body lines outside the
+    -- visible range still factor into width), but we only need this
+    -- block's body lines, not the whole buffer.
     local body_max = 0
-    for body = p.begin_lnum + 1, p.end_lnum - 1 do
-      if not frame_lines[body] then
-        local w = vim.fn.strdisplaywidth(lines[body + 1] or "")
-        if w > body_max then
-          body_max = w
+    if p.end_lnum > p.begin_lnum + 1 then
+      local body_lines = vim.api.nvim_buf_get_lines(bufnr, p.begin_lnum + 1, p.end_lnum, false)
+      for body_idx, body_line in ipairs(body_lines) do
+        local body_row = p.begin_lnum + body_idx
+        if not frame_lines[body_row] then
+          local w = vim.fn.strdisplaywidth(body_line)
+          if w > body_max then
+            body_max = w
+          end
         end
       end
     end
     -- Width the begin / end overlays must cover so source bytes don't
     -- leak past the rendered virt_text.
-    local begin_src_w = vim.fn.strdisplaywidth(lines[p.begin_lnum + 1] or "")
-    local end_src_w = vim.fn.strdisplaywidth(lines[p.end_lnum + 1] or "")
+    local begin_src_w = vim.fn.strdisplaywidth(vim.api.nvim_buf_get_lines(bufnr, p.begin_lnum, p.begin_lnum + 1, false)[1] or "")
+    local end_src_w = vim.fn.strdisplaywidth(vim.api.nvim_buf_get_lines(bufnr, p.end_lnum, p.end_lnum + 1, false)[1] or "")
     local source_max = begin_src_w > end_src_w and begin_src_w or end_src_w
     local inner = inner_width(p.label_width, body_max, source_max)
 
@@ -288,13 +302,21 @@ local function on_win(bufnr, _winid, topline, botline)
     if p.end_lnum >= topline and p.end_lnum <= botline then
       frame_map[p.end_lnum] = { kind = "bot", range = range_info }
     end
-    for body = p.begin_lnum + 1, p.end_lnum - 1 do
-      if body >= topline and body <= botline and not frame_lines[body] then
-        frame_map[body] = {
-          kind = "body",
-          range = range_info,
-          source = lines[body + 1] or "",
-        }
+    if p.end_lnum > p.begin_lnum + 1 then
+      local body_start = math.max(p.begin_lnum + 1, topline)
+      local body_end = math.min(p.end_lnum - 1, botline)
+      if body_start <= body_end then
+        local body_lines = vim.api.nvim_buf_get_lines(bufnr, body_start, body_end + 1, false)
+        for body_idx, body_line in ipairs(body_lines) do
+          local body_row = body_start + body_idx - 1
+          if not frame_lines[body_row] then
+            frame_map[body_row] = {
+              kind = "body",
+              range = range_info,
+              source = body_line,
+            }
+          end
+        end
       end
     end
   end
