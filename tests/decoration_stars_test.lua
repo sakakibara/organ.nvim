@@ -1,12 +1,13 @@
 -- Unit test for the stars provider via organ.decoration.
 --
 -- Verifies that loading organ.stars registers a decoration provider,
--- the per-buffer row cache is built from on_lines, and the on_line
--- dispatcher emits one conceal-space extmark per leading-star byte
--- (N-1 marks for a level-N headline).  Ephemeral marks placed by
--- on_line aren't visible to nvim_buf_get_extmarks outside the real
--- frame-rendering context, so the assertions go through _apply, which
--- shares build_cache with on_lines but writes non-ephemeral marks.
+-- the frame-local row map is built by on_win via a leading-star regex,
+-- and the on_line dispatcher emits one conceal-space extmark per
+-- leading-star byte (N-1 marks for a level-N headline).  Ephemeral
+-- marks placed by on_line aren't visible to nvim_buf_get_extmarks
+-- outside the real frame-rendering context, so the assertions go
+-- through _apply, which drives on_win across the full buffer and
+-- writes non-ephemeral marks.
 --
 -- Run via: nvim --headless -l tests/decoration_stars_test.lua
 
@@ -40,11 +41,12 @@ local providers, _ = decoration._providers()
 check("stars provider registered", providers.stars ~= nil)
 check("provider exposes ns", providers.stars and providers.stars.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.stars
-    and type(providers.stars.on_lines) == "function"
+    and type(providers.stars.on_win) == "function"
     and type(providers.stars.on_line) == "function"
 )
+check("provider has no on_lines", providers.stars and providers.stars.on_lines == nil)
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.bo[bufnr].filetype = "org"
