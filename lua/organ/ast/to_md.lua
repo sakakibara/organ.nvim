@@ -31,6 +31,27 @@ local function emit_inline(nodes)
       else
         out[#out + 1] = inner
       end
+    elseif n.kind == "link" then
+      local target = n.target or ""
+      if n.description and #n.description > 0 then
+        out[#out + 1] = "[" .. emit_inline(n.description) .. "](" .. target .. ")"
+      else
+        out[#out + 1] = "[" .. target .. "](" .. target .. ")"
+      end
+    elseif n.kind == "image" then
+      local target = n.target or ""
+      local alt = n.alt and n.alt ~= "" and n.alt or target
+      out[#out + 1] = "![" .. alt .. "](" .. target .. ")"
+    elseif n.kind == "footnote_ref" then
+      out[#out + 1] = "[^" .. (n.label or "") .. "]"
+    elseif n.kind == "math" then
+      if n.display then
+        out[#out + 1] = "$$" .. (n.body or "") .. "$$"
+      else
+        out[#out + 1] = "$" .. (n.body or "") .. "$"
+      end
+    elseif n.kind == "linebreak" then
+      out[#out + 1] = "  \n"
     end
   end
   return table.concat(out)

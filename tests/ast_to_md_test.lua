@@ -108,6 +108,84 @@ do
     "got: " .. out)
 end
 
+-- ---- inline link -----------------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.link("https://example.com", { A.text("a link") }),
+      A.text(" and "),
+      A.link("https://naked.example.com"),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("link with description", out:find("[a link](https://example.com)", 1, true) ~= nil,
+    "got: " .. out)
+  check("naked link",
+    out:find("[https://naked.example.com](https://naked.example.com)", 1, true) ~= nil)
+end
+
+-- ---- inline image (within paragraph) ---------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("See "),
+      { kind = "image", target = "fig.png", alt = "fig" },
+      A.text(" here."),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("inline image with alt -> ![fig](fig.png)",
+    out:find("![fig](fig.png)", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- ---- inline footnote_ref ---------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      { kind = "footnote_ref", label = "1" },
+      A.text("."),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("footnote_ref -> [^1]", out:find("[^1]", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- ---- inline math (inline + display) ----------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("inline: "),
+      { kind = "math", display = false, body = "x^2" },
+      A.text(" display: "),
+      { kind = "math", display = true, body = "\\int_0^1 x dx" },
+    }),
+  })
+  local out = to_md.render(doc)
+  check("inline math -> $x^2$", out:find("$x^2$", 1, true) ~= nil)
+  check("display math -> $$...$$",
+    out:find("$$\\int_0^1 x dx$$", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- ---- linebreak -------------------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("first"),
+      A.linebreak(),
+      A.text("second"),
+    }),
+  })
+  local out = to_md.render(doc)
+  -- A markdown hard line break is "  \n" (two trailing spaces + newline).
+  check("linebreak emits two-space + newline",
+    out:find("first  \nsecond", 1, true) ~= nil,
+    "got: " .. vim.inspect(out))
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
