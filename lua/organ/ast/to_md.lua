@@ -57,7 +57,12 @@ function emit_inline(nodes)
       out[#out + 1] = "  \n"
     end
   end
-  return table.concat(out)
+  local s = table.concat(out)
+  local ok, cite = pcall(require, "organ.cite")
+  if ok and type(cite.replace_in) == "function" then
+    s = cite.replace_in(s, "markdown")
+  end
+  return s
 end
 
 local function emit_headline(node, out)

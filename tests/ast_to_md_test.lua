@@ -443,6 +443,31 @@ do
   check("paragraph still rendered", out:find("body", 1, true) ~= nil)
 end
 
+-- ---- citation rendering (via organ.cite.replace_in) -----------------
+-- This test loads organ.cite and asserts that to_md routes the inline
+-- output through it. Specific citation grammars are organ.cite's
+-- responsibility; here we just verify the pass runs.
+do
+  local cite = require("organ.cite")
+  -- Confirm the cite module exposes replace_in (sanity check).
+  if type(cite.replace_in) == "function" then
+    local doc = A.document({
+      A.paragraph({
+        A.text("See [cite:@doe2020] for context."),
+      }),
+    })
+    local out = to_md.render(doc)
+    -- The simplest assertion: the `[cite:@doe2020]` literal source does
+    -- NOT survive into the output, because organ.cite.replace_in would
+    -- replace it. The exact replacement form is cite-module-internal;
+    -- we just verify the substitution happened.
+    check("citation marker replaced by organ.cite",
+      out:find("[cite:@doe2020]", 1, true) == nil, "got: " .. out)
+  else
+    print("SKIP  citation pass test (organ.cite.replace_in not available)")
+  end
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
