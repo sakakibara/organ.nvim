@@ -381,6 +381,68 @@ do
   check("a2 still rendered", out:find("| a2 |", 1, true) ~= nil)
 end
 
+-- ---- block-level image ---------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    { kind = "image", target = "fig.png", alt = "diagram" },
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_md.render(doc)
+  check("block image -> ![diagram](fig.png)",
+    out:find("![diagram](fig.png)", 1, true) ~= nil, "got: " .. out)
+end
+
+-- Image without alt falls back to target as alt text.
+do
+  local doc = A.document({
+    { kind = "image", target = "x.png" },
+  })
+  local out = to_md.render(doc)
+  check("image no alt -> ![x.png](x.png)",
+    out:find("![x.png](x.png)", 1, true) ~= nil)
+end
+
+-- ---- horizontal rule -----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("above") }),
+    A.rule(),
+    A.paragraph({ A.text("below") }),
+  })
+  local out = to_md.render(doc)
+  check("rule -> ---", out:find("\n---\n", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- footnote_definition -------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      { kind = "footnote_ref", label = "1" },
+    }),
+    A.footnote_definition("1", { A.paragraph({ A.text("the footnote body") }) }),
+  })
+  local out = to_md.render(doc)
+  check("footnote def -> [^1]: body",
+    out:find("[^1]: the footnote body", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- directive (dropped) -------------------------------------------
+do
+  local doc = A.document({
+    A.directive("TITLE", "My Doc"),
+    A.directive("AUTHOR", "Jane"),
+    A.paragraph({ A.text("body") }),
+  })
+  local out = to_md.render(doc)
+  check("directive: TITLE dropped",
+    out:find("My Doc", 1, true) == nil, "got: " .. out)
+  check("directive: AUTHOR dropped",
+    out:find("Jane", 1, true) == nil)
+  check("paragraph still rendered", out:find("body", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

@@ -198,6 +198,35 @@ local function emit_table(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_image_block(node, out)
+  local target = node.target or ""
+  local alt = node.alt and node.alt ~= "" and node.alt or target
+  out[#out + 1] = "![" .. alt .. "](" .. target .. ")"
+  out[#out + 1] = ""
+end
+
+local function emit_rule(_, out)
+  out[#out + 1] = "---"
+  out[#out + 1] = ""
+end
+
+local function emit_footnote_definition(node, out)
+  local first_body = ""
+  if node.content and node.content[1] and node.content[1].kind == "paragraph" then
+    first_body = emit_inline(node.content[1].inline)
+  end
+  out[#out + 1] = "[^" .. (node.label or "") .. "]: " .. first_body
+  if node.content and #node.content > 1 then
+    for i = 2, #node.content do
+      local b = node.content[i]
+      if b.kind == "paragraph" then
+        out[#out + 1] = "    " .. emit_inline(b.inline)
+      end
+    end
+  end
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   local kind = node.kind
   if kind == "headline" then
@@ -215,6 +244,12 @@ function emit_block(node, out)
     emit_org_block(node, out)
   elseif kind == "table" then
     emit_table(node, out)
+  elseif kind == "image" then
+    emit_image_block(node, out)
+  elseif kind == "rule" then
+    emit_rule(node, out)
+  elseif kind == "footnote_definition" then
+    emit_footnote_definition(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
