@@ -377,6 +377,40 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
+-- on_win provider that raises is disabled after one failure and
+-- skipped on subsequent dispatches.
+do
+  decoration._reset()
+  local ns = vim.api.nvim_create_namespace("test_on_win_disable_on_error")
+  local call_count = 0
+  decoration.register({
+    name = "p_raises_on_win",
+    ns = ns,
+    enabled = function()
+      return true
+    end,
+    on_win = function()
+      call_count = call_count + 1
+      error("intentional on_win error")
+    end,
+    on_line = function() end,
+  })
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "a" })
+  decoration.attach(bufnr)
+  local winid = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(winid, bufnr)
+  decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
+  decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
+  decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
+  check(
+    "raising on_win provider called exactly once before disable",
+    call_count == 1,
+    "called " .. call_count .. " times"
+  )
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
