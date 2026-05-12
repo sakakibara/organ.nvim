@@ -28,6 +28,43 @@ local NS = vim.api.nvim_create_namespace("organ_modern_pills")
 -- keep the hook symmetric with bullets/blocks).
 M._saved_conceallevel = M._saved_conceallevel or {}
 
+local rebuild_timers = {}
+local REBUILD_DEBOUNCE_MS = 150
+
+local function cancel_rebuild_timer(bufnr)
+  local t = rebuild_timers[bufnr]
+  if not t then
+    return
+  end
+  rebuild_timers[bufnr] = nil
+  pcall(t.stop, t)
+  pcall(t.close, t)
+end
+
+local function schedule_rebuild(bufnr)
+  cancel_rebuild_timer(bufnr)
+  local t = vim.uv.new_timer()
+  if not t then
+    -- Timer allocation failed (unlikely); fall back to a synchronous
+    -- rebuild rather than silently dropping the update.
+    cache_by_buf[bufnr] = build_cache(bufnr)
+    return
+  end
+  rebuild_timers[bufnr] = t
+  t:start(
+    REBUILD_DEBOUNCE_MS,
+    0,
+    vim.schedule_wrap(function()
+      rebuild_timers[bufnr] = nil
+      pcall(t.stop, t)
+      pcall(t.close, t)
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        cache_by_buf[bufnr] = build_cache(bufnr)
+      end
+    end)
+  )
+end
+
 local function register_pill_highlights()
   -- Inverse-video versions of the per-keyword TODO groups. We can't
   -- just override @org.todo.* directly -- that would also affect plain
@@ -240,8 +277,14 @@ require("organ.decoration").register({
       return
     end
     -- Full rebuild: tree-sitter's incremental parse keeps the cost
-    -- bounded.  Range-bounded walks are a future optimization.
-    cache_by_buf[bufnr] = build_cache(bufnr)
+    -- bounded.  Range-bounded walks are a future optimization.  Initial
+    -- population (cache empty) runs synchronously so the first frame after
+    -- buffer open has correct decoration; subsequent edits debounce.
+    if cache_by_buf[bufnr] == nil then
+      cache_by_buf[bufnr] = build_cache(bufnr)
+      return
+    end
+    schedule_rebuild(bufnr)
   end,
   on_line = function(bufnr, _winid, row)
     local rows = cache_by_buf[bufnr]
@@ -283,6 +326,7 @@ end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  cancel_rebuild_timer(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   cache_by_buf[bufnr] = nil
 end
