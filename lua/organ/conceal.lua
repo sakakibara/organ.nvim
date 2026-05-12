@@ -164,6 +164,7 @@ local function on_line(bufnr, winid, row)
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
       end_col = s.end_col,
       conceal = "",
+      ephemeral = true,
     })
   end
 end
@@ -218,16 +219,13 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { limit = 1 })
-  if #marks > 0 then
+  if vim.wo.conceallevel ~= 0 then
     M.detach(bufnr)
     vim.wo.conceallevel = 0
     return false
   end
   apply(bufnr)
-  if vim.wo.conceallevel == 0 then
-    vim.wo.conceallevel = 2
-  end
+  vim.wo.conceallevel = 2
   return true
 end
 
