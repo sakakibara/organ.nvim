@@ -188,6 +188,59 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
+-- ---- pcall isolation in on_lines ------------------------------------
+do
+  decoration._reset()
+  local good_calls = 0
+  decoration.register({
+    name = "raises",
+    ns = vim.api.nvim_create_namespace("organ_decoration_raises"),
+    enabled = function() return true end,
+    on_lines = function() error("intentional") end,
+    on_line = function() end,
+  })
+  decoration.register({
+    name = "good",
+    ns = vim.api.nvim_create_namespace("organ_decoration_good"),
+    enabled = function() return true end,
+    on_lines = function() good_calls = good_calls + 1 end,
+    on_line = function() end,
+  })
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
+  decoration.attach(bufnr)
+  check("pcall isolates raising provider in on_lines",
+    good_calls >= 1, "good_calls=" .. good_calls)
+  good_calls = 0
+  vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { "y" })
+  vim.wait(50)
+  check("good provider keeps firing after another's failure",
+    good_calls >= 1, "good_calls=" .. good_calls)
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
+-- ---- refresh repopulates --------------------------------------------
+do
+  decoration._reset()
+  local call_count = 0
+  decoration.register({
+    name = "ref",
+    ns = vim.api.nvim_create_namespace("organ_decoration_ref"),
+    enabled = function() return true end,
+    on_lines = function() call_count = call_count + 1 end,
+    on_line = function() end,
+  })
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "line1", "line2" })
+  decoration.attach(bufnr)
+  call_count = 0
+  decoration.refresh(bufnr)
+  check("refresh triggers a fresh on_lines pass",
+    call_count == 1, "got " .. call_count)
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

@@ -218,6 +218,26 @@ end
 
 M._dispatch_on_line = dispatch_on_line
 
+-- Force a full repopulation of every provider's cache for `bufnr`.
+-- Clears all namespaces, resets per-provider state, retriggers on_lines
+-- covering the whole buffer.  Use after config toggles, :e reload, etc.
+function M.refresh(bufnr)
+  if not attached_buffers[bufnr] then
+    return
+  end
+  caches[bufnr] = {}
+  warn_once[bufnr] = {}
+  disabled[bufnr] = {}
+  for _, name in ipairs(provider_order) do
+    local p = providers[name]
+    if p and p.ns then
+      pcall(vim.api.nvim_buf_clear_namespace, bufnr, p.ns, 0, -1)
+    end
+  end
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  dispatch_on_lines(bufnr, 0, n, n)
+end
+
 -- Register the singleton decoration provider once at module load.
 do
   local provider_ns = vim.api.nvim_create_namespace("organ_decoration_provider")
