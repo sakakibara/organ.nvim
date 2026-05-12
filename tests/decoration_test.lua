@@ -29,7 +29,7 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function() end,
   })
   check("register accepts a valid provider", ok, err)
@@ -41,7 +41,7 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function() end,
   })
   check(
@@ -55,7 +55,7 @@ do
     name = "test_b",
     ns = vim.api.nvim_create_namespace("organ_decoration_test_b"),
     -- enabled missing
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function() end,
   })
   check(
@@ -74,7 +74,7 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function() end,
   })
   decoration.unregister("test_c")
@@ -85,13 +85,13 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function() end,
   })
   check("unregister frees the name for re-registration", ok, err)
 end
 
--- ---- attach + on_lines dispatch -------------------------------------
+-- ---- attach + on_lines_only dispatch --------------------------------
 do
   decoration._reset()
   local on_lines_calls = {}
@@ -101,10 +101,9 @@ do
     enabled = function(_)
       return true
     end,
-    on_lines = function(bufnr, first, last_old, last_new)
+    on_lines_only = function(bufnr, first, last_old, last_new)
       on_lines_calls[#on_lines_calls + 1] = { bufnr, first, last_old, last_new }
     end,
-    on_line = function() end,
   })
 
   local bufnr = vim.api.nvim_create_buf(false, true)
@@ -113,7 +112,7 @@ do
   decoration.attach(bufnr)
   -- attach should synthesize an initial on_lines covering the whole buffer.
   check(
-    "attach synthesizes initial on_lines",
+    "attach synthesizes initial on_lines_only",
     #on_lines_calls == 1
       and on_lines_calls[1][1] == bufnr
       and on_lines_calls[1][2] == 0
@@ -126,7 +125,7 @@ do
   vim.api.nvim_buf_set_lines(bufnr, 1, 2, false, { "line two (edited)" })
   vim.wait(50)
   check(
-    "edit triggers on_lines dispatch",
+    "edit triggers on_lines_only dispatch",
     #on_lines_calls >= 1,
     "got " .. #on_lines_calls .. " calls"
   )
@@ -160,17 +159,16 @@ do
     enabled = function(_)
       return false
     end,
-    on_lines = function()
+    on_lines_only = function()
       p2_calls = p2_calls + 1
     end,
-    on_line = function() end,
   })
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
   decoration.attach(bufnr)
   check(
-    "disabled provider's on_lines NOT called on attach",
+    "disabled provider's on_lines_only NOT called on attach",
     p2_calls == 0,
     "got " .. p2_calls .. " calls"
   )
@@ -188,7 +186,7 @@ do
     enabled = function(_)
       return true
     end,
-    on_lines = function() end,
+    on_win = function() end,
     on_line = function(bufnr, winid, row)
       on_line_calls[#on_line_calls + 1] = { bufnr, winid, row }
     end,
@@ -211,7 +209,7 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---- pcall isolation in on_lines ------------------------------------
+-- ---- pcall isolation in on_lines_only -------------------------------
 do
   decoration._reset()
   local good_calls = 0
@@ -221,10 +219,9 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function()
+    on_lines_only = function()
       error("intentional")
     end,
-    on_line = function() end,
   })
   decoration.register({
     name = "good",
@@ -232,16 +229,19 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function()
+    on_lines_only = function()
       good_calls = good_calls + 1
     end,
-    on_line = function() end,
   })
 
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
   decoration.attach(bufnr)
-  check("pcall isolates raising provider in on_lines", good_calls >= 1, "good_calls=" .. good_calls)
+  check(
+    "pcall isolates raising provider in on_lines_only",
+    good_calls >= 1,
+    "good_calls=" .. good_calls
+  )
   good_calls = 0
   vim.api.nvim_buf_set_lines(bufnr, 0, 1, false, { "y" })
   vim.wait(50)
@@ -263,17 +263,16 @@ do
     enabled = function()
       return true
     end,
-    on_lines = function()
+    on_lines_only = function()
       call_count = call_count + 1
     end,
-    on_line = function() end,
   })
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "line1", "line2" })
   decoration.attach(bufnr)
   call_count = 0
   decoration.refresh(bufnr)
-  check("refresh triggers a fresh on_lines pass", call_count == 1, "got " .. call_count)
+  check("refresh triggers a fresh on_lines_only pass", call_count == 1, "got " .. call_count)
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
@@ -299,21 +298,19 @@ do
   )
 end
 
--- on_win + on_lines mutual presence is allowed during migration bridge.
+-- on_lines (without on_lines_only) is no longer supported.
 do
   decoration._reset()
-  local ns = vim.api.nvim_create_namespace("test_on_win_and_on_lines")
-  local ok = pcall(decoration.register, {
-    name = "p_both",
+  local ns = vim.api.nvim_create_namespace("test_on_lines_rejected")
+  local ok, err = pcall(decoration.register, {
+    name = "p_on_lines_only_field",
     ns = ns,
-    enabled = function()
-      return true
-    end,
+    enabled = function() return true end,
     on_lines = function() end,
     on_line = function() end,
-    on_win = function() end,
   })
-  check("register accepts on_lines + on_win + on_line during bridge", ok)
+  check("on_lines (non-only) is no longer accepted",
+    not ok and err and err:match("on_lines"))
 end
 
 -- on_win without on_line is rejected.

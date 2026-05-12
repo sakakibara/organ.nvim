@@ -10,15 +10,12 @@
 
 local M = {}
 
--- providers: name -> { name, ns, enabled, on_lines, on_line, on_lines_only }
+-- providers: name -> { name, ns, enabled, on_win, on_line, on_lines_only }
 local providers = {}
 local provider_order = {} -- preserves registration order for stable dispatch
 
 -- attached_buffers: bufnr -> true
 local attached_buffers = {}
-
--- caches: bufnr -> name -> per-provider table (provider's choice of shape)
-local caches = {}
 
 -- warn_once: bufnr -> name -> true (suppresses repeat notices)
 local warn_once = {}
@@ -31,7 +28,6 @@ function M._reset()
   providers = {}
   provider_order = {}
   attached_buffers = {}
-  caches = {}
   warn_once = {}
   disabled = {}
 end
@@ -50,16 +46,13 @@ local function validate(p)
     end
     return true
   end
-  local has_lines = type(p.on_lines) == "function"
-  local has_win = type(p.on_win) == "function"
-  local has_line = type(p.on_line) == "function"
-  if not has_line then
+  if p.on_lines then
     return false,
-      "organ.decoration.register: on_line is required when on_lines or on_win is present"
+      "organ.decoration.register: on_lines is no longer supported; use on_win"
   end
-  if not has_lines and not has_win then
+  if type(p.on_win) ~= "function" or type(p.on_line) ~= "function" then
     return false,
-      "organ.decoration.register: provider must supply on_lines or on_win (or on_lines_only)"
+      "organ.decoration.register: provider must supply on_win + on_line (or on_lines_only)"
   end
   return true
 end
@@ -87,15 +80,12 @@ function M.unregister(name)
       break
     end
   end
-  -- Clear per-buffer caches + state for this provider.
-  for bufnr, by_name in pairs(caches) do
-    by_name[name] = nil
-    if warn_once[bufnr] then
-      warn_once[bufnr][name] = nil
-    end
-    if disabled[bufnr] then
-      disabled[bufnr][name] = nil
-    end
+  -- Clear per-buffer state for this provider.
+  for bufnr, _ in pairs(warn_once) do
+    warn_once[bufnr][name] = nil
+  end
+  for bufnr, _ in pairs(disabled) do
+    disabled[bufnr][name] = nil
   end
 end
 
@@ -103,24 +93,22 @@ end
 M._providers = function()
   return providers, provider_order
 end
-M._caches = function()
-  return caches
-end
 M._attached = function()
   return attached_buffers
 end
 
--- Internal: dispatch an on_lines notification to all enabled providers.
+-- Internal: dispatch an on_lines notification to on_lines_only providers.
+-- (Regular on_win/on_line providers don't receive edit notifications --
+-- they query the visible range every frame.)
 local function dispatch_on_lines(bufnr, first, last_old, last_new)
-  caches[bufnr] = caches[bufnr] or {}
   warn_once[bufnr] = warn_once[bufnr] or {}
   disabled[bufnr] = disabled[bufnr] or {}
   for _, name in ipairs(provider_order) do
     local p = providers[name]
-    if p and p.on_lines and not p.on_lines_only and not disabled[bufnr][name] then
+    if p and p.on_lines_only and not disabled[bufnr][name] then
       local ok_enabled, enabled = pcall(p.enabled, bufnr)
       if ok_enabled and enabled then
-        local ok_call, err_call = pcall(p.on_lines, bufnr, first, last_old, last_new)
+        local ok_call, err_call = pcall(p.on_lines_only, bufnr, first, last_old, last_new)
         if not ok_call then
           if not warn_once[bufnr][name] then
             warn_once[bufnr][name] = true
@@ -130,27 +118,12 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
               notify.warn(
                 "decoration provider '"
                   .. name
-                  .. "' raised in on_lines: "
+                  .. "' raised in on_lines_only: "
                   .. tostring(err_call)
                   .. ".  Disabling for this buffer."
               )
             end
           end
-        end
-      elseif not ok_enabled then
-        if not warn_once[bufnr][name] then
-          warn_once[bufnr][name] = true
-        end
-      end
-    end
-    -- on_lines_only providers also receive on_lines notifications.
-    if p and p.on_lines_only and not disabled[bufnr][name] then
-      local ok_enabled, enabled = pcall(p.enabled, bufnr)
-      if ok_enabled and enabled then
-        local ok_call = pcall(p.on_lines_only, bufnr, first, last_old, last_new)
-        if not ok_call then
-          warn_once[bufnr][name] = true
-          disabled[bufnr][name] = true
         end
       end
     end
@@ -201,7 +174,6 @@ function M.attach(bufnr)
     return -- idempotent
   end
   attached_buffers[bufnr] = true
-  caches[bufnr] = {}
   warn_once[bufnr] = {}
   disabled[bufnr] = {}
 
@@ -214,7 +186,6 @@ function M.attach(bufnr)
     end,
     on_detach = function(_, b)
       attached_buffers[b] = nil
-      caches[b] = nil
       warn_once[b] = nil
       disabled[b] = nil
     end,
@@ -230,15 +201,14 @@ function M.detach(bufnr)
     return
   end
   attached_buffers[bufnr] = nil
-  caches[bufnr] = nil
   warn_once[bufnr] = nil
   disabled[bufnr] = nil
 end
 
 -- Internal: dispatch an on_line callback to all enabled providers.
 -- Each provider's namespace is cleared for this single row before its
--- on_line runs, so stale extmarks don't accumulate when cache[row]
--- becomes empty.
+-- on_line runs, so stale extmarks don't accumulate when the provider
+-- decides not to place anything on this row.
 local function dispatch_on_line(_tick, winid, bufnr, row)
   if not attached_buffers[bufnr] then
     return
@@ -275,14 +245,13 @@ end
 
 M._dispatch_on_line = dispatch_on_line
 
--- Force a full repopulation of every provider's cache for `bufnr`.
--- Clears all namespaces, resets per-provider state, retriggers on_lines
--- covering the whole buffer.  Use after config toggles, :e reload, etc.
+-- Force a full repopulation for `bufnr`.  Clears all namespaces, resets
+-- per-provider state, and re-notifies on_lines_only providers covering
+-- the whole buffer.  Use after config toggles, :e reload, etc.
 function M.refresh(bufnr)
   if not attached_buffers[bufnr] then
     return
   end
-  caches[bufnr] = {}
   warn_once[bufnr] = {}
   disabled[bufnr] = {}
   for _, name in ipairs(provider_order) do
@@ -291,6 +260,7 @@ function M.refresh(bufnr)
       pcall(vim.api.nvim_buf_clear_namespace, bufnr, p.ns, 0, -1)
     end
   end
+  -- on_lines_only providers still need a re-notify covering the whole buffer.
   local n = vim.api.nvim_buf_line_count(bufnr)
   dispatch_on_lines(bufnr, 0, n, n)
 end
