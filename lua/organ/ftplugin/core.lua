@@ -388,6 +388,14 @@ function M.attach(bufnr)
     require("organ.conceal").attach(bufnr)
   end)
 
+  -- Shared decoration provider infrastructure (organ.decoration).
+  -- Individual decoration modules register as providers during their
+  -- own setup; this single attach wires the per-buffer nvim_buf_attach
+  -- + nvim_set_decoration_provider dispatch.
+  pcall(function()
+    require("organ.decoration").attach(bufnr)
+  end)
+
   -- Description-list separator highlighter: walks list_item nodes
   -- and emits per-range extmarks for `term ::` shapes so terms +
   -- separator render distinctly from definition body.  The grammar
