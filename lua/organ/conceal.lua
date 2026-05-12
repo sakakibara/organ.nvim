@@ -1,16 +1,18 @@
 -- Inline emphasis-marker + link-bracket concealment.
 --
--- Walks the `org_inline` tree per buffer change and places conceal
--- extmarks that hide the surrounding `*` `/` `_` `+` `=` `~` of bold,
--- italic, underline, strikethrough, verbatim and code spans, plus the
--- `[[target][` prefix and trailing `]]` of `[[target][description]]`
--- links.  Marks have no visual effect at `conceallevel = 0` (Neovim
--- default); the user opts in by setting `conceallevel = 2` on the
--- window or via `:Org conceal toggle`.
+-- Walks the `org_inline` tree for the visible window range and places
+-- conceal extmarks that hide the surrounding `*` `/` `_` `+` `=` `~`
+-- of bold, italic, underline, strikethrough, verbatim and code spans,
+-- plus the `[[target][` prefix and trailing `]]` of
+-- `[[target][description]]` links.  Marks have no visual effect at
+-- `conceallevel = 0` (Neovim default); the user opts in by setting
+-- `conceallevel = 2` on the window or via `:Org conceal toggle`.
 --
--- Concealment runs as an `organ.decoration` provider: `on_lines`
--- rewrites a per-buffer span cache for the changed range, and `on_line`
--- emits ephemeral conceal extmarks for the visible row.
+-- Concealment runs as an `organ.decoration` provider: `on_win` queries
+-- tree-sitter for the visible range and builds a module-local
+-- frame-row span map; `on_line` reads from that map and emits conceal
+-- extmarks for the current row.  Tree-sitter's incremental parser
+-- keeps the inline tree correct across edits without a full reparse.
 
 local M = {}
 
@@ -47,214 +49,139 @@ local function element_enabled(name)
   return v ~= false
 end
 
--- Per-buffer row span cache: cache_by_buf[bufnr][row] = { span, ... }.
--- Each span: { start_col, end_col, conceal_char }.
-local cache_by_buf = {}
+-- Frame-local span map: frame_map[row] = { { start_col, end_col }, ... }.
+-- Reset at the start of every on_win call; read by on_line for the
+-- same frame.  No per-buffer keying: only one window's on_win runs
+-- before its on_line callbacks for the same frame.
+local frame_map = {}
 
--- Per-buffer trailing-debounce timers for the on_lines rebuild path.
--- nvim_buf_attach's on_lines fires synchronously on every keystroke;
--- build_cache does a full inline-tree reparse which costs ~12ms on a
--- 5k-line buffer and >100ms on a large one.  Doing that on every key
--- is unusable, so we coalesce edits into one rebuild 150ms after the
--- user stops typing -- the same UX as the pre-migration TextChangedI
--- debounce.  on_line renders from whatever cache exists; the first
--- frame inside a burst can show stale conceal until the timer fires.
-local rebuild_timers = {}
-local REBUILD_DEBOUNCE_MS = 150
-
-local function cancel_rebuild_timer(bufnr)
-  local t = rebuild_timers[bufnr]
-  if not t then
-    return
+-- Emit one open + (optionally) one close marker span for an emphasis
+-- node.  Single-char open/close at the inclusive node range edges.
+local function walk_emphasis(node, push)
+  local sr, sc, er, ec = node:range()
+  push(sr, sc, sc + 1)
+  if er > sr or ec > sc + 1 then
+    push(er, math.max(0, ec - 1), ec)
   end
-  rebuild_timers[bufnr] = nil
-  pcall(t.stop, t)
-  pcall(t.close, t)
 end
 
--- Build a per-row span list from the inline tree.  Single tree walk;
--- spans are bucketed by row.  Spans whose open/close sit on different
--- rows (multi-line emphasis) produce one entry per affected row.
-local function build_cache(bufnr)
-  local rows = {}
+-- Hide `[[target][` prefix and trailing `]]` of a regular link when a
+-- description child is present; show bare `[[target]]` unchanged.
+local function walk_link(node, push)
+  local desc_node, target_node
+  for c in node:iter_children() do
+    local t = c:type()
+    if t == "link_description" then
+      desc_node = c
+    elseif t == "link_target" then
+      target_node = c
+    end
+  end
+  if not desc_node then
+    return
+  end
+  local sr, sc, er, ec = node:range()
+  if target_node then
+    local _, _, ter, tec = target_node:range()
+    -- target_end .. target_end+2 covers `][` (single-line links).
+    if ter == sr then
+      push(sr, sc, tec + 2)
+    end
+  else
+    -- Parser quirk: no target node.  Fall back to leading `[[`.
+    push(sr, sc, sc + 2)
+  end
+  if er == sr then
+    push(er, ec - 2, ec)
+  end
+end
+
+local function on_win(bufnr, _winid, topline, botline)
+  frame_map = {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
-    return rows
+    return
   end
   if vim.bo[bufnr].filetype ~= "org" then
-    return rows
+    return
   end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
-    return rows
+    return
   end
-  pcall(function()
-    parser:parse(true)
-  end)
+  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
+  -- the rest of the tree correct; we never call parser:parse(true).
+  parser:parse({ topline, 0, botline + 1, 0 })
 
   local function push(row, start_col, end_col)
     if end_col <= start_col then
       return
     end
-    rows[row] = rows[row] or {}
-    rows[row][#rows[row] + 1] = { start_col = start_col, end_col = end_col }
+    -- Multi-line emphasis can produce close markers outside the frame
+    -- range; skip them rather than emitting marks that can't render.
+    if row < topline or row > botline then
+      return
+    end
+    frame_map[row] = frame_map[row] or {}
+    frame_map[row][#frame_map[row] + 1] = { start_col = start_col, end_col = end_col }
   end
 
-  local function walk_emphasis(node)
-    local sr, sc, er, ec = node:range()
-    -- Open marker: one byte at (sr, sc).
-    push(sr, sc, sc + 1)
-    -- Close marker: one byte at (er, ec-1), but only if open != close.
-    if er > sr or ec > sc + 1 then
-      push(er, math.max(0, ec - 1), ec)
-    end
-  end
-
-  local function walk_link(node)
-    local desc_node, target_node
-    for c in node:iter_children() do
-      local t = c:type()
-      if t == "link_description" then
-        desc_node = c
-      elseif t == "link_target" then
-        target_node = c
-      end
-    end
-    if not desc_node then
-      return -- bare `[[target]]` -- show as-is
-    end
-    local sr, sc, er, ec = node:range()
-    if target_node then
-      local _, _, ter, tec = target_node:range()
-      -- target_end .. target_end+2 covers `][` (single-line links).
-      if ter == sr then
-        push(sr, sc, tec + 2)
-      end
-    else
-      -- Parser quirk: no target node.  Fall back to leading `[[`.
-      push(sr, sc, sc + 2)
-    end
-    -- Trailing `]]`.
-    if er == sr then
-      push(er, ec - 2, ec)
-    end
-  end
-
-  -- parser:children() returns a string-keyed table (lang -> child); ipairs
-  -- skips it, so iterate via pairs.
+  -- parser:children() returns a string-keyed table (lang -> child);
+  -- ipairs skips it, so iterate via pairs.
   for _, child in pairs(parser:children()) do
     if child:lang() == "org_inline" then
       for _, tree in ipairs(child:trees() or {}) do
         local root = tree:root()
-        local function walk(node)
-          local t = node:type()
-          local emph = EMPHASIS_TYPES[t]
-          if emph and element_enabled(emph) then
-            walk_emphasis(node)
-          elseif LINK_TYPES[t] and element_enabled(LINK_TYPES[t]) then
-            walk_link(node)
+        local rsr, _, rer, _ = root:range()
+        if rer >= topline and rsr <= botline then
+          local function walk(node)
+            local t = node:type()
+            local emph = EMPHASIS_TYPES[t]
+            if emph and element_enabled(emph) then
+              walk_emphasis(node, push)
+            elseif LINK_TYPES[t] and element_enabled(LINK_TYPES[t]) then
+              walk_link(node, push)
+            end
+            for c in node:iter_children() do
+              walk(c)
+            end
           end
-          for c in node:iter_children() do
-            walk(c)
-          end
+          walk(root)
         end
-        walk(root)
       end
     end
   end
-
-  return rows
 end
 
--- Place all cached spans for `bufnr` as non-ephemeral extmarks.  Used
--- by `_apply` (test-facing) and by `toggle_element` for an immediate
--- visible refresh independent of frame dispatch.
-local function place_marks(bufnr, rows)
-  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  for row, spans in pairs(rows) do
-    for _, s in ipairs(spans) do
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
-        end_col = s.end_col,
-        conceal = "",
-      })
-    end
-  end
-end
-
-local function schedule_rebuild(bufnr)
-  cancel_rebuild_timer(bufnr)
-  local t = vim.uv.new_timer()
-  if not t then
-    -- Timer allocation failed (unlikely); fall back to a synchronous
-    -- rebuild rather than silently dropping the update.
-    cache_by_buf[bufnr] = build_cache(bufnr)
+local function on_line(bufnr, winid, row)
+  if vim.wo[winid].conceallevel == 0 then
     return
   end
-  rebuild_timers[bufnr] = t
-  t:start(
-    REBUILD_DEBOUNCE_MS,
-    0,
-    vim.schedule_wrap(function()
-      rebuild_timers[bufnr] = nil
-      pcall(t.stop, t)
-      pcall(t.close, t)
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        cache_by_buf[bufnr] = build_cache(bufnr)
-      end
-    end)
-  )
+  local spans = frame_map[row]
+  if not spans or #spans == 0 then
+    return
+  end
+  for _, s in ipairs(spans) do
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
+      end_col = s.end_col,
+      conceal = "",
+    })
+  end
 end
 
 require("organ.decoration").register({
   name = "conceal",
   ns = NS,
   enabled = function(_bufnr)
-    -- Walker is always on; per-element gating happens in `build_cache`
-    -- via `element_enabled()`.  The conceallevel check in `on_line`
-    -- skips actual extmark placement when the window won't render
-    -- conceal anyway.
     return true
   end,
-  on_lines = function(bufnr, _first, _last_old, _last_new)
-    -- Inline emphasis can span unbounded text; an edit that closes or
-    -- opens a marker shifts every span on subsequent rows.  Rebuilding
-    -- the whole cache is the only correct option.  Initial population
-    -- (cache empty) runs synchronously so the first frame after buffer
-    -- open has correct decoration; subsequent edits debounce.
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    if cache_by_buf[bufnr] == nil then
-      cache_by_buf[bufnr] = build_cache(bufnr)
-      return
-    end
-    schedule_rebuild(bufnr)
-  end,
-  on_line = function(bufnr, winid, row)
-    if vim.wo[winid].conceallevel == 0 then
-      return
-    end
-    local rows = cache_by_buf[bufnr]
-    if not rows then
-      return
-    end
-    local spans = rows[row]
-    if not spans or #spans == 0 then
-      return
-    end
-    for _, s in ipairs(spans) do
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
-        end_col = s.end_col,
-        conceal = "",
-        ephemeral = true,
-      })
-    end
-  end,
+  on_win = on_win,
+  on_line = on_line,
 })
 
--- Test-facing: rebuild the cache + place non-ephemeral extmarks now.
--- Useful when callers need to assert via `nvim_buf_get_extmarks` without
--- waiting for a frame, and as a fallback path for buffers that aren't
--- attached to `organ.decoration` (no FileType=org autocmd fired yet).
+-- Test-facing: drive on_win across the full buffer and place
+-- non-ephemeral extmarks.  Used by `:Org conceal toggle`, by
+-- `toggle_element` for an immediate visual refresh, and by tests that
+-- need to assert on placed marks without a real redraw context.
 local function apply(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -263,18 +190,30 @@ local function apply(bufnr)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local rows = build_cache(bufnr)
-  cache_by_buf[bufnr] = rows
-  place_marks(bufnr, rows)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  on_win(bufnr, 0, 0, n - 1)
+  -- Place non-ephemeral marks for every populated row.  Bypasses the
+  -- conceallevel check because callers (toggle, tests) want marks to
+  -- be inspectable / take effect immediately.
+  for row, spans in pairs(frame_map) do
+    for _, s in ipairs(spans) do
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, s.start_col, {
+        end_col = s.end_col,
+        conceal = "",
+      })
+    end
+  end
 end
 
 M._apply = apply
+M._frame_map = function()
+  return frame_map
+end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  cache_by_buf[bufnr] = nil
-  cancel_rebuild_timer(bufnr)
 end
 
 function M.toggle(bufnr)
@@ -304,11 +243,6 @@ function M.toggle_element(name)
     cur = true
   end
   cfg.emphasis[name] = not cur
-  -- Re-walk every loaded org buffer so the change is reflected
-  -- immediately, not on the next TextChanged.  `apply` rebuilds the
-  -- cache AND places non-ephemeral extmarks for the current rendered
-  -- frame; the decoration provider's on_line path will pick the new
-  -- cache up on subsequent redraws.
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "org" then
       apply(b)

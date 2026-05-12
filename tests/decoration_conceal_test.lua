@@ -1,12 +1,11 @@
 -- Unit test for the conceal provider via organ.decoration.
 --
--- Verifies that loading organ.conceal registers a decoration provider,
--- that on_lines populates a per-row span cache for the buffer, and that
--- the on_line dispatcher honours conceallevel.  The cache is inspected
--- directly because nvim_buf_set_extmark with `ephemeral = true` only
--- works inside the real decoration-provider callback context; headless
--- tests can drive on_lines (cache build) but can't synthesize the
--- ephemeral-extmark frame -- a `redraw` does that.
+-- Verifies that loading organ.conceal registers a decoration provider
+-- exposing on_win + on_line, that on_win populates a module-local
+-- frame-row span map for the visible range, and that on_line emits
+-- conceal extmarks for rows in that map.  `_apply` drives the full
+-- buffer through the on_win path and places non-ephemeral marks so
+-- headless tests can inspect them via nvim_buf_get_extmarks.
 --
 -- Run via: nvim --headless -l tests/decoration_conceal_test.lua
 
@@ -47,11 +46,12 @@ local providers, _ = decoration._providers()
 check("conceal provider registered", providers.conceal ~= nil)
 check("provider exposes ns", providers.conceal and providers.conceal.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.conceal
-    and type(providers.conceal.on_lines) == "function"
+    and type(providers.conceal.on_win) == "function"
     and type(providers.conceal.on_line) == "function"
 )
+check("provider has no on_lines", providers.conceal and providers.conceal.on_lines == nil)
 
 -- Buffer with emphasis content.
 local bufnr = vim.api.nvim_create_buf(false, true)
@@ -69,26 +69,26 @@ vim.bo[bufnr].filetype = "org"
 -- no-op (idempotent).
 decoration.attach(bufnr)
 
--- Force a refresh so we get a fresh on_lines dispatch into our cache.
--- This is the path used by `:Org conceal toggle` etc.
-decoration.refresh(bufnr)
+-- Drive a synthetic frame to populate frame_map and place marks.
+require("organ.conceal")._apply(bufnr)
 
 local NS = vim.api.nvim_create_namespace("organ_emphasis_conceal")
 
--- Ephemeral extmarks set in on_line live only for the rendered frame;
--- they aren't visible to a follow-up nvim_buf_get_extmarks call.  To
--- assert on placed marks deterministically without depending on a
--- real redraw context, the test goes through `_apply`, which shares
--- the build_cache implementation with the on_lines path and writes
--- non-ephemeral extmarks.  The decoration provider on_line path is
--- exercised in integration via the real `nvim_set_decoration_provider`
--- callback at frame time.
-require("organ.conceal")._apply(bufnr)
+local frame = require("organ.conceal")._frame_map()
+-- Row 1 = "Plain *bold* and /italic/ and =verbatim=." (0-indexed)
+-- Three pairs of single-byte markers => 6 spans.
+check(
+  "frame_map row 1 has 6 conceal spans",
+  frame[1] and #frame[1] == 6,
+  "got " .. (frame[1] and #frame[1] or "nil") .. " entries"
+)
+
+-- The non-ephemeral marks placed by _apply are inspectable directly.
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, { 1, 0 }, { 1, -1 }, { details = true })
 check(
-  "conceal placed at least one extmark on the emphasis row",
+  "non-ephemeral conceal marks placed on emphasis row",
   #marks >= 1,
-  "got " .. #marks .. " marks: " .. vim.inspect(marks)
+  "got " .. #marks .. " marks"
 )
 
 -- Every mark should have conceal = "".
