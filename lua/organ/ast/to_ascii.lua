@@ -62,6 +62,36 @@ local function emit_paragraph(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_list(node, out, depth)
+  depth = depth or 0
+  local indent = string.rep("  ", depth)
+  for _, item in ipairs(node.items or {}) do
+    local checkbox = ""
+    if item.checkbox == "todo" then
+      checkbox = "[ ] "
+    elseif item.checkbox == "done" then
+      checkbox = "[X] "
+    elseif item.checkbox == "part" then
+      checkbox = "[-] "
+    end
+    local first = true
+    for _, b in ipairs(item.content or {}) do
+      if b.kind == "paragraph" then
+        local txt = emit_inline(b.inline)
+        if first then
+          out[#out + 1] = indent .. "- " .. checkbox .. txt
+          first = false
+        else
+          out[#out + 1] = indent .. "  " .. txt
+        end
+      elseif b.kind == "list" then
+        emit_list(b, out, depth + 1)
+      end
+    end
+  end
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -75,6 +105,8 @@ function emit_block(node, out)
     emit_headline(node, out)
   elseif kind == "paragraph" then
     emit_paragraph(node, out)
+  elseif kind == "list" then
+    emit_list(node, out, 0)
   end
   -- other kinds: silently drop for now (will be added in subsequent tasks)
 end
