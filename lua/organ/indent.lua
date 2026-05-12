@@ -4,15 +4,14 @@
 -- (N-1) * shift_per_level spaces, so nested content shifts right visually
 -- without modifying the underlying buffer text.
 --
--- Runs as an `organ.decoration` provider: `on_lines` rebuilds a per-
--- buffer row cache by walking the tree-sitter `headline` nodes to
--- determine the effective level for every line in each section.
--- `on_line` emits an ephemeral inline virt_text extmark for the visible
--- row.  The walk recurses through nested headlines, so a level change
--- at headline R cascades through all subordinate rows until the next
--- same-or-higher-level headline -- correctness of that cascade is why
--- the build forces a fresh parse (`parser:parse(true)`), and is also
--- why the rebuild on subsequent edits is debounced at 150ms.
+-- Runs as an `organ.decoration` provider: `on_win` walks the tree-sitter
+-- `headline` nodes overlapping the visible window range and assigns an
+-- effective level to every row in `[topline, botline]`, with the
+-- cascade through nested headlines reset by each same-or-higher-level
+-- sibling.  `on_line` reads the frame-local row map and emits an
+-- ephemeral inline virt_text extmark for the current row.  Tree-sitter's
+-- incremental parser keeps the headline tree correct across edits
+-- without a full reparse.
 --
 -- Toggle is per-buffer (not filetype-global): `_attached[bufnr]` gates
 -- the provider's `enabled` callback, so unrelated org buffers stay
@@ -29,15 +28,11 @@ M._ns = NS
 -- consults this in its `enabled` callback.
 M._attached = {}
 
--- Per-buffer row cache: cache_by_buf[bufnr][row] = pad_string.  Rows
--- with level 1 (no indent) are absent.
-local cache_by_buf = {}
-
-local rebuild_timers = {}
--- Memory-probe test introspects per-buffer timer leaks via `_timers`;
--- expose the same table under both names so the assertion is meaningful.
-M._timers = rebuild_timers
-local REBUILD_DEBOUNCE_MS = 150
+-- Empty-table sentinel.  The memory-probe test asserts
+-- `tablen(indent._timers) == 0` to catch per-buffer timer leaks; the
+-- on_win design has no timers, but the assertion stays meaningful
+-- because the table stays empty.
+M._timers = {}
 
 local function get_config()
   local ok, organ = pcall(require, "organ")
@@ -47,28 +42,33 @@ local function get_config()
   return organ.config.indent or {}
 end
 
--- Walk tree-sitter `headline` nodes to assign an effective level to
--- every line in each section.  Recursion cascades the level change at
--- a sub-headline through its subordinate rows; the surrounding loop
--- over the parent's children means the next same-or-higher-level
--- headline resets the level for following rows.
-local function compute_levels(bufnr)
+-- Frame-local row map: frame_map[row] = pad_string.  Reset at the
+-- start of every on_win call; read by on_line for the same frame.
+-- Rows at level 1 (no indent) are absent.
+local frame_map = {}
+
+local function on_win(bufnr, _winid, topline, botline)
+  frame_map = {}
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if not M._attached[bufnr] then
+    return
+  end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
-    return nil
+    return
   end
-  -- Force a fresh parse so the headline tree reflects the latest edit;
-  -- the cascade-propagation correctness depends on accurate node
-  -- ranges.  The 150ms rebuild debounce bounds per-keystroke cost.
-  parser:parse(true)
-  local tree = parser:parse()[1]
+  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
+  -- the rest of the tree correct; we never call parser:parse(true).
+  parser:parse({ topline, 0, botline + 1, 0 })
+  local tree = (parser:trees() or {})[1]
   if not tree then
-    return nil
+    return
   end
   local root = tree:root()
-
-  local n_lines = vim.api.nvim_buf_line_count(bufnr)
-  local levels = {}
+  local cfg = get_config()
+  local shift = cfg.shift_per_level or 2
 
   local function heading_level(heading_node)
     local sr0 = heading_node:start()
@@ -80,100 +80,57 @@ local function compute_levels(bufnr)
     return i > 0 and i or 1
   end
 
+  -- Walk the headline tree.  Parent visits BEFORE children, so a
+  -- deeper nested heading overwrites the parent's level on its rows.
+  -- We only populate frame_map for rows in [topline, botline]; rows
+  -- outside the visible range are skipped.  Tree-sitter's headline
+  -- node:end_() is exclusive (one past the last row of the section),
+  -- so the inclusive row range is [start_row, end_row - 1].
   local function visit(node, level)
     local start_row = node:start()
-    local end_row
-    do
-      local r, _c = node:end_()
-      end_row = r
+    local end_row = node:end_()
+    local lo = math.max(start_row, topline)
+    local hi = math.min(end_row - 1, botline)
+    if level > 1 and lo <= hi then
+      local pad = string.rep(" ", (level - 1) * shift)
+      for ln = lo, hi do
+        frame_map[ln] = pad
+      end
     end
-
-    for ln = start_row + 1, math.min(end_row, n_lines) do
-      levels[ln] = level
-    end
-
     for child in node:iter_children() do
       if child:type() == "headline" then
-        visit(child, heading_level(child))
+        local csr = child:start()
+        local cer = child:end_()
+        if cer >= topline and csr <= botline then
+          visit(child, heading_level(child))
+        end
       end
     end
   end
 
   for child in root:iter_children() do
     if child:type() == "headline" then
-      visit(child, heading_level(child))
+      local csr = child:start()
+      local cer = child:end_()
+      if cer >= topline and csr <= botline then
+        visit(child, heading_level(child))
+      end
     end
   end
-
-  return levels
 end
 
--- Build the per-row cache: row -> pad string.  Rows with level 1 (no
--- indent) are absent.  Row keys are 0-based to match the decoration
--- provider's `on_line` row argument.
-local function build_cache(bufnr)
-  local rows = {}
-  if not vim.api.nvim_buf_is_valid(bufnr) then
-    return rows
+local function on_line(bufnr, _winid, row)
+  local pad = frame_map[row]
+  if not pad then
+    return
   end
-  local levels = compute_levels(bufnr)
-  if not levels then
-    return rows
-  end
-  local cfg = get_config()
-  local shift = cfg.shift_per_level or 2
-  local n_lines = vim.api.nvim_buf_line_count(bufnr)
-  for ln = 1, n_lines do
-    local lvl = levels[ln]
-    if lvl and lvl > 1 then
-      rows[ln - 1] = string.rep(" ", (lvl - 1) * shift)
-    end
-  end
-  return rows
-end
-
-local function place_row(bufnr, row, pad, ephemeral)
   local cfg = get_config()
   local hl = cfg.hl_group or "Conceal"
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
     virt_text = { { pad, hl } },
     virt_text_pos = "inline",
-    ephemeral = ephemeral or nil,
+    ephemeral = true,
   })
-end
-
-local function cancel_rebuild_timer(bufnr)
-  local t = rebuild_timers[bufnr]
-  if not t then
-    return
-  end
-  rebuild_timers[bufnr] = nil
-  pcall(t.stop, t)
-  pcall(t.close, t)
-end
-
-local function schedule_rebuild(bufnr)
-  cancel_rebuild_timer(bufnr)
-  local t = vim.uv.new_timer()
-  if not t then
-    -- Timer allocation failed (unlikely); fall back to a synchronous
-    -- rebuild rather than silently dropping the update.
-    cache_by_buf[bufnr] = build_cache(bufnr)
-    return
-  end
-  rebuild_timers[bufnr] = t
-  t:start(
-    REBUILD_DEBOUNCE_MS,
-    0,
-    vim.schedule_wrap(function()
-      rebuild_timers[bufnr] = nil
-      pcall(t.stop, t)
-      pcall(t.close, t)
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        cache_by_buf[bufnr] = build_cache(bufnr)
-      end
-    end)
-  )
 end
 
 require("organ.decoration").register({
@@ -182,47 +139,33 @@ require("organ.decoration").register({
   enabled = function(bufnr)
     return M._attached[bufnr] == true
   end,
-  on_lines = function(bufnr, _first, _last_old, _last_new)
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    -- Full rebuild: tree-sitter's incremental parse keeps the cost
-    -- bounded.  Range-bounded walks are a future optimization.  Initial
-    -- population (cache empty) runs synchronously so the first frame
-    -- after buffer open has correct decoration; subsequent edits
-    -- debounce because the build forces `parser:parse(true)`.
-    if cache_by_buf[bufnr] == nil then
-      cache_by_buf[bufnr] = build_cache(bufnr)
-      return
-    end
-    schedule_rebuild(bufnr)
-  end,
-  on_line = function(bufnr, _winid, row)
-    local rows = cache_by_buf[bufnr]
-    if not rows then
-      return
-    end
-    local pad = rows[row]
-    if not pad then
-      return
-    end
-    place_row(bufnr, row, pad, true)
-  end,
+  on_win = on_win,
+  on_line = on_line,
 })
 
--- Rebuild the cache + place non-ephemeral extmarks for every cached
--- row.  Test-facing: assertions via `nvim_buf_get_extmarks` need real
--- (non-ephemeral) marks, which the on_line path doesn't produce.
+-- Drive on_win full-buffer and place non-ephemeral extmarks for every
+-- populated row.  Test-facing: assertions via `nvim_buf_get_extmarks`
+-- need real (non-ephemeral) marks, which the on_line path doesn't
+-- produce.  Also the immediate-render entrypoint for attach().
 function M.refresh(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  local rows = build_cache(bufnr)
-  cache_by_buf[bufnr] = rows
-  for row, pad in pairs(rows) do
-    place_row(bufnr, row, pad, false)
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  on_win(bufnr, 0, 0, n - 1)
+  local cfg = get_config()
+  local hl = cfg.hl_group or "Conceal"
+  for row, pad in pairs(frame_map) do
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
+      virt_text = { { pad, hl } },
+      virt_text_pos = "inline",
+    })
   end
+end
+
+M._frame_map = function()
+  return frame_map
 end
 
 function M.attach(bufnr)
@@ -241,8 +184,6 @@ function M.detach(bufnr)
     return
   end
   M._attached[bufnr] = nil
-  cancel_rebuild_timer(bufnr)
-  cache_by_buf[bufnr] = nil
   if vim.api.nvim_buf_is_valid(bufnr) then
     pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   end

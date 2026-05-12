@@ -2,13 +2,13 @@
 --
 -- Verifies that loading organ.indent registers a decoration provider,
 -- attach() flips _attached so the provider's `enabled` gate opens, the
--- per-buffer row cache is built from on_lines via the tree-sitter
+-- frame-local row map is built from on_win via the tree-sitter
 -- headline walk, and the rendered inline virt_text matches the depth
 -- cascade (each subordinate row picks up its enclosing headline's
 -- level until a same-or-higher-level headline resets it).  Ephemeral
 -- marks placed by on_line aren't visible to nvim_buf_get_extmarks
 -- outside the real frame-rendering context, so the assertions go
--- through refresh(), which shares build_cache with on_lines but writes
+-- through refresh(), which drives on_win full-buffer and writes
 -- non-ephemeral marks.
 --
 -- Run via: nvim --headless -l tests/decoration_indent_test.lua
@@ -44,11 +44,12 @@ local providers, _ = decoration._providers()
 check("indent provider registered", providers.indent ~= nil)
 check("provider exposes ns", providers.indent and providers.indent.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.indent
-    and type(providers.indent.on_lines) == "function"
+    and type(providers.indent.on_win) == "function"
     and type(providers.indent.on_line) == "function"
 )
+check("provider has no on_lines", providers.indent and providers.indent.on_lines == nil)
 
 -- `enabled` is gated on per-buffer attach.  A buffer that hasn't been
 -- attached should report enabled=false even though the provider exists.
