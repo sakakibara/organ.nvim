@@ -186,6 +186,69 @@ do
     "got: " .. vim.inspect(out))
 end
 
+-- ---- list (unordered, basic) ----------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ content = { A.paragraph({ A.text("one") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("two") }) } }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("unordered list - one / - two",
+    out:find("- one", 1, true) ~= nil and out:find("- two", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- ---- list (ordered, basic) ------------------------------------------
+do
+  local doc = A.document({
+    A.list(true, {
+      A.list_item({ content = { A.paragraph({ A.text("alpha") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("beta") }) } }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("ordered list 1. / 2.",
+    out:find("1. alpha", 1, true) ~= nil and out:find("2. beta", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- ---- list (checkboxes) ----------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ checkbox = "todo", content = { A.paragraph({ A.text("a") }) } }),
+      A.list_item({ checkbox = "done", content = { A.paragraph({ A.text("b") }) } }),
+      A.list_item({ checkbox = "part", content = { A.paragraph({ A.text("c") }) } }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("todo checkbox -> [ ]", out:find("- [ ] a", 1, true) ~= nil, "got: " .. out)
+  check("done checkbox -> [x]", out:find("- [x] b", 1, true) ~= nil)
+  check("partial checkbox -> [ ] (GFM has no partial)",
+    out:find("- [ ] c", 1, true) ~= nil)
+end
+
+-- ---- list (nested) --------------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("outer") }),
+          A.list(false, {
+            A.list_item({ content = { A.paragraph({ A.text("inner") }) } }),
+          }),
+        },
+      }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("outer at column 0", out:find("- outer", 1, true) ~= nil, "got: " .. out)
+  check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

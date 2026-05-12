@@ -69,6 +69,42 @@ local function emit_paragraph(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_list(node, out, depth)
+  depth = depth or 0
+  local indent = string.rep("  ", depth)
+  local n = 1
+  for _, item in ipairs(node.items or {}) do
+    local marker = node.ordered and (n .. ".") or "-"
+    local checkbox = ""
+    if item.checkbox == "todo" then
+      checkbox = "[ ] "
+    elseif item.checkbox == "done" then
+      checkbox = "[x] "
+    elseif item.checkbox == "part" then
+      checkbox = "[ ] "
+    end
+    -- The list_item's content is a list of blocks; render the first
+    -- paragraph on the marker line, then recurse for nested lists +
+    -- continuation paragraphs.
+    local first = true
+    for _, b in ipairs(item.content or {}) do
+      if b.kind == "paragraph" then
+        local txt = emit_inline(b.inline)
+        if first then
+          out[#out + 1] = indent .. marker .. " " .. checkbox .. txt
+          first = false
+        else
+          out[#out + 1] = indent .. "  " .. txt
+        end
+      elseif b.kind == "list" then
+        emit_list(b, out, depth + 1)
+      end
+    end
+    n = n + 1
+  end
+  out[#out + 1] = ""
+end
+
 local function emit_block(node, out)
   local kind = node.kind
   if kind == "headline" then
@@ -78,6 +114,8 @@ local function emit_block(node, out)
     end
   elseif kind == "paragraph" then
     emit_paragraph(node, out)
+  elseif kind == "list" then
+    emit_list(node, out, 0)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
