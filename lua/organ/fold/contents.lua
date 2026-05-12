@@ -670,32 +670,6 @@ function M.enter(target)
       M.forget(bufnr)
     end,
   })
-  -- Buffer edits while CONTENTS is active: re-place the conceal +
-  -- ellipsis marks against the new line layout.  Without this, body
-  -- ranges that grew/shrunk under inserts/deletes would have stale
-  -- conceal extmarks (extmarks track line shifts, but newly-added
-  -- body lines wouldn't be covered).  REVEAL_NS markers anchored to
-  -- heading lines auto-track, so the user's revealed state survives
-  -- edits.  Coalesce via vim.schedule to drop redundant fires
-  -- during multi-line operations.
-  local refresh_pending = false
-  vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-    group = group,
-    buffer = bufnr,
-    callback = function()
-      if refresh_pending then
-        return
-      end
-      refresh_pending = true
-      vim.schedule(function()
-        refresh_pending = false
-        if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
-          invalidate_buf_cache(bufnr)
-          place_marks(bufnr)
-        end
-      end)
-    end,
-  })
   state[bufnr].augroup = group
   on_cursor_moved(bufnr)
 end
@@ -873,6 +847,38 @@ vim.api.nvim_set_decoration_provider(DECO_NS, {
       place_marks(bufnr)
     end
     return true
+  end,
+})
+
+-- Buffer edits while CONTENTS is active: re-place the conceal +
+-- ellipsis marks against the new line layout.  Without this, body
+-- ranges that grew/shrunk under inserts/deletes would have stale
+-- conceal extmarks (extmarks track line shifts, but newly-added
+-- body lines wouldn't be covered).  REVEAL_NS markers anchored to
+-- heading lines auto-track, so the user's revealed state survives
+-- edits.  Coalesce via vim.schedule to drop redundant fires during
+-- multi-line operations.  Routed through organ.decoration's
+-- on_lines_only path so a single nvim_buf_attach handles dispatch
+-- for every decoration participant.
+local _refresh_pending = {} -- bufnr -> true while a coalesced refresh is queued
+require("organ.decoration").register({
+  name = "fold_contents",
+  ns = vim.api.nvim_create_namespace("organ_fold_contents_dispatch"),
+  enabled = function(bufnr)
+    return state[bufnr] ~= nil
+  end,
+  on_lines_only = function(bufnr, _first, _last_old, _last_new)
+    if _refresh_pending[bufnr] then
+      return
+    end
+    _refresh_pending[bufnr] = true
+    vim.schedule(function()
+      _refresh_pending[bufnr] = nil
+      if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
+        invalidate_buf_cache(bufnr)
+        place_marks(bufnr)
+      end
+    end)
   end,
 })
 
