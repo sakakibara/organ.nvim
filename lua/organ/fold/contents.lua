@@ -298,24 +298,18 @@ local function find_tag_list_col(bufnr, lnum0)
   return nil
 end
 
--- Mirrors fold.lua's tags_column_target so the CONTENTS-view
+-- Resolve `config.format.headline.tags_column` so the CONTENTS-view
 -- ellipsis lines its tag block up to the same column the real fold
--- uses.  See defaults.lua > format.headline.tags_column for the
--- contract (positive = absolute column; negative = offset from the
--- window's right edge; 0 = no right-align; nil / false = default 77).
-local function tags_column_target()
-  local fmt = (require("organ").config.format or {}).headline or {}
-  local tc = fmt.tags_column
-  if tc == nil or tc == false then
-    return 77
+-- uses.  See defaults.lua > format.headline.tags_column for the full
+-- contract.  Buffer-aware so `"textwidth"` reads the right buffer's
+-- option; window-aware so `"winwidth"` reads the current window.
+local function resolve_tags_column_for(bufnr)
+  local h = (require("organ").config.format or {}).headline or {}
+  local val = h.tags_column
+  if val == nil then
+    val = "textwidth"
   end
-  if tc == 0 then
-    return nil
-  end
-  if tc < 0 then
-    return vim.api.nvim_win_get_width(0) + tc + 1
-  end
-  return tc
+  return require("organ.format")._resolve_tags_column(val, bufnr, vim.api.nvim_get_current_win())
 end
 
 local function place_marks(bufnr)
@@ -363,15 +357,22 @@ local function place_marks(bufnr)
         local title_w = vim.fn.strdisplaywidth(line:sub(1, title_end))
         local tag_w = vim.fn.strdisplaywidth(line:sub(tag_start + 1, tag_end))
         local ellipsis_w = vim.fn.strdisplaywidth("…")
-        local target = tags_column_target()
+        local resolved = resolve_tags_column_for(bufnr)
         local pad
-        if target then
-          pad = target - title_w - ellipsis_w - tag_w
+        if resolved == nil or resolved.kind == "flush" then
+          pad = 1
+        elseif resolved.kind == "left" then
+          pad = resolved.column - title_w - ellipsis_w
           if pad < 1 then
             pad = 1
           end
         else
-          pad = 1
+          -- "right": tag right edge at resolved.column; subtract tag
+          -- width then the displayed pre-tag width.
+          pad = (resolved.column - tag_w) - title_w - ellipsis_w
+          if pad < 1 then
+            pad = 1
+          end
         end
         -- Hide the whitespace gap between title and tag block so
         -- the inline virt_text (ellipsis + padding) replaces it

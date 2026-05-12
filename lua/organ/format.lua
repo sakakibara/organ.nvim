@@ -78,55 +78,124 @@ local function split_trailing_tags(s)
   return s, nil
 end
 
--- Compute the padded headline string for "<left><pad><tags>" so the tag
--- block right-aligns to `tags_column`.
+-- Resolve a `tags_column` config value to a placement directive.
+-- Returns either nil (no alignment, caller emits a single-space gap)
+-- or a table:
+--   { kind = "flush" }                          -> one space between title and tags
+--   { kind = "left",  column = N (int >= 1) }   -> tag block's LEFT edge at col N
+--   { kind = "right", column = N (int >= 1) }   -> tag block's RIGHT edge at col N
 --
--- opts (all optional):
---   tags_column = N | nil | false | 0
---                  positive N -> absolute column for tag block's right edge
---                  negative N -> offset from `textwidth` (textwidth + N + 1)
---                  0 / false  -> flush, single space between left and tags
---                  nil        -> read from `config.format.headline.tags_column`
---   textwidth    = N (defaults to `config.format._effective_width`, then 80)
+-- Accepted shapes for `value`:
+--   positive integer N       -> { kind = "left",  column = N }   (Emacs compat)
+--   negative integer N       -> { kind = "right", column = |N| } (Emacs compat)
+--   0                        -> { kind = "flush" }
+--   false                    -> nil (no alignment)
+--   "textwidth"              -> right edge at vim.bo[bufnr].textwidth
+--                               (falls back to 80 when textwidth is 0/unset)
+--   "textwidth+N" / "-N"     -> right edge at textwidth +/- N
+--   "winwidth"               -> right edge at nvim_win_get_width(winid)
+--   "winwidth+N" / "-N"      -> right edge at winwidth +/- N
+--   function                 -> result recursively resolved
 --
--- When `tags` is "" or nil, returns `left` unchanged (no trailing space).
+-- `bufnr` defaults to 0 (current); `winid` defaults to 0 (current).
+function M._resolve_tags_column(value, bufnr, winid)
+  if type(value) == "function" then
+    local ok, inner = pcall(value)
+    if not ok then
+      return nil
+    end
+    return M._resolve_tags_column(inner, bufnr, winid)
+  end
+  if value == nil or value == false then
+    return nil
+  end
+  if value == 0 then
+    return { kind = "flush" }
+  end
+  if type(value) == "number" then
+    if value > 0 then
+      return { kind = "left", column = math.floor(value) }
+    end
+    return { kind = "right", column = -math.floor(value) }
+  end
+  if type(value) == "string" then
+    local base, sign, num = value:match("^(%w+)([%+%-]?)(%d*)$")
+    if not base then
+      return nil
+    end
+    -- Reject "textwidth+" / "textwidth-" (sign without number) and
+    -- "textwidthabc" (no sign, trailing garbage).  Either both empty
+    -- (bare "textwidth") or both non-empty is allowed.
+    if (sign == "" and num ~= "") or (sign ~= "" and num == "") then
+      return nil
+    end
+    local offset = 0
+    if sign ~= "" and num ~= "" then
+      offset = tonumber(num) or 0
+      if sign == "-" then
+        offset = -offset
+      end
+    end
+    local b = bufnr or 0
+    local w = winid or 0
+    local base_val
+    if base == "textwidth" then
+      local ok, tw = pcall(function()
+        return vim.bo[b].textwidth
+      end)
+      base_val = (ok and tw) or 0
+      if base_val == 0 then
+        base_val = 80
+      end
+    elseif base == "winwidth" then
+      local ok, ww = pcall(vim.api.nvim_win_get_width, w)
+      base_val = (ok and ww) or 80
+    else
+      return nil
+    end
+    local column = base_val + offset
+    if column < 1 then
+      column = 1
+    end
+    return { kind = "right", column = column }
+  end
+  return nil
+end
+
+-- Compute the padded headline string for "<left><pad><tags>".  Aligns
+-- the tag block to `opts.tags_column` (or, when nil,
+-- `config.format.headline.tags_column`, falling back to "textwidth").
+-- See M._resolve_tags_column for accepted value shapes.
+--
+-- When `tags` is "" or nil, returns `left` unchanged.  Otherwise
+-- returns `left .. pad_spaces .. tags` with `pad >= 1` so the tag
+-- block never abuts a non-space character.
 function M.align_tag_block(left, tags, opts)
   if tags == nil or tags == "" then
     return left
   end
   opts = opts or {}
-  local cfg
-  local function load_cfg()
-    if cfg then
-      return cfg
-    end
-    cfg = format_cfg()
-    return cfg
-  end
-  local target = opts.tags_column
-  if target == nil then
-    target = (load_cfg().headline or {}).tags_column
-    if target == nil then
-      target = 77
+  local cfg_val = opts.tags_column
+  if cfg_val == nil then
+    cfg_val = (format_cfg().headline or {}).tags_column
+    if cfg_val == nil then
+      cfg_val = "textwidth"
     end
   end
-  if target == false or target == 0 then
+  local resolved = M._resolve_tags_column(cfg_val, opts.bufnr, opts.winid)
+  if resolved == nil or resolved.kind == "flush" then
     return left .. " " .. tags
   end
-  local effective
-  if target < 0 then
-    local tw = opts.textwidth
-    if tw == nil then
-      tw = load_cfg()._effective_width
-      if tw == nil then
-        tw = 80
-      end
-    end
-    effective = tw + target + 1
+  local left_w = vim.fn.strdisplaywidth(left)
+  local tags_w = vim.fn.strdisplaywidth(tags)
+  local left_edge
+  if resolved.kind == "left" then
+    left_edge = resolved.column
   else
-    effective = target
+    -- "right": tag's right edge at resolved.column; left edge at column - tags_w
+    left_edge = resolved.column - tags_w
   end
-  local pad = effective - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(tags)
+  local pad = left_edge - left_w
   if pad < 1 then
     pad = 1
   end
@@ -203,10 +272,7 @@ local function normalize_headline(line, opts)
   if target == nil then
     target = false
   end
-  return M.align_tag_block(left, tags, {
-    tags_column = target,
-    textwidth = opts.textwidth,
-  })
+  return M.align_tag_block(left, tags, { tags_column = target })
 end
 M._normalize_headline = normalize_headline
 
@@ -218,7 +284,6 @@ local function normalize_headlines(lines, cfg)
   local opts = {
     normalize_whitespace = hcfg.normalize_whitespace ~= false,
     tags_column = hcfg.tags_column,
-    textwidth = cfg._effective_width,
   }
   local out = {}
   for i, line in ipairs(lines) do

@@ -52,9 +52,20 @@ assert(writer._render_tag_block({}) == "", "empty → empty")
 assert(writer._render_tag_block({ "a" }) == ":a:", "single")
 assert(writer._render_tag_block({ "a", "b", "c" }) == ":a:b:c:", "multi")
 
--- The writer right-aligns the tag block to `config.format.headline.tags_column`
--- (default 77).  Pre-compute the expected padded forms so the assertions
--- below stay readable.
+-- The writer right-aligns the tag block to `config.format.headline.tags_column`.
+-- These round-trip cases pin the right-edge column to 77 (Emacs's classic
+-- numeric default) by configuring `tags_column = -77`; the helper interprets
+-- negative integers as "tag block's RIGHT edge at column |N|".  Pre-compute
+-- the expected padded forms so the assertions below stay readable.
+local organ = require("organ")
+organ.setup({
+  org_dir = "/tmp",
+  notify = false,
+  scan_on_startup = false,
+  watcher = { enabled = false },
+  format = { headline = { tags_column = -77 } },
+})
+
 local function padded(left, tags, col)
   col = col or 77
   local pad = col - vim.fn.strdisplaywidth(left) - vim.fn.strdisplaywidth(tags)
@@ -125,17 +136,11 @@ assert(
 
 vim.fn.delete(tmp2, "rf")
 
--- Negative tags_column: textwidth-relative right-edge.  Set it via config
--- and round-trip; verify the right edge ends at `textwidth + N + 1` where
--- format._effective_width is unset, so the helper falls back to 80.
-local organ = require("organ")
-organ.setup({
-  org_dir = "/tmp",
-  notify = false,
-  scan_on_startup = false,
-  watcher = { enabled = false },
-  format = { headline = { tags_column = -1 } },
-})
+-- String-form `tags_column = "textwidth"`: tag block's right edge lands
+-- at `vim.bo.textwidth` (with a fallback to 80 when textwidth is 0/unset).
+-- Here textwidth on the bufadd-loaded buffer is unset, so the right edge
+-- should land at column 80.
+organ.config.format.headline.tags_column = "textwidth"
 
 local tmp3 = vim.fn.tempname()
 vim.fn.mkdir(tmp3, "p")
@@ -147,13 +152,12 @@ local b3 = vim.fn.bufadd(fixture3)
 vim.fn.bufload(b3)
 assert(writer.write(b3, 1, { "t" }) == nil)
 lines = vim.api.nvim_buf_get_lines(b3, 0, -1, false)
--- textwidth fallback = 80, N = -1, right-edge column = 80 + -1 + 1 = 80
 want = padded("* Hi", ":t:", 80)
-assert(lines[1] == want, "negative tags_column: got [" .. lines[1] .. "] want [" .. want .. "]")
+assert(lines[1] == want, '"textwidth" tags_column: got [' .. lines[1] .. "] want [" .. want .. "]")
 vim.fn.delete(tmp3, "rf")
 
--- Restore default for any later test in the same process.
-organ.config.format.headline.tags_column = 77
+-- Restore the test-suite-local pinning for any later test in the same process.
+organ.config.format.headline.tags_column = -77
 
 io.write("tag_writer ok\n")
 os.exit(0)

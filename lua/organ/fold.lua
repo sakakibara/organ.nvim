@@ -658,25 +658,17 @@ function M.heading_title_hl(line)
   return "@org.heading.title.org"
 end
 
--- Target column for the trailing tag block, mirroring Emacs
--- `org-tags-column`:
---   positive N  -> right-align tag block to column N
---   negative N  -> N columns from the right edge of the window
---   0           -> no right-align (flush, one space padding)
---   nil / false -> default to 77
-local function tags_column_target()
-  local fmt = (require("organ").config.format or {}).headline or {}
-  local tc = fmt.tags_column
-  if tc == nil or tc == false then
-    return 77
+-- Resolve `config.format.headline.tags_column` into a placement
+-- directive (see `organ.format._resolve_tags_column` for the full
+-- contract).  Returns nil when no alignment is requested, otherwise
+-- `{ kind = "flush"|"left"|"right", column = N }`.
+local function resolve_tags_column_local()
+  local h = (require("organ").config.format or {}).headline or {}
+  local val = h.tags_column
+  if val == nil then
+    val = "textwidth"
   end
-  if tc == 0 then
-    return nil
-  end
-  if tc < 0 then
-    return vim.api.nvim_win_get_width(0) + tc + 1
-  end
-  return tc
+  return require("organ.format")._resolve_tags_column(val)
 end
 
 local function display_width_of_segments(segs, from, to)
@@ -742,15 +734,22 @@ function M.emacs_foldtext()
     local pre_w = display_width_of_segments(result, 1, tag_idx - 1)
     local tag_w = display_width_of_segments(result, tag_idx, #result)
     local ellipsis_w = vim.fn.strdisplaywidth("…")
-    local target = tags_column_target()
+    local resolved = resolve_tags_column_local()
     local pad
-    if target then
-      pad = target - pre_w - ellipsis_w - tag_w
+    if resolved == nil or resolved.kind == "flush" then
+      pad = 1
+    elseif resolved.kind == "left" then
+      pad = resolved.column - pre_w - ellipsis_w
       if pad < 1 then
         pad = 1
       end
     else
-      pad = 1
+      -- "right": tag right edge at resolved.column; left edge at
+      -- column - tag_w; subtract pre_w + ellipsis_w to get the pad.
+      pad = (resolved.column - tag_w) - pre_w - ellipsis_w
+      if pad < 1 then
+        pad = 1
+      end
     end
     local rebuilt = {}
     for i = 1, tag_idx - 1 do

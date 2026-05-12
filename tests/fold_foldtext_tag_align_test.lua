@@ -13,7 +13,7 @@
 --
 -- Edge cases pinned here:
 --   - multiple tags in one tag_list (`:work:tag2:`)
---   - negative `tags_column` (offset from window's right edge)
+--   - negative `tags_column` (absolute right-edge column)
 --   - line wider than `tags_column` clamps padding to one space
 --
 -- Run via: nvim --headless -l tests/fold_foldtext_tag_align_test.lua
@@ -24,6 +24,10 @@ require("organ").setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   notify = false,
+  -- Pin the right edge at the classic Emacs numeric default so this
+  -- test's column assertions stay independent of `textwidth` / window
+  -- width (which the production default `"textwidth"` would depend on).
+  format = { headline = { tags_column = -77 } },
 })
 
 local fold = require("organ.fold")
@@ -101,17 +105,20 @@ do
     "got width " .. vim.fn.strdisplaywidth(s)
   )
 
-  -- Negative tags_column: offset from window's right edge.
+  -- String-form `"winwidth-N"`: tag right edge at win_width - N.
+  -- (The new resolver dropped the legacy "negative number == window-
+  -- relative offset" interpretation; window-relative right edges are
+  -- now spelled with the `"winwidth..."` string form.)
   local saved = cfg.format.headline.tags_column
-  cfg.format.headline.tags_column = -10
+  cfg.format.headline.tags_column = "winwidth-9"
   local win_width = vim.api.nvim_win_get_width(0)
   local out2 = with_fold(1, 3, function()
     return fold.foldtext()
   end)
   local s2 = as_string(out2)
   check(
-    "negative tags_column right-aligns to (win_width - 10 + 1)",
-    vim.fn.strdisplaywidth(s2) == win_width - 10 + 1,
+    '"winwidth-9" right-aligns to (win_width - 9)',
+    vim.fn.strdisplaywidth(s2) == win_width - 9,
     "got width " .. vim.fn.strdisplaywidth(s2) .. " (win=" .. win_width .. ")"
   )
   cfg.format.headline.tags_column = saved

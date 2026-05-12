@@ -1228,13 +1228,22 @@ return {
       -- Collapse runs of spaces between stars / todo / comment /
       -- priority / title to a single space.
       normalize_whitespace = true,
-      -- Right-align tags on headlines.  Mirrors Emacs
-      -- `org-tags-column`:
-      --   positive N  → align tags' right edge to column N
-      --   negative N  → align right edge to (textwidth + N + 1)
-      --   0           → exactly one space between title and tags
-      --   false / nil → leave tags wherever the user typed them
-      tags_column = 77,
+      -- Right-align tags on headlines.  Polymorphic:
+      --   positive integer N -> tag block's LEFT edge at column N
+      --                         (matches Emacs `org-tags-column = N`)
+      --   negative integer N -> tag block's RIGHT edge at column |N|
+      --                         (matches Emacs `org-tags-column = -N`)
+      --   0                  -> one space between title and tags
+      --   false              -> no alignment, leave tags as typed
+      --   "textwidth"        -> tag RIGHT edge at vim.bo.textwidth
+      --                         (falls back to 80 if textwidth is unset)
+      --   "textwidth-3"      -> tag RIGHT edge at textwidth - 3
+      --   "textwidth+0"      -> equivalent to "textwidth"
+      --   "winwidth"         -> tag RIGHT edge at the current window width
+      --   "winwidth-3"       -> tag RIGHT edge at winwidth - 3
+      --   function           -> called; result is recursively resolved
+      --                         (so a function may return any of the above)
+      tags_column = "textwidth",
     },
 
     -- Drawer value alignment.  After format, all `:KEY: value`

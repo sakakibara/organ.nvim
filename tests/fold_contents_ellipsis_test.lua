@@ -14,6 +14,10 @@ require("organ").setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   notify = false,
+  -- Pin tag right edge at 77 so the column assertions below stay
+  -- independent of textwidth / window width (production default
+  -- "textwidth" would depend on the buffer's textwidth option).
+  format = { headline = { tags_column = -77 } },
 })
 
 local contents = require("organ.fold.contents")
@@ -136,11 +140,7 @@ if virt_mark then
     parts[#parts + 1] = seg[1]
   end
   local txt = table.concat(parts)
-  check(
-    "virt_text starts with ellipsis",
-    txt:sub(1, #"…") == "…",
-    "got " .. tostring(txt)
-  )
+  check("virt_text starts with ellipsis", txt:sub(1, #"…") == "…", "got " .. tostring(txt))
   -- The remainder of virt_text is padding spaces.  With default
   -- tags_column = 77, title width = 10 ("* TODO Foo"), ellipsis = 1,
   -- tag width = 6 (":work:"), padding = 77 - 10 - 1 - 6 = 60.

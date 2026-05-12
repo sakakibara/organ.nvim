@@ -18,6 +18,11 @@ require("organ").setup({
   notify = false,
   scan_on_startup = false,
   watcher = { enabled = false },
+  -- Pin tag right edge at 77 so the headline-alignment assertions
+  -- below stay independent of textwidth (production default is
+  -- "textwidth", which would resolve to whatever the headless
+  -- buffer's textwidth happens to be).
+  format = { headline = { tags_column = -77 } },
 })
 vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
 
