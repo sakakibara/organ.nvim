@@ -160,6 +160,44 @@ local function emit_org_block(node, out)
   -- export and unknown styles drop silently.
 end
 
+local function emit_table(node, out)
+  local rows = node.rows or {}
+  local ncols = 0
+  for _, r in ipairs(rows) do
+    if not r.sep and r.cells then
+      if #r.cells > ncols then
+        ncols = #r.cells
+      end
+    end
+  end
+  if ncols == 0 then
+    return
+  end
+
+  local seen_divider = false
+  for _, row in ipairs(rows) do
+    if row.sep then
+      if not seen_divider then
+        -- Emit the markdown divider after the first row we've seen.
+        local cells = {}
+        for _ = 1, ncols do
+          cells[#cells + 1] = "---"
+        end
+        out[#out + 1] = "| " .. table.concat(cells, " | ") .. " |"
+        seen_divider = true
+      end
+      -- Subsequent dividers are dropped (GFM allows only one).
+    else
+      local cells = {}
+      for i = 1, ncols do
+        cells[i] = emit_inline(row.cells[i] or {})
+      end
+      out[#out + 1] = "| " .. table.concat(cells, " | ") .. " |"
+    end
+  end
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   local kind = node.kind
   if kind == "headline" then
@@ -175,6 +213,8 @@ function emit_block(node, out)
     emit_code_block(node, out)
   elseif kind == "block" then
     emit_org_block(node, out)
+  elseif kind == "table" then
+    emit_table(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end

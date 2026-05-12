@@ -335,6 +335,52 @@ do
     out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil)
 end
 
+-- ---- table (basic) -------------------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l" },
+      rows = {
+        { cells = { { A.text("name") }, { A.text("age") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("Alice") }, { A.text("30") } }, sep = false },
+        { cells = { { A.text("Bob") }, { A.text("25") } }, sep = false },
+      },
+    },
+  })
+  local out = to_md.render(doc)
+  check("header row", out:find("| name | age |", 1, true) ~= nil, "got: " .. out)
+  check("divider row", out:find("| --- | --- |", 1, true) ~= nil)
+  check("data row 1", out:find("| Alice | 30 |", 1, true) ~= nil)
+  check("data row 2", out:find("| Bob | 25 |", 1, true) ~= nil)
+end
+
+-- Multi-divider org tables: keep only the first divider, drop later ones.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("section a") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a1") } }, sep = false },
+        { sep = true, cells = {} },  -- mid-table separator: should be dropped
+        { cells = { { A.text("a2") } }, sep = false },
+      },
+    },
+  })
+  local out = to_md.render(doc)
+  local divider_count = 0
+  for _ in out:gmatch("| %-%-%- |") do divider_count = divider_count + 1 end
+  check("only one divider survives flatten",
+    divider_count == 1, "got " .. divider_count .. " dividers in:\n" .. out)
+  -- Data rows still present.
+  check("a1 still rendered", out:find("| a1 |", 1, true) ~= nil)
+  check("a2 still rendered", out:find("| a2 |", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
