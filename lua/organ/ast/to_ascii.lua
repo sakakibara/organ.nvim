@@ -133,6 +133,80 @@ local function emit_org_block(node, out)
   -- export / unknown styles drop silently.
 end
 
+local function emit_table(node, out)
+  local rows = node.rows or {}
+  -- Compute ncols from widest non-sep row.
+  local ncols = 0
+  for _, r in ipairs(rows) do
+    if not r.sep and r.cells then
+      if #r.cells > ncols then
+        ncols = #r.cells
+      end
+    end
+  end
+  if ncols == 0 then
+    return
+  end
+
+  -- Render each non-sep cell into a plain string; collect for width pass.
+  local rendered = {}
+  for i, r in ipairs(rows) do
+    if r.sep then
+      rendered[i] = { sep = true }
+    else
+      local cells = {}
+      for c = 1, ncols do
+        cells[c] = emit_inline(r.cells[c] or {})
+      end
+      rendered[i] = { sep = false, cells = cells }
+    end
+  end
+
+  -- Compute per-column max width (display width).
+  local widths = {}
+  for c = 1, ncols do
+    widths[c] = 0
+  end
+  for _, r in ipairs(rendered) do
+    if not r.sep then
+      for c = 1, ncols do
+        local w = vim.fn.strdisplaywidth(r.cells[c] or "")
+        if w > widths[c] then
+          widths[c] = w
+        end
+      end
+    end
+  end
+
+  local function divider()
+    local parts = {}
+    for c = 1, ncols do
+      parts[c] = string.rep("-", widths[c] + 2)
+    end
+    return "+" .. table.concat(parts, "+") .. "+"
+  end
+
+  local function row_line(cells)
+    local parts = {}
+    for c = 1, ncols do
+      local cell = cells[c] or ""
+      parts[c] = " " .. cell .. string.rep(" ", widths[c] - vim.fn.strdisplaywidth(cell)) .. " "
+    end
+    return "|" .. table.concat(parts, "|") .. "|"
+  end
+
+  out[#out + 1] = divider()
+  for _, r in ipairs(rendered) do
+    if r.sep then
+      out[#out + 1] = divider()
+    else
+      out[#out + 1] = row_line(r.cells)
+    end
+  end
+  out[#out + 1] = divider()
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -152,6 +226,8 @@ function emit_block(node, out)
     emit_code_block(node, out)
   elseif kind == "block" then
     emit_org_block(node, out)
+  elseif kind == "table" then
+    emit_table(node, out)
   end
   -- other kinds: silently drop for now (will be added in subsequent tasks)
 end

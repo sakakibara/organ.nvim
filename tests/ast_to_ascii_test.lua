@@ -290,6 +290,78 @@ do
   )
 end
 
+-- ---- table (basic) -------------------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l" },
+      rows = {
+        { cells = { { A.text("name") }, { A.text("age") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("ada") }, { A.text("36") } }, sep = false },
+        { cells = { { A.text("ben") }, { A.text("41") } }, sep = false },
+      },
+    },
+  })
+  local out = to_ascii.render(doc)
+  check("top divider present", out:find("+------+-----+", 1, true) ~= nil, "got: " .. out)
+  check("header row", out:find("| name | age |", 1, true) ~= nil)
+  check("data row 1", out:find("| ada  | 36  |", 1, true) ~= nil)
+  check("data row 2", out:find("| ben  | 41  |", 1, true) ~= nil)
+end
+
+-- ---- table (multi-divider preserves them all) ---------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("section a") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a1") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a2") } }, sep = false },
+      },
+    },
+  })
+  local out = to_ascii.render(doc)
+  local divider_count = 0
+  for _ in out:gmatch("+%-+%+") do
+    divider_count = divider_count + 1
+  end
+  -- top + header-sep + middle-sep + bottom = 4 dividers minimum.
+  check(
+    "at least 4 dividers (top + 2 mid-seps + bottom)",
+    divider_count >= 4,
+    "got " .. divider_count .. " in:\n" .. out
+  )
+  check("a1 still rendered", out:find("| a1", 1, true) ~= nil)
+  check("a2 still rendered", out:find("| a2", 1, true) ~= nil)
+end
+
+-- ---- table (column widths fit widest cell) -----------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("short") } }, sep = false },
+        { cells = { { A.text("much longer cell") } }, sep = false },
+      },
+    },
+  })
+  local out = to_ascii.render(doc)
+  -- The divider width should accommodate "much longer cell" (16 chars) + 2 space pad = 18 dashes.
+  check(
+    "column widened to longest cell",
+    out:find("+" .. string.rep("-", 18) .. "+", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
