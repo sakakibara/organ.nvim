@@ -60,13 +60,13 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
   "Plain *bold* and /italic/ and =verbatim=.",
 })
 -- Setting the filetype fires the org ftplugin which calls
--- decoration.attach(bufnr) -> dispatch_on_lines(...) which feeds the
--- conceal provider's on_lines and rebuilds its span cache.
+-- decoration.attach(bufnr).  The conceal provider has no on_lines
+-- callback: its frame_map is rebuilt by on_win on each redraw frame
+-- (driven below by _apply).
 vim.bo[bufnr].filetype = "org"
 
--- Setting filetype="org" already fires the org ftplugin which calls
--- decoration.attach -> dispatch_on_lines.  A direct re-attach is a
--- no-op (idempotent).
+-- decoration.attach is idempotent; the ftplugin already attached this
+-- buffer above.
 decoration.attach(bufnr)
 
 -- Drive a synthetic frame to populate frame_map and place marks.

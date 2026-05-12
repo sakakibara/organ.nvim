@@ -1,13 +1,14 @@
 -- Unit test for the modern.pills provider via organ.decoration.
 --
 -- Verifies that loading organ.modern.pills registers a decoration
--- provider, the per-buffer row cache is built from on_lines via the
--- tree-sitter headline_line + timestamp walk, and on_line emits the
--- right hl extmarks for each row (TODO keyword pill, active /
--- inactive timestamp pills).  Ephemeral marks placed by on_line
--- aren't visible to nvim_buf_get_extmarks outside the real frame-
--- rendering context, so the assertions go through _apply, which
--- shares build_cache with on_lines but writes non-ephemeral marks.
+-- provider exposing on_win + on_line, that on_win builds a frame-local
+-- per-row pill map via the tree-sitter headline_line + timestamp walk
+-- over the visible range, and that on_line emits the right hl extmarks
+-- for each row (TODO keyword pill, active / inactive timestamp pills).
+-- Ephemeral marks placed by on_line aren't visible to
+-- nvim_buf_get_extmarks outside the real frame-rendering context, so
+-- the assertions go through _apply, which drives the full buffer
+-- through the on_win path and writes non-ephemeral marks.
 --
 -- Run via: nvim --headless -l tests/decoration_modern_pills_test.lua
 

@@ -1,12 +1,14 @@
 -- Shared decoration infrastructure for organ.nvim.
 --
--- Owns the single nvim_set_decoration_provider registration (per-frame,
--- per-visible-line dispatch) AND the per-buffer nvim_buf_attach
--- lifecycle (incremental on_lines notifications).  Decoration modules
--- register as participants via decoration.register({...}); the shared
--- infrastructure fans dispatch out to them with pcall isolation.
+-- Owns the single nvim_set_decoration_provider registration: dispatches
+-- on_win and on_line callbacks to every registered provider per redraw
+-- frame, with pcall isolation.  Also owns the per-buffer
+-- nvim_buf_attach lifecycle to notify on_lines_only providers (fold
+-- state, fold/contents) of buffer edits -- on_win-based providers query
+-- the tree per frame instead and don't need edit-time notifications.
 --
--- See docs/superpowers/specs/2026-05-12-decoration-provider-migration-design.md.
+-- Providers register via decoration.register({...}).  See the validate()
+-- function for the accepted record shapes.
 
 local M = {}
 

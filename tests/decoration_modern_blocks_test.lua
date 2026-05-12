@@ -1,13 +1,14 @@
 -- Unit test for the modern.blocks provider via organ.decoration.
 --
 -- Verifies that loading organ.modern.blocks registers a decoration
--- provider, the per-buffer two-layer cache (block_ranges + per-row
--- kind map) is built from on_lines via the tree-sitter `*_block` walk,
--- and on_line emits the right extmark shape for each row (top corner
--- overlay, body bars, bottom corner overlay).  Ephemeral marks placed
--- by on_line aren't visible to nvim_buf_get_extmarks outside the real
--- frame-rendering context, so the assertions go through _apply, which
--- shares build_cache with on_lines but writes non-ephemeral marks.
+-- provider exposing on_win + on_line, that on_win builds a frame-local
+-- per-row kind map via the tree-sitter `*_block` walk over the visible
+-- range, and that on_line emits the right extmark shape for each row
+-- (top corner overlay, body bars, bottom corner overlay).  Ephemeral
+-- marks placed by on_line aren't visible to nvim_buf_get_extmarks
+-- outside the real frame-rendering context, so the assertions go
+-- through _apply, which drives the full buffer through the on_win
+-- path and writes non-ephemeral marks.
 --
 -- Run via: nvim --headless -l tests/decoration_modern_blocks_test.lua
 
