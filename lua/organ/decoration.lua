@@ -36,9 +36,7 @@ function M._reset()
   disabled = {}
 end
 
--- Required fields on a provider registration record.
 local REQUIRED = { "name", "ns", "enabled" }
--- Either on_lines + on_line (decoration provider) OR on_lines_only.
 local function validate(p)
   for _, k in ipairs(REQUIRED) do
     if p[k] == nil then
@@ -46,15 +44,22 @@ local function validate(p)
     end
   end
   if p.on_lines_only then
-    if p.on_lines or p.on_line then
+    if p.on_lines or p.on_line or p.on_win then
       return false,
-        "organ.decoration.register: on_lines_only is mutually exclusive with on_lines / on_line"
+        "organ.decoration.register: on_lines_only is mutually exclusive with on_lines / on_line / on_win"
     end
-  else
-    if type(p.on_lines) ~= "function" or type(p.on_line) ~= "function" then
-      return false,
-        "organ.decoration.register: missing on_lines or on_line (or supply on_lines_only)"
-    end
+    return true
+  end
+  local has_lines = type(p.on_lines) == "function"
+  local has_win = type(p.on_win) == "function"
+  local has_line = type(p.on_line) == "function"
+  if not has_line then
+    return false,
+      "organ.decoration.register: on_line is required when on_lines or on_win is present"
+  end
+  if not has_lines and not has_win then
+    return false,
+      "organ.decoration.register: provider must supply on_lines or on_win (or on_lines_only)"
   end
   return true
 end
@@ -112,7 +117,7 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
   disabled[bufnr] = disabled[bufnr] or {}
   for _, name in ipairs(provider_order) do
     local p = providers[name]
-    if p and not p.on_lines_only and not disabled[bufnr][name] then
+    if p and p.on_lines and not p.on_lines_only and not disabled[bufnr][name] then
       local ok_enabled, enabled = pcall(p.enabled, bufnr)
       if ok_enabled and enabled then
         local ok_call, err_call = pcall(p.on_lines, bufnr, first, last_old, last_new)
@@ -151,6 +156,42 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
     end
   end
 end
+
+-- Internal: dispatch an on_win callback to all enabled providers.
+local function dispatch_on_win(_tick, winid, bufnr, topline, botline)
+  if not attached_buffers[bufnr] then
+    return
+  end
+  warn_once[bufnr] = warn_once[bufnr] or {}
+  disabled[bufnr] = disabled[bufnr] or {}
+  for _, name in ipairs(provider_order) do
+    local p = providers[name]
+    if p and p.on_win and not disabled[bufnr][name] then
+      local ok_enabled, enabled_v = pcall(p.enabled, bufnr)
+      if ok_enabled and enabled_v then
+        local ok_call, err_call = pcall(p.on_win, bufnr, winid, topline, botline)
+        if not ok_call then
+          if not warn_once[bufnr][name] then
+            warn_once[bufnr][name] = true
+            disabled[bufnr][name] = true
+            local notify_ok, notify = pcall(require, "organ.notify")
+            if notify_ok and type(notify.warn) == "function" then
+              notify.warn(
+                "decoration provider '"
+                  .. name
+                  .. "' raised in on_win: "
+                  .. tostring(err_call)
+                  .. ".  Disabling for this buffer."
+              )
+            end
+          end
+        end
+      end
+    end
+  end
+end
+
+M._dispatch_on_win = dispatch_on_win
 
 function M.attach(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -254,11 +295,11 @@ function M.refresh(bufnr)
   dispatch_on_lines(bufnr, 0, n, n)
 end
 
--- Register the singleton decoration provider once at module load.
 do
   local provider_ns = vim.api.nvim_create_namespace("organ_decoration_provider")
   vim.api.nvim_set_decoration_provider(provider_ns, {
-    on_win = function(_, _winid, _bufnr, _topline, _botline)
+    on_win = function(_, winid, bufnr, topline, botline)
+      dispatch_on_win(0, winid, bufnr, topline, botline)
       return true
     end,
     on_line = function(_, winid, bufnr, row)

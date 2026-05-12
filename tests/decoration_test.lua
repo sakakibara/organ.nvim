@@ -277,6 +277,106 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
+-- on_win registration: accepted as an alternative-or-addition to on_lines.
+do
+  decoration._reset()
+  local ns = vim.api.nvim_create_namespace("test_on_win_register")
+  decoration.register({
+    name = "p_on_win",
+    ns = ns,
+    enabled = function()
+      return true
+    end,
+    on_win = function() end,
+    on_line = function() end,
+  })
+  local providers = decoration._providers()
+  check(
+    "register accepts on_win + on_line",
+    providers.p_on_win ~= nil
+      and type(providers.p_on_win.on_win) == "function"
+      and type(providers.p_on_win.on_line) == "function"
+  )
+end
+
+-- on_win + on_lines mutual presence is allowed during migration bridge.
+do
+  decoration._reset()
+  local ns = vim.api.nvim_create_namespace("test_on_win_and_on_lines")
+  local ok = pcall(decoration.register, {
+    name = "p_both",
+    ns = ns,
+    enabled = function()
+      return true
+    end,
+    on_lines = function() end,
+    on_line = function() end,
+    on_win = function() end,
+  })
+  check("register accepts on_lines + on_win + on_line during bridge", ok)
+end
+
+-- on_win without on_line is rejected.
+do
+  decoration._reset()
+  local ns = vim.api.nvim_create_namespace("test_on_win_no_on_line")
+  local ok, err = pcall(decoration.register, {
+    name = "p_on_win_only",
+    ns = ns,
+    enabled = function()
+      return true
+    end,
+    on_win = function() end,
+  })
+  check("on_win without on_line is rejected", not ok and err and err:match("on_line"))
+end
+
+-- on_win fires before on_line in the dispatch order, both with pcall.
+do
+  decoration._reset()
+  local ns = vim.api.nvim_create_namespace("test_on_win_dispatch_order")
+  local events = {}
+  decoration.register({
+    name = "p_order",
+    ns = ns,
+    enabled = function()
+      return true
+    end,
+    on_win = function(_, _, topline, botline)
+      events[#events + 1] = { "on_win", topline, botline }
+    end,
+    on_line = function(_, _, row)
+      events[#events + 1] = { "on_line", row }
+    end,
+  })
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "a", "b", "c" })
+  decoration.attach(bufnr)
+  local winid = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(winid, bufnr)
+  decoration._dispatch_on_win(0, winid, bufnr, 0, 3)
+  decoration._dispatch_on_line(0, winid, bufnr, 0)
+  decoration._dispatch_on_line(0, winid, bufnr, 1)
+  decoration._dispatch_on_line(0, winid, bufnr, 2)
+  check(
+    "on_win called once with [topline, botline]",
+    events[1] and events[1][1] == "on_win" and events[1][2] == 0 and events[1][3] == 3
+  )
+  check(
+    "on_line called for each visible row after on_win",
+    events[2]
+      and events[2][1] == "on_line"
+      and events[2][2] == 0
+      and events[3]
+      and events[3][1] == "on_line"
+      and events[3][2] == 1
+      and events[4]
+      and events[4][1] == "on_line"
+      and events[4][2] == 2
+  )
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
