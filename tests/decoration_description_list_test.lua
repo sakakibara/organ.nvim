@@ -1,13 +1,13 @@
 -- Unit test for the description_list provider via organ.decoration.
 --
 -- Verifies that loading organ.description_list registers a decoration
--- provider, the per-buffer row cache is built from on_lines via the
+-- provider, the frame-local row map is built from on_win via the
 -- tree-sitter list_item / paragraph walk, and the on_line dispatcher
 -- emits term + `::` separator extmarks for matching rows only.
 -- Ephemeral marks placed by on_line aren't visible to
 -- nvim_buf_get_extmarks outside the real frame-rendering context, so
--- the assertions go through _apply, which shares build_cache with
--- on_lines but writes non-ephemeral marks.
+-- the assertions go through _apply, which drives on_win across the
+-- full buffer and writes non-ephemeral marks.
 --
 -- Run via: nvim --headless -l tests/decoration_description_list_test.lua
 
@@ -40,10 +40,14 @@ local providers, _ = decoration._providers()
 check("description_list provider registered", providers.description_list ~= nil)
 check("provider exposes ns", providers.description_list and providers.description_list.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.description_list
-    and type(providers.description_list.on_lines) == "function"
+    and type(providers.description_list.on_win) == "function"
     and type(providers.description_list.on_line) == "function"
+)
+check(
+  "provider has no on_lines",
+  providers.description_list and providers.description_list.on_lines == nil
 )
 
 local bufnr = vim.api.nvim_create_buf(false, true)
@@ -57,9 +61,9 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
 
 decoration.attach(bufnr)
 
--- _apply rebuilds the cache + writes non-ephemeral marks so
--- nvim_buf_get_extmarks can see them.  The ephemeral path is exercised
--- by the real decoration-provider callback at frame time.
+-- _apply drives on_win across the full buffer + writes non-ephemeral
+-- marks so nvim_buf_get_extmarks can see them.  The ephemeral path is
+-- exercised by the real decoration-provider callback at frame time.
 require("organ.description_list")._apply(bufnr)
 
 local NS = vim.api.nvim_create_namespace("organ_description_list")

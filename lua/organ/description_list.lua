@@ -8,67 +8,74 @@
 -- range extmarks for the term + separator on lines that match
 -- the `term :: definition` shape.
 --
--- Runs as an `organ.decoration` provider: `on_lines` rebuilds a
--- per-buffer row cache from the tree, and `on_line` emits ephemeral
--- extmarks for the visible row.
+-- Runs as an `organ.decoration` provider: `on_win` walks the
+-- tree-sitter tree for visible rows and builds a module-local
+-- frame-row -> term/separator-span map; `on_line` reads from that
+-- map and emits ephemeral hl extmarks for the current row.
 
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_description_list")
 
--- Per-buffer row cache: cache_by_buf[bufnr][row] = {
+-- Frame-local row map: frame_map[row] = {
 --   term_start, term_end, sep_start, sep_end
--- }.  Rows that don't match `term :: definition` are absent.
-local cache_by_buf = {}
+-- }.  Reset at the start of every on_win call; read by on_line for
+-- the same frame.  No per-buffer keying: only one window's on_win
+-- runs before its on_line callbacks for the same frame.
+local frame_map = {}
 
--- Walk list_item / paragraph nodes and bucket `term :: definition`
--- ranges by row.  The org-grammar wraps the list-item body in a
--- single `(paragraph)` node, so we inspect the first line of each
--- paragraph child of a list_item and apply the same byte-range
--- arithmetic the pre-migration apply() used.
-local function build_cache(bufnr)
-  local rows = {}
+local function on_win(bufnr, _winid, topline, botline)
+  frame_map = {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
-    return rows
+    return
   end
   if vim.bo[bufnr].filetype ~= "org" then
-    return rows
+    return
+  end
+  local cfg = require("organ").config
+  local sub = cfg.description_list
+  if sub ~= nil and sub.enabled == false then
+    return
   end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
-    return rows
+    return
   end
-  local trees = parser:parse()
-  local tree = trees and trees[1]
+  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
+  -- the rest of the tree correct; we never call parser:parse(true).
+  parser:parse({ topline, 0, botline + 1, 0 })
+  local tree = (parser:trees() or {})[1]
   if not tree then
-    return rows
+    return
   end
 
   local function walk(node)
+    local nsr, _, ner, _ = node:range()
+    if ner < topline or nsr > botline then
+      return
+    end
     if node:type() == "list_item" then
       for c in node:iter_children() do
         if c:type() == "paragraph" then
           local sr, _, _, _ = c:range()
-          local lines = vim.api.nvim_buf_get_lines(bufnr, sr, sr + 1, false)
-          local body = lines[1] or ""
-          -- Strip leading bullet + checkbox + whitespace so we match
-          -- against the prose start.  Emacs requires `::` be surrounded
-          -- by whitespace; we mirror that to avoid catching `https://`
-          -- or `C++::std`.
-          local prose_start, _ = body:find("[^%s%-%+%*%d%.%)]")
-          if prose_start then
-            local sep_a, _ = body:find("%s::%s", prose_start, false)
-            if sep_a then
-              local term_s = prose_start - 1 -- 0-based
-              local term_e = sep_a - 1 -- 0-based exclusive
-              local sep_s = sep_a
-              local sep_e = sep_a + 2
-              rows[sr] = {
-                term_start = term_s,
-                term_end = term_e,
-                sep_start = sep_s,
-                sep_end = sep_e,
-              }
+          if sr >= topline and sr <= botline then
+            local lines = vim.api.nvim_buf_get_lines(bufnr, sr, sr + 1, false)
+            local body = lines[1] or ""
+            -- Strip leading bullet + checkbox + whitespace so we match
+            -- against the prose start.  Emacs requires `::` be surrounded
+            -- by whitespace; we mirror that to avoid catching `https://`
+            -- or `C++::std`.
+            local prose_start, _ = body:find("[^%s%-%+%*%d%.%)]")
+            if prose_start then
+              local sep_a, _ = body:find("%s::%s", prose_start, false)
+              if sep_a then
+                frame_map[sr] = {
+                  term_start = prose_start - 1,
+                  term_end = sep_a - 1,
+                  sep_start = sep_a,
+                  sep_end = sep_a + 2,
+                }
+              end
             end
           end
           break
@@ -80,24 +87,24 @@ local function build_cache(bufnr)
     end
   end
   walk(tree:root())
-  return rows
 end
 
--- Emit the cached term + separator extmarks for one row.  Shared
--- between the ephemeral on_line path and the non-ephemeral _apply
--- path; `ephemeral` is set by the caller.
-local function place_row(bufnr, row, entry, ephemeral)
+local function on_line(bufnr, _winid, row)
+  local entry = frame_map[row]
+  if not entry then
+    return
+  end
   if entry.term_end > entry.term_start then
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, entry.term_start, {
       end_col = entry.term_end,
       hl_group = "@org.list.term",
-      ephemeral = ephemeral or nil,
+      ephemeral = true,
     })
   end
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, entry.sep_start, {
     end_col = entry.sep_end,
     hl_group = "@org.list.term_separator",
-    ephemeral = ephemeral or nil,
+    ephemeral = true,
   })
 end
 
@@ -114,29 +121,12 @@ require("organ.decoration").register({
     end
     return sub.enabled ~= false
   end,
-  on_lines = function(bufnr, _first, _last_old, _last_new)
-    if not vim.api.nvim_buf_is_valid(bufnr) then
-      return
-    end
-    -- Full rebuild: tree-sitter incremental parse keeps the cost
-    -- bounded; range-bounded walks are a future optimization.
-    cache_by_buf[bufnr] = build_cache(bufnr)
-  end,
-  on_line = function(bufnr, _winid, row)
-    local rows = cache_by_buf[bufnr]
-    if not rows then
-      return
-    end
-    local entry = rows[row]
-    if not entry then
-      return
-    end
-    place_row(bufnr, row, entry, true)
-  end,
+  on_win = on_win,
+  on_line = on_line,
 })
 
--- Test-facing + ftplugin entrypoint.  Rebuild the cache + place
--- non-ephemeral extmarks so callers asserting via
+-- Test-facing + ftplugin entrypoint.  Drive on_win across the full
+-- buffer and place non-ephemeral extmarks so callers asserting via
 -- `nvim_buf_get_extmarks` see them without waiting for a frame.
 function M._apply(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -144,11 +134,24 @@ function M._apply(bufnr)
     return
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  local rows = build_cache(bufnr)
-  cache_by_buf[bufnr] = rows
-  for row, entry in pairs(rows) do
-    place_row(bufnr, row, entry, false)
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  on_win(bufnr, 0, 0, n - 1)
+  for row, entry in pairs(frame_map) do
+    if entry.term_end > entry.term_start then
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, entry.term_start, {
+        end_col = entry.term_end,
+        hl_group = "@org.list.term",
+      })
+    end
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, entry.sep_start, {
+      end_col = entry.sep_end,
+      hl_group = "@org.list.term_separator",
+    })
   end
+end
+
+M._frame_map = function()
+  return frame_map
 end
 
 function M.attach(bufnr)
@@ -161,7 +164,6 @@ end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  cache_by_buf[bufnr] = nil
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
 end
 
