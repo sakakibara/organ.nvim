@@ -207,6 +207,28 @@ local function emit_table(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_rule(_, out)
+  out[#out + 1] = string.rep("-", 60)
+  out[#out + 1] = ""
+end
+
+local function emit_footnote_definition(node, out)
+  local first_body = ""
+  if node.content and node.content[1] and node.content[1].kind == "paragraph" then
+    first_body = emit_inline(node.content[1].inline)
+  end
+  out[#out + 1] = "[" .. (node.label or "") .. "] " .. first_body
+  if node.content and #node.content > 1 then
+    for i = 2, #node.content do
+      local b = node.content[i]
+      if b.kind == "paragraph" then
+        out[#out + 1] = "    " .. emit_inline(b.inline)
+      end
+    end
+  end
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -228,8 +250,14 @@ function emit_block(node, out)
     emit_org_block(node, out)
   elseif kind == "table" then
     emit_table(node, out)
+  elseif kind == "rule" then
+    emit_rule(node, out)
+  elseif kind == "footnote_definition" then
+    emit_footnote_definition(node, out)
   end
-  -- other kinds: silently drop for now (will be added in subsequent tasks)
+  -- other kinds (block-level image, directive, drawer, comment, ...):
+  -- silently drop. ASCII has no syntax for them and they would be noise
+  -- in a plain-text rendition.
 end
 
 function M.render(ast, _opts)

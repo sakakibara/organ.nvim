@@ -362,6 +362,84 @@ do
   )
 end
 
+-- ---- block-level image: dropped --------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    { kind = "image", target = "fig.png", alt = "diagram" },
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "block image silently dropped (target absent)",
+    out:find("fig.png", 1, true) == nil,
+    "got: " .. out
+  )
+  check(
+    "paragraphs around image still present",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
+-- ---- horizontal rule -----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("above") }),
+    A.rule(),
+    A.paragraph({ A.text("below") }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "rule renders as 60 dashes",
+    out:find("\n" .. string.rep("-", 60) .. "\n", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- footnote_definition -------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("claim") }),
+    A.footnote_definition("1", { A.paragraph({ A.text("the footnote body") }) }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "footnote def includes label and body",
+    out:find("[1] the footnote body", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Multi-paragraph footnote: subsequent paragraphs indent 4 spaces.
+do
+  local doc = A.document({
+    A.footnote_definition("note", {
+      A.paragraph({ A.text("first") }),
+      A.paragraph({ A.text("second") }),
+    }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "footnote first paragraph after label",
+    out:find("[note] first", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("footnote second paragraph indented 4 spaces", out:find("    second", 1, true) ~= nil)
+end
+
+-- ---- directive: dropped --------------------------------------------
+do
+  local doc = A.document({
+    A.directive("TITLE", "My Doc"),
+    A.directive("AUTHOR", "Jane"),
+    A.paragraph({ A.text("body") }),
+  })
+  local out = to_ascii.render(doc)
+  check("directive TITLE dropped", out:find("My Doc", 1, true) == nil, "got: " .. out)
+  check("directive AUTHOR dropped", out:find("Jane", 1, true) == nil)
+  check("paragraph still rendered", out:find("body", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
