@@ -249,6 +249,36 @@ do
   check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
 end
 
+-- ---- code_block -----------------------------------------------------
+do
+  local doc = A.document({
+    A.code_block("python", "print('hi')"),
+  })
+  local out = to_md.render(doc)
+  check("fenced code with language", out:find("```python\nprint('hi')\n```", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- Code block with no language: still fenced.
+do
+  local doc = A.document({
+    A.code_block(nil, "raw"),
+  })
+  local out = to_md.render(doc)
+  check("fenced code no language", out:find("```\nraw\n```", 1, true) ~= nil,
+    "got: " .. out)
+end
+
+-- Multi-line code preserves body verbatim.
+do
+  local doc = A.document({
+    A.code_block("lua", "local x = 1\nprint(x)"),
+  })
+  local out = to_md.render(doc)
+  check("multi-line code preserves newlines",
+    out:find("```lua\nlocal x = 1\nprint(x)\n```", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

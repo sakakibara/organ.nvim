@@ -105,6 +105,21 @@ local function emit_list(node, out, depth)
   out[#out + 1] = ""
 end
 
+local function emit_code_block(node, out)
+  out[#out + 1] = "```" .. (node.language or "")
+  for line in ((node.body or "") .. "\n"):gmatch("([^\n]*)\n") do
+    out[#out + 1] = line
+  end
+  -- Drop the trailing empty produced by the splitter when body ends
+  -- with a newline (or is empty) -- the closing fence on its own line
+  -- is what we want, not a blank line before it.
+  if out[#out] == "" then
+    out[#out] = nil
+  end
+  out[#out + 1] = "```"
+  out[#out + 1] = ""
+end
+
 local function emit_block(node, out)
   local kind = node.kind
   if kind == "headline" then
@@ -116,6 +131,8 @@ local function emit_block(node, out)
     emit_paragraph(node, out)
   elseif kind == "list" then
     emit_list(node, out, 0)
+  elseif kind == "code_block" then
+    emit_code_block(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
