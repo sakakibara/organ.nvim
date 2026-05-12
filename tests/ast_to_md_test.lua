@@ -23,8 +23,7 @@ end
 do
   local doc = A.document({})
   local out = to_md.render(doc)
-  check("empty doc renders to a single newline", out == "\n",
-    "got " .. vim.inspect(out))
+  check("empty doc renders to a single newline", out == "\n", "got " .. vim.inspect(out))
 end
 
 -- ---- headlines (ATX, levels 1-6) -------------------------------------
@@ -46,8 +45,7 @@ do
     A.headline({ level = 8, title = { A.text("Way deep") } }),
   })
   local out = to_md.render(doc)
-  check("level 8 clamps to 6 hashes", out:find("###### Way deep", 1, true) ~= nil,
-    "got: " .. out)
+  check("level 8 clamps to 6 hashes", out:find("###### Way deep", 1, true) ~= nil, "got: " .. out)
 end
 
 -- ---- paragraph + text inline -----------------------------------------
@@ -66,21 +64,29 @@ do
     A.paragraph({ A.text("body") }),
   })
   local out = to_md.render(doc)
-  check("headline then paragraph: both present",
+  check(
+    "headline then paragraph: both present",
     out:find("# H", 1, true) ~= nil and out:find("body", 1, true) ~= nil,
-    "got: " .. out)
+    "got: " .. out
+  )
 end
 
 -- ---- emphasis (6 styles) ---------------------------------------------
 do
   local doc = A.document({
     A.paragraph({
-      A.text("a "), A.emphasis("bold", { A.text("B") }),
-      A.text(" b "), A.emphasis("italic", { A.text("I") }),
-      A.text(" c "), A.emphasis("underline", { A.text("U") }),
-      A.text(" d "), A.emphasis("strike", { A.text("S") }),
-      A.text(" e "), A.emphasis("verbatim", { A.text("V") }),
-      A.text(" f "), A.emphasis("code", { A.text("C") }),
+      A.text("a "),
+      A.emphasis("bold", { A.text("B") }),
+      A.text(" b "),
+      A.emphasis("italic", { A.text("I") }),
+      A.text(" c "),
+      A.emphasis("underline", { A.text("U") }),
+      A.text(" d "),
+      A.emphasis("strike", { A.text("S") }),
+      A.text(" e "),
+      A.emphasis("verbatim", { A.text("V") }),
+      A.text(" f "),
+      A.emphasis("code", { A.text("C") }),
     }),
   })
   local out = to_md.render(doc)
@@ -103,9 +109,7 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("nested bold inside italic",
-    out:find("*outer **inner***", 1, true) ~= nil,
-    "got: " .. out)
+  check("nested bold inside italic", out:find("*outer **inner***", 1, true) ~= nil, "got: " .. out)
 end
 
 -- ---- inline link -----------------------------------------------------
@@ -118,10 +122,15 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("link with description", out:find("[a link](https://example.com)", 1, true) ~= nil,
-    "got: " .. out)
-  check("naked link",
-    out:find("[https://naked.example.com](https://naked.example.com)", 1, true) ~= nil)
+  check(
+    "link with description",
+    out:find("[a link](https://example.com)", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "naked link",
+    out:find("[https://naked.example.com](https://naked.example.com)", 1, true) ~= nil
+  )
 end
 
 -- ---- inline image (within paragraph) ---------------------------------
@@ -134,9 +143,11 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("inline image with alt -> ![fig](fig.png)",
+  check(
+    "inline image with alt -> ![fig](fig.png)",
     out:find("![fig](fig.png)", 1, true) ~= nil,
-    "got: " .. out)
+    "got: " .. out
+  )
 end
 
 -- ---- inline footnote_ref ---------------------------------------------
@@ -149,8 +160,7 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("footnote_ref -> [^1]", out:find("[^1]", 1, true) ~= nil,
-    "got: " .. out)
+  check("footnote_ref -> [^1]", out:find("[^1]", 1, true) ~= nil, "got: " .. out)
 end
 
 -- ---- inline math (inline + display) ----------------------------------
@@ -165,9 +175,7 @@ do
   })
   local out = to_md.render(doc)
   check("inline math -> $x^2$", out:find("$x^2$", 1, true) ~= nil)
-  check("display math -> $$...$$",
-    out:find("$$\\int_0^1 x dx$$", 1, true) ~= nil,
-    "got: " .. out)
+  check("display math -> $$...$$", out:find("$$\\int_0^1 x dx$$", 1, true) ~= nil, "got: " .. out)
 end
 
 -- ---- linebreak -------------------------------------------------------
@@ -181,9 +189,11 @@ do
   })
   local out = to_md.render(doc)
   -- A markdown hard line break is "  \n" (two trailing spaces + newline).
-  check("linebreak emits two-space + newline",
+  check(
+    "linebreak emits two-space + newline",
     out:find("first  \nsecond", 1, true) ~= nil,
-    "got: " .. vim.inspect(out))
+    "got: " .. vim.inspect(out)
+  )
 end
 
 -- ---- list (unordered, basic) ----------------------------------------
@@ -195,9 +205,11 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("unordered list - one / - two",
+  check(
+    "unordered list - one / - two",
     out:find("- one", 1, true) ~= nil and out:find("- two", 1, true) ~= nil,
-    "got: " .. out)
+    "got: " .. out
+  )
 end
 
 -- ---- list (ordered, basic) ------------------------------------------
@@ -209,9 +221,11 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("ordered list 1. / 2.",
+  check(
+    "ordered list 1. / 2.",
     out:find("1. alpha", 1, true) ~= nil and out:find("2. beta", 1, true) ~= nil,
-    "got: " .. out)
+    "got: " .. out
+  )
 end
 
 -- ---- list (checkboxes) ----------------------------------------------
@@ -226,8 +240,7 @@ do
   local out = to_md.render(doc)
   check("todo checkbox -> [ ]", out:find("- [ ] a", 1, true) ~= nil, "got: " .. out)
   check("done checkbox -> [x]", out:find("- [x] b", 1, true) ~= nil)
-  check("partial checkbox -> [ ] (GFM has no partial)",
-    out:find("- [ ] c", 1, true) ~= nil)
+  check("partial checkbox -> [ ] (GFM has no partial)", out:find("- [ ] c", 1, true) ~= nil)
 end
 
 -- ---- list (nested) --------------------------------------------------
@@ -255,8 +268,11 @@ do
     A.code_block("python", "print('hi')"),
   })
   local out = to_md.render(doc)
-  check("fenced code with language", out:find("```python\nprint('hi')\n```", 1, true) ~= nil,
-    "got: " .. out)
+  check(
+    "fenced code with language",
+    out:find("```python\nprint('hi')\n```", 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- Code block with no language: still fenced.
@@ -265,8 +281,7 @@ do
     A.code_block(nil, "raw"),
   })
   local out = to_md.render(doc)
-  check("fenced code no language", out:find("```\nraw\n```", 1, true) ~= nil,
-    "got: " .. out)
+  check("fenced code no language", out:find("```\nraw\n```", 1, true) ~= nil, "got: " .. out)
 end
 
 -- Multi-line code preserves body verbatim.
@@ -275,8 +290,10 @@ do
     A.code_block("lua", "local x = 1\nprint(x)"),
   })
   local out = to_md.render(doc)
-  check("multi-line code preserves newlines",
-    out:find("```lua\nlocal x = 1\nprint(x)\n```", 1, true) ~= nil)
+  check(
+    "multi-line code preserves newlines",
+    out:find("```lua\nlocal x = 1\nprint(x)\n```", 1, true) ~= nil
+  )
 end
 
 -- ---- block: quote --------------------------------------------------
@@ -299,8 +316,10 @@ do
     }),
   })
   local out = to_md.render(doc)
-  check("multi-paragraph quote: both prefixed",
-    out:find("> line one", 1, true) ~= nil and out:find("> line two", 1, true) ~= nil)
+  check(
+    "multi-paragraph quote: both prefixed",
+    out:find("> line one", 1, true) ~= nil and out:find("> line two", 1, true) ~= nil
+  )
 end
 
 -- ---- block: example / verse (body as fenced code) ------------------
@@ -309,8 +328,11 @@ do
     A.block("example", { body = "raw text\nline 2" }),
   })
   local out = to_md.render(doc)
-  check("example -> fenced code (no language)",
-    out:find("```\nraw text\nline 2\n```", 1, true) ~= nil, "got: " .. out)
+  check(
+    "example -> fenced code (no language)",
+    out:find("```\nraw text\nline 2\n```", 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 do
@@ -318,8 +340,10 @@ do
     A.block("verse", { body = "verse 1\nverse 2" }),
   })
   local out = to_md.render(doc)
-  check("verse -> fenced code (no language)",
-    out:find("```\nverse 1\nverse 2\n```", 1, true) ~= nil)
+  check(
+    "verse -> fenced code (no language)",
+    out:find("```\nverse 1\nverse 2\n```", 1, true) ~= nil
+  )
 end
 
 -- ---- block: export (dropped) ---------------------------------------
@@ -331,8 +355,10 @@ do
   })
   local out = to_md.render(doc)
   check("export block dropped", out:find("<html>", 1, true) == nil, "got: " .. out)
-  check("paragraphs around export still present",
-    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil)
+  check(
+    "paragraphs around export still present",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
 end
 
 -- ---- table (basic) -------------------------------------------------
@@ -366,16 +392,21 @@ do
         { cells = { { A.text("section a") } }, sep = false },
         { sep = true, cells = {} },
         { cells = { { A.text("a1") } }, sep = false },
-        { sep = true, cells = {} },  -- mid-table separator: should be dropped
+        { sep = true, cells = {} }, -- mid-table separator: should be dropped
         { cells = { { A.text("a2") } }, sep = false },
       },
     },
   })
   local out = to_md.render(doc)
   local divider_count = 0
-  for _ in out:gmatch("| %-%-%- |") do divider_count = divider_count + 1 end
-  check("only one divider survives flatten",
-    divider_count == 1, "got " .. divider_count .. " dividers in:\n" .. out)
+  for _ in out:gmatch("| %-%-%- |") do
+    divider_count = divider_count + 1
+  end
+  check(
+    "only one divider survives flatten",
+    divider_count == 1,
+    "got " .. divider_count .. " dividers in:\n" .. out
+  )
   -- Data rows still present.
   check("a1 still rendered", out:find("| a1 |", 1, true) ~= nil)
   check("a2 still rendered", out:find("| a2 |", 1, true) ~= nil)
@@ -389,8 +420,11 @@ do
     A.paragraph({ A.text("after") }),
   })
   local out = to_md.render(doc)
-  check("block image -> ![diagram](fig.png)",
-    out:find("![diagram](fig.png)", 1, true) ~= nil, "got: " .. out)
+  check(
+    "block image -> ![diagram](fig.png)",
+    out:find("![diagram](fig.png)", 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- Image without alt falls back to target as alt text.
@@ -399,8 +433,7 @@ do
     { kind = "image", target = "x.png" },
   })
   local out = to_md.render(doc)
-  check("image no alt -> ![x.png](x.png)",
-    out:find("![x.png](x.png)", 1, true) ~= nil)
+  check("image no alt -> ![x.png](x.png)", out:find("![x.png](x.png)", 1, true) ~= nil)
 end
 
 -- ---- horizontal rule -----------------------------------------------
@@ -424,8 +457,11 @@ do
     A.footnote_definition("1", { A.paragraph({ A.text("the footnote body") }) }),
   })
   local out = to_md.render(doc)
-  check("footnote def -> [^1]: body",
-    out:find("[^1]: the footnote body", 1, true) ~= nil, "got: " .. out)
+  check(
+    "footnote def -> [^1]: body",
+    out:find("[^1]: the footnote body", 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- ---- directive (dropped) -------------------------------------------
@@ -436,10 +472,8 @@ do
     A.paragraph({ A.text("body") }),
   })
   local out = to_md.render(doc)
-  check("directive: TITLE dropped",
-    out:find("My Doc", 1, true) == nil, "got: " .. out)
-  check("directive: AUTHOR dropped",
-    out:find("Jane", 1, true) == nil)
+  check("directive: TITLE dropped", out:find("My Doc", 1, true) == nil, "got: " .. out)
+  check("directive: AUTHOR dropped", out:find("Jane", 1, true) == nil)
   check("paragraph still rendered", out:find("body", 1, true) ~= nil)
 end
 
@@ -461,8 +495,11 @@ do
     -- NOT survive into the output, because organ.cite.replace_in would
     -- replace it. The exact replacement form is cite-module-internal;
     -- we just verify the substitution happened.
-    check("citation marker replaced by organ.cite",
-      out:find("[cite:@doe2020]", 1, true) == nil, "got: " .. out)
+    check(
+      "citation marker replaced by organ.cite",
+      out:find("[cite:@doe2020]", 1, true) == nil,
+      "got: " .. out
+    )
   else
     print("SKIP  citation pass test (organ.cite.replace_in not available)")
   end

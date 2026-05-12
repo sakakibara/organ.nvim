@@ -317,7 +317,7 @@ local function merge_adjacent_tables(blocks)
         prev.rows[#prev.rows + 1] = r
       end
       -- Widen alignments to the wider of the two segments.
-      if (#(b.alignments or {})) > (#(prev.alignments or {})) then
+      if #(b.alignments or {}) > #(prev.alignments or {}) then
         prev.alignments = b.alignments
       end
     else
