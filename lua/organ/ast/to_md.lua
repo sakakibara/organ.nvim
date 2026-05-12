@@ -15,6 +15,22 @@ local function emit_inline(nodes)
   for _, n in ipairs(nodes) do
     if n.kind == "text" then
       out[#out + 1] = n.text or ""
+    elseif n.kind == "emphasis" then
+      local inner = emit_inline(n.content)
+      local s = n.style
+      if s == "bold" then
+        out[#out + 1] = "**" .. inner .. "**"
+      elseif s == "italic" then
+        out[#out + 1] = "*" .. inner .. "*"
+      elseif s == "underline" then
+        out[#out + 1] = "<u>" .. inner .. "</u>"
+      elseif s == "strike" then
+        out[#out + 1] = "~~" .. inner .. "~~"
+      elseif s == "verbatim" or s == "code" then
+        out[#out + 1] = "`" .. inner .. "`"
+      else
+        out[#out + 1] = inner
+      end
     end
   end
   return table.concat(out)

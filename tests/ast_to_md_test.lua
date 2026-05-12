@@ -71,6 +71,43 @@ do
     "got: " .. out)
 end
 
+-- ---- emphasis (6 styles) ---------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("a "), A.emphasis("bold", { A.text("B") }),
+      A.text(" b "), A.emphasis("italic", { A.text("I") }),
+      A.text(" c "), A.emphasis("underline", { A.text("U") }),
+      A.text(" d "), A.emphasis("strike", { A.text("S") }),
+      A.text(" e "), A.emphasis("verbatim", { A.text("V") }),
+      A.text(" f "), A.emphasis("code", { A.text("C") }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("bold -> **B**", out:find("**B**", 1, true) ~= nil)
+  check("italic -> *I*", out:find("*I*", 1, true) ~= nil)
+  check("underline -> <u>U</u>", out:find("<u>U</u>", 1, true) ~= nil)
+  check("strike -> ~~S~~", out:find("~~S~~", 1, true) ~= nil)
+  check("verbatim -> `V`", out:find("`V`", 1, true) ~= nil)
+  check("code -> `C`", out:find("`C`", 1, true) ~= nil)
+end
+
+-- Nested emphasis: bold inside italic should round-trip.
+do
+  local doc = A.document({
+    A.paragraph({
+      A.emphasis("italic", {
+        A.text("outer "),
+        A.emphasis("bold", { A.text("inner") }),
+      }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("nested bold inside italic",
+    out:find("*outer **inner***", 1, true) ~= nil,
+    "got: " .. out)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
