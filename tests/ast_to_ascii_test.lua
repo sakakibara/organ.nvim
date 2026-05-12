@@ -213,6 +213,83 @@ do
   check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
 end
 
+-- ---- code_block: 4-space indent --------------------------------------
+do
+  local doc = A.document({
+    A.code_block("python", "print('hi')"),
+  })
+  local out = to_ascii.render(doc)
+  check("code body indented 4 spaces", out:find("    print('hi')", 1, true) ~= nil, "got: " .. out)
+end
+
+-- Multi-line code preserves line breaks, each line indented.
+do
+  local doc = A.document({
+    A.code_block("lua", "local x = 1\nprint(x)"),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "multi-line code: line 1 indented",
+    out:find("    local x = 1", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("multi-line code: line 2 indented", out:find("    print(x)", 1, true) ~= nil)
+end
+
+-- ---- block: example -------------------------------------------------
+do
+  local doc = A.document({
+    A.block("example", { body = "raw text\nline 2" }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "example indented 4 spaces line 1",
+    out:find("    raw text", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("example indented 4 spaces line 2", out:find("    line 2", 1, true) ~= nil)
+end
+
+-- ---- block: verse ---------------------------------------------------
+do
+  local doc = A.document({
+    A.block("verse", { body = "v1\nv2" }),
+  })
+  local out = to_ascii.render(doc)
+  check("verse indented like example", out:find("    v1", 1, true) ~= nil, "got: " .. out)
+  check("verse line 2 indented", out:find("    v2", 1, true) ~= nil)
+end
+
+-- ---- block: quote ---------------------------------------------------
+do
+  local doc = A.document({
+    A.block("quote", {
+      content = {
+        A.paragraph({ A.text("first") }),
+        A.paragraph({ A.text("second") }),
+      },
+    }),
+  })
+  local out = to_ascii.render(doc)
+  check("quote line 1 prefixed with '  > '", out:find("  > first", 1, true) ~= nil, "got: " .. out)
+  check("quote line 2 prefixed with '  > '", out:find("  > second", 1, true) ~= nil)
+end
+
+-- ---- block: export (dropped) ----------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    A.block("export", { body = "<html>" }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_ascii.render(doc)
+  check("export block dropped", out:find("<html>", 1, true) == nil, "got: " .. out)
+  check(
+    "paragraphs around export still present",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

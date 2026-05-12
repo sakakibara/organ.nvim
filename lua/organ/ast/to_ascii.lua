@@ -92,6 +92,47 @@ local function emit_list(node, out, depth)
   out[#out + 1] = ""
 end
 
+local function emit_code_block(node, out)
+  for line in ((node.body or "") .. "\n"):gmatch("([^\n]*)\n") do
+    out[#out + 1] = "    " .. line
+  end
+  if out[#out] == "    " then
+    out[#out] = nil
+  end
+  out[#out + 1] = ""
+end
+
+local function emit_org_block(node, out)
+  local style = node.style
+  if style == "verse" or style == "example" then
+    for line in ((node.body or "") .. "\n"):gmatch("([^\n]*)\n") do
+      out[#out + 1] = "    " .. line
+    end
+    if out[#out] == "    " then
+      out[#out] = nil
+    end
+    out[#out + 1] = ""
+  elseif style == "quote" then
+    -- Render content into a sub-buffer, then prefix each line with "  > ".
+    local sub = {}
+    for _, b in ipairs(node.content or {}) do
+      emit_block(b, sub)
+    end
+    while #sub > 0 and sub[#sub] == "" do
+      sub[#sub] = nil
+    end
+    for _, line in ipairs(sub) do
+      if line == "" then
+        out[#out + 1] = "  >"
+      else
+        out[#out + 1] = "  > " .. line
+      end
+    end
+    out[#out + 1] = ""
+  end
+  -- export / unknown styles drop silently.
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -107,6 +148,10 @@ function emit_block(node, out)
     emit_paragraph(node, out)
   elseif kind == "list" then
     emit_list(node, out, 0)
+  elseif kind == "code_block" then
+    emit_code_block(node, out)
+  elseif kind == "block" then
+    emit_org_block(node, out)
   end
   -- other kinds: silently drop for now (will be added in subsequent tasks)
 end
