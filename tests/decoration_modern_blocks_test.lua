@@ -41,11 +41,12 @@ local providers, _ = decoration._providers()
 check("modern_blocks provider registered", providers.modern_blocks ~= nil)
 check("provider exposes ns", providers.modern_blocks and providers.modern_blocks.ns ~= nil)
 check(
-  "provider exposes on_lines + on_line",
+  "provider exposes on_win + on_line",
   providers.modern_blocks
-    and type(providers.modern_blocks.on_lines) == "function"
+    and type(providers.modern_blocks.on_win) == "function"
     and type(providers.modern_blocks.on_line) == "function"
 )
+check("provider has no on_lines", providers.modern_blocks and providers.modern_blocks.on_lines == nil)
 
 -- The provider gate reads `cfg.modern.blocks`; with the setup above
 -- that's truthy.  Verify it returns true for any buffer (the gate is
