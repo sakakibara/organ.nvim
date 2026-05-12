@@ -658,6 +658,35 @@ function M.heading_title_hl(line)
   return "@org.heading.title.org"
 end
 
+-- Target column for the trailing tag block, mirroring Emacs
+-- `org-tags-column`:
+--   positive N  -> right-align tag block to column N
+--   negative N  -> N columns from the right edge of the window
+--   0           -> no right-align (flush, one space padding)
+--   nil / false -> default to 77
+local function tags_column_target()
+  local fmt = (require("organ").config.format or {}).headline or {}
+  local tc = fmt.tags_column
+  if tc == nil or tc == false then
+    return 77
+  end
+  if tc == 0 then
+    return nil
+  end
+  if tc < 0 then
+    return vim.api.nvim_win_get_width(0) + tc + 1
+  end
+  return tc
+end
+
+local function display_width_of_segments(segs, from, to)
+  local total = 0
+  for i = from, to do
+    total = total + vim.fn.strdisplaywidth(segs[i][1])
+  end
+  return total
+end
+
 -- Renderer: heading line + an Emacs-style ellipsis suffix when the
 -- fold hides real content.  Mirrors Emacs `org-ellipsis` (default
 -- `…`, no leading space).  All-blank body is left bare.  Returns
@@ -666,6 +695,12 @@ end
 -- a plain string on buffers without an active parser.  Wrapped in
 -- pcall in `M.foldtext` -- any error returns the bare heading line
 -- so vim never falls back to its own `+--  N lines:` default.
+--
+-- When the heading carries a tag_list, the ellipsis lands right
+-- after the title and the tag block is right-aligned to
+-- `config.format.headline.tags_column` so a folded `* TODO Foo :tag:`
+-- renders as `* TODO Foo…                          :tag:` instead of
+-- the tags being shoved past the ellipsis.
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
@@ -679,10 +714,54 @@ function M.emacs_foldtext()
     for i, seg in ipairs(segments) do
       result[i] = seg
     end
-    if has_real then
-      result[#result + 1] = { "…", M.heading_title_hl(line) }
+    if not has_real then
+      return result
     end
-    return result
+    local title_hl = M.heading_title_hl(line)
+    -- First segment whose hl group is in the tag capture family
+    -- (`@org.tag.org` for the whole block, `@org.tag.name.org` per
+    -- tag).  Whichever appears first is where the tag block starts.
+    local tag_idx
+    for i, seg in ipairs(result) do
+      if seg[2] and seg[2]:match("^@org%.tag") then
+        tag_idx = i
+        break
+      end
+    end
+    if not tag_idx then
+      result[#result + 1] = { "…", title_hl }
+      return result
+    end
+    -- Trim trailing whitespace from the segment right before the
+    -- tag block so the ellipsis sits flush against the title text.
+    if tag_idx > 1 then
+      local prev = result[tag_idx - 1]
+      local trimmed = prev[1]:match("^(.-)%s*$") or prev[1]
+      result[tag_idx - 1] = { trimmed, prev[2] }
+    end
+    local pre_w = display_width_of_segments(result, 1, tag_idx - 1)
+    local tag_w = display_width_of_segments(result, tag_idx, #result)
+    local ellipsis_w = vim.fn.strdisplaywidth("…")
+    local target = tags_column_target()
+    local pad
+    if target then
+      pad = target - pre_w - ellipsis_w - tag_w
+      if pad < 1 then
+        pad = 1
+      end
+    else
+      pad = 1
+    end
+    local rebuilt = {}
+    for i = 1, tag_idx - 1 do
+      rebuilt[#rebuilt + 1] = result[i]
+    end
+    rebuilt[#rebuilt + 1] = { "…", title_hl }
+    rebuilt[#rebuilt + 1] = { string.rep(" ", pad), title_hl }
+    for i = tag_idx, #result do
+      rebuilt[#rebuilt + 1] = result[i]
+    end
+    return rebuilt
   end
   if not has_real then
     return line

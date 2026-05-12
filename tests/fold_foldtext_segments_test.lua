@@ -72,18 +72,65 @@ if stars_seg then
   )
 end
 
--- The trailing ellipsis segment must use the heading-title hl, not
--- `Folded` -- so it matches the heading color the user reads above
--- it instead of a separate gray.
-local last = out[#out]
-check("last segment is the ellipsis", type(last) == "table" and last[1] == "…")
-if type(last) == "table" then
+-- When the heading carries a tag list, the ellipsis lands between
+-- the title text and the tag block (not at the end of the line) so
+-- folding `* TODO Top heading :work:` renders as
+-- `* TODO Top heading…    :work:`.  Locate the ellipsis segment
+-- explicitly and verify both its hl and its position relative to
+-- the tag segments.
+local ellipsis_idx
+for i, seg in ipairs(out) do
+  if type(seg) == "table" and seg[1] == "…" then
+    ellipsis_idx = i
+    break
+  end
+end
+check("ellipsis segment present", ellipsis_idx ~= nil)
+if ellipsis_idx then
   check(
     "ellipsis hl matches per-level heading title",
-    last[2] == "@org.heading.title.1.org",
-    "got " .. tostring(last[2])
+    out[ellipsis_idx][2] == "@org.heading.title.1.org",
+    "got " .. tostring(out[ellipsis_idx][2])
   )
+  -- The segment AFTER the ellipsis is padding spaces with the
+  -- same heading-title hl (used to right-align tags).
+  local after = out[ellipsis_idx + 1]
+  check(
+    "padding segment follows the ellipsis",
+    type(after) == "table" and after[1]:match("^%s+$") ~= nil,
+    "got " .. (type(after) == "table" and ("%q"):format(after[1]) or "nil")
+  )
+  -- And the tag block follows the padding (@org.tag.* family).
+  local has_tag_after = false
+  for i = ellipsis_idx + 1, #out do
+    if out[i][2] and out[i][2]:match("^@org%.tag") then
+      has_tag_after = true
+      break
+    end
+  end
+  check("tag segments come AFTER the ellipsis", has_tag_after)
 end
+-- The full rendered string must place ellipsis right after the
+-- title text (no trailing space before "…"), AND must keep the
+-- tag block flush to the right (ends with `:work:`).
+local function as_string(v)
+  local parts = {}
+  for _, seg in ipairs(v) do
+    parts[#parts + 1] = seg[1]
+  end
+  return table.concat(parts)
+end
+local rendered = as_string(out)
+check(
+  "rendered string contains 'heading…' (no space before ellipsis)",
+  rendered:find("heading…", 1, true) ~= nil,
+  "got " .. tostring(rendered)
+)
+check(
+  "rendered string ends with the tag block",
+  rendered:sub(-#":work:") == ":work:",
+  "got " .. tostring(rendered)
+)
 
 if fails > 0 then
   print()

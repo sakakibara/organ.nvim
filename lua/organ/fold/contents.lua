@@ -254,6 +254,70 @@ local function under_revealed_subtree(bufnr, hline, revealed)
   return false
 end
 
+-- Locate the headline's `tag_list` byte range on row `lnum0`
+-- (0-indexed).  Returns `(start_col, end_col)` (0-indexed byte
+-- columns) when the row's headline has a trailing tag block, nil
+-- otherwise.  Used to right-align the CONTENTS-view ellipsis the
+-- same way `emacs_foldtext` does for real folds.
+local function find_tag_list_col(bufnr, lnum0)
+  local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
+  if not ok or not parser then
+    return nil
+  end
+  pcall(parser.parse, parser, { lnum0, lnum0 + 1 })
+  local tree = (parser:trees() or {})[1]
+  if not tree then
+    return nil
+  end
+  local root = tree:root()
+  local node = root:descendant_for_range(lnum0, 0, lnum0, 0)
+  while node and node:type() ~= "headline_line" and node:type() ~= "headline" do
+    node = node:parent()
+  end
+  if not node then
+    return nil
+  end
+  -- Walk one or two levels in: `headline_line` carries the tag_list
+  -- directly; a `headline` wrapper holds a `headline_line` child.
+  for child in node:iter_children() do
+    if child:type() == "tag_list" then
+      local sr, sc, _, ec = child:range()
+      if sr == lnum0 then
+        return sc, ec
+      end
+    end
+    for sub in child:iter_children() do
+      if sub:type() == "tag_list" then
+        local sr, sc, _, ec = sub:range()
+        if sr == lnum0 then
+          return sc, ec
+        end
+      end
+    end
+  end
+  return nil
+end
+
+-- Mirrors fold.lua's tags_column_target so the CONTENTS-view
+-- ellipsis lines its tag block up to the same column the real fold
+-- uses.  See defaults.lua > format.headline.tags_column for the
+-- contract (positive = absolute column; negative = offset from the
+-- window's right edge; 0 = no right-align; nil / false = default 77).
+local function tags_column_target()
+  local fmt = (require("organ").config.format or {}).headline or {}
+  local tc = fmt.tags_column
+  if tc == nil or tc == false then
+    return 77
+  end
+  if tc == 0 then
+    return nil
+  end
+  if tc < 0 then
+    return vim.api.nvim_win_get_width(0) + tc + 1
+  end
+  return tc
+end
+
 local function place_marks(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   local revealed = revealed_lines(bufnr)
@@ -286,17 +350,57 @@ local function place_marks(bufnr)
     if range_has_real_content(bufnr, r) and hline then
       local line = (vim.api.nvim_buf_get_lines(bufnr, hline - 1, hline, false) or {})[1] or ""
       local hl = require("organ.fold").heading_title_hl(line)
-      -- `virt_text_pos = "eol"` lands the ellipsis after any
-      -- trailing whitespace on the heading line, which surfaces
-      -- as a gap (`* H1 …` instead of `* H1…`).  Use "inline" at
-      -- the trimmed end of the line content so the ellipsis sits
-      -- flush against the last non-blank char, matching foldtext.
-      local trimmed = line:match("^(.-)%s*$") or line
-      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, #trimmed, {
-        virt_text = { { "…", hl } },
-        virt_text_pos = "inline",
-        hl_mode = "combine",
-      })
+      local tag_start, tag_end = find_tag_list_col(bufnr, hline - 1)
+      if tag_start then
+        -- Title ends at the last non-whitespace byte before the
+        -- tag block.  Scan backward from tag_start; tag_start is
+        -- 0-indexed and exclusive of the title, so we use it as
+        -- the upper bound when slicing 1-indexed Lua strings.
+        local title_end = tag_start
+        while title_end > 0 and line:sub(title_end, title_end):match("%s") do
+          title_end = title_end - 1
+        end
+        local title_w = vim.fn.strdisplaywidth(line:sub(1, title_end))
+        local tag_w = vim.fn.strdisplaywidth(line:sub(tag_start + 1, tag_end))
+        local ellipsis_w = vim.fn.strdisplaywidth("…")
+        local target = tags_column_target()
+        local pad
+        if target then
+          pad = target - title_w - ellipsis_w - tag_w
+          if pad < 1 then
+            pad = 1
+          end
+        else
+          pad = 1
+        end
+        -- Hide the whitespace gap between title and tag block so
+        -- the inline virt_text (ellipsis + padding) replaces it
+        -- cleanly.  Without the conceal, the original spaces sit
+        -- between the virt_text and the tag bytes and shove the
+        -- tags past `tags_column`.
+        if tag_start > title_end then
+          pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, title_end, {
+            end_col = tag_start,
+            conceal = "",
+          })
+        end
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, title_end, {
+          virt_text = { { "…", hl }, { string.rep(" ", pad), hl } },
+          virt_text_pos = "inline",
+          hl_mode = "combine",
+        })
+      else
+        -- No tags: place the ellipsis flush at the last non-blank
+        -- byte of the line.  `virt_text_pos = "eol"` would land it
+        -- after trailing whitespace and surface as a gap (`* H1 …`
+        -- instead of `* H1…`), so use "inline" at the trimmed end.
+        local trimmed = line:match("^(.-)%s*$") or line
+        pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, hline - 1, #trimmed, {
+          virt_text = { { "…", hl } },
+          virt_text_pos = "inline",
+          hl_mode = "combine",
+        })
+      end
     end
     ::continue::
   end
