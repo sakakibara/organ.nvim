@@ -51,6 +51,27 @@ end
 -- Each span: { start_col, end_col, conceal_char }.
 local cache_by_buf = {}
 
+-- Per-buffer trailing-debounce timers for the on_lines rebuild path.
+-- nvim_buf_attach's on_lines fires synchronously on every keystroke;
+-- build_cache does a full inline-tree reparse which costs ~12ms on a
+-- 5k-line buffer and >100ms on a large one.  Doing that on every key
+-- is unusable, so we coalesce edits into one rebuild 150ms after the
+-- user stops typing -- the same UX as the pre-migration TextChangedI
+-- debounce.  on_line renders from whatever cache exists; the first
+-- frame inside a burst can show stale conceal until the timer fires.
+local rebuild_timers = {}
+local REBUILD_DEBOUNCE_MS = 150
+
+local function cancel_rebuild_timer(bufnr)
+  local t = rebuild_timers[bufnr]
+  if not t then
+    return
+  end
+  rebuild_timers[bufnr] = nil
+  pcall(t.stop, t)
+  pcall(t.close, t)
+end
+
 -- Build a per-row span list from the inline tree.  Single tree walk;
 -- spans are bucketed by row.  Spans whose open/close sit on different
 -- rows (multi-line emphasis) produce one entry per affected row.
@@ -159,6 +180,26 @@ local function place_marks(bufnr, rows)
   end
 end
 
+local function schedule_rebuild(bufnr)
+  cancel_rebuild_timer(bufnr)
+  local t = vim.uv.new_timer()
+  if not t then
+    -- Timer allocation failed (unlikely); fall back to a synchronous
+    -- rebuild rather than silently dropping the update.
+    cache_by_buf[bufnr] = build_cache(bufnr)
+    return
+  end
+  rebuild_timers[bufnr] = t
+  t:start(REBUILD_DEBOUNCE_MS, 0, vim.schedule_wrap(function()
+    rebuild_timers[bufnr] = nil
+    pcall(t.stop, t)
+    pcall(t.close, t)
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      cache_by_buf[bufnr] = build_cache(bufnr)
+    end
+  end))
+end
+
 require("organ.decoration").register({
   name = "conceal",
   ns = NS,
@@ -172,8 +213,17 @@ require("organ.decoration").register({
   on_lines = function(bufnr, _first, _last_old, _last_new)
     -- Inline emphasis can span unbounded text; an edit that closes or
     -- opens a marker shifts every span on subsequent rows.  Rebuilding
-    -- the whole cache is the only correct option.
-    cache_by_buf[bufnr] = build_cache(bufnr)
+    -- the whole cache is the only correct option.  Initial population
+    -- (cache empty) runs synchronously so the first frame after buffer
+    -- open has correct decoration; subsequent edits debounce.
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    if cache_by_buf[bufnr] == nil then
+      cache_by_buf[bufnr] = build_cache(bufnr)
+      return
+    end
+    schedule_rebuild(bufnr)
   end,
   on_line = function(bufnr, winid, row)
     if vim.wo[winid].conceallevel == 0 then
@@ -220,6 +270,7 @@ function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   cache_by_buf[bufnr] = nil
+  cancel_rebuild_timer(bufnr)
 end
 
 function M.toggle(bufnr)
