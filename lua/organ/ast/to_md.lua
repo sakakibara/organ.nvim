@@ -20,9 +20,29 @@ local function emit_inline(nodes)
   return table.concat(out)
 end
 
+local function emit_headline(node, out)
+  local level = math.min(6, math.max(1, node.level or 1))
+  local title = emit_inline(node.title or {})
+  out[#out + 1] = string.rep("#", level) .. " " .. title
+  out[#out + 1] = ""
+end
+
+local function emit_paragraph(node, out)
+  out[#out + 1] = emit_inline(node.inline or {})
+  out[#out + 1] = ""
+end
+
 local function emit_block(node, out)
-  -- Other kinds drop silently for now; per-kind branches added in
-  -- subsequent tasks.
+  local kind = node.kind
+  if kind == "headline" then
+    emit_headline(node, out)
+    for _, c in ipairs(node.children or {}) do
+      emit_block(c, out)
+    end
+  elseif kind == "paragraph" then
+    emit_paragraph(node, out)
+  end
+  -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
 
 local function collapse_blank_runs(lines)
