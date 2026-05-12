@@ -83,6 +83,81 @@ do
   check("unregister frees the name for re-registration", ok, err)
 end
 
+-- ---- attach + on_lines dispatch -------------------------------------
+do
+  decoration._reset()
+  local on_lines_calls = {}
+  decoration.register({
+    name = "p1",
+    ns = vim.api.nvim_create_namespace("organ_decoration_p1"),
+    enabled = function(_) return true end,
+    on_lines = function(bufnr, first, last_old, last_new)
+      on_lines_calls[#on_lines_calls + 1] = { bufnr, first, last_old, last_new }
+    end,
+    on_line = function() end,
+  })
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "line one", "line two", "line three" })
+
+  decoration.attach(bufnr)
+  -- attach should synthesize an initial on_lines covering the whole buffer.
+  check(
+    "attach synthesizes initial on_lines",
+    #on_lines_calls == 1 and on_lines_calls[1][1] == bufnr
+      and on_lines_calls[1][2] == 0 and on_lines_calls[1][4] == 3,
+    "got: " .. vim.inspect(on_lines_calls)
+  )
+
+  -- Edit a line; nvim_buf_attach's on_lines fires for the edit.
+  on_lines_calls = {}
+  vim.api.nvim_buf_set_lines(bufnr, 1, 2, false, { "line two (edited)" })
+  vim.wait(50)
+  check(
+    "edit triggers on_lines dispatch",
+    #on_lines_calls >= 1,
+    "got " .. #on_lines_calls .. " calls"
+  )
+
+  -- attach is idempotent.
+  on_lines_calls = {}
+  decoration.attach(bufnr)
+  check(
+    "second attach is idempotent (no extra on_lines burst)",
+    #on_lines_calls == 0,
+    "got " .. #on_lines_calls .. " extra calls"
+  )
+
+  -- Wipe the buffer; on_detach should clear state.
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+  vim.wait(50)
+  check(
+    "BufWipeout clears attached state",
+    decoration._attached()[bufnr] == nil,
+    "still attached: " .. tostring(decoration._attached()[bufnr])
+  )
+end
+
+-- ---- enabled() gate respected ---------------------------------------
+do
+  decoration._reset()
+  local p2_calls = 0
+  decoration.register({
+    name = "p2",
+    ns = vim.api.nvim_create_namespace("organ_decoration_p2"),
+    enabled = function(_) return false end,
+    on_lines = function() p2_calls = p2_calls + 1 end,
+    on_line = function() end,
+  })
+
+  local bufnr = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "x" })
+  decoration.attach(bufnr)
+  check("disabled provider's on_lines NOT called on attach",
+    p2_calls == 0, "got " .. p2_calls .. " calls")
+  vim.api.nvim_buf_delete(bufnr, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

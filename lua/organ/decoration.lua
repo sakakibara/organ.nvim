@@ -95,4 +95,90 @@ M._providers = function() return providers, provider_order end
 M._caches = function() return caches end
 M._attached = function() return attached_buffers end
 
+-- Internal: dispatch an on_lines notification to all enabled providers.
+local function dispatch_on_lines(bufnr, first, last_old, last_new)
+  caches[bufnr] = caches[bufnr] or {}
+  warn_once[bufnr] = warn_once[bufnr] or {}
+  disabled[bufnr] = disabled[bufnr] or {}
+  for _, name in ipairs(provider_order) do
+    local p = providers[name]
+    if p and not p.on_lines_only and not disabled[bufnr][name] then
+      local ok_enabled, enabled = pcall(p.enabled, bufnr)
+      if ok_enabled and enabled then
+        local ok_call, err_call = pcall(p.on_lines, bufnr, first, last_old, last_new)
+        if not ok_call then
+          if not warn_once[bufnr][name] then
+            warn_once[bufnr][name] = true
+            disabled[bufnr][name] = true
+            local notify_ok, notify = pcall(require, "organ.notify")
+            if notify_ok and type(notify.warn) == "function" then
+              notify.warn(
+                "decoration provider '" .. name .. "' raised in on_lines: "
+                  .. tostring(err_call) .. ".  Disabling for this buffer."
+              )
+            end
+          end
+        end
+      elseif not ok_enabled then
+        if not warn_once[bufnr][name] then
+          warn_once[bufnr][name] = true
+        end
+      end
+    end
+    -- on_lines_only providers also receive on_lines notifications.
+    if p and p.on_lines_only and not disabled[bufnr][name] then
+      local ok_enabled, enabled = pcall(p.enabled, bufnr)
+      if ok_enabled and enabled then
+        local ok_call = pcall(p.on_lines_only, bufnr, first, last_old, last_new)
+        if not ok_call then
+          warn_once[bufnr][name] = true
+          disabled[bufnr][name] = true
+        end
+      end
+    end
+  end
+end
+
+function M.attach(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    error("organ.decoration: not a valid buffer: " .. tostring(bufnr))
+  end
+  if attached_buffers[bufnr] then
+    return  -- idempotent
+  end
+  attached_buffers[bufnr] = true
+  caches[bufnr] = {}
+  warn_once[bufnr] = {}
+  disabled[bufnr] = {}
+
+  vim.api.nvim_buf_attach(bufnr, false, {
+    on_lines = function(_, b, _changedtick, first, last_old, last_new)
+      if not attached_buffers[b] then
+        return true  -- detach signal
+      end
+      dispatch_on_lines(b, first, last_old, last_new)
+    end,
+    on_detach = function(_, b)
+      attached_buffers[b] = nil
+      caches[b] = nil
+      warn_once[b] = nil
+      disabled[b] = nil
+    end,
+  })
+
+  -- Synthesize the initial population call.
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  dispatch_on_lines(bufnr, 0, n, n)
+end
+
+function M.detach(bufnr)
+  if not attached_buffers[bufnr] then
+    return
+  end
+  attached_buffers[bufnr] = nil
+  caches[bufnr] = nil
+  warn_once[bufnr] = nil
+  disabled[bufnr] = nil
+end
+
 return M
