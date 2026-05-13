@@ -1,5 +1,9 @@
 -- fold.cycle(bufnr, line) advances 3-state on a headline; falls back to za
--- on non-headline lines.
+-- on non-headline lines.  Mirrors Emacs `org-cycle`: the cycle starts
+-- from the heading's CURRENT visual state, not from a stale cache.  With
+-- the buffer freshly opened in showall (everything visible = SUBTREE),
+-- the first Tab folds it (SUBTREE -> FOLDED), the next shows children
+-- (FOLDED -> CHILDREN), the next reveals the subtree (CHILDREN -> SUBTREE).
 -- Run via: nvim --headless -l tests/fold_cycle_test.lua
 
 local root = vim.fn.getcwd()
@@ -36,34 +40,37 @@ local fold = require("organ.fold")
 -- Force fold recompute.
 vim.cmd("normal! zx")
 
--- Cursor on line 1 ("* Top"), first cycle: children folded (sub one, sub two
--- collapse but their headline lines remain visible).
+-- Cursor on line 1 ("* Top").  Buffer is in showall (foldlevel=99) so
+-- the heading's visual state is SUBTREE; first cycle folds it.
 vim.api.nvim_win_set_cursor(0, { 1, 0 })
 fold.cycle(b, 1)
--- After "children folded", line 4 (body of sub one) should be inside a
--- closed fold whose start is line 3 ("** Sub one").
+-- After SUBTREE -> FOLDED, line 4 (body of sub one) should be inside
+-- a closed fold whose start is line 1 ("* Top").
+assert(
+  vim.fn.foldclosed(4) == 1,
+  "expected line 4 in fold starting at line 1; got " .. vim.fn.foldclosed(4)
+)
+
+-- Second cycle: FOLDED -> CHILDREN (sub headings visible, deeper hidden).
+fold.cycle(b, 1)
 assert(
   vim.fn.foldclosed(4) == 3,
   "expected line 4 in fold starting at line 3; got " .. vim.fn.foldclosed(4)
 )
 
--- Second cycle: subtree open (everything visible).
+-- Third cycle: CHILDREN -> SUBTREE (everything visible).
 fold.cycle(b, 1)
 assert(
   vim.fn.foldclosed(4) == -1,
   "expected line 4 not folded after cycle to subtree; got " .. vim.fn.foldclosed(4)
 )
 
--- Third cycle: folded (entire Top + descendants collapsed).
+-- Fourth cycle: SUBTREE -> FOLDED (wraps).
 fold.cycle(b, 1)
 assert(
   vim.fn.foldclosed(4) == 1,
-  "expected line 4 in fold starting at line 1; got " .. vim.fn.foldclosed(4)
+  "expected line 4 in fold starting at line 1 after wrap; got " .. vim.fn.foldclosed(4)
 )
-
--- Fourth cycle: back to "children folded".
-fold.cycle(b, 1)
-assert(vim.fn.foldclosed(4) == 3, "cycle should wrap; got " .. vim.fn.foldclosed(4))
 
 -- Non-headline line: should fall back to za toggle (no error).
 local ok, err = pcall(fold.cycle, b, 4)

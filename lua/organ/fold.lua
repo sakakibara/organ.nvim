@@ -99,6 +99,31 @@ local function next_state(s)
   return "folded"
 end
 
+-- Read the heading's current visual state directly from vim's fold
+-- state (vs. the M._state cache, which can lie when the user did a
+-- manual `zc` / `zo` / `zR` / `zM` outside our cycle, or when the
+-- buffer just opened with `foldlevel = 99` -- the cache is empty but
+-- the heading is fully expanded).  Matches Emacs `org-cycle`: the
+-- cycle starts from what the user actually SEES.
+--
+--   foldclosed(headline_line) > 0 -> entire heading collapsed: FOLDED
+--   any child heading folded      -> CHILDREN
+--   else                          -> SUBTREE
+local function detect_heading_state(heading, headline_line)
+  if vim.fn.foldclosed(headline_line) > 0 then
+    return "folded"
+  end
+  for child in heading:iter_children() do
+    if child:type() == "headline" then
+      local cr = child:start() + 1
+      if vim.fn.foldclosed(cr) > 0 then
+        return "children"
+      end
+    end
+  end
+  return "subtree"
+end
+
 -- Find the (drawer | property_drawer) node containing `line` (1-based),
 -- or nil if cursor isn't inside one.
 local function find_drawer_at(bufnr, line)
@@ -159,7 +184,7 @@ function M.cycle(bufnr, line)
   end
 
   M._state[bufnr] = M._state[bufnr] or {}
-  local cur = M._state[bufnr][headline_line] or "folded"
+  local cur = detect_heading_state(heading, headline_line)
   local nxt = next_state(cur)
   apply_state(bufnr, heading, headline_line, nxt)
   M._state[bufnr][headline_line] = nxt
