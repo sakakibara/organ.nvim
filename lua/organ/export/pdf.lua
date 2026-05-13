@@ -1,21 +1,22 @@
 -- PDF exporter for org buffers.
 --
--- Two-step: render the buffer to LaTeX via `organ.export.latex`, then
--- compile that to PDF by spawning the user's chosen LaTeX engine
--- (pdflatex by default; xelatex / lualatex selectable via opts.engine
--- or fold.export.pdf.engine in setup config).  The .tex source and
--- engine logs are kept in a temp directory; only the .pdf is moved to
--- the user-visible target path.
+-- Default engine ("lua"): renders directly via organ.pdf, no LaTeX
+-- toolchain required.  Pure-Lua TTF embed + content streams; picks up a
+-- system font automatically (override via opts.font_path /
+-- opts.mono_font_path).
 --
--- Default engine: pdflatex.  Pass opts.engine = "xelatex" to compile
--- with xelatex instead (Unicode + system fonts).  Same arg works for
--- lualatex.
+-- LaTeX engines (pdflatex / xelatex / lualatex): preserved for users
+-- who want LaTeX typography, math, or specific package support.  The
+-- buffer is rendered to .tex via organ.export.latex, then the chosen
+-- engine is invoked twice (so cross-references settle) and the
+-- resulting .pdf is moved into place.  The .tex source and engine logs
+-- live in a temp directory; only the .pdf is exposed.
 
 local M = {}
 
 local function default_engine()
   local cfg = (require("organ").config.export or {}).pdf or {}
-  return cfg.engine or "pdflatex"
+  return cfg.engine or "lua"
 end
 
 local function basename_no_ext(path)
@@ -48,17 +49,7 @@ local function run_engine(engine, tex_path, tmpdir)
   return last_result
 end
 
-function M.export_buffer_to_file(bufnr, path, opts)
-  bufnr = bufnr or 0
-  opts = opts or {}
-  if not path or path == "" then
-    local name = vim.api.nvim_buf_get_name(bufnr)
-    if name == "" then
-      return nil, "no buffer name; specify a path"
-    end
-    path = name:gsub("%.org$", "") .. ".pdf"
-  end
-  local engine = opts.engine or default_engine()
+local function via_latex_engine(bufnr, path, opts, engine)
   if vim.fn.executable(engine) ~= 1 then
     return nil, "LaTeX engine not in PATH: " .. engine .. " (configure via export.pdf.engine)"
   end
@@ -99,10 +90,74 @@ function M.export_buffer_to_file(bufnr, path, opts)
   return path
 end
 
--- For symmetry with the other export modules; exports just run
--- export_buffer_to_file with a temp path and return the PDF bytes.
--- Rarely useful (PDF is binary; most callers want a file).
+-- Build the PDF bytes for a buffer via the pure-Lua engine.  Honors
+-- the SETUPFILE/INCLUDE expansion knob; all other opts pass straight
+-- through to organ.pdf.render (page_width / page_height / margins /
+-- font_path / mono_font_path / default_font_size).
+local function lua_engine_bytes(bufnr, opts)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if opts.expand then
+    local text = table.concat(lines, "\n")
+    text = require("organ.expand").process(text, {
+      base_dir = opts.base_dir,
+      file_path = opts.file_path,
+      properties = opts.properties,
+    })
+    lines = vim.split(text, "\n", { plain = true })
+  end
+  local ast = require("organ.ast.from_org").from_lines(lines)
+  local ok, err = require("organ.ast").validate(ast)
+  if not ok then
+    return nil, "export.pdf: AST validation failed: " .. err
+  end
+  local bytes, rerr = require("organ.pdf").render(ast, opts)
+  if not bytes then
+    return nil, "export.pdf (lua engine): " .. tostring(rerr)
+  end
+  return bytes
+end
+
+local function via_lua_engine(bufnr, path, opts)
+  local bytes, err = lua_engine_bytes(bufnr, opts)
+  if not bytes then
+    return nil, err
+  end
+  vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
+  local wok, werr = require("organ.path").write_atomic(path, bytes)
+  if not wok then
+    return nil, "could not write " .. path .. ": " .. tostring(werr)
+  end
+  return path
+end
+
+function M.export_buffer_to_file(bufnr, path, opts)
+  bufnr = bufnr or 0
+  opts = opts or {}
+  if not path or path == "" then
+    local name = vim.api.nvim_buf_get_name(bufnr)
+    if name == "" then
+      return nil, "no buffer name; specify a path"
+    end
+    path = name:gsub("%.org$", "") .. ".pdf"
+  end
+  local engine = opts.engine or default_engine()
+  if engine == "lua" then
+    return via_lua_engine(bufnr, path, opts)
+  end
+  return via_latex_engine(bufnr, path, opts, engine)
+end
+
+-- For symmetry with the other export modules; returns the PDF bytes.
+-- Under the lua engine this is the natural shape (render produces
+-- bytes directly).  Under a LaTeX engine we round-trip through a temp
+-- file because the engine writes to disk.
 function M.export_buffer(bufnr, opts)
+  bufnr = bufnr or 0
+  opts = opts or {}
+  local engine = opts.engine or default_engine()
+  if engine == "lua" then
+    return lua_engine_bytes(bufnr, opts)
+  end
   local tmp = vim.fn.tempname() .. ".pdf"
   local path, err = M.export_buffer_to_file(bufnr, tmp, opts)
   if not path then
