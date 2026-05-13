@@ -210,17 +210,32 @@ end
 -- ---------------------------------------------------------------------------
 -- blink.cmp adapter
 -- ---------------------------------------------------------------------------
-local blink_added = {}
+-- Each per-source module exposes M.new(opts, source_config) returning a
+-- source-class table. blink calls m:enabled() / m:get_trigger_characters()
+-- / m:get_completions(ctx, cb). We stub blink's runtime API
+-- (add_source_provider + add_filetype_source) and assert organ wires
+-- each source through that API, not the v0 blink.add_source.
+
+local blink_providers = {}
+local blink_filetype = {}
 package.loaded["blink.cmp"] = {
-  add_source = function(name, _src)
-    blink_added[name] = true
+  add_source_provider = function(id, config)
+    blink_providers[id] = config
+  end,
+  add_filetype_source = function(filetype, id)
+    blink_filetype[#blink_filetype + 1] = { filetype, id }
   end,
 }
 
 local blink_adapter = require("organ.complete.blink")
 
+local link_source = require("organ.complete.blink.link")
+local drawer_source = require("organ.complete.blink.drawer")
+local roam_source = require("organ.complete.blink.roam_node")
+local cite_source = require("organ.complete.blink.cite")
+
 do
-  local s = blink_adapter.new()
+  local s = link_source.new({}, {})
   check("blink link: source exposes enabled", type(s.enabled) == "function")
   check(
     "blink link: source exposes get_trigger_characters",
@@ -245,7 +260,7 @@ do
 end
 
 do
-  local s = blink_adapter.new_drawer()
+  local s = drawer_source.new({}, {})
   local result = run_complete(s, "get_completions")
   check("blink drawer: yields drawer items", #result.items == 1)
   check("blink drawer: kind is 'Property' (string)", result.items[1].kind == "Property")
@@ -253,7 +268,7 @@ do
 end
 
 do
-  local s = blink_adapter.new_roam_node()
+  local s = roam_source.new({}, {})
   local result = run_complete(s, "get_completions")
   check("blink roam: yields roam items", #result.items == 1)
   check(
@@ -263,7 +278,7 @@ do
 end
 
 do
-  local s = blink_adapter.new_cite()
+  local s = cite_source.new({}, {})
   check(
     "blink cite: trigger characters are { '@' }",
     vim.deep_equal(s:get_trigger_characters(), { "@" })
@@ -278,26 +293,87 @@ do
   local non_org = vim.api.nvim_create_buf(true, true)
   vim.bo[non_org].filetype = "lua"
   vim.api.nvim_set_current_buf(non_org)
-  for _, ctor in ipairs({ "new", "new_drawer", "new_roam_node", "new_cite" }) do
-    local s = blink_adapter[ctor]()
-    check("blink " .. ctor .. ": enabled() is false in non-org buffer", not s:enabled())
+  for label, mod in pairs({
+    link = link_source,
+    drawer = drawer_source,
+    roam_node = roam_source,
+    cite = cite_source,
+  }) do
+    local s = mod.new({}, {})
+    check("blink " .. label .. ": enabled() is false in non-org buffer", not s:enabled())
   end
   vim.api.nvim_set_current_buf(buf)
 end
 
--- maybe_register honors flags
+-- maybe_register honors flags: registers via add_source_provider +
+-- add_filetype_source with the correct module paths.
 do
-  blink_added = {}
+  blink_providers, blink_filetype = {}, {}
   local organ = require("organ")
   organ.config.complete = { drawer = false }
   blink_adapter.maybe_register()
-  check("blink maybe_register: registers organ_link", blink_added.organ_link == true)
-  check("blink maybe_register: registers organ_cite (default-on)", blink_added.organ_cite == true)
-  check("blink maybe_register: skips organ_drawer when disabled", not blink_added.organ_drawer)
+  check(
+    "blink maybe_register: organ_link registered as provider",
+    type(blink_providers.organ_link) == "table"
+  )
+  check(
+    "blink maybe_register: organ_link.module points to per-source path",
+    blink_providers.organ_link and blink_providers.organ_link.module == "organ.complete.blink.link"
+  )
+  check(
+    "blink maybe_register: organ_link.name set",
+    blink_providers.organ_link and blink_providers.organ_link.name == "organ_link"
+  )
+  check(
+    "blink maybe_register: organ_cite registered (default-on)",
+    type(blink_providers.organ_cite) == "table"
+  )
+  check(
+    "blink maybe_register: skips organ_drawer when disabled",
+    blink_providers.organ_drawer == nil
+  )
+  check(
+    "blink maybe_register: skips organ_roam_node by default",
+    blink_providers.organ_roam_node == nil
+  )
+  -- Each registered provider must also be attached to filetype "org".
+  local link_attached = false
+  for _, entry in ipairs(blink_filetype) do
+    if entry[1] == "org" and entry[2] == "organ_link" then
+      link_attached = true
+      break
+    end
+  end
+  check("blink maybe_register: organ_link attached to filetype 'org'", link_attached)
   organ.config.complete = nil
 end
 
--- maybe_register survives missing blink.cmp
+-- maybe_register tolerates duplicate registration (add_source_provider
+-- asserts on a re-add; pcall must absorb that).
+do
+  blink_providers, blink_filetype = {}, {}
+  -- Make add_source_provider mimic blink's behavior: throw on duplicate.
+  local seen = {}
+  package.loaded["blink.cmp"].add_source_provider = function(id, config)
+    assert(seen[id] == nil, "Provider with id " .. id .. " already exists")
+    seen[id] = true
+    blink_providers[id] = config
+  end
+  local organ = require("organ")
+  organ.config.complete = nil
+  blink_adapter.maybe_register()
+  local ok = pcall(function()
+    blink_adapter.maybe_register()
+  end)
+  check("blink maybe_register: re-registration does not crash", ok)
+  organ.config.complete = nil
+  -- Restore non-throwing stub for downstream tests.
+  package.loaded["blink.cmp"].add_source_provider = function(id, config)
+    blink_providers[id] = config
+  end
+end
+
+-- maybe_register survives missing blink.cmp (defers via autocmds).
 do
   package.loaded["blink.cmp"] = nil
   local ok = pcall(function()
@@ -306,18 +382,55 @@ do
   check("blink maybe_register: no crash when blink.cmp is absent", ok)
 end
 
+-- Deferred registration: when blink isn't loaded at maybe_register time,
+-- an autocmd on `User LazyLoad` (pattern blink.cmp) must trigger
+-- registration when emitted.
+do
+  package.loaded["blink.cmp"] = nil
+  -- Drop existing autocmds for the User pattern so we don't see a
+  -- carry-over from the earlier "blink.cmp absent" check.
+  pcall(vim.api.nvim_clear_autocmds, { event = "User", pattern = "LazyLoad" })
+  pcall(vim.api.nvim_clear_autocmds, { event = "FileType", pattern = "org" })
+
+  blink_adapter.maybe_register()
+
+  -- An autocmd should now exist for User LazyLoad.
+  local user_autos = vim.api.nvim_get_autocmds({ event = "User", pattern = "LazyLoad" })
+  check(
+    "blink maybe_register: defers via User LazyLoad autocmd when blink absent",
+    #user_autos >= 1
+  )
+
+  -- Now make blink "load" and fire the lazy.nvim event.
+  local deferred_providers = {}
+  package.loaded["blink.cmp"] = {
+    add_source_provider = function(id, config)
+      deferred_providers[id] = config
+    end,
+    add_filetype_source = function(_, _) end,
+  }
+  pcall(vim.api.nvim_exec_autocmds, "User", { pattern = "LazyLoad", data = "blink.cmp" })
+  check(
+    "blink maybe_register: User LazyLoad fires registration",
+    type(deferred_providers.organ_link) == "table"
+  )
+end
+
 -- complete = false short-circuits both adapters
 do
   package.loaded["cmp"] = {
     register_source = function() end,
     lsp = { CompletionItemKind = { Reference = 18, Property = 10 } },
   }
-  package.loaded["blink.cmp"] = { add_source = function() end }
+  package.loaded["blink.cmp"] = {
+    add_source_provider = function() end,
+    add_filetype_source = function() end,
+  }
   local cmp_called, blink_called = false, false
   package.loaded["cmp"].register_source = function()
     cmp_called = true
   end
-  package.loaded["blink.cmp"].add_source = function()
+  package.loaded["blink.cmp"].add_source_provider = function()
     blink_called = true
   end
   local organ = require("organ")
