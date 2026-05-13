@@ -401,10 +401,15 @@ do
   decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
   decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
   decoration._dispatch_on_win(0, winid, bufnr, 0, 1)
+  -- New semantics: raising providers are NOT permanently disabled.  A
+  -- transient error (stale tree-sitter injection, etc.) shouldn't lock
+  -- a provider off until reload.  The dispatcher pcalls each invocation
+  -- and surfaces ONE warning via notify; subsequent redraws keep
+  -- retrying, so a recovered state restores the provider automatically.
   check(
-    "raising on_win provider called exactly once before disable",
-    call_count == 1,
-    "called " .. call_count .. " times"
+    "raising on_win provider keeps being retried after error",
+    call_count == 3,
+    "called " .. call_count .. " times (expected 3)"
   )
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end

@@ -184,5 +184,66 @@ deq(out, {
   "* L1 sibling",
 }, "body line under level-2 heading → new level-2 heading, not level 1")
 
+-- 9. Body line under L1 with multiple L2 children → new L1 heading
+-- appended AFTER the full subtree (past all the L2 children).  The
+-- walk must step over deeper-level child headings without stopping.
+out = with_buffer(
+  {
+    "* L1",
+    "body of L1",
+    "** Sub 1",
+    "body of Sub 1",
+    "** Sub 2",
+    "body of Sub 2",
+    "** Sub 3",
+    "body of Sub 3",
+    "* L1 sibling",
+  },
+  2,
+  3,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* L1",
+  "body of L1",
+  "** Sub 1",
+  "body of Sub 1",
+  "** Sub 2",
+  "body of Sub 2",
+  "** Sub 3",
+  "body of Sub 3",
+  "* ",
+  "* L1 sibling",
+}, "body of L1 with L2 children → new L1 after subtree, not before children")
+
+-- 10. Same shape, but L1 is the LAST top-level heading in the buffer
+-- (no L1 sibling).  The new L1 should land at end-of-buffer.
+out = with_buffer(
+  {
+    "* L1",
+    "body of L1",
+    "** Sub 1",
+    "body of Sub 1",
+    "** Sub 2",
+    "body of Sub 2",
+  },
+  2,
+  3,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* L1",
+  "body of L1",
+  "** Sub 1",
+  "body of Sub 1",
+  "** Sub 2",
+  "body of Sub 2",
+  "* ",
+}, "body of last L1 with children → new L1 appended at end of buffer")
+
 io.write("meta_return ok\n")
 os.exit(0)

@@ -201,8 +201,14 @@ function M.dispatch(opts)
   if hl_lvl then
     local total = vim.api.nvim_buf_line_count(bufnr)
     local end_line = cur_line
+    -- Walk past every line that's still inside this subtree.  A line
+    -- counts as still-inside as long as it's NOT a headline OR is a
+    -- deeper-level headline (i.e. a child of `hl_lvl`).  We stop on
+    -- the first sibling-or-higher headline (level <= hl_lvl) or EOF.
+    -- Matches Emacs `org-end-of-subtree`.
     for i = cur_line + 1, total do
-      if headline_level(get_line(bufnr, i)) then
+      local lvl = headline_level(get_line(bufnr, i))
+      if lvl and lvl <= hl_lvl then
         break
       end
       end_line = i

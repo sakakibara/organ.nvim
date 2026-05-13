@@ -173,9 +173,15 @@ local function on_line(bufnr, _winid, row)
   end
   local cfg = get_config()
   local hl = cfg.hl_group or "Conceal"
+  -- right_gravity=false anchors the extmark to its position BEFORE
+  -- insertions at the same column, so typing at the start of a body
+  -- line inserts AFTER the virt-text indent (correct) rather than
+  -- shifting the virt-text rightward of the typed char (which would
+  -- visually look like the typed text overwrites the indent).
   pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
     virt_text = { { pad, hl } },
     virt_text_pos = "inline",
+    right_gravity = false,
     ephemeral = true,
   })
 end
@@ -207,6 +213,7 @@ function M.refresh(bufnr)
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
       virt_text = { { pad, hl } },
       virt_text_pos = "inline",
+      right_gravity = false,
     })
   end
 end

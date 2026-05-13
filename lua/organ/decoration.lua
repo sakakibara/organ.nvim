@@ -85,6 +85,28 @@ function M._reset()
   _tree_cache = {}
 end
 
+-- Debug accessor: inspect which providers have been auto-disabled per
+-- buffer.  A provider lands here when its on_win / on_line raised and
+-- the dispatcher caught it; it stays disabled until the user runs
+-- `M._reenable(bufnr, name)` or reloads.
+function M._disabled()
+  return disabled
+end
+
+-- Clear the disabled flag for a single provider on a buffer (or all
+-- providers if `name` is nil).  Useful after fixing the underlying bug
+-- without restarting nvim.
+function M._reenable(bufnr, name)
+  if not disabled[bufnr] then
+    return
+  end
+  if name then
+    disabled[bufnr][name] = nil
+  else
+    disabled[bufnr] = {}
+  end
+end
+
 local REQUIRED = { "name", "ns", "enabled" }
 local function validate(p)
   for _, k in ipairs(REQUIRED) do
@@ -162,9 +184,11 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
       if ok_enabled and enabled then
         local ok_call, err_call = pcall(p.on_lines_only, bufnr, first, last_old, last_new)
         if not ok_call then
+          -- One-shot notification, but keep trying on subsequent
+          -- redraws.  Transient parse / injection errors recover; a
+          -- permanent disable would lock the provider off until reload.
           if not warn_once[bufnr][name] then
             warn_once[bufnr][name] = true
-            disabled[bufnr][name] = true
             local notify_ok, notify = pcall(require, "organ.notify")
             if notify_ok and type(notify.warn) == "function" then
               notify.warn(
@@ -172,7 +196,7 @@ local function dispatch_on_lines(bufnr, first, last_old, last_new)
                   .. name
                   .. "' raised in on_lines_only: "
                   .. tostring(err_call)
-                  .. ".  Disabling for this buffer."
+                  .. " (will keep retrying)."
               )
             end
           end
@@ -198,7 +222,6 @@ local function dispatch_on_win(_tick, winid, bufnr, topline, botline)
         if not ok_call then
           if not warn_once[bufnr][name] then
             warn_once[bufnr][name] = true
-            disabled[bufnr][name] = true
             local notify_ok, notify = pcall(require, "organ.notify")
             if notify_ok and type(notify.warn) == "function" then
               notify.warn(
@@ -206,7 +229,7 @@ local function dispatch_on_win(_tick, winid, bufnr, topline, botline)
                   .. name
                   .. "' raised in on_win: "
                   .. tostring(err_call)
-                  .. ".  Disabling for this buffer."
+                  .. " (will keep retrying)."
               )
             end
           end
@@ -276,10 +299,8 @@ local function dispatch_on_line(_tick, winid, bufnr, row)
         local ok_call, err_call = pcall(p.on_line, bufnr, winid, row)
         if not ok_call then
           warn_once[bufnr] = warn_once[bufnr] or {}
-          disabled[bufnr] = disabled[bufnr] or {}
           if not warn_once[bufnr][name] then
             warn_once[bufnr][name] = true
-            disabled[bufnr][name] = true
             local notify_ok, notify = pcall(require, "organ.notify")
             if notify_ok and type(notify.warn) == "function" then
               notify.warn(
@@ -287,7 +308,7 @@ local function dispatch_on_line(_tick, winid, bufnr, row)
                   .. name
                   .. "' raised in on_line: "
                   .. tostring(err_call)
-                  .. ".  Disabling for this buffer."
+                  .. " (will keep retrying)."
               )
             end
           end
