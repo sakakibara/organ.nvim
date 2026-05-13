@@ -360,9 +360,12 @@ end
 
 local PREAMBLE = [[\documentclass{article}
 \usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
 \usepackage{hyperref}
-\usepackage{graphicx}
 \usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
 ]]
 
 function M.render(doc, opts)
