@@ -73,10 +73,12 @@ function M.attach(bufnr)
           end
         end,
       })
-      -- meta_return: also bind in insert mode so users in the middle of
-      -- typing can press <M-CR> to drop into a fresh sibling element.
-      -- The other ops are normal-mode-only (count semantics + cursor moves
-      -- don't make sense from insert).
+      -- Insert-mode binding: same chord, count fixed at 1.  Users
+      -- drafting a headline can promote / demote / move without leaving
+      -- insert (matches Emacs's mode-less binding model).  meta_return
+      -- additionally needs an insert-leave-and-re-enter dance because
+      -- it lands on a brand-new empty line; the structure ops just
+      -- rewrite the existing line, so insert continues seamlessly.
       if key == "meta_return" then
         vim.api.nvim_buf_set_keymap(bufnr, "i", lhs, "", {
           noremap = true,
@@ -88,6 +90,15 @@ function M.attach(bufnr)
             vim.schedule(function()
               vim.cmd("startinsert!")
             end)
+          end,
+        })
+      else
+        vim.api.nvim_buf_set_keymap(bufnr, "i", lhs, "", {
+          noremap = true,
+          silent = true,
+          desc = descs[key] or key,
+          callback = function()
+            dispatch(path)
           end,
         })
       end

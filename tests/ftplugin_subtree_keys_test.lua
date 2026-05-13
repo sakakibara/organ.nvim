@@ -165,6 +165,45 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
+-- ---------------------------------------------------------------------------
+-- (f) Insert-mode bindings: every structure op also installs a buffer-local
+-- insert-mode keymap with the SAME lhs.  Verifies the bind exists; firing
+-- it from headless insert-mode is awkward so we just check installation.
+-- ---------------------------------------------------------------------------
+do
+  local b, _ = setup("meta_return")
+  local i_maps = {}
+  for _, m in ipairs(vim.api.nvim_buf_get_keymap(b, "i")) do
+    i_maps[m.lhs] = m.callback ~= nil
+  end
+  -- nvim normalizes some chord variants (e.g. <M-S-h> -> <M-H>); compare
+  -- after passing the configured lhs through the same normalization.
+  local function normalize(lhs)
+    return vim.fn.keytrans(vim.api.nvim_replace_termcodes(lhs, true, true, true))
+  end
+  local cfg = (require("organ").config.structure or {}).keymaps or {}
+  for _, key in ipairs({
+    "meta_return",
+    "promote_subtree",
+    "demote_subtree",
+    "promote_headline",
+    "demote_headline",
+    "move_subtree_up",
+    "move_subtree_down",
+  }) do
+    local lhs = cfg[key]
+    if lhs then
+      local installed = i_maps[lhs] or i_maps[normalize(lhs)]
+      check(
+        "insert-mode bind installed for " .. key .. " (" .. lhs .. ")",
+        installed == true,
+        "i-mode maps: " .. vim.inspect(vim.tbl_keys(i_maps))
+      )
+    end
+  end
+  vim.api.nvim_buf_delete(b, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
