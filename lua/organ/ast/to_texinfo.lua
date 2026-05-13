@@ -163,6 +163,44 @@ local function emit_org_block(node, out)
   -- export and unknown styles drop silently
 end
 
+local function emit_table(node, out)
+  local rows = node.rows or {}
+  if #rows == 0 then
+    return
+  end
+  local ncols = 0
+  for _, r in ipairs(rows) do
+    if not r.sep and r.cells then
+      if #r.cells > ncols then
+        ncols = #r.cells
+      end
+    end
+  end
+  if ncols == 0 then
+    return
+  end
+
+  local fracs = {}
+  for i = 1, ncols do
+    fracs[i] = string.format(".%d", math.floor(100 / ncols))
+  end
+  out[#out + 1] = "@multitable @columnfractions " .. table.concat(fracs, " ")
+
+  for _, r in ipairs(rows) do
+    if not r.sep then
+      local cells = {}
+      for c = 1, ncols do
+        cells[c] = emit_inline(r.cells[c] or {})
+      end
+      out[#out + 1] = "@item " .. table.concat(cells, " @tab ")
+    end
+    -- sep rows are dropped
+  end
+
+  out[#out + 1] = "@end multitable"
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -182,6 +220,8 @@ function emit_block(node, out)
     emit_code_block(node, out)
   elseif kind == "block" then
     emit_org_block(node, out)
+  elseif kind == "table" then
+    emit_table(node, out)
   end
   -- other kinds dispatched in subsequent tasks; unknown drops silently.
 end

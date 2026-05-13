@@ -423,6 +423,95 @@ do
   )
 end
 
+-- ---- table (basic) -------------------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l" },
+      rows = {
+        { cells = { { A.text("name") }, { A.text("age") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("ada") }, { A.text("36") } }, sep = false },
+        { cells = { { A.text("ben") }, { A.text("41") } }, sep = false },
+      },
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("multitable begin", out:find("@multitable", 1, true) ~= nil, "got: " .. out)
+  check("columnfractions present", out:find("@columnfractions", 1, true) ~= nil)
+  check("header row uses @item / @tab", out:find("@item name @tab age", 1, true) ~= nil)
+  check("data row ada", out:find("@item ada @tab 36", 1, true) ~= nil)
+  check("data row ben", out:find("@item ben @tab 41", 1, true) ~= nil)
+  check("multitable end", out:find("@end multitable", 1, true) ~= nil)
+end
+
+-- ---- table separator rows dropped ---------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("h") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a") } }, sep = false },
+      },
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  -- Expect exactly 2 @item lines (the separator is dropped).
+  local _, n_item = out:gsub("@item ", "")
+  check(
+    "only 2 @item lines (separator dropped)",
+    n_item == 2,
+    "got " .. n_item .. " @item lines: " .. out
+  )
+end
+
+-- ---- column fractions sum to ~1 -----------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l", "l", "l" },
+      rows = {
+        {
+          cells = {
+            { A.text("a") },
+            { A.text("b") },
+            { A.text("c") },
+            { A.text("d") },
+          },
+          sep = false,
+        },
+      },
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "4-column table has 4 .25 fractions",
+    out:find("@columnfractions .25 .25 .25 .25", 1, true) ~= nil
+      or out:find("@columnfractions .25 .25 .25 .25", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- cell content escaped ----------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("a@b") } }, sep = false },
+      },
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("cell content escaped @ -> @@", out:find("@item a@@b", 1, true) ~= nil, "got: " .. out)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
