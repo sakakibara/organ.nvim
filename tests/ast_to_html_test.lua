@@ -483,6 +483,99 @@ do
   check("cell content escaped", out:find("<td>&lt;x&gt;</td>", 1, true) ~= nil, "got: " .. out)
 end
 
+-- ---- block-level image ----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    { kind = "image", target = "fig.png", alt = "diagram" },
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "block image renders as standalone <img>",
+    out:find('<img src="fig.png" alt="diagram">', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "paragraphs around block image still present",
+    out:find("<p>before</p>", 1, true) ~= nil and out:find("<p>after</p>", 1, true) ~= nil
+  )
+end
+
+-- ---- block-level image with no alt (fallback to target) -------------
+do
+  local doc = A.document({ { kind = "image", target = "x.png" } })
+  local out = to_html.render(doc)
+  check(
+    "image with no alt falls back to target",
+    out:find('<img src="x.png" alt="x.png">', 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- horizontal rule ------------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("above") }),
+    A.rule(),
+    A.paragraph({ A.text("below") }),
+  })
+  local out = to_html.render(doc)
+  check("rule renders as <hr>", out:find("<hr>", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- footnote_definition --------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      { kind = "footnote_ref", label = "1" },
+    }),
+    A.footnote_definition("1", { A.paragraph({ A.text("the footnote body") }) }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "inline footnote_ref renders sup link",
+    out:find('<sup><a href="#fn-1">[1]</a></sup>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("footnote_definition has matching id anchor", out:find('id="fn-1"', 1, true) ~= nil)
+  check("footnote definition has label sup", out:find("<sup>[1]</sup>", 1, true) ~= nil)
+  check("footnote body present", out:find("the footnote body", 1, true) ~= nil)
+end
+
+-- ---- multi-paragraph footnote --------------------------------------
+do
+  local doc = A.document({
+    A.footnote_definition("note", {
+      A.paragraph({ A.text("first") }),
+      A.paragraph({ A.text("second") }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "multi-paragraph footnote: first paragraph after label",
+    out:find("<sup>[note]</sup> first", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "multi-paragraph footnote: second paragraph wrapped in <p>",
+    out:find("<p>second</p>", 1, true) ~= nil
+  )
+end
+
+-- ---- directive dropped ---------------------------------------------
+do
+  local doc = A.document({
+    A.directive("TITLE", "ignored title"),
+    A.directive("AUTHOR", "Jane"),
+    A.paragraph({ A.text("body") }),
+  })
+  local out = to_html.render(doc)
+  check("directive AUTHOR not rendered in body", out:find("Jane", 1, true) == nil, "got: " .. out)
+  check("paragraph still rendered", out:find("<p>body</p>", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

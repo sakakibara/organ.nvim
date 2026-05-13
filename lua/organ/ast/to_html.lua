@@ -237,6 +237,43 @@ local function emit_table(node, out)
   out[#out + 1] = "</table>"
 end
 
+local function emit_image_block(node, out)
+  local target = html_escape(node.target or "")
+  local alt = (node.alt and node.alt ~= "") and node.alt or (node.target or "")
+  out[#out + 1] = '<p><img src="' .. target .. '" alt="' .. html_escape(alt) .. '"></p>'
+end
+
+local function emit_rule(_, out)
+  out[#out + 1] = "<hr>"
+end
+
+local function emit_footnote_definition(node, out)
+  local label = node.label or ""
+  local label_esc = html_escape(label)
+  local first_body = ""
+  if node.content and node.content[1] and node.content[1].kind == "paragraph" then
+    first_body = emit_inline(node.content[1].inline)
+  end
+  local pieces = {
+    '<div class="footdef" id="fn-'
+      .. label_esc
+      .. '"><sup>['
+      .. label_esc
+      .. "]</sup> "
+      .. first_body,
+  }
+  if node.content and #node.content > 1 then
+    for i = 2, #node.content do
+      local b = node.content[i]
+      if b.kind == "paragraph" then
+        pieces[#pieces + 1] = "<p>" .. emit_inline(b.inline) .. "</p>"
+      end
+    end
+  end
+  pieces[#pieces + 1] = "</div>"
+  out[#out + 1] = table.concat(pieces)
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -258,8 +295,14 @@ function emit_block(node, out)
     emit_org_block(node, out)
   elseif kind == "table" then
     emit_table(node, out)
+  elseif kind == "image" then
+    emit_image_block(node, out)
+  elseif kind == "rule" then
+    emit_rule(node, out)
+  elseif kind == "footnote_definition" then
+    emit_footnote_definition(node, out)
   end
-  -- Other kinds drop silently; per-kind branches added in subsequent tasks.
+  -- directive, drawer, comment, and unknown kinds drop silently.
 end
 
 local function find_title(doc)
