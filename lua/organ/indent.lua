@@ -72,6 +72,24 @@ end
 -- Rows at level 1 (no indent) are absent.
 local frame_map = {}
 
+-- Build the frame_map by walking buffer lines directly: every line
+-- whose first byte is `*` (followed by a space or end-of-line) opens
+-- a section at its star-count level; every subsequent line until the
+-- next heading inherits that level as a "body" row.  No tree-sitter
+-- dependency -- the prior treesitter-backed walk returned stale trees
+-- when invoked from a fast (on_lines) context (the LanguageTree edit
+-- bookkeeping hadn't caught up to the current buffer yet), so undo /
+-- redo could land marks that matched the PRE-undo outline against
+-- the POST-undo line numbers, leaving some body rows un-padded.
+--
+-- Heading pad (heading row): (L-1)*shift under literal stars; 0 when
+-- stars are visually replaced (modern.bullets / stars.hide supply
+-- N-1 conceal-spaces of their own).
+-- Body pad (rows under the heading until the next heading): aligns
+-- the body's first byte with the heading title column.  Under literal
+-- stars the title sits at (L-1)*shift + L + 1 bytes in (heading pad
+-- + L stars + space); under stars-hidden modes the rendered title
+-- starts at column L+2, so the body pad is L+1.
 local function on_win(bufnr, _winid, topline, botline)
   frame_map = {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -80,85 +98,32 @@ local function on_win(bufnr, _winid, topline, botline)
   if not M._attached[bufnr] then
     return
   end
-  -- Tree is parsed once per buffer per redraw by organ.decoration; we
-  -- just query the cached tree here.
-  local tree = require("organ.decoration").get_tree(bufnr)
-  if not tree then
-    return
-  end
-  local root = tree:root()
   local cfg = get_config(bufnr)
   local shift = cfg.shift_per_level or 2
   local hide_stars = stars_visually_hidden(bufnr)
 
-  local function heading_level(heading_node)
-    local sr0 = heading_node:start()
-    local first_line = vim.api.nvim_buf_get_lines(bufnr, sr0, sr0 + 1, false)[1] or ""
-    local i = 0
-    while first_line:byte(i + 1) == 42 do
-      i = i + 1
-    end
-    return i > 0 and i or 1
-  end
-
-  -- Walk the headline tree.  Parent visits BEFORE children, so a
-  -- deeper nested heading overwrites the parent's heading_pad on its
-  -- own row and the parent's body_pad on rows owned by the child.
-  -- We only populate frame_map for rows in [topline, botline]; rows
-  -- outside the visible range are skipped.  Tree-sitter's headline
-  -- node:end_() is exclusive (one past the last row of the section),
-  -- so the inclusive row range is [start_row, end_row - 1].
-  --
-  -- Heading pad (start_row): (L-1)*shift under literal stars; 0 when
-  -- stars are visually replaced (the conceal mode supplies its own
-  -- nesting via N-1 leading spaces).
-  -- Body pad (start_row+1 .. end_row-1): aligns with the title text
-  -- column.  Under literal stars the title sits at (L-1)*shift + L + 1
-  -- bytes in (heading pad + stars + space); under stars-hidden modes
-  -- the rendered title starts at column L+2, so the body pad is L+1.
-  local function visit(node, level)
-    local start_row = node:start()
-    local end_row = node:end_()
-    local heading_pad_size = hide_stars and 0 or ((level - 1) * shift)
-    local body_pad_size = hide_stars and (level + 1) or ((level - 1) * shift + level + 1)
-
-    if heading_pad_size > 0 and start_row >= topline and start_row <= botline then
-      frame_map[start_row] = string.rep(" ", heading_pad_size)
-    elseif start_row >= topline and start_row <= botline then
-      -- Explicit clear: a previous outer visit may have written a
-      -- body_pad here.  An absent entry on the heading row is what
-      -- on_line treats as "no virt_text".
-      frame_map[start_row] = nil
-    end
-
-    if body_pad_size > 0 then
-      local lo = math.max(start_row + 1, topline)
-      local hi = math.min(end_row - 1, botline)
-      if lo <= hi then
-        local pad = string.rep(" ", body_pad_size)
-        for ln = lo, hi do
-          frame_map[ln] = pad
+  local n = vim.api.nvim_buf_line_count(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, n, false)
+  local current_level = 0
+  for i, txt in ipairs(lines) do
+    local row = i - 1
+    local stars = txt:match("^(%*+)%s") or txt:match("^(%*+)$")
+    if stars then
+      local level = #stars
+      current_level = level
+      if row >= topline and row <= botline then
+        local pad_size = hide_stars and 0 or ((level - 1) * shift)
+        if pad_size > 0 then
+          frame_map[row] = string.rep(" ", pad_size)
         end
       end
-    end
-
-    for child in node:iter_children() do
-      if child:type() == "headline" then
-        local csr = child:start()
-        local cer = child:end_()
-        if cer >= topline and csr <= botline then
-          visit(child, heading_level(child))
+    elseif current_level > 0 then
+      if row >= topline and row <= botline then
+        local pad_size = hide_stars and (current_level + 1)
+          or ((current_level - 1) * shift + current_level + 1)
+        if pad_size > 0 then
+          frame_map[row] = string.rep(" ", pad_size)
         end
-      end
-    end
-  end
-
-  for child in root:iter_children() do
-    if child:type() == "headline" then
-      local csr = child:start()
-      local cer = child:end_()
-      if cer >= topline and csr <= botline then
-        visit(child, heading_level(child))
       end
     end
   end
