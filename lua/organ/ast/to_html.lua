@@ -176,6 +176,67 @@ local function emit_org_block(node, out)
   -- export / unknown: silently drop
 end
 
+local function emit_table(node, out)
+  local rows = node.rows or {}
+  if #rows == 0 then
+    return
+  end
+  local ncols = 0
+  for _, r in ipairs(rows) do
+    if not r.sep and r.cells then
+      if #r.cells > ncols then
+        ncols = #r.cells
+      end
+    end
+  end
+  if ncols == 0 then
+    return
+  end
+
+  -- Find first separator: rows before it are thead, rows after are tbody.
+  local first_sep
+  for i, r in ipairs(rows) do
+    if r.sep then
+      first_sep = i
+      break
+    end
+  end
+
+  local function emit_row(row, cell_tag, out_buf)
+    local parts = {}
+    for c = 1, ncols do
+      parts[#parts + 1] = "<"
+        .. cell_tag
+        .. ">"
+        .. emit_inline(row.cells[c] or {})
+        .. "</"
+        .. cell_tag
+        .. ">"
+    end
+    out_buf[#out_buf + 1] = "<tr>" .. table.concat(parts) .. "</tr>"
+  end
+
+  out[#out + 1] = "<table>"
+  if first_sep and first_sep > 1 then
+    out[#out + 1] = "<thead>"
+    for i = 1, first_sep - 1 do
+      if not rows[i].sep then
+        emit_row(rows[i], "th", out)
+      end
+    end
+    out[#out + 1] = "</thead>"
+  end
+  out[#out + 1] = "<tbody>"
+  local body_start = first_sep and first_sep + 1 or 1
+  for i = body_start, #rows do
+    if not rows[i].sep then
+      emit_row(rows[i], "td", out)
+    end
+  end
+  out[#out + 1] = "</tbody>"
+  out[#out + 1] = "</table>"
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -195,6 +256,8 @@ function emit_block(node, out)
     emit_code_block(node, out)
   elseif kind == "block" then
     emit_org_block(node, out)
+  elseif kind == "table" then
+    emit_table(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end

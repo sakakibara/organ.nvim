@@ -403,6 +403,86 @@ do
   )
 end
 
+-- ---- table with header divider --------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l" },
+      rows = {
+        { cells = { { A.text("name") }, { A.text("age") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("ada") }, { A.text("36") } }, sep = false },
+        { cells = { { A.text("ben") }, { A.text("41") } }, sep = false },
+      },
+    },
+  })
+  local out = to_html.render(doc)
+  check("<table> wrapper", out:find("<table>", 1, true) ~= nil, "got: " .. out)
+  check("<thead> present", out:find("<thead>", 1, true) ~= nil)
+  check("<th>name</th>", out:find("<th>name</th>", 1, true) ~= nil)
+  check("<th>age</th>", out:find("<th>age</th>", 1, true) ~= nil)
+  check("<tbody> present", out:find("<tbody>", 1, true) ~= nil)
+  check("<td>ada</td>", out:find("<td>ada</td>", 1, true) ~= nil)
+  check("<td>36</td>", out:find("<td>36</td>", 1, true) ~= nil)
+end
+
+-- ---- table with no header divider ----------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("a") } }, sep = false },
+        { cells = { { A.text("b") } }, sep = false },
+      },
+    },
+  })
+  local out = to_html.render(doc)
+  check("no sep -> no <thead>", out:find("<thead>", 1, true) == nil, "got: " .. out)
+  check("data still in <tbody>", out:find("<tbody>", 1, true) ~= nil)
+  check("data row 1 as <td>", out:find("<td>a</td>", 1, true) ~= nil)
+end
+
+-- ---- table with mid-table sep (extra sep dropped) -------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("h") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a1") } }, sep = false },
+        { sep = true, cells = {} }, -- mid-table sep: drop
+        { cells = { { A.text("a2") } }, sep = false },
+      },
+    },
+  })
+  local out = to_html.render(doc)
+  check("header in <thead>", out:find("<th>h</th>", 1, true) ~= nil, "got: " .. out)
+  check(
+    "a1 + a2 both in tbody",
+    out:find("<td>a1</td>", 1, true) ~= nil and out:find("<td>a2</td>", 1, true) ~= nil
+  )
+end
+
+-- ---- table cell content escaped -------------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("<x>") } }, sep = false },
+      },
+    },
+  })
+  local out = to_html.render(doc)
+  check("cell content escaped", out:find("<td>&lt;x&gt;</td>", 1, true) ~= nil, "got: " .. out)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
