@@ -12,10 +12,17 @@
 
 local M = {}
 
+-- Cached entries list from the most recent build. Invalidated by
+-- `M.invalidate_index()` after the indexer commits a write batch, so
+-- blink.cmp's per-keystroke `completion_items` call can reuse a single
+-- DB scan instead of repeating one. Without this, the first insert-mode
+-- entry against a cold sqlite cache freezes nvim for 5+ seconds.
+local _index_cache = nil
+
 -- Build a sorted list of { lower, title, id } from the DB. Title comes from
 -- headlines table; aliases from the aliases table (joined on headline_id,
 -- which is the same UUID as headlines.id).
-function M.build_index()
+function M._build_index_uncached()
   local query = require("organ.query")
   local entries = {}
   for _, r in ipairs(query.headlines({ has_id = true })) do
@@ -46,6 +53,21 @@ function M.build_index()
     return #a.lower > #b.lower
   end)
   return entries
+end
+
+-- Memoized index lookup. Returns the cached entries until
+-- `M.invalidate_index()` is called (typically after the indexer commits
+-- a write batch). Callers can treat the return value as read-only.
+function M.build_index()
+  if _index_cache == nil then
+    _index_cache = M._build_index_uncached()
+  end
+  return _index_cache
+end
+
+-- Drop the cached index. Next `build_index()` rebuilds from the DB.
+function M.invalidate_index()
+  _index_cache = nil
 end
 
 -- Replace matches in a single line. Returns (new_line, n_replacements).

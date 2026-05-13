@@ -85,5 +85,24 @@ do
   lk.build_index = orig
 end
 
+-- 8. build_index memoizes; invalidate_index forces a fresh build.
+do
+  lk.invalidate_index() -- start from a clean cache
+  local n_calls = 0
+  local orig_uncached = lk._build_index_uncached
+  lk._build_index_uncached = function()
+    n_calls = n_calls + 1
+    return { { lower = "foo", title = "Foo", id = "fid" } }
+  end
+  local _ = lk.build_index()
+  local _ = lk.build_index()
+  assert(n_calls == 1, "second build_index should hit cache; got " .. n_calls)
+  lk.invalidate_index()
+  local _ = lk.build_index()
+  assert(n_calls == 2, "invalidate_index should force rebuild; got " .. n_calls)
+  lk._build_index_uncached = orig_uncached
+  lk.invalidate_index() -- don't leak stubbed entries across tests
+end
+
 io.write("roam linkify ok\n")
 os.exit(0)

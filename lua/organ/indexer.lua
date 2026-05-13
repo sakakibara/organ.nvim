@@ -1230,11 +1230,24 @@ function M.write_body(h, meta, headlines, on_yield)
   end
 end
 
+-- Drop any roam.linkify completion-index cache after a write batch
+-- so the next blink.cmp keystroke rebuilds against current data.
+-- Uses package.loaded to avoid forcing a load if linkify hasn't been
+-- required yet (e.g., indexing during early startup before any roam
+-- command has touched the module).
+local function invalidate_linkify_cache()
+  local lk = package.loaded["organ.roam.linkify"]
+  if lk and lk.invalidate_index then
+    lk.invalidate_index()
+  end
+end
+
 function M.write(h, meta, headlines, on_yield)
   local err = h:transaction(function()
     M.write_body(h, meta, headlines, on_yield)
   end)
   if not err then
+    invalidate_linkify_cache()
     local ok, ev = pcall(require, "organ.events")
     if ok then
       ev.emit("indexed", { path = meta.path, n_headlines = #headlines })
@@ -1264,6 +1277,9 @@ function M.forget(h, path)
   local err = h:transaction(function()
     M.forget_body(h, path)
   end)
+  if not err then
+    invalidate_linkify_cache()
+  end
   return err
 end
 
@@ -1383,6 +1399,7 @@ function M.index_file_sync(path)
   if err then
     error("index_file_sync failed for " .. path .. ": " .. tostring(err))
   end
+  invalidate_linkify_cache()
 end
 
 local function notify_msg(msg, level)
