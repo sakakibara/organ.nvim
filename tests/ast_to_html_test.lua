@@ -310,6 +310,99 @@ do
   check("inner item still rendered", out:find("inner", 1, true) ~= nil)
 end
 
+-- ---- code_block (with language) -------------------------------------
+do
+  local doc = A.document({
+    A.code_block("python", 'print("hi")'),
+  })
+  local out = to_html.render(doc)
+  check(
+    "code with language uses language- class",
+    out:find('<pre><code class="language-python">', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("code body html-escaped", out:find("print(&quot;hi&quot;)", 1, true) ~= nil)
+  check("closing tags", out:find("</code></pre>", 1, true) ~= nil)
+end
+
+-- ---- code_block (no language) ---------------------------------------
+do
+  local doc = A.document({
+    A.code_block(nil, "raw"),
+  })
+  local out = to_html.render(doc)
+  check(
+    "code no language has no language- class",
+    out:find("language-", 1, true) == nil,
+    "got: " .. out
+  )
+  check(
+    "code no language still uses <pre><code>",
+    out:find("<pre><code>raw</code></pre>", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- block: example -------------------------------------------------
+do
+  local doc = A.document({
+    A.block("example", { body = "raw <text>" }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "example uses <pre>",
+    out:find("<pre>", 1, true) ~= nil and out:find("</pre>", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("example body escaped", out:find("raw &lt;text&gt;", 1, true) ~= nil)
+end
+
+-- ---- block: verse ---------------------------------------------------
+do
+  local doc = A.document({
+    A.block("verse", { body = "verse 1\nverse 2" }),
+  })
+  local out = to_html.render(doc)
+  check("verse uses <pre>", out:find("<pre>verse 1\nverse 2</pre>", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- block: quote ---------------------------------------------------
+do
+  local doc = A.document({
+    A.block("quote", {
+      content = {
+        A.paragraph({ A.text("first") }),
+        A.paragraph({ A.text("second") }),
+      },
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "quote uses <blockquote>",
+    out:find("<blockquote>", 1, true) ~= nil and out:find("</blockquote>", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "quote paragraphs as <p>",
+    out:find("<p>first</p>", 1, true) ~= nil and out:find("<p>second</p>", 1, true) ~= nil
+  )
+end
+
+-- ---- block: export (dropped) ----------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    A.block("export", { body = "<html>raw</html>" }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_html.render(doc)
+  check("export body dropped", out:find("<html>raw</html>", 1, true) == nil, "got: " .. out)
+  check(
+    "export drop preserves surrounding paragraphs",
+    out:find("<p>before</p>", 1, true) ~= nil and out:find("<p>after</p>", 1, true) ~= nil
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

@@ -148,6 +148,34 @@ local function emit_list(node, out)
   out[#out + 1] = "</" .. tag .. ">"
 end
 
+local function emit_code_block(node, out)
+  local body = html_escape(node.body or "")
+  local lang = node.language
+  if lang and lang ~= "" then
+    out[#out + 1] = '<pre><code class="language-'
+      .. html_escape(lang)
+      .. '">'
+      .. body
+      .. "</code></pre>"
+  else
+    out[#out + 1] = "<pre><code>" .. body .. "</code></pre>"
+  end
+end
+
+local function emit_org_block(node, out)
+  local style = node.style
+  if style == "verse" or style == "example" then
+    out[#out + 1] = "<pre>" .. html_escape(node.body or "") .. "</pre>"
+  elseif style == "quote" then
+    out[#out + 1] = "<blockquote>"
+    for _, b in ipairs(node.content or {}) do
+      emit_block(b, out)
+    end
+    out[#out + 1] = "</blockquote>"
+  end
+  -- export / unknown: silently drop
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -163,6 +191,10 @@ function emit_block(node, out)
     emit_paragraph(node, out)
   elseif kind == "list" then
     emit_list(node, out)
+  elseif kind == "code_block" then
+    emit_code_block(node, out)
+  elseif kind == "block" then
+    emit_org_block(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
