@@ -49,12 +49,17 @@ local function refresh_tree(bufnr)
     _tree_cache[bufnr] = { tick = tick, ok = false, tree = nil }
     return _tree_cache[bufnr]
   end
-  -- Pass `true` to parse the entire injection forest in one shot.  The
-  -- range form of parser:parse({...}) used to leave org_inline injection
-  -- bookkeeping in a stale state that downstream queries tripped over;
-  -- the unconditional full-injection parse is what the consumer
-  -- providers actually need (timestamps, emphasis spans, link
-  -- descriptions all live in injected org_inline trees).
+  -- Pass `true` to parse the entire injection forest in one shot.
+  -- Plain parser:parse() (no args) parses ONLY the root tree on nvim
+  -- 0.12.x: parser:children() is empty afterwards, and for_each_tree
+  -- yields just the root.  Injection trees are not lazily materialized
+  -- on access (verified empirically against the org grammar), so
+  -- conceal and modern.pills, which walk org_inline trees for emphasis
+  -- and timestamp nodes, would see no nodes under plain parse().  The
+  -- range form parser:parse({...}) DOES populate injection children,
+  -- but left org_inline bookkeeping in a stale state that downstream
+  -- queries tripped over with "Index out of bounds" in
+  -- buf_range_get_text.  parser:parse(true) is the correct call.
   local ok_parse = pcall(function()
     parser:parse(true)
   end)
