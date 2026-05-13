@@ -1,12 +1,15 @@
 -- Context-aware new-element insertion (Emacs `org-meta-return`).
 --
---   * On a headline           → insert a new same-level headline below.
+--   * On a headline OR a body
+--     line inside a subtree   → insert a new same-level headline at
+--                               the end of the current subtree (matches
+--                               Emacs `org-insert-heading-respect-content`).
 --   * On a list item          → insert a new sibling item with the same
 --                               bullet style (auto-renumbers a numeric
 --                               list following the new item).
 --   * Inside a table          → insert a new row below.
---   * Otherwise (paragraph,
---     blank, src body, etc.)  → behave like Vim's `o` (open below).
+--   * Before the first heading
+--     (no enclosing subtree)  → behave like Vim's `o` (open below).
 --
 -- Cursor is moved to the new line, in insert mode if `enter_insert` is
 -- true (default).
@@ -118,14 +121,8 @@ function M.dispatch(opts)
   local cur_line = cur[1]
   local txt = get_line(bufnr, cur_line)
 
-  -- 1. Headline → new sibling headline.
+  -- 1. Headline → new sibling headline at the end of this subtree.
   local lvl = headline_level(txt)
-  if not lvl then
-    local hl_line, hl_lvl = enclosing_headline(bufnr, cur_line)
-    if hl_line and cur_line == hl_line then
-      lvl = hl_lvl
-    end
-  end
   if lvl then
     -- Find end of this headline's section (next heading-line or EOF).
     local total = vim.api.nvim_buf_line_count(bufnr)
@@ -193,7 +190,37 @@ function M.dispatch(opts)
     return
   end
 
-  -- 4. Fallback — open a fresh blank line below.
+  -- 4. Body line inside a subtree (not a list item or table row) → new
+  -- sibling headline at the enclosing level, inserted after this
+  -- subtree's content.  Mirrors Emacs `org-insert-heading-respect-
+  -- content = t` (the common user config): from anywhere inside a
+  -- subtree, M-RET produces a new heading at the same level appended
+  -- below, never splitting the body line at point.
+  local _hl_line, hl_lvl = enclosing_headline(bufnr, cur_line)
+  if hl_lvl then
+    local total = vim.api.nvim_buf_line_count(bufnr)
+    local end_line = cur_line
+    for i = cur_line + 1, total do
+      if headline_level(get_line(bufnr, i)) then
+        break
+      end
+      end_line = i
+    end
+    local stars = string.rep("*", hl_lvl)
+    set_lines(bufnr, end_line, { stars .. " " })
+    local spacing = require("organ.spacing")
+    local pre = vim.api.nvim_buf_line_count(bufnr)
+    local heading_row = end_line + 1
+    spacing.normalize_around(bufnr, heading_row, spacing.resolve(bufnr))
+    heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+    move_to(heading_row, #stars + 1)
+    if enter_insert then
+      vim.cmd("startinsert!")
+    end
+    return
+  end
+
+  -- 5. Fallback (before any heading, no list/table context) — open a fresh blank line below.
   set_lines(bufnr, cur_line, { "" })
   move_to(cur_line + 1, 0)
   if enter_insert then

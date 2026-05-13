@@ -137,5 +137,52 @@ out = with_buffer(
 )
 deq(out, { "Just text", "" }, "paragraph → blank line below")
 
+-- 7. Body line inside a subtree → new heading at the enclosing level
+-- appended after the subtree's content (mirrors Emacs
+-- `org-insert-heading-respect-content`).
+out = with_buffer(
+  {
+    "* First",
+    "body line",
+    "more body",
+    "* Second",
+  },
+  2,
+  3,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* First",
+  "body line",
+  "more body",
+  "* ",
+  "* Second",
+}, "body line inside subtree → new headline at enclosing level after subtree")
+
+-- 8. Body line inside a level-2 subtree → new level-2 heading after the
+-- innermost subtree's content (NOT promoted to level 1).
+out = with_buffer(
+  {
+    "* L1",
+    "** L2",
+    "body of L2",
+    "* L1 sibling",
+  },
+  3,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* L1",
+  "** L2",
+  "body of L2",
+  "** ",
+  "* L1 sibling",
+}, "body line under level-2 heading → new level-2 heading, not level 1")
+
 io.write("meta_return ok\n")
 os.exit(0)
