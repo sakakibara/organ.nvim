@@ -324,6 +324,94 @@ do
   check("part checkbox -> [-]", out:find("\\item [-] c", 1, true) ~= nil)
 end
 
+-- ---- code_block ----------------------------------------------------
+do
+  local doc = A.document({
+    A.code_block("python", 'print("hi")'),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("code_block opens verbatim", out:find("\\begin{verbatim}", 1, true) ~= nil, "got: " .. out)
+  check("code_block closes verbatim", out:find("\\end{verbatim}", 1, true) ~= nil)
+  check(
+    "code_block body raw (no escape inside verbatim)",
+    out:find('print("hi")', 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- code_block with multi-line body
+do
+  local doc = A.document({
+    A.code_block("lua", "local x = 1\nprint(x)"),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("code_block line 1", out:find("local x = 1", 1, true) ~= nil, "got: " .. out)
+  check("code_block line 2", out:find("print(x)", 1, true) ~= nil)
+end
+
+-- ---- block: example ----------------------------------------------
+do
+  local doc = A.document({
+    A.block("example", { body = "raw text\nline 2" }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "example as verbatim",
+    out:find("\\begin{verbatim}", 1, true) ~= nil
+      and out:find("\\end{verbatim}", 1, true) ~= nil
+      and out:find("raw text", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- block: verse -------------------------------------------------
+do
+  local doc = A.document({
+    A.block("verse", { body = "verse 1\nverse 2" }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("verse env opens", out:find("\\begin{verse}", 1, true) ~= nil, "got: " .. out)
+  check("verse env closes", out:find("\\end{verse}", 1, true) ~= nil)
+  check(
+    "verse content lines",
+    out:find("verse 1", 1, true) ~= nil and out:find("verse 2", 1, true) ~= nil
+  )
+end
+
+-- ---- block: quote -------------------------------------------------
+do
+  local doc = A.document({
+    A.block("quote", {
+      content = {
+        A.paragraph({ A.text("first") }),
+        A.paragraph({ A.text("second") }),
+      },
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("quotation env opens", out:find("\\begin{quotation}", 1, true) ~= nil, "got: " .. out)
+  check("quotation env closes", out:find("\\end{quotation}", 1, true) ~= nil)
+  check(
+    "paragraphs inside quotation",
+    out:find("first", 1, true) ~= nil and out:find("second", 1, true) ~= nil
+  )
+end
+
+-- ---- block: export dropped ---------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    A.block("export", { body = "<html>raw</html>" }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("export body dropped", out:find("<html>raw</html>", 1, true) == nil, "got: " .. out)
+  check(
+    "paragraphs around export preserved",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
