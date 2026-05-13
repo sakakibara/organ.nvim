@@ -194,7 +194,9 @@ local function place_marks(bufnr)
 end
 
 -- Schedule a refresh: defer to the end of the current event tick so a
--- burst of on_lines from a single edit collapses to one refresh.
+-- burst of on_lines from a single edit collapses to one refresh, and
+-- so a full re-walk on a large buffer (place_marks is O(buffer size))
+-- doesn't block the user's keystroke.
 local _scheduled = {}
 local function schedule_refresh(bufnr)
   if _scheduled[bufnr] then

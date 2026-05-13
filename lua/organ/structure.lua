@@ -63,16 +63,30 @@ local function collect_descendants(bufnr, from_line, to_line)
   return out
 end
 
--- Replace the leading run of "*+ " on a single line with a shorter run.
+-- Adjust the leading run of `*+` on a single line to `new_level` stars
+-- by inserting or deleting at column 0 (rather than rewriting the
+-- whole line).  Surgical edits leave inline extmarks on adjacent rows
+-- alone -- `nvim_buf_set_lines` with a 1->1 replacement pulls col-0
+-- extmarks from row+1 onto the changed row (left gravity at the line
+-- boundary), which on a buffer with `org-indent-mode` indent marks
+-- surfaces as a one-frame flush-left flicker on promote / demote.
 -- Returns nil on success or an error string.
 local function rewrite_stars(bufnr, line, new_level)
   local txt = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local stars, rest = txt:match("^(%*+)(.*)$")
+  local stars = txt:match("^(%*+)")
   if not stars then
     return "not a headline line"
   end
-  local new_text = string.rep("*", new_level) .. rest
-  obuf.set_lines(bufnr, line - 1, line, { new_text })
+  local old_level = #stars
+  if new_level == old_level then
+    return nil
+  end
+  local row = line - 1
+  if new_level > old_level then
+    obuf.set_text(bufnr, row, 0, row, 0, { string.rep("*", new_level - old_level) })
+  else
+    obuf.set_text(bufnr, row, 0, row, old_level - new_level, { "" })
+  end
   return nil
 end
 
