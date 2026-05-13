@@ -227,11 +227,33 @@ function M.attach(bufnr)
   M._attached[bufnr] = true
   -- Subscribe to buffer edits.  Returning true from on_lines detaches.
   vim.api.nvim_buf_attach(bufnr, false, {
-    on_lines = function(_, b, _changedtick, _first, _last_old, _last_new)
+    on_lines = function(_, b, _changedtick, first, _last_old, last_new)
       if not M._attached[b] then
         return true
       end
-      schedule_refresh(b)
+      -- A heading row was touched (promote / demote / typing a leading
+      -- `*`): refresh synchronously so the new pads land before nvim's
+      -- next redraw.  Otherwise the deferred schedule would paint one
+      -- frame with stale pad WIDTHS while the line text is already at
+      -- its new level -- visible as a one-frame flush-left flash on
+      -- subtree promote / demote.
+      --
+      -- Body-only edits (typing in prose) cannot change anyone's pad,
+      -- so they stay on the scheduled path: the per-keystroke cost
+      -- stays at "queue one callback", not "walk the whole buffer".
+      local heading_touched = false
+      for r = first, last_new - 1 do
+        local txt = vim.api.nvim_buf_get_lines(b, r, r + 1, false)[1] or ""
+        if txt:sub(1, 1) == "*" then
+          heading_touched = true
+          break
+        end
+      end
+      if heading_touched then
+        pcall(place_marks, b)
+      else
+        schedule_refresh(b)
+      end
     end,
     on_detach = function(_, b)
       M._attached[b] = nil
