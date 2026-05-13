@@ -164,41 +164,18 @@ local function on_win(bufnr, _winid, topline, botline)
   end
 end
 
-local function on_line(bufnr, _winid, row)
-  local pad = frame_map[row]
-  if not pad then
-    return
-  end
-  local cfg = get_config(bufnr)
-  local hl = cfg.hl_group or "Conceal"
-  -- right_gravity=false anchors the extmark to its position BEFORE
-  -- insertions at the same column, so typing at the start of a body
-  -- line inserts AFTER the virt-text indent (correct) rather than
-  -- shifting the virt-text rightward of the typed char (which would
-  -- visually look like the typed text overwrites the indent).
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
-    virt_text = { { pad, hl } },
-    virt_text_pos = "inline",
-    right_gravity = false,
-    ephemeral = true,
-  })
-end
+-- Indent uses a buf-attach / persistent-extmark design rather than the
+-- decoration provider's on_win + on_line + ephemeral pattern.  The
+-- decoration model was visually unreliable in some user setups
+-- (something downstream of the per-row dispatcher clear was preventing
+-- ephemeral inline virt_text from rendering, even when the marks were
+-- demonstrably being placed).  Persistent marks via nvim_buf_set_extmark
+-- aren't subject to that race: once placed, they stay on the buffer
+-- and render on every redraw until the next refresh.  Cost: a full
+-- refresh on every buffer edit, but org files are small enough and
+-- tree-sitter is incremental, so this is cheap in practice.
 
-require("organ.decoration").register({
-  name = "indent",
-  ns = NS,
-  enabled = function(bufnr)
-    return M._attached[bufnr] == true
-  end,
-  on_win = on_win,
-  on_line = on_line,
-})
-
--- Drive on_win full-buffer and place non-ephemeral extmarks for every
--- populated row.  Test-facing: assertions via `nvim_buf_get_extmarks`
--- need real (non-ephemeral) marks, which the on_line path doesn't
--- produce.  Also the immediate-render entrypoint for attach().
-function M.refresh(bufnr)
+local function place_marks(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
@@ -216,6 +193,27 @@ function M.refresh(bufnr)
   end
 end
 
+-- Schedule a refresh: defer to the end of the current event tick so a
+-- burst of on_lines from a single edit collapses to one refresh.
+local _scheduled = {}
+local function schedule_refresh(bufnr)
+  if _scheduled[bufnr] then
+    return
+  end
+  _scheduled[bufnr] = true
+  vim.schedule(function()
+    _scheduled[bufnr] = nil
+    place_marks(bufnr)
+  end)
+end
+
+-- Public entry point: still called `refresh` for back-compat with the
+-- test surface and any user that drove it manually.  Synchronous so
+-- tests can inspect extmarks immediately after the call.
+function M.refresh(bufnr)
+  place_marks(bufnr)
+end
+
 M._frame_map = function()
   return frame_map
 end
@@ -225,9 +223,18 @@ function M.attach(bufnr)
     return
   end
   M._attached[bufnr] = true
-  pcall(function()
-    require("organ.decoration").attach(bufnr)
-  end)
+  -- Subscribe to buffer edits.  Returning true from on_lines detaches.
+  vim.api.nvim_buf_attach(bufnr, false, {
+    on_lines = function(_, b, _changedtick, _first, _last_old, _last_new)
+      if not M._attached[b] then
+        return true
+      end
+      schedule_refresh(b)
+    end,
+    on_detach = function(_, b)
+      M._attached[b] = nil
+    end,
+  })
   M.refresh(bufnr)
 end
 

@@ -1,15 +1,12 @@
--- Unit test for the indent provider via organ.decoration.
+-- Unit test for the indent module's mark placement.
 --
--- Verifies that loading organ.indent registers a decoration provider,
--- attach() flips _attached so the provider's `enabled` gate opens, the
--- frame-local row map is built from on_win via the tree-sitter
--- headline walk, and the rendered inline virt_text matches the depth
+-- Verifies that attach() subscribes the buffer for edit-driven refresh,
+-- refresh() drives the tree-sitter headline walk to populate frame_map,
+-- and writes persistent inline virt_text extmarks matching the depth
 -- cascade (each subordinate row picks up its enclosing headline's
--- level until a same-or-higher-level headline resets it).  Ephemeral
--- marks placed by on_line aren't visible to nvim_buf_get_extmarks
--- outside the real frame-rendering context, so the assertions go
--- through refresh(), which drives on_win full-buffer and writes
--- non-ephemeral marks.
+-- level until a same-or-higher-level headline resets it).  Marks are
+-- non-ephemeral so nvim_buf_get_extmarks reads them directly -- no
+-- decoration-provider race.
 --
 -- Run via: nvim --headless -l tests/decoration_indent_test.lua
 
@@ -28,9 +25,7 @@ require("organ").setup({
   modern = { bullets = false },
   stars = { hide = false },
 })
--- Loading the module triggers its top-level decoration.register({...}).
 local indent = require("organ.indent")
-local decoration = require("organ.decoration")
 
 local fails = 0
 local function check(label, ok, detail)
@@ -42,23 +37,11 @@ local function check(label, ok, detail)
   end
 end
 
-local providers, _ = decoration._providers()
-check("indent provider registered", providers.indent ~= nil)
-check("provider exposes ns", providers.indent and providers.indent.ns ~= nil)
+check("indent module exposes a namespace", indent._ns ~= nil)
 check(
-  "provider exposes on_win + on_line",
-  providers.indent
-    and type(providers.indent.on_win) == "function"
-    and type(providers.indent.on_line) == "function"
+  "indent module exposes attach/detach",
+  type(indent.attach) == "function" and type(indent.detach) == "function"
 )
-check("provider has no on_lines", providers.indent and providers.indent.on_lines == nil)
-
--- `enabled` is gated on per-buffer attach.  A buffer that hasn't been
--- attached should report enabled=false even though the provider exists.
--- Use a non-org buffer so the ftplugin auto-attach path doesn't fire.
-local pre_bufnr = vim.api.nvim_create_buf(false, true)
-check("enabled() is false on un-attached buffer", providers.indent.enabled(pre_bufnr) == false)
-vim.api.nvim_buf_delete(pre_bufnr, { force = true })
 
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.bo[bufnr].filetype = "org"
@@ -75,11 +58,8 @@ vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
 
 indent.attach(bufnr)
 check("attach() sets _attached[bufnr]", indent._attached[bufnr] == true)
-check("enabled() is true after attach()", providers.indent.enabled(bufnr) == true)
 
--- refresh writes non-ephemeral extmarks so nvim_buf_get_extmarks sees
--- them.  The ephemeral path is exercised by the real decoration-
--- provider callback at frame time.
+-- refresh writes non-ephemeral extmarks so nvim_buf_get_extmarks sees them.
 indent.refresh(bufnr)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, indent._ns, 0, -1, { details = true })
@@ -123,7 +103,6 @@ indent.detach(bufnr)
 local after = vim.api.nvim_buf_get_extmarks(bufnr, indent._ns, 0, -1, {})
 check("detach() clears all extmarks", #after == 0, "got " .. #after .. " leftover marks")
 check("detach() drops _attached entry", indent._attached[bufnr] == nil)
-check("enabled() is false after detach()", providers.indent.enabled(bufnr) == false)
 
 vim.api.nvim_buf_delete(bufnr, { force = true })
 
