@@ -21,6 +21,24 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
+-- The fix relies on `nvim_set_decoration_provider`'s on_buf callback to
+-- catch the persistent-undo mutation path (on_lines fires for ONE of the
+-- two ticks the replay produces, the on_buf catches the other on the
+-- next redraw cycle).  In headless mode without a UI attached, nvim
+-- 0.10.x doesn't drive decoration-provider callbacks even on explicit
+-- `vim.cmd("redraw")` -- verified empirically by attaching a probe
+-- provider on a fresh nvim 0.10.4 and counting callbacks: zero.
+-- nvim 0.11+ does fire them in the same headless setup.
+--
+-- Interactive nvim 0.10.x is fine because a real TUI produces redraw
+-- cycles continuously, but we can't reproduce that condition here.
+-- Skip cleanly on 0.10.x; the 0.11+ and nightly jobs continue to pin
+-- the invariant.
+if vim.fn.has("nvim-0.11") ~= 1 then
+  io.write("indent persistent undo skipped on nvim 0.10.x (no UI = no decoration provider callbacks in headless)\n")
+  os.exit(0)
+end
+
 local parser_path = require("organ.defaults").parser_path
 vim.treesitter.language.add("org", { path = parser_path })
 
