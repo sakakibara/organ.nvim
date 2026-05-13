@@ -129,17 +129,10 @@ local function on_win(bufnr, _winid, topline, botline)
   end
 end
 
--- Indent uses a buf-attach / persistent-extmark design rather than the
--- decoration provider's on_win + on_line + ephemeral pattern.  The
--- decoration model was visually unreliable in some user setups
--- (something downstream of the per-row dispatcher clear was preventing
--- ephemeral inline virt_text from rendering, even when the marks were
--- demonstrably being placed).  Persistent marks via nvim_buf_set_extmark
--- aren't subject to that race: once placed, they stay on the buffer
--- and render on every redraw until the next refresh.  Cost: a full
--- refresh on every buffer edit, but org files are small enough and
--- tree-sitter is incremental, so this is cheap in practice.
-
+-- Place persistent inline virt_text extmarks for `bufnr`, one per row
+-- whose enclosing section has a non-zero pad.  Clears any previous
+-- marks in our namespace first so a structural change doesn't leave
+-- stale pads behind.
 local function place_marks(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
@@ -158,26 +151,60 @@ local function place_marks(bufnr)
   end
 end
 
--- Schedule a refresh: defer to the end of the current event tick so a
--- burst of on_lines from a single edit collapses to one refresh, and
--- so a full re-walk on a large buffer (place_marks is O(buffer size))
--- doesn't block the user's keystroke.
-local _scheduled = {}
-local function schedule_refresh(bufnr)
-  if _scheduled[bufnr] then
+-- Last `changedtick` we placed marks for, per buffer.  Used by the
+-- decoration-provider trigger to refresh exactly once per advancing
+-- tick (so a burst of edits within one redraw cycle coalesces into a
+-- single full walk, and the trigger no-ops on cycles where the
+-- buffer didn't change).
+local _last_refresh_tick = {}
+
+local function maybe_refresh(bufnr)
+  if not M._attached[bufnr] then
     return
   end
-  _scheduled[bufnr] = true
-  vim.schedule(function()
-    _scheduled[bufnr] = nil
-    place_marks(bufnr)
-  end)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  if _last_refresh_tick[bufnr] == tick then
+    return
+  end
+  _last_refresh_tick[bufnr] = tick
+  place_marks(bufnr)
 end
 
--- Public entry point: still called `refresh` for back-compat with the
--- test surface and any user that drove it manually.  Synchronous so
--- tests can inspect extmarks immediately after the call.
+-- Refresh trigger.  A decoration provider's `on_buf` is the right
+-- mechanism here: it fires once per redraw cycle, AFTER nvim has
+-- applied any pending buffer mutations and BEFORE the screen is
+-- painted, regardless of HOW the buffer was mutated.  `changedtick`
+-- advances for every mutation -- normal edits, undo, redo, even
+-- persistent-undo traversal back through prior-session state -- so
+-- tick-based dedup means the refresh runs exactly once per change.
+--
+-- Earlier this module subscribed via `nvim_buf_attach`'s `on_lines`,
+-- but that callback isn't fired for every code path that mutates the
+-- buffer (notably persistent-undo replay across session boundaries
+-- advances changedtick without driving on_lines), which left
+-- pads visibly stale after `u` past the buffer's loaded state.
+-- on_buf catches every mutation path because every mutation produces
+-- a redraw.
+do
+  local PROVIDER_NS = vim.api.nvim_create_namespace("organ_indent_provider")
+  vim.api.nvim_set_decoration_provider(PROVIDER_NS, {
+    on_buf = function(_, bufnr, _tick)
+      maybe_refresh(bufnr)
+    end,
+  })
+end
+
+-- Public synchronous refresh.  Tests and external callers (e.g. the
+-- buf_config reapply hook) use this to force the walk without waiting
+-- for the next redraw.
 function M.refresh(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  _last_refresh_tick[bufnr] = vim.api.nvim_buf_get_changedtick(bufnr)
   place_marks(bufnr)
 end
 
@@ -190,38 +217,44 @@ function M.attach(bufnr)
     return
   end
   M._attached[bufnr] = true
-  -- Subscribe to buffer edits.  Returning true from on_lines detaches.
+  -- on_lines is the sync path: structure ops (promote / demote, etc.)
+  -- need pads updated BEFORE nvim's next redraw to avoid a one-frame
+  -- stale-width flicker.  The decoration provider's on_buf is the
+  -- safety net for mutation paths on_lines misses (persistent undo
+  -- across session boundaries advances changedtick without driving
+  -- on_lines).  Both go through maybe_refresh, which tick-dedups so a
+  -- single mutation doesn't refresh twice.
   vim.api.nvim_buf_attach(bufnr, false, {
-    on_lines = function(_, b, _changedtick, first, _last_old, last_new)
+    on_lines = function(_, b, _tick, first, last_old, last_new)
       if not M._attached[b] then
         return true
       end
-      -- A heading row was touched (promote / demote / typing a leading
-      -- `*`): refresh synchronously so the new pads land before nvim's
-      -- next redraw.  Otherwise the deferred schedule would paint one
-      -- frame with stale pad WIDTHS while the line text is already at
-      -- its new level -- visible as a one-frame flush-left flash on
-      -- subtree promote / demote.
-      --
-      -- Body-only edits (typing in prose) cannot change anyone's pad,
-      -- so they stay on the scheduled path: the per-keystroke cost
-      -- stays at "queue one callback", not "walk the whole buffer".
-      local heading_touched = false
+      -- Sync refresh when the edit could have changed the section
+      -- structure:
+      --   * line count changed -- a heading row may have been added
+      --     or removed (we can't inspect the deleted content, so
+      --     refresh whenever rows came or went)
+      --   * any new row starts with `*` -- a heading was touched in
+      --     place (promote / demote / typing a leading star)
+      -- Body-only same-line edits skip the sync walk; the decoration
+      -- provider's on_buf takes care of any per-redraw drift.  Keeps
+      -- per-keystroke cost in long buffers near zero
+      -- (decoration_perf_test asserts ~5ms).
+      if last_old ~= last_new then
+        maybe_refresh(b)
+        return
+      end
       for r = first, last_new - 1 do
         local txt = vim.api.nvim_buf_get_lines(b, r, r + 1, false)[1] or ""
         if txt:sub(1, 1) == "*" then
-          heading_touched = true
-          break
+          maybe_refresh(b)
+          return
         end
-      end
-      if heading_touched then
-        pcall(place_marks, b)
-      else
-        schedule_refresh(b)
       end
     end,
     on_detach = function(_, b)
       M._attached[b] = nil
+      _last_refresh_tick[b] = nil
     end,
   })
   M.refresh(bufnr)
@@ -232,6 +265,7 @@ function M.detach(bufnr)
     return
   end
   M._attached[bufnr] = nil
+  _last_refresh_tick[bufnr] = nil
   if vim.api.nvim_buf_is_valid(bufnr) then
     pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   end
