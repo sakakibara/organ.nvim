@@ -239,6 +239,53 @@ local function emit_org_block(node, out)
   -- export and unknown styles drop silently.
 end
 
+local function emit_table(node, out)
+  local rows = node.rows or {}
+  if #rows == 0 then
+    return
+  end
+  local ncols = 0
+  for _, r in ipairs(rows) do
+    if not r.sep and r.cells then
+      if #r.cells > ncols then
+        ncols = #r.cells
+      end
+    end
+  end
+  if ncols == 0 then
+    return
+  end
+
+  local align = node.alignments or {}
+  local spec_parts = {}
+  for c = 1, ncols do
+    local a = align[c]
+    if a == "c" then
+      spec_parts[c] = "c"
+    elseif a == "r" then
+      spec_parts[c] = "r"
+    else
+      spec_parts[c] = "l"
+    end
+  end
+  out[#out + 1] = "\\begin{tabular}{" .. table.concat(spec_parts) .. "}"
+
+  for _, r in ipairs(rows) do
+    if r.sep then
+      out[#out + 1] = "\\hline"
+    else
+      local cells = {}
+      for c = 1, ncols do
+        cells[c] = emit_inline(r.cells[c] or {})
+      end
+      out[#out + 1] = table.concat(cells, " & ") .. " \\\\"
+    end
+  end
+
+  out[#out + 1] = "\\end{tabular}"
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -258,6 +305,8 @@ function emit_block(node, out)
     emit_code_block(node, out)
   elseif kind == "block" then
     emit_org_block(node, out)
+  elseif kind == "table" then
+    emit_table(node, out)
   end
   -- All other kinds added in subsequent tasks.
 end

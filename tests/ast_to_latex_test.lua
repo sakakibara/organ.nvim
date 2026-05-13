@@ -412,6 +412,105 @@ do
   )
 end
 
+-- ---- table (basic with header divider) ----------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "l" },
+      rows = {
+        { cells = { { A.text("name") }, { A.text("age") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("ada") }, { A.text("36") } }, sep = false },
+        { cells = { { A.text("ben") }, { A.text("41") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "tabular begin with column spec",
+    out:find("\\begin{tabular}{ll}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("header row separator-terminated", out:find("name & age \\\\", 1, true) ~= nil)
+  check("hline after header", out:find("\\hline", 1, true) ~= nil)
+  check("data row 1", out:find("ada & 36 \\\\", 1, true) ~= nil)
+  check("data row 2", out:find("ben & 41 \\\\", 1, true) ~= nil)
+  check("tabular end", out:find("\\end{tabular}", 1, true) ~= nil)
+end
+
+-- ---- table column alignment letters -------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "c", "r" },
+      rows = {
+        { cells = { { A.text("a") }, { A.text("b") }, { A.text("c") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "alignment lcr in column spec",
+    out:find("\\begin{tabular}{lcr}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- table with no alignments -> default all l --------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      rows = {
+        { cells = { { A.text("a") }, { A.text("b") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "default to ll when no alignments",
+    out:find("\\begin{tabular}{ll}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- table cell content escaped -----------------------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("50%") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("cell content latex-escaped", out:find("50\\%", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- multi-divider table emits multiple hlines --------------------
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      rows = {
+        { cells = { { A.text("h") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("a") } }, sep = false },
+        { sep = true, cells = {} },
+        { cells = { { A.text("b") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  local _, n_hline = out:gsub("\\hline", "")
+  check("two hlines (one per sep)", n_hline == 2, "got " .. n_hline .. " hlines in:\n" .. out)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
