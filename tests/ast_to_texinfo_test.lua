@@ -343,6 +343,86 @@ do
   check("part checkbox -> [-]", out:find("@item [-] c", 1, true) ~= nil)
 end
 
+-- ---- code_block -----------------------------------------------------
+do
+  local doc = A.document({
+    A.code_block("python", 'print("hi")'),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("code_block opens @example", out:find("@example", 1, true) ~= nil, "got: " .. out)
+  check("code_block closes @end example", out:find("@end example", 1, true) ~= nil)
+  check("code_block body verbatim", out:find('print("hi")', 1, true) ~= nil, "got: " .. out)
+end
+
+-- code_block multi-line
+do
+  local doc = A.document({
+    A.code_block("lua", "local x = 1\nprint(x)"),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("code_block line 1", out:find("local x = 1", 1, true) ~= nil)
+  check("code_block line 2", out:find("print(x)", 1, true) ~= nil)
+end
+
+-- ---- block: example ------------------------------------------------
+do
+  local doc = A.document({
+    A.block("example", { body = "raw text\nline 2" }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "example as @example",
+    out:find("@example", 1, true) ~= nil and out:find("@end example", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("example body line 1", out:find("raw text", 1, true) ~= nil)
+end
+
+-- ---- block: verse --------------------------------------------------
+do
+  local doc = A.document({
+    A.block("verse", { body = "verse 1\nverse 2" }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("verse renders as @example", out:find("@example", 1, true) ~= nil, "got: " .. out)
+  check("verse line 1", out:find("verse 1", 1, true) ~= nil)
+  check("verse line 2", out:find("verse 2", 1, true) ~= nil)
+end
+
+-- ---- block: quote --------------------------------------------------
+do
+  local doc = A.document({
+    A.block("quote", {
+      content = {
+        A.paragraph({ A.text("first") }),
+        A.paragraph({ A.text("second") }),
+      },
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("quotation opens", out:find("@quotation", 1, true) ~= nil, "got: " .. out)
+  check("quotation closes", out:find("@end quotation", 1, true) ~= nil)
+  check(
+    "quotation content paragraphs",
+    out:find("first", 1, true) ~= nil and out:find("second", 1, true) ~= nil
+  )
+end
+
+-- ---- block: export dropped -----------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    A.block("export", { body = "<html>raw</html>" }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("export body dropped", out:find("<html>raw</html>", 1, true) == nil, "got: " .. out)
+  check(
+    "paragraphs around export preserved",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

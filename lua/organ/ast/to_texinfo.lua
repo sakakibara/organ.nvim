@@ -136,6 +136,33 @@ local function emit_list(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_code_block(node, out)
+  out[#out + 1] = "@example"
+  for line in ((node.body or "") .. "\n"):gmatch("([^\n]*)\n") do
+    out[#out + 1] = line
+  end
+  if out[#out] == "" then
+    out[#out] = nil
+  end
+  out[#out + 1] = "@end example"
+  out[#out + 1] = ""
+end
+
+local function emit_org_block(node, out)
+  local style = node.style
+  if style == "example" or style == "verse" then
+    emit_code_block({ body = node.body }, out)
+  elseif style == "quote" then
+    out[#out + 1] = "@quotation"
+    for _, b in ipairs(node.content or {}) do
+      emit_block(b, out)
+    end
+    out[#out + 1] = "@end quotation"
+    out[#out + 1] = ""
+  end
+  -- export and unknown styles drop silently
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -151,6 +178,10 @@ function emit_block(node, out)
     emit_paragraph(node, out)
   elseif kind == "list" then
     emit_list(node, out)
+  elseif kind == "code_block" then
+    emit_code_block(node, out)
+  elseif kind == "block" then
+    emit_org_block(node, out)
   end
   -- other kinds dispatched in subsequent tasks; unknown drops silently.
 end
