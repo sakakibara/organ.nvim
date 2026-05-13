@@ -512,6 +512,83 @@ do
   check("cell content escaped @ -> @@", out:find("@item a@@b", 1, true) ~= nil, "got: " .. out)
 end
 
+-- ---- block-level image ----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    { kind = "image", target = "fig.png", alt = "diagram" },
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("@image with target", out:find("@image{fig.png", 1, true) ~= nil, "got: " .. out)
+  check("@image includes alt text", out:find("diagram", 1, true) ~= nil)
+  check(
+    "paragraphs around image preserved",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
+-- ---- block-level image with no alt --------------------------------
+do
+  local doc = A.document({ { kind = "image", target = "x.png" } })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("@image{x.png} when no alt", out:find("@image{x.png}", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- horizontal rule ----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("above") }),
+    A.rule(),
+    A.paragraph({ A.text("below") }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("rule emits @page", out:find("@page", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- footnote_definition ------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      { kind = "footnote_ref", label = "1" },
+      A.text("."),
+    }),
+    A.footnote_definition("1", { A.paragraph({ A.text("the body") }) }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("inline footnote_ref emits [1] literal", out:find("[1]", 1, true) ~= nil, "got: " .. out)
+  check("footnote_definition emits [1] body", out:find("[1] the body", 1, true) ~= nil)
+end
+
+-- ---- multi-paragraph footnote ------------------------------------
+do
+  local doc = A.document({
+    A.footnote_definition("note", {
+      A.paragraph({ A.text("first") }),
+      A.paragraph({ A.text("second") }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "multi-para footnote: first paragraph after label",
+    out:find("[note] first", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("multi-para footnote: second paragraph rendered", out:find("second", 1, true) ~= nil)
+end
+
+-- ---- directive dropped --------------------------------------------
+do
+  local doc = A.document({
+    A.directive("AUTHOR", "Jane"),
+    A.paragraph({ A.text("body") }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("AUTHOR not in body", out:find("Jane", 1, true) == nil, "got: " .. out)
+  check("paragraph rendered", out:find("body", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
