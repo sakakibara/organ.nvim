@@ -84,6 +84,47 @@ local function resolve(opts)
   return opts.bufnr or vim.api.nvim_get_current_buf(), opts.line or vim.fn.line(".")
 end
 
+-- Snapshot visual fold state for each headline line in `hls`.
+-- foldclosed(L) returns the first line of the closed fold containing L,
+-- or -1 if L is not in a closed fold.  Equality with L means L is the
+-- start of a currently-collapsed fold (the heading is folded).
+local function snapshot_fold_state(hls)
+  local snap = {}
+  for _, hl in ipairs(hls) do
+    snap[hl] = vim.fn.foldclosed(hl) == hl
+  end
+  return snap
+end
+
+-- Restore each headline's visual fold state to match the snapshot.
+-- silent! swallows errors when folding is disabled or the line is no
+-- longer at a fold boundary; foldclose/foldopen are idempotent so a
+-- no-op restore is fine.
+local function restore_fold_state(snap)
+  for hl, was_closed in pairs(snap) do
+    local is_closed = vim.fn.foldclosed(hl) == hl
+    if was_closed and not is_closed then
+      pcall(vim.cmd, ("silent! %dfoldclose"):format(hl))
+    elseif (not was_closed) and is_closed then
+      pcall(vim.cmd, ("silent! %dfoldopen"):format(hl))
+    end
+  end
+end
+
+-- Collect every headline line in `[start, end_line]` inclusive that begins
+-- with `*+ ` (or bare `*+`).  Used by the subtree variants to snapshot the
+-- fold state of every nested heading whose row will see its stars rewritten.
+local function subtree_headline_lines(bufnr, start_line, end_line)
+  local out = {}
+  local lines = vim.api.nvim_buf_get_lines(bufnr, start_line - 1, end_line, false)
+  for i, txt in ipairs(lines) do
+    if txt:match("^%*+%s") or txt:match("^%*+$") then
+      out[#out + 1] = start_line + i - 1
+    end
+  end
+  return out
+end
+
 function M.promote_headline(opts)
   local bufnr, line = resolve(opts)
   local hl = M._find_containing_headline(bufnr, line)
@@ -93,7 +134,10 @@ function M.promote_headline(opts)
   if hl.level == 1 then
     return "cannot promote level-1 headline"
   end
-  return rewrite_stars(bufnr, hl.line, hl.level - 1)
+  local snap = snapshot_fold_state({ hl.line })
+  local err = rewrite_stars(bufnr, hl.line, hl.level - 1)
+  restore_fold_state(snap)
+  return err
 end
 
 function M.promote_subtree(opts)
@@ -106,6 +150,7 @@ function M.promote_subtree(opts)
     return "cannot promote level-1 subtree"
   end
   local subtree_end = M._subtree_end(bufnr, hl)
+  local snap = snapshot_fold_state(subtree_headline_lines(bufnr, hl.line, subtree_end))
   -- Collect headline lines in reverse order so set_lines mutations don't
   -- shift later indexes (each call replaces 1 line with 1 line — same length —
   -- but reverse order keeps the algorithm uniform across operations).
@@ -117,6 +162,7 @@ function M.promote_subtree(opts)
   end
   -- Then the current headline.
   rewrite_stars(bufnr, hl.line, hl.level - 1)
+  restore_fold_state(snap)
   return nil
 end
 
@@ -129,7 +175,10 @@ function M.demote_headline(opts)
   if hl.level >= 9 then
     return "cannot demote past level 9"
   end
-  return rewrite_stars(bufnr, hl.line, hl.level + 1)
+  local snap = snapshot_fold_state({ hl.line })
+  local err = rewrite_stars(bufnr, hl.line, hl.level + 1)
+  restore_fold_state(snap)
+  return err
 end
 
 function M.demote_subtree(opts)
@@ -151,11 +200,17 @@ function M.demote_subtree(opts)
   if deepest >= 9 then
     return "cannot demote past level 9"
   end
+  local snap_lines = {}
+  for _, h in ipairs(headlines) do
+    snap_lines[#snap_lines + 1] = h.line
+  end
+  local snap = snapshot_fold_state(snap_lines)
   -- Apply in forward line order; rewrite_stars preserves the line count
   -- (replace 1 line with 1 line) so indexes stay valid as we go.
   for _, h in ipairs(headlines) do
     rewrite_stars(bufnr, h.line, h.level + 1)
   end
+  restore_fold_state(snap)
   return nil
 end
 
