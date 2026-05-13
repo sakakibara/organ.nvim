@@ -22,7 +22,7 @@ local M = {}
 -- Block kinds: appear in `children` of `document` or another block.
 M.BLOCK = {
   document = true, -- root: { children = {...} }
-  headline = true, -- { level, todo?, priority?, tags?, title=inline[], children }
+  headline = true, -- { level, todo?, priority?, tags?, planning?, properties?, title=inline[], children }
   paragraph = true, -- { inline = inline[] }
   list = true, -- { ordered, items = list_item[] }
   list_item = true, -- { checkbox = "todo"|"done"|"part"|nil, content = block[] }
@@ -125,6 +125,18 @@ function M.document(children)
   return { kind = "document", children = children or {} }
 end
 
+-- headline:
+--   level    -- integer, depth in the outline (1 = top level)
+--   todo     -- optional string, TODO keyword (e.g. "TODO", "DONE")
+--   priority -- optional string, one char ("A".."Z") from `[#X]` cookie
+--   tags     -- optional list of strings, trailing `:a:b:` tags
+--   title    -- list of inline nodes parsed from the headline text
+--   children -- list of block nodes for the headline's section content
+--   planning -- optional table; raw timestamp strings keyed by entry kind:
+--                { scheduled = "<...>", deadline = "<...>", closed = "[...]" }
+--              Brackets preserved verbatim from source; missing entries nil.
+--   properties -- optional map of uppercase key -> string value from the
+--                 headline's :PROPERTIES: ... :END: drawer.
 function M.headline(opts)
   return {
     kind = "headline",
@@ -132,6 +144,8 @@ function M.headline(opts)
     todo = opts.todo,
     priority = opts.priority,
     tags = opts.tags,
+    planning = opts.planning,
+    properties = opts.properties,
     title = opts.title or {},
     children = opts.children or {},
   }

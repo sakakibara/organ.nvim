@@ -327,28 +327,104 @@ local function merge_adjacent_tables(blocks)
   return out
 end
 
+-- Pull SCHEDULED / DEADLINE / CLOSED timestamps from a `planning` TS
+-- node.  Returns { scheduled?, deadline?, closed? } with raw bracketed
+-- timestamp strings, or nil when no entries were recognized.
+local function extract_planning(planning_node, src)
+  local out = {}
+  local found = false
+  for line_node in planning_node:iter_children() do
+    if line_node:type() == "planning_line" then
+      for entry in line_node:iter_children() do
+        if entry:type() == "planning_entry" then
+          local kw_node = entry:field("keyword")[1]
+          local ts_node = entry:field("timestamp")[1]
+          if kw_node and ts_node then
+            local kw = get_text(kw_node, src):upper()
+            local ts = get_text(ts_node, src)
+            if kw == "SCHEDULED" then
+              out.scheduled = ts
+              found = true
+            elseif kw == "DEADLINE" then
+              out.deadline = ts
+              found = true
+            elseif kw == "CLOSED" then
+              out.closed = ts
+              found = true
+            end
+          end
+        end
+      end
+    end
+  end
+  if not found then
+    return nil
+  end
+  return out
+end
+
+-- Pull `:KEY: value` pairs from a `property_drawer` TS node into a
+-- uppercase-keyed map, or nil if the drawer is empty.
+local function extract_properties(drawer_node, src)
+  local out = {}
+  local found = false
+  for prop in drawer_node:iter_children() do
+    if prop:type() == "node_property" then
+      local name_node = prop:field("name")[1]
+      local value_node = prop:field("value")[1]
+      if name_node then
+        local key = get_text(name_node, src):upper()
+        local value = value_node and get_text(value_node, src) or ""
+        out[key] = value
+        found = true
+      end
+    end
+  end
+  if not found then
+    return nil
+  end
+  return out
+end
+
 -- Walk an org `headline` (TS node) emitting an AST headline.  Recurses
 -- into children for sub-headlines / body content.  Body content is
 -- everything between the title line and the next sub-headline.
+--
+-- `planning` and `property_drawer` section children are extracted into
+-- the headline's `planning` / `properties` fields instead of being
+-- emitted as standalone block children; they semantically belong to
+-- the headline itself.
 local function emit_headline(node, src, todo_kws)
   local level = heading_level(node, src)
   local sr = node:start()
   local title_str, todo, priority, tags = clean_title(src[sr + 1] or "", todo_kws)
   local children_blocks = {}
+  local planning, properties
   for c in node:iter_children() do
     if c:type() == "headline" then
       children_blocks[#children_blocks + 1] = emit_headline(c, src, todo_kws)
     elseif c:type() == "section" then
       for sc in c:iter_children() do
-        local emit = M._emit_block_for_section_child
-        local block = emit and emit(sc, src) or nil
-        if block then
-          if type(block) == "table" and block[1] and not block.kind then
-            for _, b in ipairs(block) do
-              children_blocks[#children_blocks + 1] = b
+        local sct = sc:type()
+        if sct == "planning" then
+          if not planning then
+            planning = extract_planning(sc, src)
+          end
+        elseif sct == "property_drawer" then
+          if not properties then
+            properties = extract_properties(sc, src)
+          end
+        else
+          local emit = M._emit_block_for_section_child
+          local block = emit and emit(sc, src) or nil
+          if block then
+            if type(block) == "table" and block[1] and not block.kind then
+              for _, b in ipairs(block) do
+                children_blocks[#children_blocks + 1] = b
+              end
+            else
+              children_blocks[#children_blocks + 1] = block
             end
-          else
-            children_blocks[#children_blocks + 1] = block
           end
         end
       end
@@ -359,6 +435,8 @@ local function emit_headline(node, src, todo_kws)
     todo = todo,
     priority = priority,
     tags = tags,
+    planning = planning,
+    properties = properties,
     title = parse_inline(title_str),
     children = merge_adjacent_tables(children_blocks),
   })
@@ -367,7 +445,8 @@ end
 -- Convert a single TS node inside a `section` into an AST block (or
 -- a list of blocks for special cases).  Returns nil for nodes we
 -- don't yet model -- other node types drop silently (drawers,
--- planning, comments, etc.).
+-- comments, etc.).  `planning` and `property_drawer` are handled by
+-- emit_headline directly and never reach this function.
 local function emit_section_child(node, src)
   local t = node:type()
   if t == "paragraph" then
