@@ -40,9 +40,8 @@ local LINK_TYPES = {
 -- Public list of element keys, ordered for `:Org conceal toggle <Tab>`.
 M.ELEMENTS = { "bold", "italic", "underline", "strike", "verbatim", "code", "links" }
 
-local function element_enabled(name)
-  local cfg = (require("organ").config.emphasis or {})
-  local v = cfg[name]
+local function element_enabled(bufnr, name)
+  local v = require("organ.buf_config").read(bufnr, "emphasis." .. name)
   if v == nil then
     return true
   end
@@ -138,9 +137,9 @@ local function on_win(bufnr, _winid, topline, botline)
           local function walk(node)
             local t = node:type()
             local emph = EMPHASIS_TYPES[t]
-            if emph and element_enabled(emph) then
+            if emph and element_enabled(bufnr, emph) then
               walk_emphasis(node, push)
-            elseif LINK_TYPES[t] and element_enabled(LINK_TYPES[t]) then
+            elseif LINK_TYPES[t] and element_enabled(bufnr, LINK_TYPES[t]) then
               walk_link(node, push)
             end
             for c in node:iter_children() do
@@ -233,22 +232,24 @@ end
 
 -- Flip a single element's config flag and re-apply.  Returns the new
 -- state (true = concealed, false = visible).  Per-element flags live
--- on the in-process config so toggles persist for the rest of the
--- session; users wanting persistent preferences set them in `setup()`.
+-- on the buffer's effective config so toggles persist for the rest of
+-- the session; users wanting persistent preferences set them in
+-- `setup()`.  Touches every loaded org buffer so a single toggle is
+-- consistent across windows.
 function M.toggle_element(name)
-  local cfg = require("organ").config
-  cfg.emphasis = cfg.emphasis or {}
-  local cur = cfg.emphasis[name]
+  local buf_config = require("organ.buf_config")
+  local cur = buf_config.read(0, "emphasis." .. name)
   if cur == nil then
     cur = true
   end
-  cfg.emphasis[name] = not cur
+  local new_val = not cur
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(b) and vim.bo[b].filetype == "org" then
+      buf_config.set(b, "emphasis." .. name, new_val)
       apply(b)
     end
   end
-  return cfg.emphasis[name]
+  return new_val
 end
 
 M.commands = {

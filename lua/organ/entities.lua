@@ -120,7 +120,7 @@ local function rebuild_table()
     end
     LATEX_TO_UNICODE["\\" .. k] = v
   end
-  local extra = (require("organ").config.entities or {}).extra or {}
+  local extra = (require("organ.buf_config").read(nil, "entities") or {}).extra or {}
   for k, v in pairs(extra) do
     LATEX_TO_UNICODE["\\" .. k] = v
   end

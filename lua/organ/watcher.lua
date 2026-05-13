@@ -90,9 +90,9 @@ function M.add_dir(path, force)
   if not h then
     -- Surface via on_error hook if available; never abort.
     pcall(function()
-      local organ = require("organ")
-      if organ and organ.config and organ.config.on_error then
-        organ.config.on_error("watcher add_dir " .. p .. ": " .. tostring(err))
+      local on_error = require("organ.buf_config").read(nil, "on_error")
+      if on_error then
+        on_error("watcher add_dir " .. p .. ": " .. tostring(err))
       end
     end)
     return false
@@ -313,8 +313,8 @@ end
 M.commands = {
   ["watch start"] = {
     fn = function()
-      local organ = require("organ")
-      M.start(organ.config.watcher, organ.config.org_dir)
+      local bc = require("organ.buf_config")
+      M.start(bc.read(nil, "watcher"), bc.read(nil, "org_dir"))
     end,
     desc = "Start the organ filesystem watcher",
   },

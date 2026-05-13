@@ -4,7 +4,7 @@
 local M = {}
 
 function M.attach(bufnr)
-  local ie_cfg = require("organ").config.inline_edit or {}
+  local ie_cfg = require("organ.buf_config").read(nil, "inline_edit") or {}
   if ie_cfg.enabled == false then
     return
   end

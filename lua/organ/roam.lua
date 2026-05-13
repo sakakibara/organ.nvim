@@ -10,7 +10,7 @@ function M.create_node(title)
     return
   end
   title = title:gsub("^%s+", ""):gsub("%s+$", "")
-  local cfg = require("organ").config.roam or {}
+  local cfg = require("organ.buf_config").read(nil, "roam") or {}
   local dir = cfg.dir or vim.fn.expand("~/org/roam")
   vim.fn.mkdir(dir, "p")
   local slug = slugify(title)

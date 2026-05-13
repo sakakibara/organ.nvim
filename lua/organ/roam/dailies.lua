@@ -1,7 +1,7 @@
 local M = {}
 
 local function dailies_dir()
-  local cfg = (require("organ").config.roam or {})
+  local cfg = (require("organ.buf_config").read(nil, "roam") or {})
   local roam_dir = cfg.dir or vim.fn.expand("~/org/roam")
   local subdir = (cfg.dailies or {}).subdir or "daily"
   return roam_dir .. "/" .. subdir
@@ -24,7 +24,7 @@ local function _open_or_create(iso)
   vim.fn.mkdir(dir, "p")
   local path = dir .. "/" .. iso .. ".org"
   if not vim.loop.fs_stat(path) then
-    local cfg = (require("organ").config.roam or {})
+    local cfg = (require("organ.buf_config").read(nil, "roam") or {})
     local tpl = (cfg.dailies or {}).template or default_template
     local body = tpl(iso)
     require("organ.path").write_atomic(path, table.concat(body, "\n") .. "\n")

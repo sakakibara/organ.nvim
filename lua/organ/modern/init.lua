@@ -13,17 +13,17 @@ local M = {}
 
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config.modern or {}
-  if cfg.bullets then
+  local bc = require("organ.buf_config")
+  if bc.read(bufnr, "modern.bullets") then
     require("organ.modern.bullets").attach(bufnr)
   end
-  if cfg.blocks then
+  if bc.read(bufnr, "modern.blocks") then
     require("organ.modern.blocks").attach(bufnr)
   end
-  if cfg.pills then
+  if bc.read(bufnr, "modern.pills") then
     require("organ.modern.pills").attach(bufnr)
   end
-  if cfg.table then
+  if bc.read(bufnr, "modern.table") then
     require("organ.modern.table").attach(bufnr)
   end
 end

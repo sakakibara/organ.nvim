@@ -447,8 +447,13 @@ function M.discover_paths(paths, bufnr)
   end
   -- (3) Config — supports plain paths and globs.
   local ok, organ = pcall(require, "organ")
-  if ok and organ.config and organ.config.cite and organ.config.cite.bibliographies then
-    for _, pat in ipairs(organ.config.cite.bibliographies) do
+  if
+    ok
+    and organ.config
+    and require("organ.buf_config").read(nil, "cite")
+    and require("organ.buf_config").read(nil, "cite.bibliographies")
+  then
+    for _, pat in ipairs(require("organ.buf_config").read(nil, "cite.bibliographies")) do
       for _, p in ipairs(vim.fn.glob(pat, false, true) or { pat }) do
         local resolved = vim.fn.fnamemodify(p, ":p")
         if not seen[resolved] then

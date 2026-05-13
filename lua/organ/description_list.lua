@@ -32,9 +32,7 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local cfg = require("organ").config
-  local sub = cfg.description_list
-  if sub ~= nil and sub.enabled == false then
+  if require("organ.buf_config").read(bufnr, "description_list.enabled") == false then
     return
   end
   -- Tree is parsed once per buffer per redraw by organ.decoration; we
@@ -106,15 +104,10 @@ end
 require("organ.decoration").register({
   name = "description_list",
   ns = NS,
-  enabled = function(_bufnr)
+  enabled = function(bufnr)
     -- No explicit config flag historically; on by default.  Honor an
     -- explicit `description_list.enabled = false` opt-out.
-    local cfg = require("organ").config
-    local sub = cfg.description_list
-    if sub == nil then
-      return true
-    end
-    return sub.enabled ~= false
+    return require("organ.buf_config").read(bufnr, "description_list.enabled") ~= false
   end,
   on_win = on_win,
   on_line = on_line,
@@ -161,5 +154,21 @@ function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
 end
+
+-- Reapply hook: react to live `description_list.enabled` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "description_list.enabled") ~= false
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

@@ -142,7 +142,7 @@ function M._get_clipboard()
 end
 
 local function notify_info(msg)
-  if (require("organ").config or {}).notify then
+  if require("organ.buf_config").read(nil, "notify") then
     vim.schedule(function()
       require("organ.notify").info(msg)
     end)

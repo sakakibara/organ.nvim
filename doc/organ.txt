@@ -1979,10 +1979,25 @@ Holidays                                                  *organ-cmd-holidays*
 ------------------------------------------------------------------------------
 Miscellaneous                                                 *organ-cmd-misc*
 
-*:Org-indent_mode*
-    `:Org indent_mode [on|off]`
-    Toggle or set visual auto-indent for the current buffer.
-    See |organ-config-indent|.
+*:Org-set*  *:Org-toggle*  *:Org-unset*  *:Org-config*
+    `:Org set <path> <value>`
+    `:Org toggle <path>`
+    `:Org unset <path>`
+    `:Org config [effective|global|buf]`
+
+    Per-buffer config override layer.  `set` writes a partial override
+    that takes precedence over the global config for THIS buffer only;
+    `toggle` flips a boolean at `<path>`; `unset` removes the buffer
+    override so the global value reasserts; `config` prints the
+    effective (default), global, or buf-local-only config.  Examples:
+
+        `:Org toggle indent.enabled`        flip visual auto-indent
+        `:Org set modern.bullets true`      enable per-level bullets
+        `:Org toggle stars.hide`            hide leading stars
+        `:Org unset modern.bullets`         revert to the global value
+
+    Tab-completion walks the active config tree, so `:Org set <Tab>`
+    enumerates every overridable path.
 
 ==============================================================================
 REPEATERS AND HABITS                                         *organ-repeaters*

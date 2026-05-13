@@ -473,10 +473,10 @@ local function resolve_calendar(name, date)
   end
   -- Real implementation lives in lua/organ/holidays.lua; loaded lazily.
   local ok, organ = pcall(require, "organ")
-  if not ok or not organ.config or not organ.config.todo then
+  if not ok or not organ.config or not require("organ.buf_config").read(nil, "todo") then
     return false
   end
-  local user_cals = organ.config.todo.calendars or {}
+  local user_cals = require("organ.buf_config").read(nil, "todo.calendars") or {}
   local cal = user_cals[name]
   if cal then
     if type(cal) == "function" then
@@ -540,8 +540,8 @@ function M.bump(timestamp_text, now_yyyy_mm_dd)
     -- as weekends).  Users can also write `[bizday,!cal:US]` explicitly.
     local default_holiday_cal = nil
     local ok, organ = pcall(require, "organ")
-    if ok and organ.config and organ.config.todo then
-      default_holiday_cal = organ.config.todo.default_holiday_cal
+    if ok and organ.config and require("organ.buf_config").read(nil, "todo") then
+      default_holiday_cal = require("organ.buf_config").read(nil, "todo.default_holiday_cal")
     end
     local hit = false
     -- Bizday-aware filters can require iterating well beyond 366 days

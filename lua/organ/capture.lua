@@ -8,7 +8,7 @@ local function get_config()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.capture or {}
+  return require("organ.buf_config").read(nil, "capture") or {}
 end
 
 local function open_capture_buf(template_name, body_lines, cursor_offset)
@@ -262,7 +262,7 @@ end
 --   opts.key = nil  → popup if any template defines `key`, else picker
 function M.open(opts)
   opts = opts or {}
-  local templates = (require("organ").config.capture or {}).templates or {}
+  local templates = (require("organ.buf_config").read(nil, "capture") or {}).templates or {}
   local key = opts.key
   if key and key ~= "" then
     local t = require("organ.capture.template").find_by_key(templates, key)
@@ -583,7 +583,7 @@ function M.cancel(bufnr)
 end
 
 local function complete_capture_keys(arg_lead)
-  local cfg = (require("organ").config.capture or {})
+  local cfg = (require("organ.buf_config").read(nil, "capture") or {})
   local out = {}
   for _, t in ipairs(cfg.templates or {}) do
     if t.key and t.key:find(arg_lead, 1, true) == 1 then

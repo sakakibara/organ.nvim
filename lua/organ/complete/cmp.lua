@@ -172,8 +172,8 @@ function M.maybe_register()
   if
     not cfg_ok
     or not organ.config
-    or not organ.config.complete
-    or organ.config.complete.cmp == false
+    or not require("organ.buf_config").read(nil, "complete")
+    or require("organ.buf_config").read(nil, "complete.cmp") == false
   then
     return
   end
@@ -182,13 +182,13 @@ function M.maybe_register()
   cmp.register_source("organ_tags", M.new_tags())
   cmp.register_source("organ_directive", M.new_directive())
   cmp.register_source("organ_src_lang", M.new_src_lang())
-  if organ.config.complete.drawer ~= false then
+  if require("organ.buf_config").read(nil, "complete.drawer") ~= false then
     cmp.register_source("organ_drawer", M.new_drawer())
   end
-  if organ.config.complete.roam_everywhere then
+  if require("organ.buf_config").read(nil, "complete.roam_everywhere") then
     cmp.register_source("organ_roam_node", M.new_roam_node())
   end
-  if organ.config.complete.cite ~= false then
+  if require("organ.buf_config").read(nil, "complete.cite") ~= false then
     cmp.register_source("organ_cite", M.new_cite())
   end
 end

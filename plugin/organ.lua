@@ -282,6 +282,138 @@ local subcommands = {
     end,
     desc = "Widen: restore buffer view after `:Org narrow_to_subtree`",
   },
+
+  -- :Org set/toggle/unset/config -- universal per-buffer config layer.
+  set = (function()
+    local function parse_value(s)
+      if s == "true" then
+        return true
+      end
+      if s == "false" then
+        return false
+      end
+      if s == "nil" then
+        return nil
+      end
+      local n = tonumber(s)
+      if n ~= nil then
+        return n
+      end
+      return s
+    end
+    return {
+      fn = function(opts)
+        local args = opts.fargs or {}
+        if #args < 2 then
+          require("organ.notify").error("usage: :Org set <path> <value>")
+          return
+        end
+        local path = args[1]
+        local raw = table.concat({ unpack(args, 2) }, " ")
+        local value = parse_value(raw)
+        local bufnr = vim.api.nvim_get_current_buf()
+        require("organ.buf_config").set(bufnr, path, value)
+        require("organ.notify").info(
+          ("organ: set %s = %s (buf %d)"):format(path, tostring(value), bufnr)
+        )
+      end,
+      nargs = "+",
+      complete = function(arg_lead, cmdline)
+        -- First arg = config path; second+ = value (no completion).
+        local after = cmdline:match("Org!?%s+set%s+(.*)$") or ""
+        local tokens = vim.split(after, "%s+", { trimempty = false })
+        if #tokens <= 1 then
+          local paths = require("organ.buf_config").paths()
+          local out = {}
+          for _, p in ipairs(paths) do
+            if p:sub(1, #arg_lead) == arg_lead then
+              out[#out + 1] = p
+            end
+          end
+          table.sort(out)
+          return out
+        end
+        return { "true", "false" }
+      end,
+      desc = "Set a per-buffer config override (`:Org set indent.enabled true`)",
+    }
+  end)(),
+  toggle = {
+    fn = function(opts)
+      local args = opts.fargs or {}
+      if #args < 1 then
+        require("organ.notify").error("usage: :Org toggle <path>")
+        return
+      end
+      local bufnr = vim.api.nvim_get_current_buf()
+      local new = require("organ.buf_config").toggle(bufnr, args[1])
+      require("organ.notify").info(
+        ("organ: toggle %s -> %s (buf %d)"):format(args[1], tostring(new), bufnr)
+      )
+    end,
+    nargs = 1,
+    complete = function(arg_lead)
+      local paths = require("organ.buf_config").paths()
+      local out = {}
+      for _, p in ipairs(paths) do
+        if p:sub(1, #arg_lead) == arg_lead then
+          out[#out + 1] = p
+        end
+      end
+      table.sort(out)
+      return out
+    end,
+    desc = "Toggle a per-buffer boolean (`:Org toggle modern.bullets`)",
+  },
+  unset = {
+    fn = function(opts)
+      local args = opts.fargs or {}
+      if #args < 1 then
+        require("organ.notify").error("usage: :Org unset <path>")
+        return
+      end
+      local bufnr = vim.api.nvim_get_current_buf()
+      require("organ.buf_config").unset(bufnr, args[1])
+      require("organ.notify").info(("organ: unset %s (buf %d)"):format(args[1], bufnr))
+    end,
+    nargs = 1,
+    complete = function(arg_lead)
+      local paths = require("organ.buf_config").paths()
+      local out = {}
+      for _, p in ipairs(paths) do
+        if p:sub(1, #arg_lead) == arg_lead then
+          out[#out + 1] = p
+        end
+      end
+      table.sort(out)
+      return out
+    end,
+    desc = "Clear a per-buffer override so the global value takes over",
+  },
+  config = {
+    fn = function(opts)
+      local args = opts.fargs or {}
+      local scope = args[1] or "effective"
+      local bufnr = vim.api.nvim_get_current_buf()
+      local bc = require("organ.buf_config")
+      local payload
+      if scope == "global" then
+        payload = require("organ").config or {}
+      elseif scope == "buf" then
+        payload = bc.get(bufnr)
+      else
+        payload = bc.effective(bufnr)
+      end
+      -- vim.print is concise + already pretty-prints tables;
+      -- :messages keeps the output.
+      vim.print(payload)
+    end,
+    nargs = "?",
+    complete = function()
+      return { "effective", "global", "buf" }
+    end,
+    desc = "Print effective / global / buf config for the current buffer",
+  },
 }
 
 -- ---------------------------------------------------------------------------

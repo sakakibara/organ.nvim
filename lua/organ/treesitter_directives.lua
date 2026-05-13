@@ -134,8 +134,10 @@ end
 local function todo_sets(source)
   local active, done = {}, {}
   local ok, organ = pcall(require, "organ")
-  if ok and organ.config and organ.config.todo then
-    local raw = organ.config.todo.sequences or organ.config.todo.sequence or {}
+  if ok and organ.config and require("organ.buf_config").read(nil, "todo") then
+    local raw = require("organ.buf_config").read(nil, "todo.sequences")
+      or require("organ.buf_config").read(nil, "todo.sequence")
+      or {}
     local sequences = require("organ.todo")._normalise_sequences(raw)
     for _, seq in ipairs(sequences) do
       local in_done = false

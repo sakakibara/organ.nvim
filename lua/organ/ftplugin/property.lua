@@ -4,7 +4,7 @@
 local M = {}
 
 function M.attach(bufnr)
-  local prop_cfg = require("organ").config.property or {}
+  local prop_cfg = require("organ.buf_config").read(nil, "property") or {}
   if prop_cfg.enabled == false then
     return
   end

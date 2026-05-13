@@ -180,7 +180,7 @@ local function try_image_render(bufnr, frag)
     return false
   end
 
-  local cfg = ((require("organ").config or {}).latex or {})
+  local cfg = require("organ.buf_config").read(bufnr, "latex") or {}
   local png, err = renderer.render(frag.text, {
     kind = frag.kind,
     dpi = cfg.dpi,
@@ -216,7 +216,7 @@ function M.open(bufnr)
     return nil
   end
 
-  local cfg = ((require("organ").config or {}).latex or {})
+  local cfg = require("organ.buf_config").read(bufnr, "latex") or {}
   if cfg.preview == "image" and try_image_render(bufnr, frag) then
     return nil
   end
@@ -311,7 +311,7 @@ function M.show_all(bufnr)
     return 0
   end
 
-  local cfg = ((require("organ").config or {}).latex or {})
+  local cfg = require("organ.buf_config").read(bufnr, "latex") or {}
   local frags = all_fragments(bufnr)
   if #frags == 0 then
     return 0

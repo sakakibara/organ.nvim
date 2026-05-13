@@ -20,7 +20,7 @@ function M.check()
   end
 
   -- parser presence + dlopen verification (catches arch mismatches early).
-  local parser = organ.config.parser_path
+  local parser = require("organ.buf_config").read(nil, "parser_path")
   local plat
   do
     local u = vim.uv and vim.uv.os_uname() or vim.loop.os_uname()
@@ -49,7 +49,7 @@ function M.check()
   end
 
   -- DB + schema: trigger lazy open so we report the live schema version.
-  local db_path = organ.config.db_path
+  local db_path = require("organ.buf_config").read(nil, "db_path")
   if not db_path then
     health.error("db_path unset")
     return
@@ -112,7 +112,7 @@ function M.check()
   local has_snacks = (_G.Snacks and _G.Snacks.picker) or (pcall(require, "snacks.picker"))
   local has_telescope = pcall(require, "telescope.pickers")
   local has_fzf_lua = pcall(require, "fzf-lua")
-  local cfg_backend = (organ.config.find or {}).backend or "snacks"
+  local cfg_backend = (require("organ.buf_config").read(nil, "find") or {}).backend or "snacks"
   if has_snacks then
     health.ok("snacks.nvim loaded — :Org find, :Org roam, completion picker available")
   else
@@ -384,7 +384,7 @@ function M.check()
   end
 
   local foldtext = vim.o.foldtext
-  local cfg_fold = (organ.config or {}).fold or {}
+  local cfg_fold = require("organ.buf_config").read(nil, "fold") or {}
   if cfg_fold.auto_foldtext == true then
     health.ok(
       "foldtext: auto-apply on (organ sets win-local 'foldtext' + drops `·` fold filler on org buffers)"

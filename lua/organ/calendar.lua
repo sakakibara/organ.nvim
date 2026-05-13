@@ -343,7 +343,7 @@ local function _holiday_set_for_month(year, month)
   if not ok then
     return {}
   end
-  local cfg = (require("organ").config.todo or {})
+  local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local set = {}
   for _, name in ipairs(cfg.calendars or {}) do
     local entries = h.load_calendar(name) or {}
@@ -518,7 +518,9 @@ function M.pick(opts, callback)
   opts = opts or {}
   register_highlights()
 
-  local week_start = opts.week_start or (require("organ").config.calendar or {}).week_start or "mon"
+  local week_start = opts.week_start
+    or (require("organ.buf_config").read(nil, "calendar") or {}).week_start
+    or "mon"
   local initial = opts.initial or _today_iso()
   local p = initial:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$") and initial or _today_iso()
   local year = tonumber(p:sub(1, 4))
@@ -526,11 +528,11 @@ function M.pick(opts, callback)
 
   local three_months = opts.three_months
   if three_months == nil then
-    three_months = (require("organ").config.calendar or {}).three_months == true
+    three_months = (require("organ.buf_config").read(nil, "calendar") or {}).three_months == true
   end
   local show_footer = opts.footer
   if show_footer == nil then
-    local v = (require("organ").config.calendar or {}).footer
+    local v = (require("organ.buf_config").read(nil, "calendar") or {}).footer
     if v == nil then
       show_footer = true
     else

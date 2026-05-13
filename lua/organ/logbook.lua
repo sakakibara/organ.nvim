@@ -14,7 +14,7 @@ local function get_todo_cfg()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.todo or {}
+  return require("organ.buf_config").read(nil, "todo") or {}
 end
 
 local DOW = { [0] = "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }

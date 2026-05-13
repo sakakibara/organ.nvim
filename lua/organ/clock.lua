@@ -11,7 +11,7 @@ local function get_drawer_name()
   if not ok or not organ.config then
     return "LOGBOOK"
   end
-  local clock_cfg = organ.config.clock or {}
+  local clock_cfg = require("organ.buf_config").read(nil, "clock") or {}
   -- `into_drawer` (Emacs `org-clock-into-drawer`):
   --   true (default)  → use drawer (name from log_drawer / fallback)
   --   string          → that drawer name (alias for log_drawer)
@@ -30,7 +30,7 @@ local function get_drawer_name()
   if explicit then
     return explicit
   end
-  return (organ.config.todo or {}).log_drawer or "LOGBOOK"
+  return (require("organ.buf_config").read(nil, "todo") or {}).log_drawer or "LOGBOOK"
 end
 
 -- Read the headline at line `line` in `bufnr` directly from the buffer.
@@ -132,7 +132,7 @@ function M.start(opts)
     started_at = os.date("%Y-%m-%d %H:%M", now),
   })
 
-  local cfg = (require("organ").config.clock or {})
+  local cfg = (require("organ.buf_config").read(nil, "clock") or {})
   if cfg.idle_threshold_minutes and cfg.idle_threshold_minutes > 0 then
     require("organ.clock.idle").start(cfg.idle_threshold_minutes)
   end
@@ -219,7 +219,7 @@ function M.setup_resume()
     return
   end
 
-  local cfg = (require("organ").config.clock or {})
+  local cfg = (require("organ.buf_config").read(nil, "clock") or {})
   if cfg.idle_threshold_minutes and cfg.idle_threshold_minutes > 0 then
     require("organ.clock.idle").start(cfg.idle_threshold_minutes)
   end

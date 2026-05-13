@@ -43,7 +43,7 @@ function M.set(bufnr, name, value)
 end
 
 local function notify_info(msg)
-  if (require("organ").config or {}).notify then
+  if require("organ.buf_config").read(nil, "notify") then
     vim.schedule(function()
       require("organ.notify").info(msg)
     end)
@@ -59,7 +59,7 @@ M.commands = {
       if current then
         prefill = current:match("^%s*#%+[Tt][Oo][Dd][Oo]:%s*(.*)$") or ""
       else
-        local seq = (require("organ").config.todo or {}).sequence or {}
+        local seq = (require("organ.buf_config").read(nil, "todo") or {}).sequence or {}
         prefill = table.concat(seq, " ")
       end
       vim.ui.input({ prompt = "TODO states: ", default = prefill }, function(value)

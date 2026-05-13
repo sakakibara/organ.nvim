@@ -17,19 +17,24 @@
 -- parsed once per buffer per redraw by organ.decoration and shared with
 -- the other decoration providers.
 --
--- Toggle is per-buffer (not filetype-global): `_attached[bufnr]` gates
--- the provider's `enabled` callback, so unrelated org buffers stay
--- untouched until the user runs `:Org indent_mode` or `cfg.indent.enabled`
--- triggers auto-attach in the ftplugin.
+-- Toggle is per-buffer (not filetype-global): the effective `indent.enabled`
+-- value for the buffer (global + buf-local overrides via
+-- `organ.buf_config`) gates the provider's `enabled` callback, so
+-- unrelated org buffers stay untouched until the user flips the bit via
+-- `:Org toggle indent.enabled` or sets `cfg.indent.enabled = true` for
+-- auto-attach in the ftplugin.
 
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_indent")
 M._ns = NS
 
--- Per-buffer attach state: `_attached[bufnr] = true` when the user has
--- opted this buffer into indent decoration.  The decoration provider
--- consults this in its `enabled` callback.
+-- Per-buffer attach state.  Kept as a fast-path mirror of
+-- `buf_config.read(bufnr, "indent.enabled")` so the decoration provider's
+-- on_win/on_line callbacks don't have to consult the merged config on
+-- every redraw.  Writes go through attach/detach; the buf_config
+-- reapply hook also keeps this in sync when the user flips the bit
+-- via `:Org toggle indent.enabled`.
 M._attached = {}
 
 -- Empty-table sentinel.  The memory-probe test asserts
@@ -38,12 +43,12 @@ M._attached = {}
 -- because the table stays empty.
 M._timers = {}
 
-local function get_config()
-  local ok, organ = pcall(require, "organ")
-  if not ok or not organ.config then
-    return {}
-  end
-  return organ.config.indent or {}
+local function bcfg(bufnr, path)
+  return require("organ.buf_config").read(bufnr, path)
+end
+
+local function get_config(bufnr)
+  return bcfg(bufnr, "indent") or {}
 end
 
 -- True when the headline's leading stars are visually replaced (modern
@@ -52,18 +57,11 @@ end
 -- the heading row needs no virt-text pad and the body must align with
 -- the title (column L+2, i.e. body pad = L + 1).  `modern.bullets` may
 -- be `true` or a config table; both are truthy.
-local function stars_visually_hidden()
-  local ok, organ = pcall(require, "organ")
-  if not ok or not organ.config then
-    return false
-  end
-  local cfg = organ.config
-  local modern = cfg.modern or {}
-  if modern.bullets then
+local function stars_visually_hidden(bufnr)
+  if bcfg(bufnr, "modern.bullets") then
     return true
   end
-  local stars = cfg.stars or {}
-  if stars.hide == true then
+  if bcfg(bufnr, "stars.hide") == true then
     return true
   end
   return false
@@ -89,9 +87,9 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
   local root = tree:root()
-  local cfg = get_config()
+  local cfg = get_config(bufnr)
   local shift = cfg.shift_per_level or 2
-  local hide_stars = stars_visually_hidden()
+  local hide_stars = stars_visually_hidden(bufnr)
 
   local function heading_level(heading_node)
     local sr0 = heading_node:start()
@@ -171,7 +169,7 @@ local function on_line(bufnr, _winid, row)
   if not pad then
     return
   end
-  local cfg = get_config()
+  local cfg = get_config(bufnr)
   local hl = cfg.hl_group or "Conceal"
   -- right_gravity=false anchors the extmark to its position BEFORE
   -- insertions at the same column, so typing at the start of a body
@@ -207,7 +205,7 @@ function M.refresh(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   local n = vim.api.nvim_buf_line_count(bufnr)
   on_win(bufnr, 0, 0, n - 1)
-  local cfg = get_config()
+  local cfg = get_config(bufnr)
   local hl = cfg.hl_group or "Conceal"
   for row, pad in pairs(frame_map) do
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, 0, {
@@ -251,27 +249,20 @@ function M.toggle(bufnr)
   end
 end
 
-M.commands = {
-  indent_mode = {
-    fn = function(cmd)
-      local bufnr = vim.api.nvim_get_current_buf()
-      local arg = cmd and cmd.args or ""
-      if arg == "" then
-        M.toggle(bufnr)
-      elseif arg:lower() == "on" then
-        M.attach(bufnr)
-      elseif arg:lower() == "off" then
-        M.detach(bufnr)
-      else
-        require("organ.notify").error(":Org indent_mode takes no arg, 'on', or 'off'")
-      end
-    end,
-    nargs = "?",
-    complete = function()
-      return { "on", "off" }
-    end,
-    desc = "Toggle / set visual auto-indent for the current buffer",
-  },
-}
+-- Reapply hook: when buf_config.set / unset / reset fires, re-evaluate
+-- the buffer's effective `indent.enabled` value and attach/detach to
+-- match.  Idempotent: attach/detach are no-ops when the state already
+-- matches the request.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "indent.enabled") == true
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

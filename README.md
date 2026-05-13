@@ -396,8 +396,9 @@ default) with example inputs.
 `:Org latex_preview`, `:Org latex_render`, `:Org latex_cache_purge`,
 `:Org image_reveal`, `:Org toggle_inline_images`, `:Org pretty_entities`,
 `:Org conceal toggle`, `:Org complete`, `:Org increment` /
-`:Org decrement`, `:Org meta_return`, `:Org indent_mode`, `:Org habits`,
-`:Org fetch_holidays`, `:Org protocol`
+`:Org decrement`, `:Org meta_return`, `:Org set`, `:Org toggle`,
+`:Org unset`, `:Org config`, `:Org habits`, `:Org fetch_holidays`,
+`:Org protocol`
 </details>
 
 ## Formatting

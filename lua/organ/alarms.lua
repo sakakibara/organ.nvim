@@ -34,7 +34,7 @@ local state = {
 }
 
 local function cfg()
-  return (require("organ").config.alarms or {})
+  return (require("organ.buf_config").read(nil, "alarms") or {})
 end
 
 local function lead_minutes()

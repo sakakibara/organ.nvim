@@ -218,8 +218,13 @@ local function tag_joins(filter)
     inherit = filter.inherit
   else
     local ok, organ = pcall(require, "organ")
-    if ok and organ.config and organ.config.tags and organ.config.tags.inherit ~= nil then
-      inherit = organ.config.tags.inherit
+    if
+      ok
+      and organ.config
+      and require("organ.buf_config").read(nil, "tags")
+      and require("organ.buf_config").read(nil, "tags.inherit") ~= nil
+    then
+      inherit = require("organ.buf_config").read(nil, "tags.inherit")
     else
       inherit = true
     end
@@ -743,8 +748,13 @@ local function hydrate_inherited_tags(h, rows)
   local exclude_set = {}
   do
     local ok, organ = pcall(require, "organ")
-    if ok and organ.config and organ.config.tags and organ.config.tags.exclude_from_inheritance then
-      for _, t in ipairs(organ.config.tags.exclude_from_inheritance) do
+    if
+      ok
+      and organ.config
+      and require("organ.buf_config").read(nil, "tags")
+      and require("organ.buf_config").read(nil, "tags.exclude_from_inheritance")
+    then
+      for _, t in ipairs(require("organ.buf_config").read(nil, "tags.exclude_from_inheritance")) do
         exclude_set[t] = true
       end
     end
@@ -1245,7 +1255,7 @@ end
 -- todo_state is in next_states. Pure read; no DB writes.
 function M.stuck_projects(opts)
   opts = opts or {}
-  local cfg = (require("organ").config.stuck or {})
+  local cfg = (require("organ.buf_config").read(nil, "stuck") or {})
   local project_filter = opts.project_filter
     or cfg.project_filter
     or { tags = { any = { "project" } } }

@@ -4,7 +4,7 @@
 local M = {}
 
 function M.attach(bufnr)
-  local tags_cfg = require("organ").config.tags or {}
+  local tags_cfg = require("organ.buf_config").read(nil, "tags") or {}
   if tags_cfg.keymaps == false then
     return
   end

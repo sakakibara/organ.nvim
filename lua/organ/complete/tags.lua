@@ -55,7 +55,7 @@ local function pool_with_freq()
     end
   end
   -- 2. Config.tags.alist — explicit user-declared tag dictionary.
-  local cfg = (require("organ").config.tags or {}).alist or {}
+  local cfg = (require("organ.buf_config").read(nil, "tags") or {}).alist or {}
   for _, entry in ipairs(cfg) do
     -- alist entries can be {name, key} pairs or bare strings.
     local name = type(entry) == "table" and entry[1] or entry
@@ -64,7 +64,7 @@ local function pool_with_freq()
     end
   end
   -- 3. Tag groups (parent tags).
-  for parent in pairs((require("organ").config.tags or {}).groups or {}) do
+  for parent in pairs((require("organ.buf_config").read(nil, "tags") or {}).groups or {}) do
     freq[parent] = freq[parent] or 0
   end
   return freq

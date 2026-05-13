@@ -14,7 +14,7 @@ function M.refile(opts)
   local line = opts.line or vim.fn.line(".")
 
   local find = require("organ.find")
-  local rcfg = (require("organ").config.refile or {})
+  local rcfg = (require("organ.buf_config").read(nil, "refile") or {})
 
   -- Column choice (mirror Emacs `org-refile-use-outline-path`):
   --   "outline"      → breadcrumb (file → parent chain → heading)
@@ -34,7 +34,7 @@ function M.refile(opts)
   else
     cols = { "level", "todo", "priority", "title", "tags", "breadcrumb" }
   end
-  local cfg_cols = (require("organ").config.find or {}).columns
+  local cfg_cols = (require("organ.buf_config").read(nil, "find") or {}).columns
   if cfg_cols and cfg_cols ~= require("organ.defaults").find.columns then
     cols = cfg_cols
   end
@@ -65,7 +65,7 @@ function M.refile(opts)
           file_set[p] = true
         end
       elseif spec == "agenda_files" then
-        local af = (require("organ").config or {}).agenda_files
+        local af = require("organ.buf_config").read(nil, "agenda_files")
         if af then
           for _, p in ipairs(agenda.resolve_agenda_files(af) or {}) do
             file_set[p] = true
@@ -198,7 +198,7 @@ function M.move(src_bufnr, src_line, target_file, target_line)
   end
 
   -- LOGBOOK refile note. Recorded BEFORE the save so the entry persists.
-  local cfg = (require("organ").config.todo or {})
+  local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local policy = cfg.log_refile
   if policy == "time" or policy == "note" then
     -- The moved subtree's new headline is at:

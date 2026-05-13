@@ -35,7 +35,7 @@ local function extractor_version()
   local parts = {}
   -- Parser binary mtime (rebuild bumps this).
   local organ = require("organ")
-  local pp = organ.config and organ.config.parser_path
+  local pp = organ.config and require("organ.buf_config").read(nil, "parser_path")
   if pp then
     local st = vim.uv.fs_stat(pp)
     if st then
@@ -53,7 +53,7 @@ local function extractor_version()
     end
   end
   -- Schema source hash (column defs).
-  local sp = organ.config and organ.config.schema_path
+  local sp = organ.config and require("organ.buf_config").read(nil, "schema_path")
   if sp then
     local f = io.open(sp, "r")
     if f then
@@ -392,7 +392,7 @@ end
 -- with `(setq org-log-into-drawer "AUDIT")` get an :AUDIT: drawer
 -- and we recognise it here so state-change extraction picks up).
 local function log_drawer_pattern()
-  local cfg = (require("organ").config and require("organ").config.todo) or {}
+  local cfg = (require("organ").config and require("organ.buf_config").read(nil, "todo")) or {}
   local name = cfg.log_drawer or "LOGBOOK"
   local class = {}
   for c in name:gmatch(".") do
@@ -1358,7 +1358,7 @@ function M.index_file_sync(path)
   local organ = require("organ")
   local h = require("organ.runtime").db()
   assert(h, "organ.runtime.db() returned nil — call organ.setup() before index_file_sync")
-  local parser_path = organ.config.parser_path
+  local parser_path = require("organ.buf_config").read(nil, "parser_path")
 
   -- Canonicalize before any DB write so all `file_path` rows are
   -- symlink-resolved + absolute.  Without this, a caller indexing
@@ -1404,7 +1404,7 @@ function M.index_file_sync(path)
 end
 
 local function notify_msg(msg, level)
-  if not (require("organ").config or {}).notify then
+  if not require("organ.buf_config").read(nil, "notify") then
     return
   end
   vim.schedule(function()
@@ -1467,9 +1467,11 @@ M.commands = {
       local organ = require("organ")
       local h = require("organ.runtime").db()
       if cmd and cmd.bang then
-        notify_msg("force-rescan: clearing index for " .. organ.config.org_dir)
+        notify_msg(
+          "force-rescan: clearing index for " .. require("organ.buf_config").read(nil, "org_dir")
+        )
         local s = h:prepare("SELECT path FROM files WHERE path LIKE ?")
-        s:bind_text(1, organ.config.org_dir .. "%")
+        s:bind_text(1, require("organ.buf_config").read(nil, "org_dir") .. "%")
         local paths = {}
         while s:step() == require("organ.db").SQLITE_ROW do
           paths[#paths + 1] = s:column_text(0)
@@ -1499,9 +1501,9 @@ M.commands = {
       if missing > 0 then
         notify_msg(("pruned %d orphan file row(s)"):format(missing))
       end
-      notify_msg("scanning " .. organ.config.org_dir)
+      notify_msg("scanning " .. require("organ.buf_config").read(nil, "org_dir"))
       organ._start_scan()
-      organ._scan_walk(organ.config.org_dir, function()
+      organ._scan_walk(require("organ.buf_config").read(nil, "org_dir"), function()
         notify_msg("scan enqueued; draining in background")
         organ._poll_scan_completion()
       end)
@@ -1524,7 +1526,7 @@ M.commands = {
       end
       local msg = string.format(
         "organ: db=%s  files_indexed=%d  queue(int/bg)=%d/%d  last=%s  errors=%d",
-        organ.config.db_path,
+        require("organ.buf_config").read(nil, "db_path"),
         indexed,
         ui,
         bg,

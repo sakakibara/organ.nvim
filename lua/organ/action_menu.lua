@@ -73,7 +73,7 @@ function M.actions_at_cursor()
     add("Schedule…", sub("schedule"))
     add("Set deadline…", sub("deadline"))
     add("Set priority…", function()
-      local pri_cfg = require("organ").config.priority or {}
+      local pri_cfg = require("organ.buf_config").read(nil, "priority") or {}
       local hi, lo = pri_cfg.highest or "A", pri_cfg.lowest or "C"
       local choices = { "(none)" }
       for c = string.byte(hi), string.byte(lo) do

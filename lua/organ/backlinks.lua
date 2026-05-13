@@ -209,7 +209,7 @@ end
 
 local function install_keymaps(bufnr)
   local organ = require("organ")
-  local backlinks_cfg = organ.config.backlinks or {}
+  local backlinks_cfg = require("organ.buf_config").read(nil, "backlinks") or {}
   -- Rule 2: keymaps = false disables all backlinks bindings.
   if backlinks_cfg.keymaps == false then
     return
@@ -304,7 +304,7 @@ function M.open(headline_id)
   set_state(bufnr, { id = headline_id })
 
   local organ = require("organ")
-  local cfg = (organ.config.backlinks or {})
+  local cfg = (require("organ.buf_config").read(nil, "backlinks") or {})
   local debounce_ms = cfg.refresh_debounce_ms or 300
 
   local timer
@@ -365,7 +365,7 @@ function M.open(headline_id)
   -- local — never overwrite the user's global statusline / winbar.
   -- Opt out with cfg.backlinks.{winbar,statusline} = false; provide a
   -- string OR function to fully replace either.
-  local bcfg = (require("organ").config.backlinks or {})
+  local bcfg = (require("organ.buf_config").read(nil, "backlinks") or {})
   require("organ.statusline").apply(bufnr, {
     winbar = bcfg.winbar,
     winbar_default = "backlinks_winbar",

@@ -217,7 +217,7 @@ local function _tag_group_index()
   if not ok or not organ.config then
     return {}
   end
-  return (organ.config.tags or {}).groups or {}
+  return (require("organ.buf_config").read(nil, "tags") or {}).groups or {}
 end
 
 local function _tag_in_set(name, headline_tags, groups)

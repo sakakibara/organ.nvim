@@ -31,9 +31,12 @@ local NS = vim.api.nvim_create_namespace("organ_modern_bullets")
 -- org-modern's default cycle. Repeats for levels > 4.
 local DEFAULT_GLYPHS = { "◉", "○", "◈", "◇" }
 
-local function get_glyphs()
-  local cfg = (require("organ").config.modern or {})
-  local b = cfg.bullets
+local function bcfg(bufnr, path)
+  return require("organ.buf_config").read(bufnr, path)
+end
+
+local function get_glyphs(bufnr)
+  local b = bcfg(bufnr, "modern.bullets")
   if type(b) == "table" and type(b.glyphs) == "table" and #b.glyphs > 0 then
     return b.glyphs
   end
@@ -42,18 +45,16 @@ end
 
 -- Configurable additional symbols for list bullets and checkboxes.
 -- Mirrors org-bullets.nvim's `symbols.list` / `symbols.checkboxes`.
-local function get_list_glyph()
-  local cfg = (require("organ").config.modern or {})
-  local b = cfg.bullets
+local function get_list_glyph(bufnr)
+  local b = bcfg(bufnr, "modern.bullets")
   if type(b) == "table" and b.list ~= nil then
     return b.list
   end
   return "•" -- matches org-bullets default
 end
 
-local function get_checkbox_glyphs()
-  local cfg = (require("organ").config.modern or {})
-  local b = cfg.bullets
+local function get_checkbox_glyphs(bufnr)
+  local b = bcfg(bufnr, "modern.bullets")
   local cb = (type(b) == "table" and b.checkboxes) or {}
   return {
     todo = cb.todo or "˟",
@@ -96,8 +97,7 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local cfg = require("organ").config
-  if not (cfg.modern or {}).bullets then
+  if not bcfg(bufnr, "modern.bullets") then
     return
   end
 
@@ -116,7 +116,7 @@ local function on_win(bufnr, _winid, topline, botline)
     local tree = require("organ.decoration").get_tree(bufnr)
     local q = get_query()
     if tree and q then
-      local glyphs = get_glyphs()
+      local glyphs = get_glyphs(bufnr)
       for _, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
         local sr, sc = node:start()
         if sr >= topline and sr <= botline then
@@ -142,8 +142,8 @@ local function on_win(bufnr, _winid, topline, botline)
   -- checkboxes inside list items.  The org grammar doesn't expose
   -- marker / checkbox nodes uniformly, so a line scan is more direct
   -- than a tree walk here.
-  local cb_glyphs = get_checkbox_glyphs()
-  local list_glyph = get_list_glyph()
+  local cb_glyphs = get_checkbox_glyphs(bufnr)
+  local list_glyph = get_list_glyph(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, topline, botline + 1, false)
   for i, line in ipairs(lines) do
     local row = topline + i - 1
@@ -190,9 +190,8 @@ end
 require("organ.decoration").register({
   name = "modern_bullets",
   ns = NS,
-  enabled = function(_bufnr)
-    local cfg = require("organ").config
-    return (cfg.modern or {}).bullets and true or false
+  enabled = function(bufnr)
+    return bcfg(bufnr, "modern.bullets") and true or false
   end,
   on_win = on_win,
   on_line = on_line,
@@ -246,16 +245,25 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config
-  cfg.modern = cfg.modern or {}
-  if cfg.modern.bullets then
-    cfg.modern.bullets = false
-    M.detach(bufnr)
-    return false
-  end
-  cfg.modern.bullets = true
-  M.attach(bufnr)
-  return true
+  -- Drive via buf_config so the reapply hook handles attach / detach.
+  local on = require("organ.buf_config").toggle(bufnr, "modern.bullets")
+  return on and true or false
 end
+
+-- Reapply hook: react to live `modern.bullets` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = bcfg(bufnr, "modern.bullets") and true or false
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

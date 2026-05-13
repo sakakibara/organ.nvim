@@ -48,7 +48,7 @@ local function _set_planning(bufnr, hl_line, kind, date_str)
 
   -- Snapshot the existing timestamp BEFORE we overwrite, so the log entry can
   -- record the previous value.
-  local cfg = (require("organ").config.todo or {})
+  local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local policy_key = kind == "DEADLINE" and "log_redeadline" or "log_reschedule"
   local policy = cfg[policy_key]
   local verb = kind == "DEADLINE" and "New deadline" or "Rescheduled"

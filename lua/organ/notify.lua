@@ -21,7 +21,7 @@ local _last = { level = nil, body = nil, ts = 0 }
 
 local function should_notify(level, body)
   local cfg_ok, organ = pcall(require, "organ")
-  if cfg_ok and organ.config and organ.config.notify == false then
+  if cfg_ok and organ.config and require("organ.buf_config").read(nil, "notify") == false then
     -- Allow ERROR through even when notifications are muted; users still
     -- need to see failures.
     if level ~= vim.log.levels.ERROR then
@@ -61,7 +61,7 @@ end
 function M.debug(body)
   -- Honor cfg.log_level so DEBUG only fires when explicitly opted in.
   local cfg_ok, organ = pcall(require, "organ")
-  if cfg_ok and organ.config and organ.config.log_level == "debug" then
+  if cfg_ok and organ.config and require("organ.buf_config").read(nil, "log_level") == "debug" then
     send(vim.log.levels.DEBUG, body)
   end
 end

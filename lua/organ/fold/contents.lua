@@ -305,7 +305,7 @@ end
 -- contract.  Buffer-aware so `"textwidth"` reads the right buffer's
 -- option; window-aware so `"winwidth"` reads the current window.
 local function resolve_tags_column_for(bufnr)
-  local h = (require("organ").config.format or {}).headline or {}
+  local h = (require("organ.buf_config").read(nil, "format") or {}).headline or {}
   local val = h.tags_column
   if val == nil then
     val = "textwidth"

@@ -21,10 +21,12 @@ local obuf = require("organ.buf")
 -- shapes work and annotations are stripped.
 local function todo_keywords()
   local ok, organ = pcall(require, "organ")
-  if not ok or not organ.config or not organ.config.todo then
+  if not ok or not organ.config or not require("organ.buf_config").read(nil, "todo") then
     return { "TODO", "|", "DONE" }
   end
-  return organ.config.todo.sequences or organ.config.todo.sequence or { "TODO", "|", "DONE" }
+  return require("organ.buf_config").read(nil, "todo.sequences")
+    or require("organ.buf_config").read(nil, "todo.sequence")
+    or { "TODO", "|", "DONE" }
 end
 
 local function done_set(input)

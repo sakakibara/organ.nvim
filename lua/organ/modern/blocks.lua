@@ -201,8 +201,7 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local cfg = require("organ").config
-  if not (cfg.modern or {}).blocks then
+  if not require("organ.buf_config").read(bufnr, "modern.blocks") then
     return
   end
   -- Tree is parsed once per buffer per redraw by organ.decoration; we
@@ -347,9 +346,8 @@ end
 require("organ.decoration").register({
   name = "modern_blocks",
   ns = NS,
-  enabled = function(_bufnr)
-    local cfg = require("organ").config
-    return (cfg.modern or {}).blocks and true or false
+  enabled = function(bufnr)
+    return require("organ.buf_config").read(bufnr, "modern.blocks") and true or false
   end,
   on_win = on_win,
   on_line = on_line,
@@ -410,15 +408,24 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config.modern or {}
-  if cfg.blocks then
-    cfg.blocks = false
-    M.detach(bufnr)
-    return false
-  end
-  cfg.blocks = true
-  M.attach(bufnr)
-  return true
+  local on = require("organ.buf_config").toggle(bufnr, "modern.blocks")
+  return on and true or false
 end
+
+-- Reapply hook: react to live `modern.blocks` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "modern.blocks") and true or false
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

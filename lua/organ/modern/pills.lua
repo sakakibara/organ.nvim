@@ -112,8 +112,8 @@ end
 -- TODO keyword sequence from config, used to pick the per-keyword
 -- pill hl group.  Recomputed on each on_win so config changes take
 -- effect without a session restart.
-local function todo_keywords_set()
-  local seq = (require("organ").config.todo or {}).sequence or {}
+local function todo_keywords_set(bufnr)
+  local seq = require("organ.buf_config").read(bufnr, "todo.sequence") or {}
   local set = {}
   for _, k in ipairs(seq) do
     if k ~= "|" then
@@ -145,7 +145,7 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
 
-  local kw_set = todo_keywords_set()
+  local kw_set = todo_keywords_set(bufnr)
   local function push(row, col, end_col, hl)
     if row < topline or row > botline then
       return
@@ -232,9 +232,8 @@ end
 require("organ.decoration").register({
   name = "modern_pills",
   ns = NS,
-  enabled = function(_bufnr)
-    local cfg = require("organ").config
-    return (cfg.modern or {}).pills and true or false
+  enabled = function(bufnr)
+    return require("organ.buf_config").read(bufnr, "modern.pills") and true or false
   end,
   on_win = on_win,
   on_line = on_line,
@@ -282,15 +281,24 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config.modern or {}
-  if cfg.pills then
-    cfg.pills = false
-    M.detach(bufnr)
-    return false
-  end
-  cfg.pills = true
-  M.attach(bufnr)
-  return true
+  local on = require("organ.buf_config").toggle(bufnr, "modern.pills")
+  return on and true or false
 end
+
+-- Reapply hook: react to live `modern.pills` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "modern.pills") and true or false
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

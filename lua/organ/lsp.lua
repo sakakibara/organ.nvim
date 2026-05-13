@@ -85,8 +85,7 @@ local function todo_kind(todo_state)
     return KIND.String
   end
   -- Treat done-set states as Constants (often greyed in outlines).
-  local cfg = require("organ").config or {}
-  local seq = (cfg.todo or {}).sequence or {}
+  local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
   local in_done = false
   for _, kw in ipairs(seq) do
     if kw == "|" then
@@ -810,7 +809,7 @@ end
 -- Resolve the workspace root for a buffer: prefer the configured org_dir
 -- if the file is under it; fall back to the file's parent directory.
 local function root_for(path)
-  local org_dir = (require("organ").config or {}).org_dir
+  local org_dir = require("organ.buf_config").read(nil, "org_dir")
   if org_dir and org_dir ~= "" then
     org_dir = vim.fn.fnamemodify(org_dir, ":p"):gsub("/+$", "")
     local full = vim.fn.fnamemodify(path, ":p")

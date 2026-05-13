@@ -177,7 +177,7 @@ end
 --     body_level so this hides body but keeps headings visible).
 function M.cycle_global(bufnr)
   bufnr = nbuf(bufnr)
-  local body_fold = ((require("organ").config.fold or {}).body_fold == true)
+  local body_fold = ((require("organ.buf_config").read(nil, "fold") or {}).body_fold == true)
   local contents = require("organ.fold.contents")
   local md = M._max_heading_depth(bufnr)
   if md < 1 then
@@ -245,7 +245,7 @@ function M.cycle_global(bufnr)
   -- spamming <S-Tab>" report).  Tagging each call with a fresh
   -- token and short-circuiting earlier schedules drops all but the
   -- final one.
-  if (require("organ").config.fold or {}).close_drawers_on_open ~= false then
+  if (require("organ.buf_config").read(nil, "fold") or {}).close_drawers_on_open ~= false then
     local tok = {}
     M._drawer_close_tok[bufnr] = tok
     vim.schedule(function()
@@ -384,7 +384,7 @@ local function build_fold_levels(bufnr)
   local nlines = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, nlines, false)
   local levels = {}
-  local body_fold = ((require("organ").config.fold or {}).body_fold == true)
+  local body_fold = ((require("organ.buf_config").read(nil, "fold") or {}).body_fold == true)
   -- body_fold = false (default): body shares the heading's level — the
   -- whole subtree is one fold.  `za` on body folds the heading.
   -- CONTENTS view is provided by an extmark layer (organ.fold.contents),
@@ -663,7 +663,7 @@ end
 -- contract).  Returns nil when no alignment is requested, otherwise
 -- `{ kind = "flush"|"left"|"right", column = N }`.
 local function resolve_tags_column_local()
-  local h = (require("organ").config.format or {}).headline or {}
+  local h = (require("organ.buf_config").read(nil, "format") or {}).headline or {}
   local val = h.tags_column
   if val == nil then
     val = "textwidth"
@@ -776,7 +776,7 @@ end
 -- after multiple `<S-Tab>` cycles when a transient TS-parse error
 -- propagated out of `emacs_foldtext`).
 function M.foldtext()
-  local cfg = (require("organ").config.fold or {}).foldtext
+  local cfg = (require("organ.buf_config").read(nil, "fold") or {}).foldtext
   -- `false` or `nil` -> defer to vim's builtin foldtext() (the
   -- `+--  N lines: ...` format).  Lets users opt out of organ's
   -- emacs-style decoration without having to write a custom fn.

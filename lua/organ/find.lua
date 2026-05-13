@@ -469,7 +469,7 @@ end
 
 function M.pick(opts)
   opts = opts or {}
-  local cfg = require("organ").config.find or {}
+  local cfg = require("organ.buf_config").read(nil, "find") or {}
 
   local backend = resolve_backend(opts.backend or cfg.backend or "snacks")
   -- Per-call `opts.columns` takes precedence so callers (e.g. OrgRefile,

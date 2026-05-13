@@ -22,7 +22,7 @@ local function get_config()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.tags or {}
+  return require("organ.buf_config").read(nil, "tags") or {}
 end
 
 -- Walk the buffer and collect every tag already on a headline.

@@ -22,7 +22,7 @@ local function organ_cfg()
   if not ok then
     return {}
   end
-  return (organ.config and organ.config.latex) or {}
+  return (organ.config and require("organ.buf_config").read(nil, "latex")) or {}
 end
 
 local function tool(name)

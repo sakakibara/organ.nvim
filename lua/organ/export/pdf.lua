@@ -15,7 +15,7 @@
 local M = {}
 
 local function default_engine()
-  local cfg = (require("organ").config.export or {}).pdf or {}
+  local cfg = (require("organ.buf_config").read(nil, "export") or {}).pdf or {}
   return cfg.engine or "lua"
 end
 

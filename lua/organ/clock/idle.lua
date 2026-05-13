@@ -9,7 +9,7 @@ local autocmd_group = nil
 local prompt_open = false
 
 local function resolution()
-  local cfg = (require("organ").config.clock or {})
+  local cfg = (require("organ.buf_config").read(nil, "clock") or {})
   return cfg.idle_resolution or "prompt"
 end
 

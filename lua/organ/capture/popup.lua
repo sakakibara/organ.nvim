@@ -9,7 +9,7 @@ local function get_config()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.capture or {}
+  return require("organ.buf_config").read(nil, "capture") or {}
 end
 
 -- Group templates by their first-char prefix relative to the current depth.

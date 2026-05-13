@@ -221,7 +221,7 @@ function M.dispatch_info(action)
 end
 
 function M.dispatch_unsafe(action)
-  local cfg = (require("organ").config.links or {})
+  local cfg = (require("organ.buf_config").read(nil, "links") or {})
   if not cfg.allow_unsafe then
     require("organ.notify").warn(
       ("refusing to run %s: link (set config.links.allow_unsafe=true to enable)"):format(
@@ -458,7 +458,7 @@ function M.store_link()
   local store = require("organ.link_store")
   local structure = require("organ.structure")
   local notify_msg = function(msg)
-    if (require("organ").config or {}).notify then
+    if require("organ.buf_config").read(nil, "notify") then
       vim.schedule(function()
         require("organ.notify").info(msg)
       end)
@@ -472,7 +472,7 @@ function M.store_link()
     -- uses one if present, else file::*Headline (default — no surprise
     -- drawer writes); "create-if-interactive" is "create" here since
     -- :Org store_link is always interactive; false / nil → never :ID:.
-    local cfg_links = (require("organ").config.links or {})
+    local cfg_links = (require("organ.buf_config").read(nil, "links") or {})
     local policy = cfg_links.id_link_policy
     if policy == nil then
       policy = "use-existing"
@@ -524,7 +524,7 @@ function M.insert_link()
   local store = require("organ.link_store")
   local entries = store.list()
   if #entries == 0 then
-    if (require("organ").config or {}).notify then
+    if require("organ.buf_config").read(nil, "notify") then
       vim.schedule(function()
         require("organ.notify").info("no stored links")
       end)

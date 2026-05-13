@@ -92,7 +92,7 @@ function M.open(opts)
     require("organ.notify").info("no headlines in buffer")
     return
   end
-  local cfg = (require("organ").config.find or {})
+  local cfg = (require("organ.buf_config").read(nil, "find") or {})
   local backend = resolve_backend(opts.backend or cfg.backend or "snacks")
   backend.pick(items, {
     prompt = "Goto: ",

@@ -70,8 +70,7 @@ function M.plan(target_row, new_name)
       local line = lines[idx] or ""
       local stars, rest = line:match("^(%*+)%s+(.*)$")
       if stars and rest then
-        local cfg = require("organ").config or {}
-        local seq = (cfg.todo or {}).sequence or {}
+        local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
         local cursor = #stars + 1
         for _, kw in ipairs(seq) do
           if kw ~= "|" and rest:sub(1, #kw + 1) == kw .. " " then

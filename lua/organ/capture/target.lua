@@ -273,7 +273,7 @@ function M.resolve(spec, ctx, prepend)
       end
       parent_level = hls[parent_idx].level
     end
-    local cfg = (require("organ").config.capture or {}).datetree_format
+    local cfg = (require("organ.buf_config").read(nil, "capture") or {}).datetree_format
     local fmts = cfg or DEFAULT_DATETREE
     local leaf_level = parent_level + #fmts
     local leaf_idx, prelude = resolve_datetree(hls, parent_idx, (ctx or {}).now or os.time(), cfg)

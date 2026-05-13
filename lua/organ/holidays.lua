@@ -7,9 +7,9 @@ M._notified = {}
 
 -- Cache dir resolution: tests override M._cache_dir.
 M._cache_dir = function()
-  local organ_ok, organ = pcall(require, "organ")
-  if organ_ok and organ.config and organ.config.todo and organ.config.todo.holidays_cache_dir then
-    return organ.config.todo.holidays_cache_dir
+  local d = require("organ.buf_config").read(nil, "todo.holidays_cache_dir")
+  if d then
+    return d
   end
   return vim.fn.stdpath("cache") .. "/organ/holidays"
 end
@@ -198,7 +198,7 @@ M.commands = {
   fetch_holidays = {
     fn = function(cmd)
       local args = vim.split(cmd and cmd.args or "", "%s+")
-      local cfg = (require("organ").config.todo or {})
+      local cfg = (require("organ.buf_config").read(nil, "todo") or {})
       local country = (args[1] and args[1] ~= "") and args[1] or cfg.default_country
       if not country then
         require("organ.notify").error("no country specified and default_country is nil")

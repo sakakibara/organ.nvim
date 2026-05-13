@@ -343,7 +343,7 @@ function M.render(doc, opts)
   local cfg_html
   do
     local ok, organ = pcall(require, "organ")
-    cfg_html = (ok and organ.config and organ.config.html) or {}
+    cfg_html = (ok and organ.config and require("organ.buf_config").read(nil, "html")) or {}
   end
   local mj_opt = opts.mathjax
   if mj_opt == nil then

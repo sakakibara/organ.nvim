@@ -41,7 +41,7 @@ local function get_cfg()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.publish or {}
+  return require("organ.buf_config").read(nil, "publish") or {}
 end
 
 local function expand(p)

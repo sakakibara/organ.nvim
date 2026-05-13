@@ -201,7 +201,7 @@ function M.effective_sequences(bufnr)
   if buf then
     return buf
   end
-  local cfg = (require("organ").config and require("organ").config.todo) or {}
+  local cfg = (require("organ").config and require("organ.buf_config").read(nil, "todo")) or {}
   local raw = cfg.sequences or cfg.sequence
   if not raw or #raw == 0 then
     raw = { "TODO", "NEXT", "WAITING", "HOLD", "PROJ", "|", "DONE", "CANCELLED" }
@@ -215,7 +215,7 @@ end
 -- caring about active/done split or sequence boundaries.
 function M.all_keywords(input)
   if input == nil then
-    local cfg = (require("organ").config and require("organ").config.todo) or {}
+    local cfg = (require("organ").config and require("organ.buf_config").read(nil, "todo")) or {}
     input = cfg.sequences or cfg.sequence or {}
   end
   local out = {}
@@ -375,7 +375,7 @@ local function get_config()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.todo or {}
+  return require("organ.buf_config").read(nil, "todo") or {}
 end
 
 local function default_sequence()
@@ -812,7 +812,7 @@ function M._apply(bufnr, line, new_state)
   -- `clock.out_when_done = false` to keep clocks running across
   -- DONE transitions.
   if was_active and new_done then
-    local clock_cfg = (require("organ").config.clock or {})
+    local clock_cfg = (require("organ.buf_config").read(nil, "clock") or {})
     if clock_cfg.out_when_done ~= false then
       pcall(function()
         local clock = require("organ.clock")
@@ -924,7 +924,7 @@ local function fast_select(bufnr, line)
     end
     return raw
   end
-  local cfg = (require("organ").config.todo or {})
+  local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local raw = buffer_raw_sequences() or cfg.sequences or cfg.sequence or {}
   local meta = M._build_metadata(raw)
   -- Preserve config order when listing.

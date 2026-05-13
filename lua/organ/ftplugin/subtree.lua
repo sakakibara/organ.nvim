@@ -4,7 +4,7 @@
 local M = {}
 
 function M.attach(bufnr)
-  local struct_cfg = require("organ").config.structure or {}
+  local struct_cfg = require("organ.buf_config").read(nil, "structure") or {}
   if struct_cfg.enabled == false then
     return
   end

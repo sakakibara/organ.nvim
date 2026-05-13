@@ -192,7 +192,7 @@ function M.archive_subtree(opts)
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   local line = opts.line or vim.fn.line(".")
 
-  local cfg = (require("organ").config.archive or {})
+  local cfg = require("organ.buf_config").read(bufnr, "archive") or {}
   if cfg.enabled == false then
     return "archive feature is disabled"
   end
@@ -400,7 +400,7 @@ function M.archive_to_sibling(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   local line = opts.line or vim.fn.line(".")
-  local cfg = (require("organ").config.archive or {})
+  local cfg = require("organ.buf_config").read(bufnr, "archive") or {}
   if cfg.enabled == false then
     return "archive feature is disabled"
   end
@@ -546,7 +546,7 @@ function M.archive_to_sibling(opts)
 end
 
 local function notify_archived(arc_path)
-  if require("organ").config.notify then
+  if require("organ.buf_config").read(nil, "notify") then
     vim.schedule(function()
       require("organ.notify").info("archived to " .. (arc_path or "archive file"))
     end)
@@ -577,7 +577,9 @@ end
 
 -- Dispatch to the action chosen by `archive.default_command`.
 function M.default(opts)
-  local cmd = (require("organ").config.archive or {}).default_command or "subtree"
+  local bufnr = (opts and opts.bufnr) or vim.api.nvim_get_current_buf()
+  local cmd = (require("organ.buf_config").read(bufnr, "archive") or {}).default_command
+    or "subtree"
   if cmd == "to_archive_sibling" then
     return M.archive_to_sibling(opts)
   end

@@ -52,7 +52,7 @@ local function get_cfg()
   if not ok or not organ.config then
     return {}
   end
-  return organ.config.tempo or {}
+  return require("organ.buf_config").read(nil, "tempo") or {}
 end
 
 -- Resolve an expansion table for `key`. Returns a function(lang_arg)->lines

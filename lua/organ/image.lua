@@ -113,7 +113,7 @@ function M.reveal(bufnr)
     return
   end
 
-  local cfg = (require("organ").config.image or {})
+  local cfg = (require("organ.buf_config").read(nil, "image") or {})
   if cfg.inline then
     local ok, image = pcall(require, "image")
     if ok and image then

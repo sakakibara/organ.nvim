@@ -57,8 +57,8 @@ end
 
 local function format_cfg()
   local ok, organ = pcall(require, "organ")
-  if ok and organ.config and organ.config.format then
-    return organ.config.format
+  if ok and organ.config and require("organ.buf_config").read(nil, "format") then
+    return require("organ.buf_config").read(nil, "format")
   end
   return {}
 end
@@ -629,7 +629,7 @@ function M.format_lines(lines, cfg, bufnr)
   lines = normalize_headlines(lines, cfg)
   lines = wrap_prose(lines, cfg)
   do
-    local icfg = (require("organ").config or {}).indent or {}
+    local icfg = require("organ.buf_config").read(nil, "indent") or {}
     if icfg.adapt_indentation then
       lines = adapt_indentation(lines, icfg.adapt_indentation, icfg.shift_per_level or 2)
     end

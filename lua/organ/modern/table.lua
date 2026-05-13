@@ -359,7 +359,7 @@ end
 
 function M.refresh(bufnr)
   bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
-  local raw = (require("organ").config.modern or {}).table
+  local raw = require("organ.buf_config").read(bufnr, "modern.table")
   if not raw then
     return
   end
@@ -389,7 +389,7 @@ function M.attach(bufnr)
   if _attached[bufnr] then
     return
   end
-  local raw = (require("organ").config.modern or {}).table
+  local raw = require("organ.buf_config").read(bufnr, "modern.table")
   if not raw then
     return
   end
@@ -445,5 +445,21 @@ function M.detach(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
   _attached[bufnr] = nil
 end
+
+-- Reapply hook: react to live `modern.table` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "modern.table") and true or false
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

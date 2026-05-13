@@ -48,7 +48,7 @@ function M.get_or_create(bufnr, line)
   -- ID generation method (Emacs `org-id-method`).  uuid → RFC 4122
   -- v7; ts → "YYYYMMDDTHHMMSS-NNN" timestamp + random tail; function
   -- → user-supplied generator returning a string.
-  local method = (require("organ").config.links or {}).id_method or "uuid"
+  local method = (require("organ.buf_config").read(nil, "links") or {}).id_method or "uuid"
   local new_id
   if type(method) == "function" then
     local ok, v = pcall(method)
@@ -92,7 +92,8 @@ end
 -- Format (matches `org-id-hash-to-alist`'s output):
 --   ((FILEPATH ID1 ID2 ...) (FILEPATH ID3 ...))
 function M.export_locations(target_path)
-  target_path = target_path or (require("organ").config.links or {}).id_locations_file
+  target_path = target_path
+    or (require("organ.buf_config").read(nil, "links") or {}).id_locations_file
   if not target_path or target_path == "" then
     return nil, "no id_locations_file configured"
   end
@@ -143,7 +144,7 @@ end
 -- load.  Wired from organ.init via the "scan_done" event so we don't
 -- write on every individual file index.
 function M._maybe_auto_export()
-  local cfg = (require("organ").config.links or {})
+  local cfg = (require("organ.buf_config").read(nil, "links") or {})
   if not cfg.id_locations_file or cfg.id_locations_file == "" then
     return
   end
@@ -165,14 +166,16 @@ M.commands = {
   ["id update"] = {
     fn = function()
       local organ = require("organ")
-      if organ.config.notify then
+      if require("organ.buf_config").read(nil, "notify") then
         vim.schedule(function()
-          require("organ.notify").info("rescanning " .. organ.config.org_dir)
+          require("organ.notify").info(
+            "rescanning " .. require("organ.buf_config").read(nil, "org_dir")
+          )
         end)
       end
       organ._start_scan()
-      organ._scan_walk(organ.config.org_dir, function()
-        if organ.config.notify then
+      organ._scan_walk(require("organ.buf_config").read(nil, "org_dir"), function()
+        if require("organ.buf_config").read(nil, "notify") then
           vim.schedule(function()
             require("organ.notify").info("ID locations refreshed")
           end)

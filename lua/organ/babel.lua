@@ -387,7 +387,7 @@ local function format_results(stdout, args)
 end
 
 local function get_cfg()
-  return (require("organ").config or {}).babel or {}
+  return require("organ.buf_config").read(nil, "babel") or {}
 end
 
 local function confirm_run(lang, body)

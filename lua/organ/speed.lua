@@ -110,7 +110,8 @@ local DISPATCH = {
     require("organ.capture").open()
   end,
   show_help = function()
-    local cfg = (require("organ").config.speed or {}).commands or M.defaults.commands
+    local cfg = (require("organ.buf_config").read(nil, "speed") or {}).commands
+      or M.defaults.commands
     local lines = { "organ.speed commands (active when cursor is at column 0 of a headline):" }
     local keys = {}
     for k in pairs(cfg) do
@@ -179,7 +180,7 @@ local function expr_dispatch(key, action)
 end
 
 function M.attach(bufnr)
-  local cfg = (require("organ").config.speed or {})
+  local cfg = (require("organ.buf_config").read(nil, "speed") or {})
   if cfg.enabled == false then
     return
   end

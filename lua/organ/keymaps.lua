@@ -198,8 +198,7 @@ end
 
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config or {}
-  local resolved = M.resolve(cfg.keys or {})
+  local resolved = M.resolve(require("organ.buf_config").read(bufnr, "keys") or {})
   for _, b in ipairs(resolved) do
     local lhs, rhs = b[1], b[2]
     if lhs and rhs and rhs ~= false then
@@ -219,9 +218,8 @@ end
 -- Iterator helper for which-key registration. Yields one entry per
 -- (lhs, mode) pair so multi-mode bindings show up under each mode.
 function M.iter_bindings()
-  local cfg = require("organ").config or {}
   local out = {}
-  for _, b in ipairs(M.resolve(cfg.keys or {})) do
+  for _, b in ipairs(M.resolve(require("organ.buf_config").read(nil, "keys") or {})) do
     for _, mode in ipairs(modes_of(b)) do
       out[#out + 1] = {
         lhs = b[1],

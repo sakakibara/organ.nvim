@@ -102,7 +102,6 @@ M.feature_commands = {
     "stuck_projects",
     "refile",
     "follow_link",
-    "indent_mode",
   },
   archive = {
     "archive subtree",

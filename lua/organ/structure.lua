@@ -419,7 +419,7 @@ M.commands = {
   },
   inline_task_insert = {
     fn = function(cmd)
-      local cfg = (require("organ").config.inlinetask or {})
+      local cfg = (require("organ.buf_config").read(nil, "inlinetask") or {})
       local level = cfg.min_level or 15
       local stars = string.rep("*", level)
       local title = (cmd and cmd.args and cmd.args ~= "") and cmd.args or "task"

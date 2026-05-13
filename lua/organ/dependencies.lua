@@ -269,7 +269,7 @@ local function get_config()
   if not ok then
     return {}
   end
-  return (organ.config and organ.config.todo) or {}
+  return (organ.config and require("organ.buf_config").read(nil, "todo")) or {}
 end
 
 -- Probe the buffer for blocking conditions on transitioning the

@@ -23,7 +23,7 @@ local obuf = require("organ.buf")
 -- Production agenda renders leave it nil and use the wall clock.
 
 local function _now_iso()
-  local override = (require("organ").config.agenda or {}).now_override
+  local override = (require("organ.buf_config").read(nil, "agenda") or {}).now_override
   if override then
     return override
   end
@@ -35,7 +35,7 @@ local function _today_iso()
 end
 
 local function _now_ts()
-  local override = (require("organ").config.agenda or {}).now_override
+  local override = (require("organ.buf_config").read(nil, "agenda") or {}).now_override
   if not override then
     return os.time()
   end
@@ -124,7 +124,7 @@ local function time_only(iso)
   -- `agenda.time_leading_zero` (Emacs `org-agenda-time-leading-zero`):
   --   false (default) → strip leading zero  ` 9:00` (compact, Emacs default)
   --   true            → keep `09:00`        (uniform 5-cell column)
-  local lead = (require("organ").config.agenda or {}).time_leading_zero
+  local lead = (require("organ.buf_config").read(nil, "agenda") or {}).time_leading_zero
   if lead == true then
     return hh .. ":" .. mm
   end
@@ -132,7 +132,7 @@ local function time_only(iso)
 end
 
 local function append_effort(parts, marks, col_start, r)
-  local cfg_effort = (require("organ").config.effort or {})
+  local cfg_effort = (require("organ.buf_config").read(nil, "effort") or {})
   if cfg_effort.show_in_agenda == false then
     return col_start
   end
@@ -243,7 +243,7 @@ local function category_for(r)
 end
 
 local function get_agenda_cfg()
-  return (require("organ").config.agenda or {})
+  return (require("organ.buf_config").read(nil, "agenda") or {})
 end
 
 -- Render configuration. Mirrors Emacs's `org-agenda-prefix-format` and
@@ -557,7 +557,7 @@ local function format_prefix(spec, r, opts)
         -- Category icons (Emacs `org-agenda-category-icon-alist`):
         -- prepend a configured icon/sigil when the category matches.
         -- Map: { category_name = "icon ", … }.  No-op when unset.
-        local icons = (require("organ").config.agenda or {}).category_icons
+        local icons = (require("organ.buf_config").read(nil, "agenda") or {}).category_icons
         if type(icons) == "table" and icons[cat] then
           value = icons[cat] .. value
         end
@@ -752,7 +752,8 @@ local function format_line(r, block_opts)
   -- `"[%s]"` wraps in brackets.
   if todo_width > 0 then
     local todo_raw = r.todo_state or ""
-    local kw_fmt = (require("organ").config.agenda or {}).todo_keyword_format or "%s"
+    local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format
+      or "%s"
     local todo_disp = todo_raw
     if r.todo_state and kw_fmt ~= "%s" then
       local ok, formatted = pcall(string.format, kw_fmt, todo_raw)
@@ -824,14 +825,14 @@ local function format_line(r, block_opts)
       end
       tag_str = ":" .. table.concat(inherited, ":") .. "::" .. table.concat(direct, ":") .. ":"
     end
-    local agcfg = require("organ").config.agenda or {}
+    local agcfg = require("organ.buf_config").read(nil, "agenda") or {}
     local virt_align = (agcfg.tags_virt_align ~= false)
     -- Build per-tag virt_text chunks so `tags.faces[tag]` can color
     -- individual tags (Emacs `org-tag-faces`).  Fall back to the
     -- generic `@organ.agenda.tag` highlight for tags without a
     -- registered face.  When `faces` is empty, return a single chunk
     -- so we don't pay the split cost.
-    local tags_cfg = (require("organ").config.tags or {})
+    local tags_cfg = (require("organ.buf_config").read(nil, "tags") or {})
     local faces = tags_cfg.faces or {}
     local function build_virt_chunks()
       if next(faces) == nil then
@@ -990,7 +991,8 @@ local function format_line(r, block_opts)
   -- and the typical agenda view doesn't show graphs, so for parity
   -- we don't either.  Users who explicitly want them set
   -- `agenda.show_habit_graphs = true`.
-  local show_graphs = (require("organ").config.agenda or {}).show_habit_graphs == true
+  local show_graphs = (require("organ.buf_config").read(nil, "agenda") or {}).show_habit_graphs
+    == true
   if show_graphs then
     col = append_habit_glyphs(parts, marks, col, r)
   end
@@ -1208,7 +1210,7 @@ function M.normalize_view(v, view_name)
       blocks[i] = copy
     end
     -- Resolve span → from/to for each block that asked for it.
-    local agenda_cfg_n = (require("organ").config.agenda or {})
+    local agenda_cfg_n = (require("organ.buf_config").read(nil, "agenda") or {})
     for _, b in ipairs(blocks) do
       local rfrom, rto = M.resolve_span(b, agenda_cfg_n)
       if rfrom and rto then
@@ -1222,7 +1224,7 @@ function M.normalize_view(v, view_name)
     block[k] = v[k]
   end
   -- Same span-resolve for the flat (single-block) view shape.
-  local agenda_cfg_n = (require("organ").config.agenda or {})
+  local agenda_cfg_n = (require("organ.buf_config").read(nil, "agenda") or {})
   local rfrom, rto = M.resolve_span(block, agenda_cfg_n)
   if rfrom and rto then
     block.from, block.to = rfrom, rto
@@ -1249,7 +1251,7 @@ function M.add_entry_path_ok(file)
   if not file:match("%.org$") and not file:match("%.org_archive$") then
     return false, "refusing to write non-.org file: " .. file
   end
-  local org_dir = (require("organ").config or {}).org_dir
+  local org_dir = require("organ.buf_config").read(nil, "org_dir")
   if org_dir and org_dir ~= "" then
     local canon = require("organ.path").canonical(file) or file
     local canon_dir = require("organ.path").canonical(org_dir) or org_dir
@@ -1322,7 +1324,8 @@ local function render_block(rows, block, now_override)
     today = today,
   }
   if not block_opts.todo_width then
-    local kw_fmt = (require("organ").config.agenda or {}).todo_keyword_format or "%s"
+    local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format
+      or "%s"
     local max = 0
     for _, r in ipairs(rows) do
       if r.todo_state then
@@ -1350,7 +1353,7 @@ local function render_block(rows, block, now_override)
   -- minimum width for every row, so the column reads as a true
   -- column.  cfg.category_width still acts as the lower bound.
   do
-    local declared = (require("organ").config.agenda or {}).category_width or 12
+    local declared = (require("organ.buf_config").read(nil, "agenda") or {}).category_width or 12
     local max = declared
     for _, r in ipairs(rows) do
       local cat = category_for(r) or ""
@@ -1425,7 +1428,9 @@ local function render_block(rows, block, now_override)
   -- daily habits / weekly chores see nothing on the days between.
   -- Toggle with `agenda.show_future_repeats` (default true; matches
   -- Emacs `org-agenda-show-future-repeats`).
-  local show_repeats = ((require("organ").config.agenda or {}).show_future_repeats ~= false)
+  local show_repeats = (
+    (require("organ.buf_config").read(nil, "agenda") or {}).show_future_repeats ~= false
+  )
   do
     local repeater_mod_ok, repeater_mod = pcall(require, "organ.todo.repeater")
     if show_repeats and repeater_mod_ok and block.from and block.to then
@@ -1565,7 +1570,8 @@ local function render_block(rows, block, now_override)
     -- from the window — users see "Sched. Nx:" only for repeating
     -- ones). Toggle via `agenda.show_overdue_scheduled = true` for
     -- the more user-friendly "stale items keep showing" behavior.
-    local roll_overdue = (require("organ").config.agenda or {}).show_overdue_scheduled == true
+    local roll_overdue = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
+      == true
     local window_from = block.from
       and date_only(
         (require("organ.query").parse_date and require("organ.query").parse_date(block.from))
@@ -1592,7 +1598,7 @@ local function render_block(rows, block, now_override)
     -- row's natural deadline-day bucket entry stays.  Mirrors Emacs's
     -- `org-deadline-warning-days` early-warning behavior — without
     -- this, deadlines drop off the user's radar until they're due.
-    local agenda_cfg_b = (require("organ").config.agenda or {})
+    local agenda_cfg_b = (require("organ.buf_config").read(nil, "agenda") or {})
     local warning_days = agenda_cfg_b.deadline_warning_days or 14
     -- Skip pair rules.  Both default to true (matches Emacs's
     -- typical org-agenda behavior) and may be turned off to surface
@@ -1711,7 +1717,7 @@ local function render_block(rows, block, now_override)
     else
       now_hhmm = os.date("%H:%M", os.time())
     end
-    local agenda_cfg_local = (require("organ").config.agenda or {})
+    local agenda_cfg_local = (require("organ.buf_config").read(nil, "agenda") or {})
     local show_now = agenda_cfg_local.now_marker ~= false
 
     -- Time grid (Emacs `org-agenda-use-time-grid`). Off by default;
@@ -1880,7 +1886,7 @@ local function render_block(rows, block, now_override)
     }
     local DEFAULT_STRATEGY = { "time-up", "priority-down", "category-keep" }
     local strategy = block.sorting_strategy
-      or (require("organ").config.agenda or {}).sorting_strategy
+      or (require("organ.buf_config").read(nil, "agenda") or {}).sorting_strategy
       or DEFAULT_STRATEGY
     local function sort_by_time(rows)
       table.sort(rows, function(a, b)
@@ -1903,7 +1909,8 @@ local function render_block(rows, block, now_override)
 
     -- Optional row grouping (org-super-agenda equivalent). Per-block
     -- override via block.groups; falls back to agenda.groups.
-    local groups_spec = block.groups or (require("organ").config.agenda or {}).groups
+    local groups_spec = block.groups
+      or (require("organ.buf_config").read(nil, "agenda") or {}).groups
     local groups_mod = nil
     if groups_spec and #groups_spec > 0 then
       local ok_g, m = pcall(require, "organ.agenda.groups")
@@ -2015,7 +2022,7 @@ local function render_block(rows, block, now_override)
       -- Skips the time-grid path (groups + grid would visually fight
       -- for vertical space).
       if groups_mod and not emit_grid_for_day then
-        local agenda_cfg_g = (require("organ").config.agenda or {})
+        local agenda_cfg_g = (require("organ.buf_config").read(nil, "agenda") or {})
         local partitions = groups_mod.partition(buckets[key], groups_spec, {
           category_for = category_for,
           catch_all_title = agenda_cfg_g.groups_catch_all_title,
@@ -2189,7 +2196,7 @@ local function empty_state_lines()
       "",
       "  Your org_dir hasn't been indexed yet.",
       "  Try `:Org scan` to index every .org file under "
-        .. vim.fn.fnamemodify((require("organ").config.org_dir or ""), ":~"),
+        .. vim.fn.fnamemodify((require("organ.buf_config").read(nil, "org_dir") or ""), ":~"),
       "  Then `r` to refresh this view.",
     }
   end
@@ -2273,7 +2280,7 @@ function M.render(blocks_with_rows, opts)
   -- etc. Mirrors Emacs's first line. Suppressed when the user disables
   -- the buffer header (agenda.view_header = false) or when no block
   -- has a from/to window.
-  local view_hdr_cfg = (require("organ").config.agenda or {}).view_header
+  local view_hdr_cfg = (require("organ.buf_config").read(nil, "agenda") or {}).view_header
   if view_hdr_cfg ~= false then
     local hdr = compute_view_header(blocks_with_rows, opts)
     if hdr then
@@ -2298,7 +2305,7 @@ function M.render(blocks_with_rows, opts)
     -- Skip blocks with zero rows when agenda.hide_empty_blocks is on
     -- (Emacs `org-agenda-hide-empty-blocks`). Useful for multi-block
     -- agendas where some blocks are empty on a given day.
-    local agenda_cfg_top = (require("organ").config.agenda or {})
+    local agenda_cfg_top = (require("organ.buf_config").read(nil, "agenda") or {})
     if agenda_cfg_top.hide_empty_blocks and #rows == 0 and not item.query_error then
       goto continue_block
     end
@@ -2379,7 +2386,7 @@ function M.render(blocks_with_rows, opts)
   -- governed by `agenda.entry_text.on_start` (false).  We do this
   -- after the main render so the per-block emit logic stays clean.
   do
-    local agenda_cfg = (require("organ").config.agenda or {})
+    local agenda_cfg = (require("organ.buf_config").read(nil, "agenda") or {})
     local et_cfg = agenda_cfg.entry_text or {}
     local et_on = (opts and opts.entry_text)
     if et_on == nil then
@@ -2690,7 +2697,7 @@ local function apply_extmarks(bufnr, extmarks, range_start, range_end_exclusive)
 end
 
 local function annotate_clocked_minutes(rows)
-  local cfg_effort = (require("organ").config.effort or {})
+  local cfg_effort = (require("organ.buf_config").read(nil, "effort") or {})
   if cfg_effort.show_in_agenda == false then
     return rows
   end
@@ -2871,17 +2878,17 @@ end
 
 local function run_query(block)
   if block.kind == "stuck" then
-    local cfg = (require("organ").config.stuck or {})
+    local cfg = (require("organ.buf_config").read(nil, "stuck") or {})
     return require("organ.query").stuck_projects({
       project_filter = block.project_filter or cfg.project_filter,
       next_states = block.next_states or cfg.next_states,
     })
   end
   local query = require("organ.query")
-  local cfg_disp = (require("organ").config.tags or {}).display_inherited
+  local cfg_disp = (require("organ.buf_config").read(nil, "tags") or {}).display_inherited
   -- Per-block `files` overrides the global `agenda_files` config.
   -- nil at both levels → no file filter (every indexed file).
-  local files_spec = block.files or (require("organ").config or {}).agenda_files
+  local files_spec = block.files or require("organ.buf_config").read(nil, "agenda_files")
   local files = files_spec and M.resolve_agenda_files(files_spec) or nil
   local rows
   if block.kind == "search" or block.kind == "tags" or block.kind == "todo" then
@@ -2903,7 +2910,7 @@ local function run_query(block)
     -- the tag-search view when `tags_todo_honor_ignore_options = true`
     -- (Emacs `org-agenda-tags-todo-honor-ignore-options`).  Per-block
     -- override beats the global defaults.
-    local ag = require("organ").config.agenda or {}
+    local ag = require("organ.buf_config").read(nil, "agenda") or {}
     local function pick(name)
       if block[name] ~= nil then
         return block[name]
@@ -2978,7 +2985,7 @@ local function run_query(block)
   -- only the headline (no parent_id chain), so we look up the parent
   -- chain in the DB on demand.
   do
-    local agenda_cfg_c = (require("organ").config.agenda or {})
+    local agenda_cfg_c = (require("organ.buf_config").read(nil, "agenda") or {})
     local skip_c
     if block.skip_comment_trees ~= nil then
       skip_c = block.skip_comment_trees
@@ -3028,14 +3035,14 @@ local function run_query(block)
   -- want surfacing under its deadline (or vice versa). Done-keyword
   -- detection comes from the configured todo sequence.
   do
-    local agenda_cfg2 = (require("organ").config.agenda or {})
+    local agenda_cfg2 = (require("organ.buf_config").read(nil, "agenda") or {})
     if agenda_cfg2.skip_scheduled_if_done or agenda_cfg2.skip_deadline_if_done then
       -- Per-row done classification.  Files may declare their own
       -- `#+TODO:` directive that overrides global done keywords for
       -- their headlines (Emacs behavior).  Single batched DB query
       -- against the `file_todo_keywords` index — no per-row file I/O.
-      local cfg_seq = (require("organ").config.todo or {}).sequences
-        or (require("organ").config.todo or {}).sequence
+      local cfg_seq = (require("organ.buf_config").read(nil, "todo") or {}).sequences
+        or (require("organ.buf_config").read(nil, "todo") or {}).sequence
         or {}
       local global_done = {}
       for _, seq in ipairs(require("organ.todo")._normalise_sequences(cfg_seq)) do
@@ -3130,7 +3137,8 @@ local function run_query(block)
   -- `agenda.show_overdue_scheduled = true` (matches Emacs default of
   -- NOT rolling these up). When on, fetch the overdue rows and the
   -- bucketing loop in render_block reroutes them to today's bucket.
-  local show_overdue_sched = (require("organ").config.agenda or {}).show_overdue_scheduled == true
+  local show_overdue_sched = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
+    == true
   if show_overdue_sched and block.from then
     local from_iso = query.parse_date and query.parse_date(block.from) or block.from
     local overdue_rows = query.agenda({
@@ -3178,7 +3186,7 @@ local function run_query(block)
   -- Resolves block.from / block.to to ISO via query.parse_date so the day
   -- iterator can step through; honors `block.types` allowing scheduled-like
   -- entries to flow into the same render.
-  local agenda_cfg = (require("organ").config.agenda or {})
+  local agenda_cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   if agenda_cfg.include_diary_sexp and block.from and block.to then
     local from_iso = query.parse_date(block.from)
     local to_iso = query.parse_date(block.to)
@@ -3300,7 +3308,7 @@ function M.refresh(bufnr)
   -- knows whether to inject CLOSED rows.  We mutate the block in
   -- place rather than copying; clear afterwards so a stale flag from
   -- a previous toggle doesn't leak across non-buffer renders.
-  local log_cfg = ((require("organ").config.agenda or {}).log_mode or {})
+  local log_cfg = ((require("organ.buf_config").read(nil, "agenda") or {}).log_mode or {})
   local log_active = state.log_mode
   if log_active == nil then
     log_active = log_cfg.on_start == true
@@ -3351,7 +3359,7 @@ function M.refresh(bufnr)
 
   -- Buffer-only UX additions: empty-state hint + footer keymap reference.
   -- Kept out of M.render so the pure renderer stays predictable for tests.
-  local cfg_agenda = (require("organ").config.agenda or {})
+  local cfg_agenda = (require("organ.buf_config").read(nil, "agenda") or {})
   local total_rows = 0
   for _, br in ipairs(blocks_with_rows) do
     total_rows = total_rows + #br.rows
@@ -3377,7 +3385,8 @@ function M.refresh(bufnr)
     -- `agenda.clockreport_mode = true` (Emacs `org-agenda-clockreport-
     -- mode`) starts each agenda buffer with the clock report visible
     -- (default off; `gR` toggles per-buffer).
-    local clock_default = (require("organ").config.agenda or {}).clockreport_mode == true
+    local clock_default = (require("organ.buf_config").read(nil, "agenda") or {}).clockreport_mode
+      == true
     local show_clock_report = agenda_state.clock_report_mode
     if show_clock_report == nil then
       show_clock_report = clock_default
@@ -3601,7 +3610,7 @@ end
 
 local function install_keymaps(bufnr)
   local organ = require("organ")
-  local agenda_cfg = organ.config.agenda or {}
+  local agenda_cfg = require("organ.buf_config").read(nil, "agenda") or {}
   -- Rule 2: keymaps = false disables all agenda bindings.
   if agenda_cfg.keymaps == false then
     return
@@ -4171,7 +4180,7 @@ local function install_keymaps(bufnr)
         local kind = actions[idx][2]
         local apply
         if kind == "todo" then
-          local cfg = require("organ").config.todo or {}
+          local cfg = require("organ.buf_config").read(nil, "todo") or {}
           local choices = { "(none)" }
           for _, k in ipairs(cfg.sequence or {}) do
             if k ~= "|" then
@@ -4360,7 +4369,7 @@ local function install_keymaps(bufnr)
       default_path = r.file_path
     end
     if not default_path then
-      local org_dir = (require("organ").config or {}).org_dir
+      local org_dir = require("organ.buf_config").read(nil, "org_dir")
       if org_dir and org_dir ~= "" then
         local fd = vim.uv.fs_scandir(org_dir)
         if fd then
@@ -4698,7 +4707,7 @@ function M.open(view_opts, view_name)
   -- which is session-local state that resets on every nvim restart.
   do
     local organ = require("organ")
-    local org_dir = organ.config and organ.config.org_dir
+    local org_dir = organ.config and require("organ.buf_config").read(nil, "org_dir")
     local indexed = 0
     local rt_ok, rt = pcall(require, "organ.runtime")
     if rt_ok then
@@ -4731,7 +4740,7 @@ function M.open(view_opts, view_name)
     return nil
   end
 
-  local default_lf = (require("organ").config.agenda or {}).line_format
+  local default_lf = (require("organ.buf_config").read(nil, "agenda") or {}).line_format
   if default_lf then
     for _, block in ipairs(view.blocks) do
       if block.line_format == nil then
@@ -4744,7 +4753,7 @@ function M.open(view_opts, view_name)
   -- buffer keeps its scroll position, fold state, and bulk_marked set
   -- across re-opens. New view config overwrites the stored view so a
   -- changed period / title_match takes effect on next refresh.
-  local sticky_on = ((require("organ").config.agenda or {}).sticky ~= false)
+  local sticky_on = ((require("organ.buf_config").read(nil, "agenda") or {}).sticky ~= false)
   local sticky_key = view_name or "default"
   if sticky_on and M._sticky[sticky_key] then
     local existing = M._sticky[sticky_key]
@@ -4790,8 +4799,8 @@ function M.open(view_opts, view_name)
   end
   -- Honor on_start defaults so users who always want previews / log
   -- mode don't have to press the toggle after every open.
-  local et_cfg = ((require("organ").config.agenda or {}).entry_text or {})
-  local log_cfg_init = ((require("organ").config.agenda or {}).log_mode or {})
+  local et_cfg = ((require("organ.buf_config").read(nil, "agenda") or {}).entry_text or {})
+  local log_cfg_init = ((require("organ.buf_config").read(nil, "agenda") or {}).log_mode or {})
   set_state(bufnr, {
     view = view,
     view_name = view_name or "default",
@@ -4802,7 +4811,7 @@ function M.open(view_opts, view_name)
   })
 
   local organ = require("organ")
-  local cfg = (organ.config.agenda or {})
+  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local debounce_ms = (view.refresh_debounce_ms or cfg.refresh_debounce_ms or 300)
   local timer
   local listener = function(payload)
@@ -4999,7 +5008,7 @@ M._register_highlights = register_highlights
 
 --- Open the day-view agenda (today only).
 function M.day()
-  local cfg = (require("organ").config.agenda or {})
+  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local view = vim.tbl_extend("force", {}, cfg.default_view or {}, {
     from = "today",
     to = "today",
@@ -5012,7 +5021,7 @@ end
 ---                        "monday", mirroring Emacs's default)
 ---   "today"              no fixed anchor; window is today..+6d
 function M.week()
-  local cfg = (require("organ").config.agenda or {})
+  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local sow = resolve_week_anchor(cfg.week_starts_on)
   local now_ts = os.time()
   local week_start_ts
@@ -5089,7 +5098,7 @@ end
 --- Open a user-defined named view from `config.agenda.views[name]`.  Surfaces
 --- a notify error if the name is not registered.
 function M.named_view(name)
-  local views = (require("organ").config.agenda or {}).views or {}
+  local views = (require("organ.buf_config").read(nil, "agenda") or {}).views or {}
   local view = views[name]
   if not view then
     require("organ.notify").error("organ: no agenda view named " .. tostring(name))
@@ -5110,7 +5119,7 @@ local function build_dispatch_entries()
     { "s", "Search by string…", M.search },
     { "#", "Stuck projects", M.stuck },
   }
-  local views = (require("organ").config.agenda or {}).views or {}
+  local views = (require("organ.buf_config").read(nil, "agenda") or {}).views or {}
   local used = {}
   for _, e in ipairs(entries) do
     used[e[1]] = true
@@ -5140,7 +5149,7 @@ local function build_dispatch_entries()
     def_key,
     "default",
     function()
-      M.open((require("organ").config.agenda or {}).default_view, "default_view")
+      M.open((require("organ.buf_config").read(nil, "agenda") or {}).default_view, "default_view")
     end,
   }
   return entries
@@ -5215,7 +5224,7 @@ end
 ---   "select" — `vim.ui.select` (telescope / dressing / snacks-pickers)
 ---   custom   — `config.agenda.dispatcher_handler({title, entries})`
 function M.dispatch()
-  local cfg = (require("organ").config.agenda or {})
+  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local entries = build_dispatch_entries()
 
   local handler = cfg.dispatcher_handler
@@ -5299,7 +5308,7 @@ M._show_popup_menu = show_popup_menu
 
 local function complete_agenda_views()
   local out = {}
-  for k in pairs((require("organ").config.agenda or {}).views or {}) do
+  for k in pairs((require("organ.buf_config").read(nil, "agenda") or {}).views or {}) do
     out[#out + 1] = k
   end
   return out

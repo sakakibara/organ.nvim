@@ -125,7 +125,7 @@ end
 function M.start(duration)
   local secs
   if duration == nil or duration == "" then
-    local cfg = (require("organ").config.timer or {})
+    local cfg = (require("organ.buf_config").read(nil, "timer") or {})
     secs = cfg.default_seconds or (25 * 60) -- 25-minute pomodoro default
   else
     secs = parse_duration(duration)

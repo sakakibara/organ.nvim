@@ -42,7 +42,7 @@ end
 function M.resolve(bufnr, override)
   local raw = override
   if raw == nil then
-    raw = (require("organ").config.structure or {}).headline_spacing
+    raw = (require("organ.buf_config").read(nil, "structure") or {}).headline_spacing
   end
   if raw == nil or raw == "auto" then
     return M.detect(bufnr)

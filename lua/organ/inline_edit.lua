@@ -230,7 +230,7 @@ local function find_priority_at(line_text, col)
   -- Cursor in title region (past any TODO keyword). If cursor is on the TODO
   -- keyword itself, return nil so the TODO branch can handle it.
   -- Find insertion point: after stars + space + (optional) TODO keyword + space.
-  local todo_seq = (require("organ").config.todo or {}).sequence or {}
+  local todo_seq = (require("organ.buf_config").read(nil, "todo") or {}).sequence or {}
   local prefix_len = headline_start -- 0-based col of first body char (after "* ")
   local body = line_text:sub(headline_start + 1) -- text after "* " (1-based sub)
   local first = body:match("^(%S+)")
@@ -279,7 +279,7 @@ function M.set_priority(bufnr, lnum, letter)
   local insert_col = #stars + 1 -- byte after "* "
   local body = line:sub(insert_col + 1)
   local first = body:match("^(%S+)")
-  local todo_seq = (require("organ").config.todo or {}).sequence or {}
+  local todo_seq = (require("organ.buf_config").read(nil, "todo") or {}).sequence or {}
   for _, k in ipairs(todo_seq) do
     if k == first then
       insert_col = insert_col + #first + 1
@@ -294,7 +294,7 @@ end
 -- defaults). Override via config.priority.{highest, lowest, default}.
 -- Honors any single uppercase letter (or digit, as Emacs allows).
 local function priority_range()
-  local cfg = (require("organ").config.priority or {})
+  local cfg = (require("organ.buf_config").read(nil, "priority") or {})
   return cfg.highest or "A", cfg.lowest or "C", cfg.default or "B"
 end
 
@@ -311,7 +311,7 @@ local function step_priority(cur, delta)
     -- first cycle adds the DEFAULT priority instead — useful when
     -- "raise" should mean "add a priority cookie" before pinning to
     -- highest.
-    local cfg = (require("organ").config.priority or {})
+    local cfg = (require("organ.buf_config").read(nil, "priority") or {})
     if cfg.start_cycle_with_default then
       return def
     end
@@ -417,7 +417,7 @@ local function detect_todo_at(line_text, col)
   if not stars or not todo then
     return nil
   end
-  local todo_seq = (require("organ").config.todo or {}).sequence or {}
+  local todo_seq = (require("organ.buf_config").read(nil, "todo") or {}).sequence or {}
   local found = false
   for _, k in ipairs(todo_seq) do
     if k == todo then
@@ -476,7 +476,7 @@ function M.dispatch(direction)
   --   b. dial.nvim's augend dispatcher if installed (so semantic
   --      types like booleans / weekdays / aliases work)
   --   c. Vim's native <C-a> / <C-x>
-  local cfg = (require("organ").config.inline_edit or {})
+  local cfg = (require("organ.buf_config").read(nil, "inline_edit") or {})
   local fb = direction == "inc" and cfg.fallback_increment or cfg.fallback_decrement
   if type(fb) == "function" then
     return fb()

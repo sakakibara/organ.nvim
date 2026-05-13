@@ -51,7 +51,7 @@ local function get_cfg()
   if not ok then
     return {}
   end
-  return (organ.config.roam or {}).sidebar or {}
+  return (require("organ.buf_config").read(nil, "roam") or {}).sidebar or {}
 end
 
 -- Resolve `width`: integer columns OR a "N%" string of total `&columns`.
@@ -354,7 +354,7 @@ function M.open()
   -- tab sidebars don't interfere.
   do
     local events = require("organ.events")
-    local cfg = (require("organ").config.roam or {}).sidebar or {}
+    local cfg = (require("organ.buf_config").read(nil, "roam") or {}).sidebar or {}
     local debounce_ms = cfg.refresh_debounce_ms or 300
     local timer
     local listener = function(payload)

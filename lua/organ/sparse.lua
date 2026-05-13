@@ -45,7 +45,8 @@ function M._compute_visible(buf_lines, predicate, bufnr)
         local todo_state, rest
         local first_token, after = body:match("^(%S+)%s+(.*)$")
         if first_token then
-          local cfg_todo = (require("organ").config.todo or {}).sequence or { "TODO", "DONE" }
+          local cfg_todo = (require("organ.buf_config").read(nil, "todo") or {}).sequence
+            or { "TODO", "DONE" }
           local is_todo = false
           for _, k in ipairs(cfg_todo) do
             if k ~= "|" and k == first_token then

@@ -70,7 +70,7 @@ function M.write_atomic(path, contents, opts)
   -- filesystem, FAT32 etc.), fall back to a copy.
   local keep_bak = opts.keep_bak
   if keep_bak == nil then
-    keep_bak = ((require("organ").config or {}).write or {}).keep_bak == true
+    keep_bak = (require("organ.buf_config").read(nil, "write.keep_bak")) == true
   end
   if keep_bak and vim.uv.fs_stat(path) then
     local bak = path .. ".bak"

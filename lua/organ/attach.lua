@@ -14,7 +14,8 @@ function M.dir_for_id(base_dir, id)
   if not id or id == "" then
     return nil
   end
-  local layout = (require("organ").config.attach or {}).id_dir_layout or "two_three"
+  local layout = (require("organ.buf_config").read(nil, "attach") or {}).id_dir_layout
+    or "two_three"
   if layout == "flat" then
     return base_dir .. "/" .. id
   end
@@ -34,7 +35,8 @@ function M.dir(bufnr, line)
   end
 
   local organ = require("organ")
-  local base = (organ.config.attach or {}).dir or (vim.fn.expand("~/org/data"))
+  local base = (require("organ.buf_config").read(nil, "attach") or {}).dir
+    or (vim.fn.expand("~/org/data"))
   local d = M.dir_for_id(base, id)
   if not d then
     return nil, "ID too short to derive attachment directory"
@@ -78,7 +80,7 @@ end
 -- Returns err or nil.
 function M.attach(bufnr, line, src_path)
   local organ = require("organ")
-  local attach_cfg = organ.config.attach or {}
+  local attach_cfg = require("organ.buf_config").read(nil, "attach") or {}
 
   local d, err = M.dir(bufnr, line)
   if err then
@@ -159,7 +161,7 @@ function M.attach_url(bufnr, line, url)
   end
 
   -- Insert link if configured.
-  local auto = (require("organ").config.attach or {}).auto_insert_link
+  local auto = (require("organ.buf_config").read(nil, "attach") or {}).auto_insert_link
   if auto == nil then
     auto = true
   end
@@ -213,7 +215,7 @@ function M.attach_screenshot(bufnr, line, opts)
     return "screenshot tool exited 0 but no file was written (likely cancelled)"
   end
 
-  local auto = (require("organ").config.attach or {}).auto_insert_link
+  local auto = (require("organ.buf_config").read(nil, "attach") or {}).auto_insert_link
   if auto == nil then
     auto = true
   end
@@ -299,7 +301,7 @@ end
 -- is enabled. Used by attach / attach_url / attach_screenshot after each
 -- successful attach.
 function M._maybe_git_commit(bufnr, line, filename, action)
-  local cfg = (require("organ").config.attach or {})
+  local cfg = (require("organ.buf_config").read(nil, "attach") or {})
   if cfg.git ~= true then
     return
   end
@@ -346,7 +348,7 @@ function M.attach_screenshot(bufnr, line, opts)
 end
 
 local function notify_info(msg)
-  if (require("organ").config or {}).notify then
+  if require("organ.buf_config").read(nil, "notify") then
     vim.schedule(function()
       require("organ.notify").info(msg)
     end)

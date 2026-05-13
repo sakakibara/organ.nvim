@@ -4,7 +4,7 @@
 local M = {}
 
 function M.attach(bufnr)
-  local table_cfg = require("organ").config["table"] or {}
+  local table_cfg = require("organ.buf_config").read(bufnr, "table") or {}
   if table_cfg.enabled == false then
     return
   end
@@ -21,7 +21,7 @@ function M.attach(bufnr)
       -- after a `<KEY` trigger, expand to a structure block. Tempo is
       -- opt-out via `tempo.enabled = false`.
       if direction == "next" then
-        local tempo_cfg = (require("organ").config.tempo or {})
+        local tempo_cfg = (require("organ.buf_config").read(nil, "tempo") or {})
         if tempo_cfg.enabled ~= false and vim.fn.mode() == "i" then
           if require("organ.tempo").expand(0) then
             return

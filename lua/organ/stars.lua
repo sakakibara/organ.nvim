@@ -37,8 +37,7 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local cfg = require("organ").config
-  if not ((cfg.stars or {}).hide == true) then
+  if require("organ.buf_config").read(bufnr, "stars.hide") ~= true then
     return
   end
   local lines = vim.api.nvim_buf_get_lines(bufnr, topline, botline + 1, false)
@@ -70,9 +69,8 @@ end
 require("organ.decoration").register({
   name = "stars",
   ns = NS,
-  enabled = function(_bufnr)
-    local cfg = require("organ").config
-    return (cfg.stars or {}).hide == true
+  enabled = function(bufnr)
+    return require("organ.buf_config").read(bufnr, "stars.hide") == true
   end,
   on_win = on_win,
   on_line = on_line,
@@ -138,16 +136,24 @@ end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ").config
-  cfg.stars = cfg.stars or {}
-  if cfg.stars.hide then
-    cfg.stars.hide = false
-    M.detach(bufnr)
-    return false
-  end
-  cfg.stars.hide = true
-  M.attach(bufnr)
-  return true
+  local on = require("organ.buf_config").toggle(bufnr, "stars.hide")
+  return on and true or false
 end
+
+-- Reapply hook: react to live `stars.hide` flips on this buffer.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "stars.hide") == true
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
 
 return M

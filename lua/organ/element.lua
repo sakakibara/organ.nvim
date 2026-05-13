@@ -1031,8 +1031,7 @@ function M._headline_info_from_line(line, row0)
   if not stars then
     return nil
   end
-  local cfg = require("organ").config or {}
-  local seq = (cfg.todo or {}).sequence or {}
+  local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
   local todo = nil
   for _, kw in ipairs(seq) do
     if kw ~= "|" and rest:sub(1, #kw + 1) == kw .. " " then
