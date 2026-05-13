@@ -708,11 +708,15 @@ return {
   },
 
   indent = {
-    -- Virtual indent (mirror Emacs `org-indent-mode`).  Each body
-    -- line gets an inline virt-text prefix of (level-1) *
-    -- shift_per_level spaces, so nested content shifts right
-    -- visually without modifying the underlying buffer text.  Files
-    -- on disk stay at column 0; readable in any editor.
+    -- Virtual indent (mirror Emacs `org-indent-mode`).  Body rows
+    -- get an inline virt-text prefix sized so the first body byte
+    -- aligns with the title text column of its enclosing headline,
+    -- so prose sits visually under the title rather than under the
+    -- stars.  Heading rows themselves take a pad of (L-1) *
+    -- shift_per_level when stars render as literal `*`; the pad is
+    -- skipped under `modern.bullets` or `stars.hide`, which already
+    -- supply N-1 conceal-spaces of their own.  Files on disk stay
+    -- at column 0; readable in any editor.
     enabled = false,
     shift_per_level = 2,
     hl_group = "Conceal",

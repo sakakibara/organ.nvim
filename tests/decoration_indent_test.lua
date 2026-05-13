@@ -25,6 +25,8 @@ require("organ").setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   indent = { enabled = true, shift_per_level = 2, hl_group = "Conceal" },
+  modern = { bullets = false },
+  stars = { hide = false },
 })
 -- Loading the module triggers its top-level decoration.register({...}).
 local indent = require("organ.indent")
@@ -61,14 +63,14 @@ vim.api.nvim_buf_delete(pre_bufnr, { force = true })
 local bufnr = vim.api.nvim_create_buf(false, true)
 vim.bo[bufnr].filetype = "org"
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
-  "* Top", -- row 0, level 1 -> no pad
-  "Body of top.", -- row 1, level 1 -> no pad
-  "** Sub", -- row 2, level 2 -> 2 spaces
-  "Body of sub.", -- row 3, level 2 -> 2 spaces
-  "*** Deep", -- row 4, level 3 -> 4 spaces
-  "Body of deep.", -- row 5, level 3 -> 4 spaces
-  "* Next", -- row 6, level 1 -> no pad (cascade reset)
-  "Body of next.", -- row 7, level 1 -> no pad
+  "* Top", -- row 0, level 1, heading pad = 0
+  "Body of top.", -- row 1, level 1 body, pad = 0 + 1 + 1 = 2
+  "** Sub", -- row 2, level 2, heading pad = 2
+  "Body of sub.", -- row 3, level 2 body, pad = 2 + 2 + 1 = 5
+  "*** Deep", -- row 4, level 3, heading pad = 4
+  "Body of deep.", -- row 5, level 3 body, pad = 4 + 3 + 1 = 8
+  "* Next", -- row 6, level 1, heading pad = 0 (cascade reset)
+  "Body of next.", -- row 7, level 1 body, pad = 2
 })
 
 indent.attach(bufnr)
@@ -90,18 +92,18 @@ for _, m in ipairs(marks) do
   end
 end
 
-check("row 0 (* Top): no pad", pad_per_row[0] == nil, "got " .. tostring(pad_per_row[0]))
-check("row 1 (Body of top): no pad", pad_per_row[1] == nil, "got " .. tostring(pad_per_row[1]))
-check("row 2 (** Sub): 2-space pad", pad_per_row[2] == 2, "got " .. tostring(pad_per_row[2]))
-check("row 3 (body sub): 2-space pad", pad_per_row[3] == 2, "got " .. tostring(pad_per_row[3]))
-check("row 4 (*** Deep): 4-space pad", pad_per_row[4] == 4, "got " .. tostring(pad_per_row[4]))
-check("row 5 (body deep): 4-space pad", pad_per_row[5] == 4, "got " .. tostring(pad_per_row[5]))
+check("row 0 (* Top): no heading pad", pad_per_row[0] == nil, "got " .. tostring(pad_per_row[0]))
+check("row 1 (Body of top): body pad = 2", pad_per_row[1] == 2, "got " .. tostring(pad_per_row[1]))
+check("row 2 (** Sub): heading pad = 2", pad_per_row[2] == 2, "got " .. tostring(pad_per_row[2]))
+check("row 3 (body sub): body pad = 5", pad_per_row[3] == 5, "got " .. tostring(pad_per_row[3]))
+check("row 4 (*** Deep): heading pad = 4", pad_per_row[4] == 4, "got " .. tostring(pad_per_row[4]))
+check("row 5 (body deep): body pad = 8", pad_per_row[5] == 8, "got " .. tostring(pad_per_row[5]))
 check(
-  "row 6 (* Next): cascade resets, no pad",
+  "row 6 (* Next): cascade resets, no heading pad",
   pad_per_row[6] == nil,
   "got " .. tostring(pad_per_row[6])
 )
-check("row 7 (body next): no pad", pad_per_row[7] == nil, "got " .. tostring(pad_per_row[7]))
+check("row 7 (body next): body pad = 2", pad_per_row[7] == 2, "got " .. tostring(pad_per_row[7]))
 
 -- Verify the highlight group matches config.
 local hl_ok = true
