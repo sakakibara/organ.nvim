@@ -511,6 +511,97 @@ do
   check("two hlines (one per sep)", n_hline == 2, "got " .. n_hline .. " hlines in:\n" .. out)
 end
 
+-- ---- block-level image ----------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("before") }),
+    { kind = "image", target = "fig.png", alt = "diagram" },
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "block image includegraphics",
+    out:find("\\includegraphics{fig.png}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "block image wrapped in figure",
+    out:find("\\begin{figure}", 1, true) ~= nil and out:find("\\end{figure}", 1, true) ~= nil
+  )
+  check(
+    "paragraphs around image preserved",
+    out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
+  )
+end
+
+-- ---- block image with no alt -> no caption ---------------------------
+do
+  local doc = A.document({ { kind = "image", target = "x.png" } })
+  local out = to_latex.render(doc, { body_only = true })
+  check("image with no alt -> no \\caption", out:find("\\caption{", 1, true) == nil, "got: " .. out)
+  check("image still has includegraphics", out:find("\\includegraphics{x.png}", 1, true) ~= nil)
+end
+
+-- ---- horizontal rule -------------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({ A.text("above") }),
+    A.rule(),
+    A.paragraph({ A.text("below") }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("rule renders \\hrule", out:find("\\hrule", 1, true) ~= nil, "got: " .. out)
+end
+
+-- ---- footnote_definition --------------------------------------------
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      { kind = "footnote_ref", label = "1" },
+    }),
+    A.footnote_definition("1", { A.paragraph({ A.text("the body") }) }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "footnote_ref produces \\footnotemark[1]",
+    out:find("\\footnotemark[1]", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "footnote_definition produces \\footnotetext[1]",
+    out:find("\\footnotetext[1]{the body}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- multi-paragraph footnote: paragraphs joined ---------------------
+do
+  local doc = A.document({
+    A.footnote_definition("note", {
+      A.paragraph({ A.text("first") }),
+      A.paragraph({ A.text("second") }),
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "multi-paragraph footnote joined",
+    out:find("\\footnotetext[note]{first", 1, true) ~= nil and out:find("second}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ---- directive dropped ---------------------------------------------
+do
+  local doc = A.document({
+    A.directive("AUTHOR", "Jane"),
+    A.paragraph({ A.text("body") }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("AUTHOR not in body", out:find("Jane", 1, true) == nil, "got: " .. out)
+  check("paragraph rendered", out:find("body", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

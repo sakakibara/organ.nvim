@@ -286,6 +286,35 @@ local function emit_table(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_image_block(node, out)
+  local target = node.target or ""
+  out[#out + 1] = "\\begin{figure}[h]"
+  out[#out + 1] = "\\centering"
+  out[#out + 1] = "\\includegraphics{" .. target .. "}"
+  if node.alt and node.alt ~= "" then
+    out[#out + 1] = "\\caption{" .. escape_text(node.alt) .. "}"
+  end
+  out[#out + 1] = "\\end{figure}"
+  out[#out + 1] = ""
+end
+
+local function emit_rule(_, out)
+  out[#out + 1] = "\\hrule"
+  out[#out + 1] = ""
+end
+
+local function emit_footnote_definition(node, out)
+  local label = node.label or ""
+  local parts = {}
+  for _, b in ipairs(node.content or {}) do
+    if b.kind == "paragraph" then
+      parts[#parts + 1] = emit_inline(b.inline)
+    end
+  end
+  out[#out + 1] = "\\footnotetext[" .. label .. "]{" .. table.concat(parts, " ") .. "}"
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -307,8 +336,14 @@ function emit_block(node, out)
     emit_org_block(node, out)
   elseif kind == "table" then
     emit_table(node, out)
+  elseif kind == "image" then
+    emit_image_block(node, out)
+  elseif kind == "rule" then
+    emit_rule(node, out)
+  elseif kind == "footnote_definition" then
+    emit_footnote_definition(node, out)
   end
-  -- All other kinds added in subsequent tasks.
+  -- directive, drawer, comment intentionally drop.
 end
 
 local function find_directive(doc, name)
