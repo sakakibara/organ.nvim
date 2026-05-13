@@ -236,6 +236,80 @@ do
   check("linebreak emits <br>", out:find("first<br>second", 1, true) ~= nil, "got: " .. out)
 end
 
+-- ---- list (unordered) ------------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ content = { A.paragraph({ A.text("one") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("two") }) } }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check("unordered list wrapped in <ul>", out:find("<ul>", 1, true) ~= nil, "got: " .. out)
+  check("closing </ul>", out:find("</ul>", 1, true) ~= nil)
+  check("item 1 in <li>", out:find("<li>one</li>", 1, true) ~= nil, "got: " .. out)
+  check("item 2 in <li>", out:find("<li>two</li>", 1, true) ~= nil)
+end
+
+-- ---- list (ordered) --------------------------------------------------
+do
+  local doc = A.document({
+    A.list(true, {
+      A.list_item({ content = { A.paragraph({ A.text("alpha") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("beta") }) } }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check("ordered list wrapped in <ol>", out:find("<ol>", 1, true) ~= nil, "got: " .. out)
+  check("closing </ol>", out:find("</ol>", 1, true) ~= nil)
+end
+
+-- ---- list with checkboxes -------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ checkbox = "todo", content = { A.paragraph({ A.text("a") }) } }),
+      A.list_item({ checkbox = "done", content = { A.paragraph({ A.text("b") }) } }),
+      A.list_item({ checkbox = "part", content = { A.paragraph({ A.text("c") }) } }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "todo checkbox renders disabled input",
+    out:find('<input type="checkbox" disabled', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "done checkbox renders checked disabled",
+    out:find('<input type="checkbox" checked disabled', 1, true) ~= nil
+  )
+  check("a item content rendered", out:find("a</li>", 1, true) ~= nil)
+  check("b item content rendered", out:find("b</li>", 1, true) ~= nil)
+end
+
+-- ---- nested list ----------------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("outer") }),
+          A.list(false, {
+            A.list_item({ content = { A.paragraph({ A.text("inner") }) } }),
+          }),
+        },
+      }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "outer list contains nested <ul>",
+    out:find("outer", 1, true) ~= nil and out:find("<ul>.-<ul>") ~= nil,
+    "got: " .. out
+  )
+  check("inner item still rendered", out:find("inner", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

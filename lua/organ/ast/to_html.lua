@@ -109,6 +109,45 @@ local function emit_paragraph(node, out)
   out[#out + 1] = "<p>" .. emit_inline(node.inline or {}) .. "</p>"
 end
 
+local function emit_list(node, out)
+  local tag = node.ordered and "ol" or "ul"
+  out[#out + 1] = "<" .. tag .. ">"
+  for _, item in ipairs(node.items or {}) do
+    local checkbox = ""
+    if item.checkbox == "todo" then
+      checkbox = '<input type="checkbox" disabled> '
+    elseif item.checkbox == "done" then
+      checkbox = '<input type="checkbox" checked disabled> '
+    elseif item.checkbox == "part" then
+      checkbox = '<input type="checkbox" disabled> '
+    end
+    -- Compose the <li> content: first paragraph inline + any nested
+    -- lists + any continuation paragraphs.
+    local pieces = {}
+    local first_para_done = false
+    for _, b in ipairs(item.content or {}) do
+      if b.kind == "paragraph" then
+        if not first_para_done then
+          pieces[#pieces + 1] = checkbox .. emit_inline(b.inline)
+          first_para_done = true
+        else
+          pieces[#pieces + 1] = emit_inline(b.inline)
+        end
+      elseif b.kind == "list" then
+        local sub_out = {}
+        emit_list(b, sub_out)
+        pieces[#pieces + 1] = table.concat(sub_out, "\n")
+      end
+    end
+    if not first_para_done and checkbox ~= "" then
+      -- Edge case: item has no paragraph but has a checkbox.
+      pieces[#pieces + 1] = checkbox
+    end
+    out[#out + 1] = "<li>" .. table.concat(pieces, "\n") .. "</li>"
+  end
+  out[#out + 1] = "</" .. tag .. ">"
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -122,6 +161,8 @@ function emit_block(node, out)
     emit_headline(node, out)
   elseif kind == "paragraph" then
     emit_paragraph(node, out)
+  elseif kind == "list" then
+    emit_list(node, out)
   end
   -- Other kinds drop silently; per-kind branches added in subsequent tasks.
 end
