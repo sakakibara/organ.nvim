@@ -585,7 +585,7 @@ return {
     keymaps = {
       next_cell = "<Tab>",
       prev_cell = "<S-Tab>",
-      menu = "<LocalLeader>tt",
+      menu = "<LocalLeader>zt",
     },
   },
 

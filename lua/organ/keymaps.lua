@@ -90,9 +90,9 @@ M.defaults = {
   { "<LocalLeader>Sy", "Org copy_subtree", desc = "Copy subtree" },
   { "<LocalLeader>Sp", "Org paste_subtree", desc = "Paste subtree" },
 
-  -- toggles (table menu remains at <LocalLeader>tt via table ftplugin)
-  { "<LocalLeader>ti", "Org toggle_inline_images", desc = "Toggle inline images" },
-  { "<LocalLeader>tp", "Org pretty_entities", desc = "Toggle pretty entities" },
+  -- view toggles
+  { "<LocalLeader>zi", "Org toggle_inline_images", desc = "Toggle inline images" },
+  { "<LocalLeader>zp", "Org pretty_entities", desc = "Toggle pretty entities" },
 
   -- sparse-tree views
   { "<LocalLeader>vt", "Org sparse_tree todo", desc = "Sparse tree: TODO" },
@@ -136,9 +136,9 @@ M.groups = {
   { "<LocalLeader>l", group = "list" },
   { "<LocalLeader>n", group = "narrow / roam" },
   { "<LocalLeader>S", group = "subtree clipboard" },
-  { "<LocalLeader>t", group = "toggle" },
   { "<LocalLeader>v", group = "sparse tree" },
   { "<LocalLeader>x", group = "execute / dblock / babel" },
+  { "<LocalLeader>z", group = "view toggles" },
 }
 
 -- Build the resolved binding set: defaults overlaid with user_keys.
