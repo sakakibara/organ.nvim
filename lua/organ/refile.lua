@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- High-level action: refile the subtree at (`opts.bufnr`, `opts.line`) under
 -- a target headline picked via the find UI.  Both keys default to current
 -- buffer + cursor.  Honors `config.refile.use_outline_path` (column choice)
@@ -185,21 +186,15 @@ function M.move(src_bufnr, src_line, target_file, target_line)
   if target_bufnr == src_bufnr then
     if target_line >= end_line then
       local removed = end_line - hl_line
-      vim.api.nvim_buf_set_lines(src_bufnr, hl_line - 1, end_line - 1, false, {})
-      vim.api.nvim_buf_set_lines(
-        src_bufnr,
-        target_line - removed,
-        target_line - removed,
-        false,
-        subtree
-      )
+      obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
+      obuf.set_lines(src_bufnr, target_line - removed, target_line - removed, subtree)
     else
-      vim.api.nvim_buf_set_lines(src_bufnr, hl_line - 1, end_line - 1, false, {})
-      vim.api.nvim_buf_set_lines(src_bufnr, target_line, target_line, false, subtree)
+      obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
+      obuf.set_lines(src_bufnr, target_line, target_line, subtree)
     end
   else
-    vim.api.nvim_buf_set_lines(src_bufnr, hl_line - 1, end_line - 1, false, {})
-    vim.api.nvim_buf_set_lines(target_bufnr, target_line, target_line, false, subtree)
+    obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
+    obuf.set_lines(target_bufnr, target_line, target_line, subtree)
   end
 
   -- LOGBOOK refile note. Recorded BEFORE the save so the entry persists.

@@ -11,6 +11,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local table_mod = require("organ.table")
 
 -- Locate the cell at cursor. Returns { table, row_idx, col_idx, text } or nil.
@@ -49,7 +50,7 @@ local function commit(bufnr, ctx, new_text)
   new_text = (new_text or ""):gsub("[\n\r]+", " "):gsub("^%s+", ""):gsub("%s+$", "")
   ctx.table.rows[ctx.row_idx].cells[ctx.col_idx] = new_text
   local new_lines = table_mod._align(ctx.table.rows, ctx.table.indent)
-  vim.api.nvim_buf_set_lines(bufnr, ctx.table.start_line - 1, ctx.table.end_line, false, new_lines)
+  obuf.set_lines(bufnr, ctx.table.start_line - 1, ctx.table.end_line, new_lines)
 end
 
 -- Open a floating window with the cell text. Buffer-local mappings:
@@ -67,7 +68,7 @@ function M.open(src_bufnr, src_line)
   end
 
   local pop_bufnr = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(pop_bufnr, 0, -1, false, { ctx.text })
+  obuf.set_lines(pop_bufnr, 0, -1, { ctx.text })
   vim.bo[pop_bufnr].buftype = "acwrite" -- so :w fires BufWriteCmd
   vim.bo[pop_bufnr].swapfile = false
   vim.api.nvim_buf_set_name(pop_bufnr, "organ-cell://" .. tostring(src_line))

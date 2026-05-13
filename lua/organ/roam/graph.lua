@@ -8,6 +8,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function file_short(path)
   if not path then
     return ""
@@ -172,7 +173,7 @@ function M.show(node_id, depth)
   end
   local lines, line_index = M.tree(node_id, depth or 1)
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  obuf.set_lines(buf, 0, -1, lines)
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].modifiable = false

@@ -20,6 +20,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Parse a #+COLUMNS string into a list of column specs.
 -- Each spec: { width = N | nil, property = "STRING", label = "STRING" | nil,
 --              summary = "STRING" | nil }
@@ -366,7 +367,7 @@ function M.open(source_bufnr, source_line)
   vim.bo[view_bufnr].buftype = "nofile"
   vim.bo[view_bufnr].swapfile = false
   vim.bo[view_bufnr].buflisted = false
-  vim.api.nvim_buf_set_lines(view_bufnr, 0, -1, false, lines)
+  obuf.set_lines(view_bufnr, 0, -1, lines)
   vim.bo[view_bufnr].modifiable = false
 
   -- Save the row→source-line index so the jump keymap can navigate.

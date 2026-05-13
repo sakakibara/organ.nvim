@@ -6,6 +6,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local drawer = require("organ.drawer")
 
 local function get_todo_cfg()
@@ -63,14 +64,14 @@ function M.append(bufnr, hl_line, entry_lines)
 
   if cfg.log_into_drawer == false then
     local pos = drawer.insert_position(lines, hl_line, bufnr)
-    vim.api.nvim_buf_set_lines(bufnr, pos - 1, pos - 1, false, entry_lines)
+    obuf.set_lines(bufnr, pos - 1, pos - 1, entry_lines)
     return
   end
 
   local s, e = drawer.find(lines, hl_line, drawer_name, bufnr)
   if s then
     -- Newest first: insert just after the :DRAWER: line.
-    vim.api.nvim_buf_set_lines(bufnr, s, s, false, entry_lines)
+    obuf.set_lines(bufnr, s, s, entry_lines)
   else
     local pos = drawer.insert_position(lines, hl_line, bufnr)
     local block = { ":" .. drawer_name .. ":" }
@@ -78,7 +79,7 @@ function M.append(bufnr, hl_line, entry_lines)
       block[#block + 1] = l
     end
     block[#block + 1] = ":END:"
-    vim.api.nvim_buf_set_lines(bufnr, pos - 1, pos - 1, false, block)
+    obuf.set_lines(bufnr, pos - 1, pos - 1, block)
   end
 end
 

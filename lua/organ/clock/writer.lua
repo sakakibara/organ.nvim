@@ -4,6 +4,7 @@ local drawer = require("organ.drawer")
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function ts_inactive(t)
   return os.date("[%Y-%m-%d %a %H:%M]", t)
 end
@@ -20,10 +21,10 @@ function M.write_active(bufnr, hl_line, drawer_name, start_ts)
   local clock_line = "  CLOCK: " .. ts_inactive(start_ts)
   local s, _ = drawer.find(lines, hl_line, drawer_name, bufnr)
   if s then
-    vim.api.nvim_buf_set_lines(bufnr, s, s, false, { clock_line })
+    obuf.set_lines(bufnr, s, s, { clock_line })
   else
     local pos = drawer.insert_position(lines, hl_line, bufnr)
-    vim.api.nvim_buf_set_lines(bufnr, pos - 1, pos - 1, false, {
+    obuf.set_lines(bufnr, pos - 1, pos - 1, {
       "  :" .. drawer_name .. ":",
       clock_line,
       "  :END:",
@@ -75,7 +76,7 @@ function M.close_active(bufnr, hl_line, drawer_name, end_ts)
     ts_inactive(end_ts),
     format_duration(duration)
   )
-  vim.api.nvim_buf_set_lines(bufnr, active - 1, active, false, { closed })
+  obuf.set_lines(bufnr, active - 1, active, { closed })
   return true
 end
 
@@ -89,7 +90,7 @@ function M.cancel_active(bufnr, hl_line, drawer_name)
   if not active then
     return false
   end
-  vim.api.nvim_buf_set_lines(bufnr, active - 1, active, false, {})
+  obuf.set_lines(bufnr, active - 1, active, {})
   return true
 end
 

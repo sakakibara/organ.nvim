@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 M.TRIGGERS = {
   ["[[id:"] = "id",
   ["[[*"] = "headline",
@@ -318,8 +319,7 @@ function M.apply_selection(bufnr, trigger, item)
   local row = vim.api.nvim_win_get_cursor(0)[1] - 1
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local link = string.format("%s%s][%s]]", trigger.prefix, item.insert_text, item.description)
-  local ok, err =
-    pcall(vim.api.nvim_buf_set_text, bufnr, row, trigger.prefix_col, row, col, { link })
+  local ok, err = pcall(obuf.set_text, bufnr, row, trigger.prefix_col, row, col, { link })
   if not ok then
     require("organ.notify").warn("organ: completion failed: " .. tostring(err))
     return

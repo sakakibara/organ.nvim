@@ -10,6 +10,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Clock reads — funnel through these so the snapshot test (and any
 -- other harness that wants a deterministic agenda) can pin "now" via
 -- `config.agenda.now_override`.  The override accepts:
@@ -2608,7 +2609,7 @@ function M.undo_last_delete(bufnr)
   end)
   for _, s in ipairs(snap) do
     if vim.api.nvim_buf_is_valid(s.file) then
-      pcall(vim.api.nvim_buf_set_lines, s.file, s.lnum - 1, s.lnum - 1, false, s.lines)
+      pcall(obuf.set_lines, s.file, s.lnum - 1, s.lnum - 1, s.lines)
     end
   end
   state.delete_history = stack
@@ -2640,7 +2641,7 @@ function M.redo_last_delete(bufnr)
   end)
   for _, s in ipairs(plan) do
     if vim.api.nvim_buf_is_valid(s.file) then
-      pcall(vim.api.nvim_buf_set_lines, s.file, s.lnum - 1, s.lnum - 1 + #s.lines, false, {})
+      pcall(obuf.set_lines, s.file, s.lnum - 1, s.lnum - 1 + #s.lines, {})
     end
   end
   state.redo_history = stack
@@ -3461,11 +3462,10 @@ function M.refresh(bufnr)
       while suffix < (n_old - prefix) and old_lines[n_old - suffix] == out.lines[n_new - suffix] do
         suffix = suffix + 1
       end
-      vim.api.nvim_buf_set_lines(
+      obuf.set_lines(
         bufnr,
         prefix,
         n_old - suffix,
-        false,
         vim.list_slice(out.lines, prefix + 1, n_new - suffix)
       )
       extmark_range_start = prefix
@@ -3474,7 +3474,7 @@ function M.refresh(bufnr)
     end
   else
     -- Line count changed: full replace + full extmark refresh.
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, out.lines)
+    obuf.set_lines(bufnr, 0, -1, out.lines)
     content_changed = true -- full refresh path
   end
   vim.bo[bufnr].modifiable = false
@@ -5168,7 +5168,7 @@ local function show_popup_menu(entries, title)
   local height = #lines
 
   local bufnr = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  obuf.set_lines(bufnr, 0, -1, lines)
   vim.bo[bufnr].buftype = "nofile"
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].swapfile = false
@@ -5378,7 +5378,7 @@ local function open_habits_view(days_arg)
   end
 
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  obuf.set_lines(buf, 0, -1, lines)
   vim.api.nvim_set_option_value("filetype", "organ-habits", { buf = buf })
   vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
   vim.api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })

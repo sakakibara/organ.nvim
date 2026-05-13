@@ -4,6 +4,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Compute the attachment directory for a given headline ID.
 -- Layout is selected by `attach.id_dir_layout`:
 --   "two_three"  → `<base_dir>/<id[1..2]>/<id[3..]>/`  (Emacs default)
@@ -116,7 +117,7 @@ function M.attach(bufnr, line, src_path)
     local ccol = cur[2]
     local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
     local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    vim.api.nvim_buf_set_lines(bufnr, crow - 1, crow, false, { new_text })
+    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
   end
 
   return nil
@@ -169,7 +170,7 @@ function M.attach_url(bufnr, line, url)
     local crow, ccol = cur[1], cur[2]
     local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
     local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    vim.api.nvim_buf_set_lines(bufnr, crow - 1, crow, false, { new_text })
+    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
   end
 
   return nil, filename
@@ -223,7 +224,7 @@ function M.attach_screenshot(bufnr, line, opts)
     local crow, ccol = cur[1], cur[2]
     local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
     local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    vim.api.nvim_buf_set_lines(bufnr, crow - 1, crow, false, { new_text })
+    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
   end
 
   return nil, filename

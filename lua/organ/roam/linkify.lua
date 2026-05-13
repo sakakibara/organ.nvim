@@ -12,6 +12,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Cached entries list from the most recent build. Invalidated by
 -- `M.invalidate_index()` after the indexer commits a write batch, so
 -- blink.cmp's per-keystroke `completion_items` call can reuse a single
@@ -157,7 +158,7 @@ function M.linkify_range(bufnr, start_line, end_line)
     end
   end
   if total > 0 then
-    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, lines)
+    obuf.set_lines(bufnr, start_line - 1, end_line, lines)
   end
   return total
 end
@@ -187,7 +188,7 @@ function M.linkify_cword(bufnr)
       local new = line:sub(1, s - 1)
         .. string.format("[[id:%s][%s]]", ent.id, word)
         .. line:sub(e + 1)
-      vim.api.nvim_buf_set_lines(bufnr, row - 1, row, false, { new })
+      obuf.set_lines(bufnr, row - 1, row, { new })
       return 1
     end
   end

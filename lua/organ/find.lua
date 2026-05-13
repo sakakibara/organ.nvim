@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function format_path(p, line_start)
   -- :~:. abbreviates with ~ for $HOME and prefers a relative form against cwd
   -- when applicable. line_start is 0-based; display 1-based for user familiarity.
@@ -578,9 +579,9 @@ function M.make_insert_link_action(ctx)
       while hi <= #line and is_kw(line:sub(hi, hi)) do
         hi = hi + 1
       end
-      vim.api.nvim_buf_set_text(ctx.bufnr, row, lo - 1, row, hi - 1, { link })
+      obuf.set_text(ctx.bufnr, row, lo - 1, row, hi - 1, { link })
     else
-      vim.api.nvim_buf_set_text(
+      obuf.set_text(
         ctx.bufnr,
         ctx.cursor[1] - 1,
         ctx.cursor[2],

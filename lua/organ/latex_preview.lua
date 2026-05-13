@@ -11,6 +11,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local FRAGMENT_PATTERNS = {
   -- (start_marker, end_marker, kind)
   { "\\%[", "\\%]", "display" },
@@ -118,7 +119,7 @@ end
 
 local function open_popup(lines, title)
   local buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  obuf.set_lines(buf, 0, -1, lines)
   vim.bo[buf].buftype = "nofile"
   vim.bo[buf].bufhidden = "wipe"
   vim.bo[buf].modifiable = false

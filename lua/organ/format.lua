@@ -7,6 +7,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function is_headline(line)
   return line:match("^%*+%s") ~= nil
 end
@@ -654,7 +655,7 @@ function M.format_range(bufnr, lo, hi)
   local cfg = format_cfg()
   local lines = vim.api.nvim_buf_get_lines(bufnr, lo - 1, hi, false)
   local out = M.format_lines(lines, cfg, bufnr)
-  vim.api.nvim_buf_set_lines(bufnr, lo - 1, hi, false, out)
+  obuf.set_lines(bufnr, lo - 1, hi, out)
   if (cfg.tables or {}).realign ~= false then
     realign_tables(bufnr, lo, hi)
   end
@@ -670,7 +671,7 @@ function M.format_buffer(bufnr)
   if (cfg.blanks or {}).ensure_final_newline ~= false then
     local last = vim.api.nvim_buf_get_lines(bufnr, -2, -1, false)[1]
     if last and last ~= "" then
-      vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "" })
+      obuf.set_lines(bufnr, -1, -1, { "" })
     end
   end
 end

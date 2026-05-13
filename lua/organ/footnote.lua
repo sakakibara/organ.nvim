@@ -22,6 +22,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Pattern building blocks
 
 -- Footnote-reference regex.  Captures the label (which may be empty for
@@ -192,7 +193,7 @@ function M.insert(opts)
   -- Insert reference at cursor.
   local txt = get_line(bufnr, cur_line)
   local new_line = txt:sub(1, cur_col) .. ref_text .. txt:sub(cur_col + 1)
-  vim.api.nvim_buf_set_lines(bufnr, cur_line - 1, cur_line, false, { new_line })
+  obuf.set_lines(bufnr, cur_line - 1, cur_line, { new_line })
 
   -- Ensure definition stub exists.
   if not find_first_def(bufnr, tostring(n)) then
@@ -214,7 +215,7 @@ function M.insert(opts)
     -- Pad with a blank line if previous line isn't blank.
     local prev = get_line(bufnr, def_line)
     local insert = (prev == "") and { stub } or { "", stub }
-    vim.api.nvim_buf_set_lines(bufnr, def_line, def_line, false, insert)
+    obuf.set_lines(bufnr, def_line, def_line, insert)
     -- Move to the stub for editing.
     local new_def_line = def_line + #insert
     vim.api.nvim_win_set_cursor(0, { new_def_line, #stub })
@@ -256,7 +257,7 @@ function M.renumber()
       return p .. (map[label] or label) .. suf
     end)
     if new ~= txt then
-      vim.api.nvim_buf_set_lines(bufnr, i - 1, i, false, { new })
+      obuf.set_lines(bufnr, i - 1, i, { new })
     end
   end
   return #order
@@ -339,7 +340,7 @@ function M.normalize_inline(bufnr, opts)
   for _, d in ipairs(definitions) do
     lines[#lines + 1] = d
   end
-  vim.api.nvim_buf_set_lines(bufnr, 0, total, false, lines)
+  obuf.set_lines(bufnr, 0, total, lines)
   return n_converted
 end
 
@@ -410,7 +411,7 @@ function M.sort()
   -- Pass 3: remove the def blocks bottom-up so indices stay valid.
   for k = #to_remove, 1, -1 do
     local r = to_remove[k]
-    vim.api.nvim_buf_set_lines(bufnr, r[1] - 1, r[2], false, {})
+    obuf.set_lines(bufnr, r[1] - 1, r[2], {})
   end
 
   -- Re-build the ordered block in reference order; unknown-but-defined
@@ -445,7 +446,7 @@ function M.sort()
   local new_total = vim.api.nvim_buf_line_count(bufnr)
   insert_at = math.min(insert_at, new_total + 1)
 
-  vim.api.nvim_buf_set_lines(bufnr, insert_at - 1, insert_at - 1, false, rebuilt)
+  obuf.set_lines(bufnr, insert_at - 1, insert_at - 1, rebuilt)
   -- Renumber numerics so they read 1..K in their NEW order.
   M.renumber()
   return #order

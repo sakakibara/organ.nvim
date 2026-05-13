@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Locate the first `#+<NAME>:` line in `bufnr`.  Returns (lnum, line_text)
 -- or nil.  Search is bounded to the first 200 lines — directives must
 -- precede the first headline per org spec.
@@ -25,7 +26,7 @@ function M.set(bufnr, name, value)
   local idx = M.find(bufnr, name)
   local new_line = "#+" .. name .. ": " .. value
   if idx then
-    vim.api.nvim_buf_set_lines(bufnr, idx - 1, idx, false, { new_line })
+    obuf.set_lines(bufnr, idx - 1, idx, { new_line })
     return
   end
   local insert_at = 0
@@ -38,7 +39,7 @@ function M.set(bufnr, name, value)
       break
     end
   end
-  vim.api.nvim_buf_set_lines(bufnr, insert_at, insert_at, false, { new_line })
+  obuf.set_lines(bufnr, insert_at, insert_at, { new_line })
 end
 
 local function notify_info(msg)

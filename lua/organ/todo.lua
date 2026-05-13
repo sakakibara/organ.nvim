@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Parse an Emacs `org-todo-keywords` entry into structured form.
 -- Annotation grammar (matches `org-set-todo-keywords` in org.el):
 --
@@ -484,22 +485,16 @@ local function set_property(bufnr, hl_line, key, value)
     -- Replace existing key in drawer if present.
     for i = pd.start_line + 1, pd.end_line - 1 do
       if (lines[i] or ""):match("^%s*:" .. key .. ":") then
-        vim.api.nvim_buf_set_lines(bufnr, i - 1, i, false, { prop_line })
+        obuf.set_lines(bufnr, i - 1, i, { prop_line })
         return
       end
     end
     -- Append before :END:.
-    vim.api.nvim_buf_set_lines(bufnr, pd.end_line - 1, pd.end_line - 1, false, { prop_line })
+    obuf.set_lines(bufnr, pd.end_line - 1, pd.end_line - 1, { prop_line })
   else
     -- Create a new drawer right after planning.
     local i = element.planning_end_line(bufnr, hl_line - 1)
-    vim.api.nvim_buf_set_lines(
-      bufnr,
-      i - 1,
-      i - 1,
-      false,
-      { "  :PROPERTIES:", prop_line, "  :END:" }
-    )
+    obuf.set_lines(bufnr, i - 1, i - 1, { "  :PROPERTIES:", prop_line, "  :END:" })
   end
 end
 
@@ -571,7 +566,7 @@ local function try_bump_repeaters(bufnr, hl_line, now_yyyy_mm_dd)
         local new_ts, err = rep.bump(ts, now_yyyy_mm_dd)
         if new_ts then
           local new_line = ln:gsub(vim.pesc(ts), new_ts, 1)
-          vim.api.nvim_buf_set_lines(bufnr, idx - 1, idx, false, { new_line })
+          obuf.set_lines(bufnr, idx - 1, idx, { new_line })
           bumped = true
         elseif err then
           require("organ.notify").warn(err)
@@ -612,7 +607,7 @@ local function add_logbook_entry(bufnr, hl_line, drawer_name, from_state, to_sta
   local start_idx, end_idx = find_drawer(lines, hl_line, drawer_name, bufnr)
   if start_idx then
     -- Insert entry just after the :DRAWER: line (newest first).
-    vim.api.nvim_buf_set_lines(bufnr, start_idx, start_idx, false, entry)
+    obuf.set_lines(bufnr, start_idx, start_idx, entry)
   else
     -- Create a new drawer.
     local pos = drawer_insert_position(lines, hl_line, bufnr)
@@ -621,7 +616,7 @@ local function add_logbook_entry(bufnr, hl_line, drawer_name, from_state, to_sta
       block[#block + 1] = l
     end
     block[#block + 1] = ":END:"
-    vim.api.nvim_buf_set_lines(bufnr, pos - 1, pos - 1, false, block)
+    obuf.set_lines(bufnr, pos - 1, pos - 1, block)
   end
 end
 
@@ -632,7 +627,7 @@ local function add_logbook_entry_bare(bufnr, hl_line, from_state, to_state, note
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local entry = build_logbook_entry(from_state, to_state, note)
   local pos = drawer_insert_position(lines, hl_line, bufnr)
-  vim.api.nvim_buf_set_lines(bufnr, pos - 1, pos - 1, false, entry)
+  obuf.set_lines(bufnr, pos - 1, pos - 1, entry)
 end
 
 -- Resolve which LOGBOOK policy applies to this transition.
@@ -700,10 +695,10 @@ local function insert_closed_line(bufnr, hl_line)
   local new = "  CLOSED: " .. now_inactive_ts()
   if block.closed then
     -- Replace existing CLOSED line in place.
-    vim.api.nvim_buf_set_lines(bufnr, block.closed - 1, block.closed, false, { new })
+    obuf.set_lines(bufnr, block.closed - 1, block.closed, { new })
   else
     -- Insert after the last planning line.
-    vim.api.nvim_buf_set_lines(bufnr, block.planning_end, block.planning_end, false, { new })
+    obuf.set_lines(bufnr, block.planning_end, block.planning_end, { new })
   end
 end
 
@@ -711,7 +706,7 @@ local function remove_closed_line(bufnr, hl_line)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local block = find_planning_block(lines, hl_line)
   if block.closed then
-    vim.api.nvim_buf_set_lines(bufnr, block.closed - 1, block.closed, false, {})
+    obuf.set_lines(bufnr, block.closed - 1, block.closed, {})
   end
 end
 
@@ -774,7 +769,7 @@ function M._apply(bufnr, line, new_state)
   -- Rewrite the headline line first so subsequent line indices stay valid for
   -- the planning block (which sits below the headline).
   local new_line = rebuild_headline(stars, new_state, rest)
-  vim.api.nvim_buf_set_lines(bufnr, hl - 1, hl, false, { new_line })
+  obuf.set_lines(bufnr, hl - 1, hl, { new_line })
 
   -- CLOSED bookkeeping.
   if cfg.log_done == "time" or cfg.log_done == "note" then

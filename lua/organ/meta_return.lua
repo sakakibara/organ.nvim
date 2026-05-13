@@ -16,12 +16,13 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function get_line(bufnr, lnum)
   return vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
 end
 
 local function set_lines(bufnr, lnum_after, new_lines)
-  vim.api.nvim_buf_set_lines(bufnr, lnum_after, lnum_after, false, new_lines)
+  obuf.set_lines(bufnr, lnum_after, lnum_after, new_lines)
 end
 
 local function move_to(line, col)
@@ -106,7 +107,7 @@ local function renumber(bufnr, start_line, indent, sep, start_n)
     end
     if tonumber(num) ~= n then
       local new = txt:gsub("^(%s*)%d+([" .. sep .. "]%s)", "%1" .. n .. "%2", 1)
-      vim.api.nvim_buf_set_lines(bufnr, ln - 1, ln, false, { new })
+      obuf.set_lines(bufnr, ln - 1, ln, { new })
     end
     n = n + 1
   end

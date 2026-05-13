@@ -7,6 +7,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local TAG_CHARS = "[%w_@#%%]"
 
 local function find_headline(buf_lines, line)
@@ -97,7 +98,7 @@ function M.write(bufnr, line, new_tags)
   end
   local format = require("organ.format")
   local new_line = format.align_tag_block(left, block)
-  vim.api.nvim_buf_set_lines(bufnr, hl - 1, hl, false, { new_line })
+  obuf.set_lines(bufnr, hl - 1, hl, { new_line })
   return nil
 end
 

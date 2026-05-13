@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function get_config()
   local ok, organ = pcall(require, "organ")
   if not ok or not organ.config then
@@ -29,7 +30,7 @@ local function open_capture_buf(template_name, body_lines, cursor_offset)
   end
 
   local bufnr = vim.api.nvim_create_buf(false, false)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, body_lines)
+  obuf.set_lines(bufnr, 0, -1, body_lines)
   vim.bo[bufnr].bufhidden = "wipe"
   -- Set buffer-local flags BEFORE filetype=org because the FileType
   -- autocmd fires synchronously on assignment.  organ_no_startup_fold

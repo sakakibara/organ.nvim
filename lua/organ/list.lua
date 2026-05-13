@@ -8,6 +8,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Parse one line into { indent, bullet, counter, content } or nil.
 --   indent  = leading whitespace string
 --   bullet  = "-" / "+" / "*" (unordered) OR "1." / "2)" (ordered)
@@ -108,7 +109,7 @@ function M.repair(bufnr, cursor_line)
     end
   end
   if n_changed > 0 then
-    vim.api.nvim_buf_set_lines(bufnr, s - 1, e, false, lines)
+    obuf.set_lines(bufnr, s - 1, e, lines)
   end
   return n_changed
 end
@@ -164,7 +165,7 @@ function M.sort(bufnr, cursor_line, comparator)
       new_lines[#new_lines + 1] = ln
     end
   end
-  vim.api.nvim_buf_set_lines(bufnr, s - 1, e, false, new_lines)
+  obuf.set_lines(bufnr, s - 1, e, new_lines)
   return #groups
 end
 

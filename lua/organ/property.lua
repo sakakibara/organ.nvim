@@ -1,5 +1,6 @@
 local M = {}
 
+local obuf = require("organ.buf")
 local element = require("organ.element")
 
 -- Find the headline that contains line `line` (1-based). Returns 1-based hl line or nil.
@@ -73,13 +74,13 @@ function M.set(bufnr, line, key, value)
       local k = parse_property_line(txt)
       if k == key then
         local new = ":" .. key .. ": " .. value
-        vim.api.nvim_buf_set_lines(bufnr, i - 1, i, false, { new })
+        obuf.set_lines(bufnr, i - 1, i, { new })
         return nil
       end
     end
     -- Insert before :END:.
     local new = ":" .. key .. ": " .. value
-    vim.api.nvim_buf_set_lines(bufnr, drawer.end_line - 1, drawer.end_line - 1, false, { new })
+    obuf.set_lines(bufnr, drawer.end_line - 1, drawer.end_line - 1, { new })
     return nil
   end
   -- No drawer: insert at planning_end.
@@ -89,7 +90,7 @@ function M.set(bufnr, line, key, value)
     ":" .. key .. ": " .. value,
     ":END:",
   }
-  vim.api.nvim_buf_set_lines(bufnr, insert_at - 1, insert_at - 1, false, new_drawer)
+  obuf.set_lines(bufnr, insert_at - 1, insert_at - 1, new_drawer)
   return nil
 end
 
@@ -116,14 +117,14 @@ function M.delete(bufnr, line, key)
     return ("property '%s' not set"):format(key)
   end
   -- Delete the key line.
-  vim.api.nvim_buf_set_lines(bufnr, key_line - 1, key_line, false, {})
+  obuf.set_lines(bufnr, key_line - 1, key_line, {})
   -- Re-check drawer: if now empty (start_line + 1 == end_line - 1 originally meant 1 entry;
   -- after deletion, drawer's body has 0 lines).
   local new_end = drawer.end_line - 1 -- shift up by 1 due to delete
   local body_size = new_end - drawer.start_line - 1
   if body_size == 0 then
     -- Remove the entire drawer.
-    vim.api.nvim_buf_set_lines(bufnr, drawer.start_line - 1, new_end, false, {})
+    obuf.set_lines(bufnr, drawer.start_line - 1, new_end, {})
   end
   return nil
 end

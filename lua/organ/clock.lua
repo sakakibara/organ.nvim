@@ -2,6 +2,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local state_mod = require("organ.clock.state")
 local writer_mod = require("organ.clock.writer")
 
@@ -291,7 +292,7 @@ function M.report(opts)
     include_active = true,
   })
   local lines = require("organ.clock.report").render(rows, { from = from, to = to })
-  vim.api.nvim_buf_set_lines(bufnr, line, line, false, lines)
+  obuf.set_lines(bufnr, line, line, lines)
 end
 
 -- :Org dispatch entries.  Collected by plugin/organ.lua at startup

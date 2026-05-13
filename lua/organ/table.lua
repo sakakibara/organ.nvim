@@ -5,6 +5,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local tab = require("tablature")
 
 local ORG = { dialect = "org" }
@@ -113,7 +114,7 @@ function M.sort_by_current_column(bufnr, direction)
   end
 
   local new_lines = tab.align(new_rows, t.indent, ORG)
-  vim.api.nvim_buf_set_lines(bufnr, t.start_line - 1, t.end_line, false, new_lines)
+  obuf.set_lines(bufnr, t.start_line - 1, t.end_line, new_lines)
   return true
 end
 
@@ -247,7 +248,7 @@ function M.eval_formulas(bufnr)
   end
 
   local new_lines = tab.align(t.rows, t.indent, ORG)
-  vim.api.nvim_buf_set_lines(bufnr, t.start_line - 1, t.end_line, false, new_lines)
+  obuf.set_lines(bufnr, t.start_line - 1, t.end_line, new_lines)
   return true
 end
 

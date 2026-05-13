@@ -20,6 +20,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Minimal scanner: split a citation body on `;` at top level (ignoring
 -- ones inside brackets/braces, which org-cite doesn't actually use today).
 local function split_refs(body)
@@ -638,7 +639,7 @@ M.commands = {
         out_lines[#out_lines + 1] = l
       end
       vim.cmd("vnew")
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, out_lines)
+      obuf.set_lines(0, 0, -1, out_lines)
       vim.bo.filetype = "org"
       vim.bo.bufhidden = "wipe"
       vim.bo.buftype = "nofile"
@@ -669,13 +670,13 @@ M.commands = {
         end
       end
       if directive_idx then
-        vim.api.nvim_buf_set_lines(bufnr, directive_idx - 1, directive_idx, false, bib)
+        obuf.set_lines(bufnr, directive_idx - 1, directive_idx, bib)
       else
         local append = { "", "* References" }
         for _, l in ipairs(bib) do
           append[#append + 1] = l
         end
-        vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, append)
+        obuf.set_lines(bufnr, -1, -1, append)
       end
       require("organ.notify").info("organ: rendered " .. #bib .. " bibliography entries")
     end,
@@ -711,7 +712,7 @@ M.commands = {
           insert_cite = function(picker_item)
             local row, col = unpack(vim.api.nvim_win_get_cursor(0))
             local insert = "[cite:@" .. picker_item._key .. "]"
-            vim.api.nvim_buf_set_text(bufnr, row - 1, col, row - 1, col, { insert })
+            obuf.set_text(bufnr, row - 1, col, row - 1, col, { insert })
             vim.api.nvim_win_set_cursor(0, { row, col + #insert })
           end,
           yank = function(picker_item)

@@ -13,6 +13,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function is_item(line)
   -- `* foo` at column 0 is a HEADLINE in org, not a list item. The `*`
   -- form is a bullet only when indented; `-` and `+` are unambiguous.
@@ -141,7 +142,7 @@ function M.list_to_subtree(opts)
       out[#out + 1] = (ln or ""):gsub("^%s+", "")
     end
   end
-  vim.api.nvim_buf_set_lines(bufnr, s - 1, e, false, out)
+  obuf.set_lines(bufnr, s - 1, e, out)
   return e - s + 1
 end
 
@@ -158,7 +159,7 @@ function M.toggle_item(opts)
     local _, _, content = parse_item(line)
     local level = nearest_headline_level(lines, lnum) + 1
     local new = string.rep("*", level) .. " " .. (content or "")
-    vim.api.nvim_buf_set_lines(bufnr, lnum - 1, lnum, false, { new })
+    obuf.set_lines(bufnr, lnum - 1, lnum, { new })
     return "to_headline"
   end
 
@@ -168,7 +169,7 @@ function M.toggle_item(opts)
     local stars = line:match("^(%*+)") or "*"
     local indent = string.rep("  ", math.max(0, #stars - 1))
     local new = indent .. "- " .. (content or "")
-    vim.api.nvim_buf_set_lines(bufnr, lnum - 1, lnum, false, { new })
+    obuf.set_lines(bufnr, lnum - 1, lnum, { new })
     return "to_item"
   end
 

@@ -1,5 +1,6 @@
 local M = {}
 
+local obuf = require("organ.buf")
 -- Match a timestamp: <YYYY-MM-DD( DOW)?( HH:MM(-HH:MM)?)?( REPEATER)?> or [...]
 -- Returns { open = "<"|"[", close = ">"|"]", year, month, day, weekday?, hour?, minute?, end_hour?, end_min?, repeater? } or nil.
 local TS_PATTERN = "([<%[])(%d%d%d%d)%-(%d%d)%-(%d%d)([^>%]]*)([>%]])"
@@ -194,7 +195,7 @@ local function _adjust_date(bufnr, lnum, range, direction)
   )
   shift_unit(range.ts, unit, direction)
   local new_text = format_ts(range.ts)
-  vim.api.nvim_buf_set_text(bufnr, lnum - 1, range.start_col, lnum - 1, range.end_col, { new_text })
+  obuf.set_text(bufnr, lnum - 1, range.start_col, lnum - 1, range.end_col, { new_text })
 end
 
 -- Find a priority cookie [#X] on a headline line, or detect cursor in title region.
@@ -261,13 +262,13 @@ function M.set_priority(bufnr, lnum, letter)
   local s, e = line:find("%[#[A-Z]%]")
   if s then
     if letter then
-      vim.api.nvim_buf_set_text(bufnr, lnum - 1, s - 1, lnum - 1, e, { "[#" .. letter .. "]" })
+      obuf.set_text(bufnr, lnum - 1, s - 1, lnum - 1, e, { "[#" .. letter .. "]" })
     else
       local end_col = e
       if line:sub(e + 1, e + 1) == " " then
         end_col = e + 1
       end
-      vim.api.nvim_buf_set_text(bufnr, lnum - 1, s - 1, lnum - 1, end_col, { "" })
+      obuf.set_text(bufnr, lnum - 1, s - 1, lnum - 1, end_col, { "" })
     end
     return
   end
@@ -285,14 +286,7 @@ function M.set_priority(bufnr, lnum, letter)
       break
     end
   end
-  vim.api.nvim_buf_set_text(
-    bufnr,
-    lnum - 1,
-    insert_col,
-    lnum - 1,
-    insert_col,
-    { "[#" .. letter .. "] " }
-  )
+  obuf.set_text(bufnr, lnum - 1, insert_col, lnum - 1, insert_col, { "[#" .. letter .. "] " })
 end
 
 -- Cycle: raise = A → A, B → A, C → B, none → A. Lower = A → B, B → C, C → none, none → C.
@@ -388,7 +382,7 @@ local function _cycle_priority(bufnr, lnum, range, direction)
       end
     end
     if next_letter then
-      vim.api.nvim_buf_set_text(
+      obuf.set_text(
         bufnr,
         lnum - 1,
         range.start_col,
@@ -402,12 +396,12 @@ local function _cycle_priority(bufnr, lnum, range, direction)
       if line_text:sub(end_col + 1, end_col + 1) == " " then
         end_col = end_col + 1
       end
-      vim.api.nvim_buf_set_text(bufnr, lnum - 1, range.start_col, lnum - 1, end_col, { "" })
+      obuf.set_text(bufnr, lnum - 1, range.start_col, lnum - 1, end_col, { "" })
     end
   else
     -- Insert new cookie at insert_col. inc -> [#A], dec -> [#C].
     local letter = direction == "inc" and "A" or "C"
-    vim.api.nvim_buf_set_text(
+    obuf.set_text(
       bufnr,
       lnum - 1,
       range.insert_col,

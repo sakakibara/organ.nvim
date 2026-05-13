@@ -14,6 +14,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 M.writers = {}
 
 -- Parse `:k v :k2 v2 …` into a string→value table. Numeric strings are
@@ -105,7 +106,7 @@ end
 -- Replace the body of an already-located dblock with new_body_lines.
 function M.replace_body(bufnr, db, new_body_lines)
   -- Body lives between header_line and end_line (exclusive of both).
-  vim.api.nvim_buf_set_lines(bufnr, db.header_line, db.end_line - 1, false, new_body_lines)
+  obuf.set_lines(bufnr, db.header_line, db.end_line - 1, new_body_lines)
 end
 
 -- Update one dblock by name/params. Returns (true, n_lines_written) on

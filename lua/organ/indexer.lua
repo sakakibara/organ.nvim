@@ -14,6 +14,7 @@
 --
 local M = {}
 
+local obuf = require("organ.buf")
 -- Extractor-version stamp.  Stored on every `files` row alongside
 -- mtime+hash so `should_skip` can invalidate the cache when our
 -- extract pipeline changes underneath the user (parser binary
@@ -1565,7 +1566,7 @@ M.commands = {
       end
       s:finalize()
       vim.cmd("vnew")
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      obuf.set_lines(0, 0, -1, lines)
       vim.bo.buftype = "nofile"
       vim.bo.bufhidden = "wipe"
       vim.bo.modifiable = false
@@ -1609,7 +1610,7 @@ M.commands = {
       lines[#lines + 1] = ""
       lines[#lines + 1] = string.format("(%d rows)", n)
       vim.cmd("vnew")
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, lines)
+      obuf.set_lines(0, 0, -1, lines)
       vim.bo.buftype = "nofile"
       vim.bo.bufhidden = "wipe"
       vim.bo.modifiable = false

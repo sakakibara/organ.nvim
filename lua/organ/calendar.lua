@@ -18,6 +18,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local WEEKDAY_NAMES_MON = { "Mo", "Tu", "We", "Th", "Fr", "Sa", "Su" }
 local WEEKDAY_NAMES_SUN = { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" }
 
@@ -381,7 +382,7 @@ local function _refresh(bufnr)
   end
 
   vim.bo[bufnr].modifiable = true
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  obuf.set_lines(bufnr, 0, -1, lines)
   vim.bo[bufnr].modifiable = false
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   for _, em in ipairs(out.extmarks) do

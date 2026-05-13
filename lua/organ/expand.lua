@@ -29,6 +29,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Directive scanning
 
 -- Match any `#+KEYWORD: value` line. Returns iterator yielding (key, value)
@@ -575,7 +576,7 @@ M.commands = {
         file_path = (name and name ~= "") and name or nil,
       })
       vim.cmd("vnew")
-      vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(out, "\n", { plain = true }))
+      obuf.set_lines(0, 0, -1, vim.split(out, "\n", { plain = true }))
       vim.bo.filetype = "org"
       vim.bo.bufhidden = "wipe"
       vim.bo.buftype = "nofile"

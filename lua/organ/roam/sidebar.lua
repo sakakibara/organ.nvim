@@ -13,6 +13,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Sentinel distinct from any real id (and from nil) so the first
 -- render after open() always fires, even if the cursor is over an
 -- id-less area.
@@ -175,7 +176,7 @@ local function rerender_for(state, id)
   end
   if not id then
     vim.bo[state.bufnr].modifiable = true
-    vim.api.nvim_buf_set_lines(state.bufnr, 0, -1, false, { "(no node id under cursor)" })
+    obuf.set_lines(state.bufnr, 0, -1, { "(no node id under cursor)" })
     vim.bo[state.bufnr].modifiable = false
     return
   end

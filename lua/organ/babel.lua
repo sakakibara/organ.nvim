@@ -19,6 +19,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Per-language runner. Each runner takes (body, opts) where opts has
 -- { vars = { KEY = "VAL" }, dir = "/abs/path" } and returns (stdout, stderr, exit_code).
 M.languages = {}
@@ -460,16 +461,10 @@ function M.execute(bufnr, line)
   local result_lines = format_results(stdout, block.args)
   local rs, re = M.find_results(bufnr, block.end_line)
   if rs and re then
-    vim.api.nvim_buf_set_lines(bufnr, rs - 1, re, false, result_lines)
+    obuf.set_lines(bufnr, rs - 1, re, result_lines)
   else
     -- Insert just below #+end_src (with a blank line separator).
-    vim.api.nvim_buf_set_lines(
-      bufnr,
-      block.end_line,
-      block.end_line,
-      false,
-      vim.list_extend({ "" }, result_lines)
-    )
+    obuf.set_lines(bufnr, block.end_line, block.end_line, vim.list_extend({ "" }, result_lines))
   end
   return true, ("ran " .. block.lang .. " block (" .. #block.body_lines .. " lines)")
 end

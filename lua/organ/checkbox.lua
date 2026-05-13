@@ -11,6 +11,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Cycle order: empty → done → partial → empty.  Matches Emacs's
 -- `org-toggle-checkbox` default with `org-list-automatic-rules` enabled.
 local CYCLE = { [" "] = "X", X = "-", ["-"] = " " }
@@ -137,7 +138,7 @@ function M.toggle(opts)
     local insert_col = p.bullet_end_col
     new_line = txt:sub(1, insert_col) .. "[ ] " .. txt:sub(insert_col + 1)
   end
-  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, { new_line })
+  obuf.set_lines(bufnr, row, row + 1, { new_line })
 
   M.update_parent_cookie(bufnr, line)
   -- Headline ancestor cookies (e.g. `* Project [1/3]`) also reflect
@@ -236,7 +237,7 @@ function M.update_parent_cookie(bufnr, child_line)
   local txt = vim.api.nvim_buf_get_lines(bufnr, parent_ln - 1, parent_ln, false)[1] or ""
   local new = txt:sub(1, parent.cookie_start) .. new_cookie .. txt:sub(parent.cookie_end + 1)
   if new ~= txt then
-    vim.api.nvim_buf_set_lines(bufnr, parent_ln - 1, parent_ln, false, { new })
+    obuf.set_lines(bufnr, parent_ln - 1, parent_ln, { new })
   end
 
   -- Optionally also flip the parent's own checkbox to `-` (partial),
@@ -248,7 +249,7 @@ function M.update_parent_cookie(bufnr, child_line)
       local p2 = M.parse_item_line(refreshed)
       if p2 and p2.state and p2.state_col then
         local nl = refreshed:sub(1, p2.state_col) .. new_state .. refreshed:sub(p2.state_col + 2)
-        vim.api.nvim_buf_set_lines(bufnr, parent_ln - 1, parent_ln, false, { nl })
+        obuf.set_lines(bufnr, parent_ln - 1, parent_ln, { nl })
       end
     end
   end

@@ -8,6 +8,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local NS = vim.api.nvim_create_namespace("organ-backlinks")
 
 local function buf_state(bufnr)
@@ -165,7 +166,7 @@ function M.refresh(bufnr)
   local target = query.get_by_id(id)
   if not target then
     vim.bo[bufnr].modifiable = true
-    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, { "Backlinks: id not indexed — " .. id })
+    obuf.set_lines(bufnr, 0, -1, { "Backlinks: id not indexed — " .. id })
     vim.bo[bufnr].modifiable = false
     return
   end
@@ -191,7 +192,7 @@ function M.refresh(bufnr)
   local out = M.render(target, rows)
 
   vim.bo[bufnr].modifiable = true
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, out.lines)
+  obuf.set_lines(bufnr, 0, -1, out.lines)
   vim.bo[bufnr].modifiable = false
   apply_extmarks(bufnr, out.extmarks)
 

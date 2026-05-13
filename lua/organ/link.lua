@@ -7,6 +7,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local STRIP_PREFIXES = { "id:", "file:", "attachment:" }
 
 -- Schemes that pass through verbatim as URLs (no `:` stripping for the action).
@@ -564,7 +565,7 @@ function M.insert_link()
     local crow, ccol = cur[1], cur[2]
     local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
     local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    vim.api.nvim_buf_set_lines(bufnr, crow - 1, crow, false, { new_text })
+    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
   end)
 end
 

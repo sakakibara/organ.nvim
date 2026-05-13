@@ -19,6 +19,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local DEFAULTS = {
   s = function(lang)
     return { "#+begin_src " .. (lang or ""), "", "#+end_src" }
@@ -113,7 +114,7 @@ function M.expand(bufnr)
     return false
   end
   -- Replace the line containing the trigger.
-  vim.api.nvim_buf_set_lines(bufnr, row, row + 1, false, lines)
+  obuf.set_lines(bufnr, row, row + 1, lines)
   -- Land cursor inside the body line (line index 1 in the inserted block).
   pcall(vim.api.nvim_win_set_cursor, 0, { row + 2, 0 })
   return true

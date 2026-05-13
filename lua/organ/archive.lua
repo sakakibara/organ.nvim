@@ -4,6 +4,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Helpers
 
 local structure = require("organ.structure")
@@ -367,7 +368,7 @@ function M.archive_subtree(opts)
   end
 
   -- 12. Delete original subtree from source buffer.
-  vim.api.nvim_buf_set_lines(bufnr, hl.line - 1, subtree_end, false, {})
+  obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
 
   -- 12a. Tidy the deletion site so leftover blank-line stragglers
   -- collapse to whatever pattern the surviving buffer uses.
@@ -523,7 +524,7 @@ function M.archive_to_sibling(opts)
     append_archive_block(out)
   end
 
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, out)
+  obuf.set_lines(bufnr, 0, -1, out)
 
   -- Tidy the cut site so leftover blank-line stragglers collapse to
   -- whatever pattern the surviving buffer uses.

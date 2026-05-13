@@ -4,6 +4,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Module-local clipboard.
 local _lines = nil -- list of line strings
 local _top_level = nil -- integer: the heading level of the top headline
@@ -72,7 +73,7 @@ function M.cut(bufnr, line)
   _lines = lines
   _top_level = hl.level
   -- Delete the lines from the buffer.
-  vim.api.nvim_buf_set_lines(bufnr, hl.line - 1, subtree_end, false, {})
+  obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
   pcall(function()
     require("organ.spacing").normalize_at_cut(bufnr, hl.line)
   end)
@@ -128,7 +129,7 @@ function M.paste(bufnr, line)
     insert_after = line
   end
 
-  vim.api.nvim_buf_set_lines(bufnr, insert_after, insert_after, false, pasted)
+  obuf.set_lines(bufnr, insert_after, insert_after, pasted)
   pcall(function()
     require("organ.spacing").normalize_around(bufnr, insert_after + 1)
   end)

@@ -16,6 +16,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function get_config()
   local ok, organ = pcall(require, "organ")
   if not ok or not organ.config then
@@ -197,7 +198,7 @@ function M.open(bufnr, current_tags, on_confirm, on_cancel)
   local pop_bufnr = vim.api.nvim_create_buf(false, true)
   local function refresh()
     local lines = render_lines(items, selected)
-    vim.api.nvim_buf_set_lines(pop_bufnr, 0, -1, false, lines)
+    obuf.set_lines(pop_bufnr, 0, -1, lines)
   end
   refresh()
 

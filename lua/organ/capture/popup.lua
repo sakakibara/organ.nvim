@@ -3,6 +3,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local function get_config()
   local ok, organ = pcall(require, "organ")
   if not ok or not organ.config then
@@ -145,7 +146,7 @@ local function render(groups, depth, prefix_path)
   local col = math.floor((vim.o.columns - width) / 2)
 
   local bufnr = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+  obuf.set_lines(bufnr, 0, -1, lines)
   for _, m in ipairs(marks) do
     pcall(vim.api.nvim_buf_add_highlight, bufnr, 0, m.hl, m.line, m.col, m.col + m.len)
   end

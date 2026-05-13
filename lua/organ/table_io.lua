@@ -11,6 +11,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- CSV parser. Streams over `text`, returns list of rows where each row is a
 -- list of cell strings. Tolerates CRLF, trailing newline.
 function M.parse_csv(text, delim)
@@ -214,7 +215,7 @@ function M.import(bufnr, lnum, path)
     return nil, "no rows parsed"
   end
   local org_lines = M.render_org_table(rows)
-  vim.api.nvim_buf_set_lines(bufnr, lnum - 1, lnum - 1, false, org_lines)
+  obuf.set_lines(bufnr, lnum - 1, lnum - 1, org_lines)
   return #rows
 end
 

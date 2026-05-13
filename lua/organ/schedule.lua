@@ -4,6 +4,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Build an org active timestamp string: <YYYY-MM-DD Day>
 local function format_active_ts(iso)
   local y, mo, d = iso:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
@@ -97,11 +98,11 @@ local function _set_planning(bufnr, hl_line, kind, date_str)
         line = leading .. new_kw .. " " .. line:gsub("^%s*", "")
       end
     end
-    vim.api.nvim_buf_set_lines(bufnr, pl - 1, pl, false, { line })
+    obuf.set_lines(bufnr, pl - 1, pl, { line })
   else
     -- No planning line yet — insert a new one right after the headline.
     local new_line = kind .. ": " .. ts
-    vim.api.nvim_buf_set_lines(bufnr, hl_line, hl_line, false, { new_line })
+    obuf.set_lines(bufnr, hl_line, hl_line, { new_line })
   end
 
   -- LOGBOOK note (only for true CHANGES; first-time schedule with no prior

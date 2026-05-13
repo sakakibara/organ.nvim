@@ -12,6 +12,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Sequence helpers (pulled from organ.todo so we don't depend on its module
 -- loading inside every cookie update).
 
@@ -262,7 +263,7 @@ function M.update_line(bufnr, lnum, opts)
   end
   local new = rewrite_cookies(line, num, den)
   if new ~= line then
-    vim.api.nvim_buf_set_lines(bufnr, lnum - 1, lnum, false, { new })
+    obuf.set_lines(bufnr, lnum - 1, lnum, { new })
     return true
   end
   return false

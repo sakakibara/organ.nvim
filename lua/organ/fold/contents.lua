@@ -22,6 +22,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
 -- Decoration-provider namespace: distinct from NS so the provider's
 -- on_win can clear its own work without disturbing user-placed extmarks
@@ -76,7 +77,7 @@ local function is_supported()
     return supported
   end
   local probe_buf = vim.api.nvim_create_buf(false, true)
-  vim.api.nvim_buf_set_lines(probe_buf, 0, -1, false, { "a", "b" })
+  obuf.set_lines(probe_buf, 0, -1, { "a", "b" })
   local probe_ns = vim.api.nvim_create_namespace("organ_fold_contents_probe")
   local ok = pcall(function()
     vim.api.nvim_buf_set_extmark(probe_buf, probe_ns, 0, 0, {

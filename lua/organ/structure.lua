@@ -1,5 +1,6 @@
 local M = {}
 
+local obuf = require("organ.buf")
 -- Parse a headline line. Returns { level = N, title_text = "..." } or nil.
 local function parse_headline_line(text)
   local stars, rest = text:match("^(%*+)%s+(.*)$")
@@ -71,7 +72,7 @@ local function rewrite_stars(bufnr, line, new_level)
     return "not a headline line"
   end
   local new_text = string.rep("*", new_level) .. rest
-  vim.api.nvim_buf_set_lines(bufnr, line - 1, line, false, { new_text })
+  obuf.set_lines(bufnr, line - 1, line, { new_text })
   return nil
 end
 
@@ -264,7 +265,7 @@ function M.move_subtree_up(opts)
   for _, l in ipairs(cur_trailing) do
     combined[#combined + 1] = l
   end
-  vim.api.nvim_buf_set_lines(bufnr, prev.line - 1, cur_end, false, combined)
+  obuf.set_lines(bufnr, prev.line - 1, cur_end, combined)
   -- Cursor follows the moved subtree to its new position (matches Emacs).
   follow_cursor(bufnr, hl.line, prev.line, line)
   return nil
@@ -308,7 +309,7 @@ function M.move_subtree_down(opts)
   for _, l in ipairs(nxt_trailing) do
     combined[#combined + 1] = l
   end
-  vim.api.nvim_buf_set_lines(bufnr, hl.line - 1, nxt_end, false, combined)
+  obuf.set_lines(bufnr, hl.line - 1, nxt_end, combined)
   -- Cursor follows the moved subtree to its new position (matches Emacs).
   -- New position of cur subtree: starts at hl.line + (nxt_content_end - nxt.line + 1)
   --                             + (separator size).
@@ -370,7 +371,7 @@ M.commands = {
       local block = { stars .. " " .. title, "", stars .. " END" }
       local bufnr = vim.api.nvim_get_current_buf()
       local row = vim.api.nvim_win_get_cursor(0)[1]
-      vim.api.nvim_buf_set_lines(bufnr, row, row, false, block)
+      obuf.set_lines(bufnr, row, row, block)
       pcall(vim.api.nvim_win_set_cursor, 0, { row + 2, 0 })
     end,
     nargs = "?",

@@ -20,6 +20,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 local PRESETS = {
   none = { before = 0, after = 0 },
   before = { before = 1, after = 0 },
@@ -237,7 +238,7 @@ function M.normalize_around(bufnr, line, policy)
     replacement[#replacement + 1] = ""
   end
 
-  vim.api.nvim_buf_set_lines(bufnr, above_first - 1, below_last, false, replacement)
+  obuf.set_lines(bufnr, above_first - 1, below_last, replacement)
 end
 
 return M

@@ -13,6 +13,7 @@
 
 local M = {}
 
+local obuf = require("organ.buf")
 -- Find the begin/end lines of the src block enclosing `line` (1-based).
 -- Returns { begin_line, end_line, lang, base_indent } or nil.
 function M.find_block(bufnr, line)
@@ -157,7 +158,7 @@ function M.open(bufnr, line)
     vim.api.nvim_set_option_value("filetype", ft, { buf = edit })
   end
   vim.api.nvim_set_option_value("buftype", "acwrite", { buf = edit })
-  vim.api.nvim_buf_set_lines(edit, 0, -1, false, body)
+  obuf.set_lines(edit, 0, -1, body)
   vim.api.nvim_set_option_value("modified", false, { buf = edit })
 
   M._state[edit] = {
@@ -225,7 +226,7 @@ function M.commit(edit_bufnr)
     table.remove(body)
   end
   local indented = add_indent(body, s.base_indent)
-  vim.api.nvim_buf_set_lines(s.source, s.begin_line, s.end_line - 1, false, indented)
+  obuf.set_lines(s.source, s.begin_line, s.end_line - 1, indented)
 
   -- Refresh the recorded end_line to match the new body length so a
   -- subsequent commit (without re-opening) writes to the correct
