@@ -278,6 +278,71 @@ do
   check("surrounding text preserved", out:find("see  here", 1, true) ~= nil)
 end
 
+-- ---- list (unordered) ----------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ content = { A.paragraph({ A.text("one") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("two") }) } }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("itemize begin", out:find("@itemize", 1, true) ~= nil, "got: " .. out)
+  check("itemize end", out:find("@end itemize", 1, true) ~= nil)
+  check("item one", out:find("@item one", 1, true) ~= nil)
+  check("item two", out:find("@item two", 1, true) ~= nil)
+end
+
+-- ---- list (ordered) ------------------------------------------------
+do
+  local doc = A.document({
+    A.list(true, {
+      A.list_item({ content = { A.paragraph({ A.text("first") }) } }),
+      A.list_item({ content = { A.paragraph({ A.text("second") }) } }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("enumerate begin", out:find("@enumerate", 1, true) ~= nil, "got: " .. out)
+  check("enumerate end", out:find("@end enumerate", 1, true) ~= nil)
+  check("ordered item first", out:find("@item first", 1, true) ~= nil)
+end
+
+-- ---- list (nested) -------------------------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("outer") }),
+          A.list(false, {
+            A.list_item({ content = { A.paragraph({ A.text("inner") }) } }),
+          }),
+        },
+      }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("outer item rendered", out:find("@item outer", 1, true) ~= nil, "got: " .. out)
+  local _, n_itemize = out:gsub("@itemize", "")
+  check("two @itemize from nesting", n_itemize == 2, "got " .. n_itemize)
+  check("inner item rendered", out:find("@item inner", 1, true) ~= nil)
+end
+
+-- ---- list (checkbox literal prefix) -------------------------------
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ checkbox = "todo", content = { A.paragraph({ A.text("a") }) } }),
+      A.list_item({ checkbox = "done", content = { A.paragraph({ A.text("b") }) } }),
+      A.list_item({ checkbox = "part", content = { A.paragraph({ A.text("c") }) } }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("todo checkbox -> [ ]", out:find("@item [ ] a", 1, true) ~= nil, "got: " .. out)
+  check("done checkbox -> [X]", out:find("@item [X] b", 1, true) ~= nil)
+  check("part checkbox -> [-]", out:find("@item [-] c", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

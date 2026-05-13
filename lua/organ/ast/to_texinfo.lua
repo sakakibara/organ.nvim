@@ -101,6 +101,41 @@ local function emit_paragraph(node, out)
   out[#out + 1] = ""
 end
 
+local function emit_list(node, out)
+  local env = node.ordered and "@enumerate" or "@itemize"
+  out[#out + 1] = env
+  for _, item in ipairs(node.items or {}) do
+    local checkbox = ""
+    if item.checkbox == "todo" then
+      checkbox = "[ ] "
+    elseif item.checkbox == "done" then
+      checkbox = "[X] "
+    elseif item.checkbox == "part" then
+      checkbox = "[-] "
+    end
+    local first = true
+    for _, b in ipairs(item.content or {}) do
+      if b.kind == "paragraph" then
+        if first then
+          out[#out + 1] = "@item " .. checkbox .. emit_inline(b.inline)
+          first = false
+        else
+          out[#out + 1] = emit_inline(b.inline)
+        end
+      elseif b.kind == "list" then
+        emit_list(b, out)
+      end
+    end
+    if first and checkbox ~= "" then
+      out[#out + 1] = "@item " .. checkbox
+    elseif first then
+      out[#out + 1] = "@item"
+    end
+  end
+  out[#out + 1] = "@end " .. env:sub(2)
+  out[#out + 1] = ""
+end
+
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -114,6 +149,8 @@ function emit_block(node, out)
     emit_headline(node, out)
   elseif kind == "paragraph" then
     emit_paragraph(node, out)
+  elseif kind == "list" then
+    emit_list(node, out)
   end
   -- other kinds dispatched in subsequent tasks; unknown drops silently.
 end
