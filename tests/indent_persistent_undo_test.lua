@@ -35,7 +35,9 @@ dofile(root .. "/tests/_bootstrap.lua")
 -- Skip cleanly on 0.10.x; the 0.11+ and nightly jobs continue to pin
 -- the invariant.
 if vim.fn.has("nvim-0.11") ~= 1 then
-  io.write("indent persistent undo skipped on nvim 0.10.x (no UI = no decoration provider callbacks in headless)\n")
+  io.write(
+    "indent persistent undo skipped on nvim 0.10.x (no UI = no decoration provider callbacks in headless)\n"
+  )
   os.exit(0)
 end
 
