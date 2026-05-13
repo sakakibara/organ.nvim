@@ -278,4 +278,20 @@ M.commands = {
   },
 }
 
+-- Reapply hook: keep the per-buffer attach state in sync with the
+-- effective `emphasis.enabled` config bit, so `:Org toggle
+-- emphasis.enabled` (or set/unset/reset) attaches or detaches the
+-- emphasis conceal provider immediately.  Idempotent.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "emphasis.enabled") == true
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
+
 return M

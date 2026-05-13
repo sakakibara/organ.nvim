@@ -20,7 +20,7 @@ local function has_keymap(lhs, mode)
   return nil
 end
 
-assert(has_keymap("<LocalLeader>zt", "n"), "menu keymap installed")
+assert(has_keymap("<LocalLeader>|", "n"), "menu keymap installed")
 
 local cmd = require("organ").cmd
 for _, path in ipairs({
@@ -55,8 +55,8 @@ vim.cmd("normal! ,zt") -- assumes localleader = ","; this may vary
 -- Find the keymap callback and call it:
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(b, "n")) do
   local nvim_lhs =
-    vim.fn.keytrans(vim.api.nvim_replace_termcodes("<LocalLeader>zt", true, false, true))
-  if m.lhs == "<LocalLeader>zt" or m.lhs == nvim_lhs then
+    vim.fn.keytrans(vim.api.nvim_replace_termcodes("<LocalLeader>|", true, false, true))
+  if m.lhs == "<LocalLeader>|" or m.lhs == nvim_lhs then
     if m.callback then
       m.callback()
     end

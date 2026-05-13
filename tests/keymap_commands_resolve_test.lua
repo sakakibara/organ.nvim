@@ -31,11 +31,18 @@ local tree = require("organ")._subcommand_tree or {}
 
 -- Walk the hierarchical tree to verify that `:Org a b c` resolves
 -- to a real leaf or group.  Returns true if the path lands on any
--- registered node (leaf or intermediate group).
+-- registered node (leaf or intermediate group).  Leaves with an `fn`
+-- field accept any trailing tokens as arguments (e.g. `:Org toggle
+-- <path>` where `<path>` is a free-form config path); the walk stops
+-- successfully once it reaches such a leaf.
 local function resolves(path)
   local tokens = vim.split(path, "%s+", { trimempty = true })
   local node = { children = tree }
   for _, tok in ipairs(tokens) do
+    if node.fn then
+      -- Already on a leaf; remaining tokens are args -- accepted.
+      return true
+    end
     if not (node.children and node.children[tok]) then
       return false
     end

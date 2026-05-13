@@ -231,4 +231,20 @@ M.commands = {
   },
 }
 
+-- Reapply hook: keep the per-buffer attached state in sync with the
+-- effective `entities.enabled` config bit, so `:Org toggle
+-- entities.enabled` (or set/unset/reset) attaches or detaches the
+-- conceal provider immediately.  Idempotent.
+require("organ.buf_config").on_reapply(function(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return
+  end
+  local want = require("organ.buf_config").read(bufnr, "entities.enabled") == true
+  if want then
+    M.attach(bufnr)
+  else
+    M.detach(bufnr)
+  end
+end)
+
 return M

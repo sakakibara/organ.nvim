@@ -48,7 +48,6 @@ M.defaults = {
   { "<LocalLeader>j", "Org goto", desc = "Fuzzy goto heading" },
   { "<LocalLeader>'", "Org edit_special", desc = "Edit src block" },
   { "<LocalLeader>#", "Org update_statistics", desc = "Update [N/M] cookies" },
-  { "<LocalLeader>=", "Org conceal toggle", desc = "Toggle emphasis conceal" },
   { "<LocalLeader>I", "Org store_link", desc = "Store link to heading" },
   { "<LocalLeader>L", "Org insert_link", desc = "Insert stored link" },
   { "<LocalLeader>@", "Org attach open", desc = "Open attachment" },
@@ -90,9 +89,22 @@ M.defaults = {
   { "<LocalLeader>Sy", "Org copy_subtree", desc = "Copy subtree" },
   { "<LocalLeader>Sp", "Org paste_subtree", desc = "Paste subtree" },
 
-  -- view toggles
-  { "<LocalLeader>zi", "Org toggle_inline_images", desc = "Toggle inline images" },
-  { "<LocalLeader>zp", "Org pretty_entities", desc = "Toggle pretty entities" },
+  -- view toggles -- uniform: every <LocalLeader>z<x> flips a single
+  -- buf_config bit via `:Org toggle <path>`.  Per-buffer (not global)
+  -- so different org files can have different visual modes.
+  { "<LocalLeader>zi", "Org toggle indent.enabled", desc = "Toggle indent mode" },
+  { "<LocalLeader>zb", "Org toggle modern.bullets", desc = "Toggle modern bullets" },
+  { "<LocalLeader>zk", "Org toggle modern.blocks", desc = "Toggle modern blocks" },
+  { "<LocalLeader>zp", "Org toggle modern.pills", desc = "Toggle modern pills" },
+  { "<LocalLeader>zt", "Org toggle modern.table", desc = "Toggle modern table render" },
+  { "<LocalLeader>zs", "Org toggle stars.hide", desc = "Toggle hide leading stars" },
+  {
+    "<LocalLeader>zd",
+    "Org toggle description_list.enabled",
+    desc = "Toggle description-list render",
+  },
+  { "<LocalLeader>ze", "Org toggle entities.enabled", desc = "Toggle pretty entities" },
+  { "<LocalLeader>zm", "Org toggle emphasis.enabled", desc = "Toggle emphasis conceal" },
 
   -- sparse-tree views
   { "<LocalLeader>vt", "Org sparse_tree todo", desc = "Sparse tree: TODO" },
@@ -110,6 +122,7 @@ M.defaults = {
 
   -- goto / image / id / inlinetask
   { "<LocalLeader>gi", "Org image_reveal", desc = "Reveal image at cursor" },
+  { "<LocalLeader>gt", "Org toggle_inline_images", desc = "Toggle inline images" },
   { "<LocalLeader>gI", "Org id get_create", desc = "Ensure :ID: on heading" },
   { "<LocalLeader>ix", "Org inline_task_insert", desc = "Insert inline task" },
 

@@ -534,7 +534,7 @@ Table                                                     *organ-config-table*
     `table.keymaps` (table)
      `next_cell`  `<Tab>` — move to next cell; realign; fold on headline
      `prev_cell`  `<S-Tab>` — move to previous cell; fold globally
-     `menu`       `<LocalLeader>zt` — open table operations menu
+     `menu`       `<LocalLeader>|` — open table operations menu
 
 ------------------------------------------------------------------------------
 TODO                                                       *organ-config-todo*
@@ -1554,7 +1554,7 @@ Tables                                                      *organ-cmd-tables*
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
 
     All table operations can also be invoked via the menu at
-    `<LocalLeader>zt`. See |organ-keymaps-org|.
+    `<LocalLeader>|`. See |organ-keymaps-org|.
 
 ------------------------------------------------------------------------------
 Sparse trees                                                *organ-cmd-sparse*
@@ -2184,7 +2184,7 @@ Fold (|organ-config-fold|): ~
 Table (|organ-config-table|): ~
     `<Tab>`                Next cell / realign (on table row)
     `<S-Tab>`              Previous cell (on table row)
-    `<LocalLeader>zt`      Open table operations menu
+    `<LocalLeader>|`      Open table operations menu
 
 Property (|organ-config-property|): ~
     `<LocalLeader>ps`      Set/update property
@@ -2410,7 +2410,7 @@ Table editing realign trigger ~
 
 Table row/col operations ~
     Emacs: `M-S-Up/Down/Left/Right`.
-    organ.nvim: `<LocalLeader>zt` menu or `:Org table_*` commands.
+    organ.nvim: `<LocalLeader>|` menu or `:Org table_*` commands.
     Why: One discoverable menu vs. 8 separate keys.
 
 Spreadsheet formula engine ~
