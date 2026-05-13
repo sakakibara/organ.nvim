@@ -25,6 +25,51 @@ local warn_once = {}
 -- Disabled-for-buffer (after raising): bufnr -> name -> true
 local disabled = {}
 
+-- Per-buffer cached parse: { tick = changedtick, ok = bool, tree = tree_or_nil }.
+-- Refreshed at the start of each redraw cycle via on_buf, and lazily by
+-- providers driven outside the redraw cycle (e.g. test-facing _apply()).
+-- Providers consume this via M.get_tree() instead of calling parser:parse
+-- themselves so we (a) parse at most once per buffer per redraw, and
+-- (b) never use the range form of parser:parse, which interacts badly
+-- with org_inline injection bookkeeping and produces "Index out of bounds"
+-- crashes inside vim/treesitter.lua's buf_range_get_text.
+local _tree_cache = {}
+
+local function refresh_tree(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return { tick = -1, ok = false, tree = nil }
+  end
+  local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local cached = _tree_cache[bufnr]
+  if cached and cached.tick == tick then
+    return cached
+  end
+  local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
+  if not ok_parser or not parser then
+    _tree_cache[bufnr] = { tick = tick, ok = false, tree = nil }
+    return _tree_cache[bufnr]
+  end
+  -- Pass `true` to parse the entire injection forest in one shot.  The
+  -- range form of parser:parse({...}) used to leave org_inline injection
+  -- bookkeeping in a stale state that downstream queries tripped over;
+  -- the unconditional full-injection parse is what the consumer
+  -- providers actually need (timestamps, emphasis spans, link
+  -- descriptions all live in injected org_inline trees).
+  local ok_parse = pcall(function()
+    parser:parse(true)
+  end)
+  local tree
+  if ok_parse then
+    tree = (parser:trees() or {})[1]
+  end
+  _tree_cache[bufnr] = { tick = tick, ok = ok_parse and tree ~= nil, tree = tree }
+  return _tree_cache[bufnr]
+end
+
+function M.get_tree(bufnr)
+  return refresh_tree(bufnr).tree
+end
+
 -- Test-only reset of all module state.
 function M._reset()
   providers = {}
@@ -32,6 +77,7 @@ function M._reset()
   attached_buffers = {}
   warn_once = {}
   disabled = {}
+  _tree_cache = {}
 end
 
 local REQUIRED = { "name", "ns", "enabled" }
@@ -189,6 +235,7 @@ function M.attach(bufnr)
       attached_buffers[b] = nil
       warn_once[b] = nil
       disabled[b] = nil
+      _tree_cache[b] = nil
     end,
   })
 
@@ -204,6 +251,7 @@ function M.detach(bufnr)
   attached_buffers[bufnr] = nil
   warn_once[bufnr] = nil
   disabled[bufnr] = nil
+  _tree_cache[bufnr] = nil
 end
 
 -- Internal: dispatch an on_line callback to all enabled providers.
@@ -269,6 +317,12 @@ end
 do
   local provider_ns = vim.api.nvim_create_namespace("organ_decoration_provider")
   vim.api.nvim_set_decoration_provider(provider_ns, {
+    on_buf = function(_, bufnr, _tick)
+      -- Warm the parse cache once per redraw cycle, before on_win runs
+      -- for any window backed by this buffer.  All providers then read
+      -- from the cached tree via M.get_tree().
+      refresh_tree(bufnr)
+    end,
     on_win = function(_, winid, bufnr, topline, botline)
       dispatch_on_win(0, winid, bufnr, topline, botline)
       return true

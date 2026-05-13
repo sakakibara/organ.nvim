@@ -137,13 +137,13 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
-  local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
-  if not ok_parser or not parser then
+  -- Tree is parsed once per buffer per redraw by organ.decoration; we
+  -- just query the cached tree here.  We also need the parser handle
+  -- below to walk injected org_inline trees via for_each_tree.
+  local tree = require("organ.decoration").get_tree(bufnr)
+  if not tree then
     return
   end
-  -- Range-bounded incremental parse.  Tree-sitter's edit tracking
-  -- keeps the rest of the tree correct; we never call parser:parse(true).
-  parser:parse({ topline, 0, botline + 1, 0 })
 
   local kw_set = todo_keywords_set()
   local function push(row, col, end_col, hl)
@@ -160,9 +160,8 @@ local function on_win(bufnr, _winid, topline, botline)
   -- `[YYYY-MM-DD ...]`.  The scan is bounded to the title node range,
   -- so code blocks, drawers, etc. can't false-positive.
   do
-    local tree = (parser:trees() or {})[1]
     local q = get_headline_query()
-    if tree and q then
+    if q then
       for id, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
         local cap = q.captures[id]
         local sr, sc, er, ec = node:range()
@@ -189,19 +188,22 @@ local function on_win(bufnr, _winid, topline, botline)
   -- Timestamps from injected org_inline trees overlapping the visible
   -- range.  org_inline is injected into paragraph / headline_line /
   -- list_item / table_row content, so timestamps in any of those
-  -- contexts are covered.
+  -- contexts are covered.  We need the parser handle here (the cache
+  -- only memoizes the root tree, not the parser); the parse itself has
+  -- already happened in organ.decoration's on_buf this redraw.
   do
     local q = get_timestamp_query()
-    if q then
-      parser:for_each_tree(function(tree, ltree)
+    local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
+    if q and ok_parser and parser then
+      parser:for_each_tree(function(itree, ltree)
         if ltree:lang() ~= "org_inline" then
           return
         end
-        local rsr, _, rer, _ = tree:root():range()
+        local rsr, _, rer, _ = itree:root():range()
         if rer < topline or rsr > botline then
           return
         end
-        for _, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
+        for _, node in q:iter_captures(itree:root(), bufnr, topline, botline + 1) do
           local sr, sc, er, ec = node:range()
           if sr == er then
             push(sr, sc, ec, "@organ.modern.pill.timestamp")

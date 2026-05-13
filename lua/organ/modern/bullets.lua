@@ -110,12 +110,10 @@ local function on_win(bufnr, _winid, topline, botline)
   end
 
   -- Headline stars: tree-sitter `(headline) @h` captures, scoped to
-  -- the visible range.  Range-bounded incremental parse; tree-sitter's
-  -- edit tracking keeps the rest of the tree correct.
-  local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
-  if ok_parser and parser then
-    parser:parse({ topline, 0, botline + 1, 0 })
-    local tree = (parser:trees() or {})[1]
+  -- the visible range.  Tree is parsed once per buffer per redraw by
+  -- organ.decoration; we just query the cached tree here.
+  do
+    local tree = require("organ.decoration").get_tree(bufnr)
     local q = get_query()
     if tree and q then
       local glyphs = get_glyphs()

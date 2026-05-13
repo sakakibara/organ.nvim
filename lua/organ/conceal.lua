@@ -8,11 +8,11 @@
 -- `conceallevel = 0` (Neovim default); the user opts in by setting
 -- `conceallevel = 2` on the window or via `:Org conceal toggle`.
 --
--- Concealment runs as an `organ.decoration` provider: `on_win` queries
--- tree-sitter for the visible range and builds a module-local
--- frame-row span map; `on_line` reads from that map and emits conceal
--- extmarks for the current row.  Tree-sitter's incremental parser
--- keeps the inline tree correct across edits without a full reparse.
+-- Concealment runs as an `organ.decoration` provider: `on_win` walks
+-- the cached tree-sitter parse (refreshed once per redraw by
+-- organ.decoration) and builds a module-local frame-row span map;
+-- `on_line` reads from that map and emits conceal extmarks for the
+-- current row.
 
 local M = {}
 
@@ -104,13 +104,15 @@ local function on_win(bufnr, _winid, topline, botline)
   if vim.bo[bufnr].filetype ~= "org" then
     return
   end
+  -- Tree is parsed once per buffer per redraw by organ.decoration; ensure
+  -- the cache is warm before we walk injected org_inline trees below.
+  if not require("organ.decoration").get_tree(bufnr) then
+    return
+  end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
     return
   end
-  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
-  -- the rest of the tree correct; we never call parser:parse(true).
-  parser:parse({ topline, 0, botline + 1, 0 })
 
   local function push(row, start_col, end_col)
     if end_col <= start_col then

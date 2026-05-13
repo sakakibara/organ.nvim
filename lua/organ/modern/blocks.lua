@@ -18,9 +18,9 @@
 -- inner_width from its widest body line (which may extend past the
 -- visible range), and populates a module-local frame-row map for rows
 -- in `[topline, botline]`.  `on_line` reads from that map and emits
--- ephemeral overlay / inline virt_text marks for the current row.
--- Tree-sitter's incremental parser keeps the block tree correct across
--- edits without a full reparse.
+-- ephemeral overlay / inline virt_text marks for the current row.  The
+-- tree is parsed once per buffer per redraw by organ.decoration and
+-- shared with the other decoration providers.
 
 local M = {}
 
@@ -205,14 +205,9 @@ local function on_win(bufnr, _winid, topline, botline)
   if not (cfg.modern or {}).blocks then
     return
   end
-  local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
-  if not ok or not parser then
-    return
-  end
-  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
-  -- the rest of the tree correct; we never call parser:parse(true).
-  parser:parse({ topline, 0, botline + 1, 0 })
-  local tree = (parser:trees() or {})[1]
+  -- Tree is parsed once per buffer per redraw by organ.decoration; we
+  -- just query the cached tree here.
+  local tree = require("organ.decoration").get_tree(bufnr)
   if not tree then
     return
   end

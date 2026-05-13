@@ -82,7 +82,7 @@ end
 
 -- 100 sequential edits with simulated redraw between each: this is the
 -- real-world "typing in a long buffer" scenario.  p95 must stay under
--- 50ms; total throughput must stay under 5000ms on nvim 0.11+.
+-- 150ms; total throughput must stay under 15000ms on nvim 0.11+.
 --
 -- p95 (not worst-of-100) is what the user actually perceives: a single
 -- GC pause or scheduler stall on shared CI hardware is invisible to a
@@ -90,11 +90,19 @@ end
 -- on one-off runner blips while aggregate stayed flat; p95 is robust to
 -- that without losing regression-detection power.
 --
+-- The budgets are set against `parser:parse(true)` once per redraw on a
+-- ~7k-line fixture.  Org's `org_inline` injection is emitted on every
+-- paragraph / headline / list item / table row, so the per-edit cost is
+-- dominated by injection re-parse, not by our own dispatch.  Bounded
+-- range parse would be faster but corrupts injection bookkeeping and
+-- crashes downstream callers; the single shared full parse trades that
+-- correctness in for a larger per-edit budget.
+--
 -- On nvim 0.10.x the budgets are skipped: upstream tree-sitter
--- incremental parse is materially slower (~6x per-edit cost on a
--- 7002-line buffer), which is an nvim-version characteristic, not a
--- regression in our code.  The numbers are still printed so a real
--- regression on 0.10.x would show up in CI logs.
+-- incremental parse is materially slower on top of that, which is an
+-- nvim-version characteristic, not a regression in our code.  The
+-- numbers are still printed so a real regression on 0.10.x would show
+-- up in CI logs.
 local has_011 = vim.fn.has("nvim-0.11") == 1
 do
   local winid = vim.api.nvim_get_current_win()
@@ -124,11 +132,11 @@ do
   )
   if has_011 then
     check(
-      "100 edits + redraws under 5000ms total",
-      total_ms < 5000,
+      "100 edits + redraws under 15000ms total",
+      total_ms < 15000,
       ("took %.1f ms"):format(total_ms)
     )
-    check("p95 edit + redraw under 50ms", p95_ms < 50, ("p95 %.1f ms"):format(p95_ms))
+    check("p95 edit + redraw under 150ms", p95_ms < 150, ("p95 %.1f ms"):format(p95_ms))
   else
     print("       (skipping 100-edits budget checks on nvim 0.10.x: upstream ts-parse perf)")
   end

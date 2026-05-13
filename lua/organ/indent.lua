@@ -13,9 +13,9 @@
 -- effective level to every row in `[topline, botline]`, with the
 -- cascade through nested headlines reset by each same-or-higher-level
 -- sibling.  `on_line` reads the frame-local row map and emits an
--- ephemeral inline virt_text extmark for the current row.  Tree-sitter's
--- incremental parser keeps the headline tree correct across edits
--- without a full reparse.
+-- ephemeral inline virt_text extmark for the current row.  The tree is
+-- parsed once per buffer per redraw by organ.decoration and shared with
+-- the other decoration providers.
 --
 -- Toggle is per-buffer (not filetype-global): `_attached[bufnr]` gates
 -- the provider's `enabled` callback, so unrelated org buffers stay
@@ -82,14 +82,9 @@ local function on_win(bufnr, _winid, topline, botline)
   if not M._attached[bufnr] then
     return
   end
-  local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
-  if not ok or not parser then
-    return
-  end
-  -- Range-bounded incremental parse.  Tree-sitter's edit tracking keeps
-  -- the rest of the tree correct; we never call parser:parse(true).
-  parser:parse({ topline, 0, botline + 1, 0 })
-  local tree = (parser:trees() or {})[1]
+  -- Tree is parsed once per buffer per redraw by organ.decoration; we
+  -- just query the cached tree here.
+  local tree = require("organ.decoration").get_tree(bufnr)
   if not tree then
     return
   end
