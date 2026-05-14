@@ -245,5 +245,61 @@ deq(out, {
   "* ",
 }, "body of last L1 with children → new L1 appended at end of buffer")
 
+-- 11. Cursor ON a level-2 headline whose subtree contains level-3
+-- children: the new level-2 sibling must land AFTER all the L3 children,
+-- not between the L2 line and its first L3 child.  Mirrors the body-line
+-- contract from cases 9-10 but with the cursor on the headline itself.
+out = with_buffer(
+  {
+    "* L1",
+    "** L2",
+    "*** L3a",
+    "body of L3a",
+    "*** L3b",
+    "body of L3b",
+    "** L2 sibling",
+  },
+  2,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* L1",
+  "** L2",
+  "*** L3a",
+  "body of L3a",
+  "*** L3b",
+  "body of L3b",
+  "** ",
+  "** L2 sibling",
+}, "headline with deeper children → new sibling after the whole subtree")
+
+-- 12. Cursor ON a level-1 headline with multiple L2 children: same
+-- contract -- new L1 lands AFTER every child, before the next L1.
+out = with_buffer(
+  {
+    "* L1",
+    "** Sub 1",
+    "** Sub 2",
+    "** Sub 3",
+    "* L1 sibling",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out, {
+  "* L1",
+  "** Sub 1",
+  "** Sub 2",
+  "** Sub 3",
+  "* ",
+  "* L1 sibling",
+}, "L1 headline with L2 children → new L1 after children, before next L1")
+
 io.write("meta_return ok\n")
 os.exit(0)

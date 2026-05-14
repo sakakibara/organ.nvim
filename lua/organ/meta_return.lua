@@ -125,11 +125,15 @@ function M.dispatch(opts)
   -- 1. Headline → new sibling headline at the end of this subtree.
   local lvl = headline_level(txt)
   if lvl then
-    -- Find end of this headline's section (next heading-line or EOF).
+    -- Walk past every line still inside this subtree: non-headline
+    -- lines AND deeper-level child headlines.  Stop on the first
+    -- sibling-or-higher headline (sub_lvl <= lvl) or EOF.  Matches
+    -- Emacs `org-end-of-subtree`.
     local total = vim.api.nvim_buf_line_count(bufnr)
     local end_line = cur_line
     for i = cur_line + 1, total do
-      if headline_level(get_line(bufnr, i)) then
+      local sub_lvl = headline_level(get_line(bufnr, i))
+      if sub_lvl and sub_lvl <= lvl then
         break
       end
       end_line = i
