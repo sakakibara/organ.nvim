@@ -92,6 +92,29 @@ local function is_table_row(text)
   return text:match("^%s*|") ~= nil
 end
 
+-- After inserting a new heading and normalizing its spacing, the next
+-- adjacent heading may have lost its own before-blank to the new one
+-- (in styles like `before=1,after=0` where the blank sits ABOVE each
+-- heading, not below).  Walk forward past any blanks; if the very next
+-- non-blank line is a heading, re-normalize it with the same policy so
+-- it gets its blank-above restored.
+local function normalize_following_heading(bufnr, after_row, policy)
+  local total = vim.api.nvim_buf_line_count(bufnr)
+  for j = after_row + 1, total do
+    local l = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1]
+    if not l then
+      return
+    end
+    if l:match("^%*+%s") then
+      require("organ.spacing").normalize_around(bufnr, j, policy)
+      return
+    end
+    if not l:match("^%s*$") then
+      return
+    end
+  end
+end
+
 -- Renumber a contiguous numeric list starting at `start_line`.  Walks
 -- forward while the indent matches `indent` and the bullet stays
 -- numeric, rewriting `N. `/`N) ` to a continuous sequence beginning at
@@ -145,12 +168,14 @@ function M.dispatch(opts)
     -- writes (auto-detect each call, so paste-into-different-style
     -- buffers behave naturally).
     local spacing = require("organ.spacing")
+    local policy = spacing.resolve(bufnr)
     local pre = vim.api.nvim_buf_line_count(bufnr)
     local heading_row = end_line + 1
-    spacing.normalize_around(bufnr, heading_row, spacing.resolve(bufnr))
+    spacing.normalize_around(bufnr, heading_row, policy)
     -- normalize_around may have inserted blanks above the heading;
     -- shift the cursor target by however many lines the buffer grew.
     heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+    normalize_following_heading(bufnr, heading_row, policy)
     move_to(heading_row, #stars + 1)
     if enter_insert then
       vim.cmd("startinsert!")
@@ -220,10 +245,12 @@ function M.dispatch(opts)
     local stars = string.rep("*", hl_lvl)
     set_lines(bufnr, end_line, { stars .. " " })
     local spacing = require("organ.spacing")
+    local policy = spacing.resolve(bufnr)
     local pre = vim.api.nvim_buf_line_count(bufnr)
     local heading_row = end_line + 1
-    spacing.normalize_around(bufnr, heading_row, spacing.resolve(bufnr))
+    spacing.normalize_around(bufnr, heading_row, policy)
     heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+    normalize_following_heading(bufnr, heading_row, policy)
     move_to(heading_row, #stars + 1)
     if enter_insert then
       vim.cmd("startinsert!")

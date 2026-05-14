@@ -197,6 +197,69 @@ do
   require("organ").config.structure.headline_spacing = nil
 end
 
+-- (e) Blank-above style: the next sibling must keep its own blank-
+-- above after the insert.  Visually this means the new heading sees
+-- a blank ABOVE AND a blank BELOW (the latter is the next sibling's
+-- before-blank, not the new heading's after).  Without re-normalizing
+-- the following heading, the new one "steals" the blank and the
+-- sibling renders flush against it.
+do
+  local b = buf_with({
+    "* H1",
+    "body 1",
+    "",
+    "* H2",
+    "body 2",
+    "",
+    "* H3",
+    "body 3",
+  })
+  vim.api.nvim_win_set_cursor(0, { 4, 0 }) -- on H2
+  meta_return.dispatch({ enter_insert = false })
+  local got = lines_of(b)
+  -- New heading is the empty "* " line; locate it.
+  local new_line
+  for i, l in ipairs(got) do
+    if l == "* " then
+      new_line = i
+      break
+    end
+  end
+  check(
+    "blank-above style + next sibling: new heading inserted",
+    new_line ~= nil,
+    table.concat(got, "|")
+  )
+  if new_line then
+    local blanks_above = 0
+    for i = new_line - 1, 1, -1 do
+      if got[i] == "" then
+        blanks_above = blanks_above + 1
+      else
+        break
+      end
+    end
+    local blanks_below = 0
+    for i = new_line + 1, #got do
+      if got[i] == "" then
+        blanks_below = blanks_below + 1
+      else
+        break
+      end
+    end
+    check(
+      "blank-above style: 1 blank above new heading",
+      blanks_above == 1,
+      "got=" .. blanks_above .. " buf=" .. table.concat(got, "|")
+    )
+    check(
+      "blank-above style: 1 blank between new heading and next sibling (sibling's own before-blank)",
+      blanks_below == 1,
+      "got=" .. blanks_below .. " buf=" .. table.concat(got, "|")
+    )
+  end
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
