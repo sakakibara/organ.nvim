@@ -8,8 +8,13 @@
 --                               bullet style (auto-renumbers a numeric
 --                               list following the new item).
 --   * Inside a table          → insert a new row below.
---   * Before the first heading
---     (no enclosing subtree)  → behave like Vim's `o` (open below).
+--   * Buffer with no headings
+--     anywhere                → create a level-1 heading (truly-empty
+--                               buffer becomes `* `; preamble-only
+--                               buffer gets `* ` appended at end with
+--                               spacing-policy applied).
+--   * Preamble of a buffer
+--     that has headings       → behave like Vim's `o` (open below).
 --
 -- Cursor is moved to the new line, in insert mode if `enter_insert` is
 -- true (default).
@@ -258,7 +263,41 @@ function M.dispatch(opts)
     return
   end
 
-  -- 5. Fallback (before any heading, no list/table context) — open a fresh blank line below.
+  -- 5. No heading anywhere in the buffer: treat M-RET as "start
+  -- outlining" and create a level-1 heading.  Truly-empty buffer
+  -- (one blank line) becomes a single `* ` line; a buffer with
+  -- preamble-only content gets `* ` appended at the end with the
+  -- buffer's own spacing policy.
+  local total = vim.api.nvim_buf_line_count(bufnr)
+  local has_any_heading = false
+  for i = 1, total do
+    if headline_level(get_line(bufnr, i)) then
+      has_any_heading = true
+      break
+    end
+  end
+  if not has_any_heading then
+    if total == 1 and get_line(bufnr, 1) == "" then
+      obuf.set_lines(bufnr, 0, 1, { "* " })
+      move_to(1, 2)
+    else
+      set_lines(bufnr, total, { "* " })
+      local spacing = require("organ.spacing")
+      local policy = spacing.resolve(bufnr)
+      local pre = vim.api.nvim_buf_line_count(bufnr)
+      local heading_row = total + 1
+      spacing.normalize_around(bufnr, heading_row, policy)
+      heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+      move_to(heading_row, 2)
+    end
+    if enter_insert then
+      vim.cmd("startinsert!")
+    end
+    return
+  end
+
+  -- 6. Fallback (preamble of a file that DOES have headings, no
+  -- list/table context) — open a fresh blank line below like Vim's `o`.
   set_lines(bufnr, cur_line, { "" })
   move_to(cur_line + 1, 0)
   if enter_insert then

@@ -124,10 +124,13 @@ deq(out, {
   "| 1 | 2 | 3 |",
 }, "table row → new row with same cell count")
 
--- 6. Plain paragraph: open blank line below.
+-- 6. Preamble of a buffer that DOES have headings → open a blank line
+-- below (Vim `o`-like).  Distinguished from the no-heading buffer case
+-- (tests 13-14) where M-RET creates a level-1 heading instead.
 out = with_buffer(
   {
     "Just text",
+    "* heading",
   },
   1,
   0,
@@ -135,7 +138,7 @@ out = with_buffer(
     mr.dispatch({ enter_insert = false })
   end
 )
-deq(out, { "Just text", "" }, "paragraph → blank line below")
+deq(out, { "Just text", "", "* heading" }, "preamble of buffer with headings → blank line below")
 
 -- 7. Body line inside a subtree → new heading at the enclosing level
 -- appended after the subtree's content (mirrors Emacs
@@ -300,6 +303,36 @@ deq(out, {
   "* ",
   "* L1 sibling",
 }, "L1 headline with L2 children → new L1 after children, before next L1")
+
+-- 13. Buffer with no headings anywhere AND truly empty (single blank
+-- line): M-RET should create a level-1 heading at line 1 (replacing
+-- the blank), cursor on the new heading.
+local out2, cur2 = with_buffer({ "" }, 1, 0, function()
+  mr.dispatch({ enter_insert = false })
+end)
+deq(out2, { "* " }, "empty buffer → `* ` at line 1")
+-- enter_insert=false leaves normal-mode cursor, clamped to last char.
+deq(cur2, { 1, 1 }, "empty buffer → cursor on new heading")
+
+-- 14. Buffer with body content but no headings: M-RET appends a
+-- level-1 heading at end of buffer.
+out2, cur2 = with_buffer(
+  {
+    "some preamble",
+    "more text",
+  },
+  1,
+  0,
+  function()
+    mr.dispatch({ enter_insert = false })
+  end
+)
+deq(out2, {
+  "some preamble",
+  "more text",
+  "* ",
+}, "preamble-only buffer → `* ` appended at end")
+deq(cur2, { 3, 1 }, "preamble-only buffer → cursor on new heading")
 
 io.write("meta_return ok\n")
 os.exit(0)
