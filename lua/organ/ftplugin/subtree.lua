@@ -75,21 +75,23 @@ function M.attach(bufnr)
       })
       -- Insert-mode binding: same chord, count fixed at 1.  Users
       -- drafting a headline can promote / demote / move without leaving
-      -- insert (matches Emacs's mode-less binding model).  meta_return
-      -- additionally needs an insert-leave-and-re-enter dance because
-      -- it lands on a brand-new empty line; the structure ops just
-      -- rewrite the existing line, so insert continues seamlessly.
+      -- insert (matches Emacs's mode-less binding model).
+      --
+      -- Stay in insert mode throughout: dispatch mutates the buffer and
+      -- moves the cursor to the new line via nvim APIs (mode-agnostic),
+      -- so the user can keep typing the heading title immediately.
+      -- Earlier versions did a stopinsert -> dispatch -> startinsert!
+      -- dance, but stopinsert fires InsertLeave AFTER dispatch has
+      -- moved the cursor onto the new `* ` line; user autocmds that
+      -- "strip trailing whitespace on InsertLeave" (a common config)
+      -- then ate the trailing space, producing `*` instead of `* `.
       if key == "meta_return" then
         vim.api.nvim_buf_set_keymap(bufnr, "i", lhs, "", {
           noremap = true,
           silent = true,
           desc = descs[key] or key,
           callback = function()
-            vim.cmd("stopinsert")
             dispatch(path)
-            vim.schedule(function()
-              vim.cmd("startinsert!")
-            end)
           end,
         })
       else
