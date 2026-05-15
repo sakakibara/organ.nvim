@@ -42,20 +42,24 @@ function M.attach(bufnr)
   -- Rule 2: keymaps = false disables all todo bindings.
   local cfg_todo = cfg.todo or {}
   local km_todo = cfg_todo.keymaps ~= false and (cfg_todo.keymaps or {}) or {}
-  map(km_todo.cycle, function()
+  local function do_cycle()
     local line = vim.api.nvim_win_get_cursor(0)[1]
     local err = require("organ.todo").cycle(bufnr, line)
     if err then
       require("organ.notify").error(err)
     end
-  end, "Cycle TODO state forward")
-  map(km_todo.cycle_back, function()
+  end
+  local function do_cycle_back()
     local line = vim.api.nvim_win_get_cursor(0)[1]
     local err = require("organ.todo").cycle_back(bufnr, line)
     if err then
       require("organ.notify").error(err)
     end
-  end, "Cycle TODO state backward")
+  end
+  map(km_todo.cycle, do_cycle, "Cycle TODO state forward")
+  map(km_todo.cycle_alt, do_cycle, "Cycle TODO state forward (alt)")
+  map(km_todo.cycle_back, do_cycle_back, "Cycle TODO state backward")
+  map(km_todo.cycle_back_alt, do_cycle_back, "Cycle TODO state backward (alt)")
   map(km_todo.fast_pick, function()
     local line = vim.api.nvim_win_get_cursor(0)[1]
     require("organ.todo")._fast_select(bufnr, line)

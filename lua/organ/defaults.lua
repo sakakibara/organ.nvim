@@ -926,10 +926,17 @@ return {
       --
       -- Caveat: a few terminals (Terminal.app, some tmux configs)
       -- collapse `<M-t>` and `<M-T>` into the same byte sequence, so
-      -- on those `cycle_back` is unreachable; override here:
-      --   keymaps = { cycle_back = "<LocalLeader>P" }
+      -- on those `cycle_back` is unreachable -- the `cycle_back_alt`
+      -- arrow chord below works regardless of terminal quirks.
       cycle = "<M-t>",
       cycle_back = "<M-T>",
+      -- Emacs-feel alt: `<S-Right>` / `<S-Left>` mirror
+      -- `org-shiftright` / `org-shiftleft` exactly.  Vim's default
+      -- for these is `W` / `B` (move by WORD); the bindings are
+      -- buffer-local to org buffers so `w` / `W` / `b` / `B` still
+      -- do the usual word motions outside org.
+      cycle_alt = "<S-Right>",
+      cycle_back_alt = "<S-Left>",
     },
     calendars = {},
     default_country = nil,
