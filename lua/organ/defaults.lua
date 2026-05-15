@@ -917,12 +917,19 @@ return {
       -- Menu-style picker (vim.ui.select fallback) for users who
       -- prefer arrow-key navigation over single-key dispatch.
       set = "<LocalLeader>T",
-      -- Cycle TODO state forward / backward.  Primary bindings follow
-      -- the Vim `]X` / `[X` next/prev-motion convention; `<M-t>` from
-      -- the global keymap registry continues to cycle as the
-      -- Emacs/M-style fallback.
-      cycle = "]t",
-      cycle_back = "[t",
+      -- Cycle TODO state forward / backward.  Meta+letter mirrors
+      -- the rest of organ's state-change bindings (`<M-h>` / `<M-l>`
+      -- promote/demote, `<M-j>` / `<M-k>` move up/down) and stays out
+      -- of the way of vim-unimpaired's `]X` / `[X` motion-bracket
+      -- family.  Forward is `<M-t>`, backward is the symmetric
+      -- shift variant `<M-T>`.
+      --
+      -- Caveat: a few terminals (Terminal.app, some tmux configs)
+      -- collapse `<M-t>` and `<M-T>` into the same byte sequence, so
+      -- on those `cycle_back` is unreachable; override here:
+      --   keymaps = { cycle_back = "<LocalLeader>P" }
+      cycle = "<M-t>",
+      cycle_back = "<M-T>",
     },
     calendars = {},
     default_country = nil,

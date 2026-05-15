@@ -28,15 +28,11 @@ local M = {}
 --   * No "category:" prefix (which-key shows the prefix path via groups)
 --   * Short — under ~30 chars where possible
 M.defaults = {
-  -- highest-frequency chord aliases
-  { "<M-t>", "Org todo", desc = "Cycle TODO state" },
-  -- Fast-selection (Emacs C-c C-t with org-use-fast-todo-selection).
-  -- `<M-T>` (shift-meta-T) is the most ergonomic chord but doesn't
-  -- distinguish from `<M-t>` on every terminal — Terminal.app and
-  -- some tmux configs collapse them.  `<LocalLeader>T` is the
-  -- universal fallback that works in every terminal.
-  { "<M-T>", "Org todo fast", desc = "Pick TODO state (fast-selection)" },
-  { "<LocalLeader>T", "Org todo fast", desc = "Pick TODO state (fast-selection)" },
+  -- TODO state bindings are NOT defined here.  They live in
+  -- `defaults.lua` -> `todo.keymaps` as the single source of truth
+  -- (`cycle = "<M-t>"`, `cycle_back = "<M-T>"`, `fast_pick =
+  -- "<LocalLeader>t"`, `set = "<LocalLeader>T"`).  ftplugin/core.lua
+  -- wires them as buffer-local maps when the org filetype attaches.
 
   -- Per-headline single-char ops under <LocalLeader>
   { "<LocalLeader>s", "Org schedule", desc = "Schedule heading" },
