@@ -927,6 +927,55 @@ local function fast_select(bufnr, line)
   local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local raw = buffer_raw_sequences() or cfg.sequences or cfg.sequence or {}
   local meta = M._build_metadata(raw)
+  -- Auto-derive access keys for any keyword without an explicit `(KEY)`
+  -- annotation.  Walks each keyword's characters left-to-right and
+  -- picks the first unused alphanumeric; falls back to digits/symbols
+  -- on saturation.  Stable across runs (config-order-driven).  Lets
+  -- the fast picker work out of the box with `{ "TODO", "NEXT", ... }`
+  -- instead of demanding the user rewrite the sequence as
+  -- `{ "TODO(t)", "NEXT(n)", ... }` just to get a single-keystroke UI.
+  local used_keys = {}
+  for _, m in pairs(meta) do
+    if m.key then
+      used_keys[m.key] = true
+    end
+  end
+  local function auto_access_key(name)
+    for i = 1, #name do
+      local c = name:sub(i, i):lower()
+      if c:match("[%w]") and not used_keys[c] then
+        return c
+      end
+    end
+    for c in ("0123456789!@#$%%^&*"):gmatch(".") do
+      if not used_keys[c] then
+        return c
+      end
+    end
+    return nil
+  end
+  local function ensure_keys(seq)
+    for _, k in ipairs(seq) do
+      if k ~= "|" then
+        local bare = M._parse_keyword(k).name
+        local m = bare and meta[bare]
+        if m and not m.key then
+          local c = auto_access_key(m.name)
+          if c then
+            m.key = c
+            used_keys[c] = true
+          end
+        end
+      end
+    end
+  end
+  if type(raw[1]) == "table" then
+    for _, seq in ipairs(raw) do
+      ensure_keys(seq)
+    end
+  else
+    ensure_keys(raw)
+  end
   -- Preserve config order when listing.
   local entries = {}
   local function add_seq(seq)
@@ -948,21 +997,7 @@ local function fast_select(bufnr, line)
     add_seq(raw)
   end
   if #entries == 0 then
-    -- No fast-selection keys configured -- fall back to vim.ui.select
-    -- so the keymap still does something reasonable.  Tell the user
-    -- inline how to enable the proper one-char prompt.
-    local choices = { "(none)" }
-    for _, k in ipairs(M.all_keywords()) do
-      choices[#choices + 1] = k
-    end
-    vim.ui.select(choices, {
-      prompt = 'TODO state (annotate `"TODO(t)"` for fast keys):',
-    }, function(choice)
-      if not choice then
-        return
-      end
-      M.set(bufnr, line, choice == "(none)" and nil or choice)
-    end)
+    require("organ.notify").warn("organ: no TODO keywords configured")
     return
   end
   -- Render `[t] TODO   [w] WAIT   [d] DONE` on a single status line.

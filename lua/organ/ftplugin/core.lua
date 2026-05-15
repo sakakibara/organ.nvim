@@ -48,7 +48,18 @@ function M.attach(bufnr)
     if err then
       require("organ.notify").error(err)
     end
-  end, "Cycle TODO state")
+  end, "Cycle TODO state forward")
+  map(km_todo.cycle_back, function()
+    local line = vim.api.nvim_win_get_cursor(0)[1]
+    local err = require("organ.todo").cycle_back(bufnr, line)
+    if err then
+      require("organ.notify").error(err)
+    end
+  end, "Cycle TODO state backward")
+  map(km_todo.fast_pick, function()
+    local line = vim.api.nvim_win_get_cursor(0)[1]
+    require("organ.todo")._fast_select(bufnr, line)
+  end, "Fast TODO state pick (one keystroke)")
   map(km_todo.set, function()
     local choices = { "(none)" }
     for _, k in ipairs((cfg.todo or {}).sequence or {}) do
@@ -67,7 +78,7 @@ function M.attach(bufnr)
         require("organ.notify").error(err)
       end
     end)
-  end, "Pick TODO state")
+  end, "Pick TODO state from menu")
 
   -- Fold options.  Use organ's headline-depth foldexpr instead of
   -- `vim.treesitter.foldexpr()` because the latter conflated list /

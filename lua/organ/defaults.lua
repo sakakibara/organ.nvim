@@ -908,8 +908,21 @@ return {
     -- its body is unchecked. Independent of enforce_dependencies.
     enforce_checkbox_dependencies = false,
     keymaps = {
-      cycle = "<LocalLeader>t", -- cycle TODO state of headline at cursor
-      set = "<LocalLeader>T", -- pick TODO state from a menu
+      -- Fast single-keystroke picker (Emacs `org-fast-todo-selection`):
+      -- pops a one-line prompt with `[t] TODO  [n] NEXT  ...`; press
+      -- one char to set that state.  Access keys auto-derived from
+      -- each keyword's first available char unless you annotated them
+      -- like `"TODO(t)"`.  This is the primary 2-key chord.
+      fast_pick = "<LocalLeader>t",
+      -- Menu-style picker (vim.ui.select fallback) for users who
+      -- prefer arrow-key navigation over single-key dispatch.
+      set = "<LocalLeader>T",
+      -- Cycle TODO state forward / backward.  Primary bindings follow
+      -- the Vim `]X` / `[X` next/prev-motion convention; `<M-t>` from
+      -- the global keymap registry continues to cycle as the
+      -- Emacs/M-style fallback.
+      cycle = "]t",
+      cycle_back = "[t",
     },
     calendars = {},
     default_country = nil,

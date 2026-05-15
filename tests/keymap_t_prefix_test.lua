@@ -1,6 +1,6 @@
--- Regression: <LocalLeader>t must be bound as a standalone cycle TODO
--- action and NOT a prefix to longer bindings. If anyone reintroduces
--- a binding like <LocalLeader>tX, the test catches it.
+-- Regression: <LocalLeader>t must be bound as a standalone fast-TODO-
+-- pick action and NOT a prefix to longer bindings.  If anyone
+-- reintroduces a binding like <LocalLeader>tX, the test catches it.
 
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -52,12 +52,12 @@ local function find_exact(lhs)
   return nil
 end
 
--- 1. The cycle TODO binding exists at \t.
+-- 1. The fast-TODO-pick binding exists at \t.
 do
   local m = find_exact("\\t")
   check(
-    "\\t bound (cycle TODO)",
-    m ~= nil and m.desc == "Cycle TODO state",
+    "\\t bound (fast TODO pick)",
+    m ~= nil and m.desc == "Fast TODO state pick (one keystroke)",
     m and ("desc=" .. tostring(m.desc)) or "not found"
   )
 end
