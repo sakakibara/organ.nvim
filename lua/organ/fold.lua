@@ -63,7 +63,12 @@ local function apply_state(bufnr, heading, headline_line, state)
 
   if state == "folded" then
     vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
-    pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldclose!")
+    -- NO bang: `:foldclose!` in vim closes parent folds too (zC-like),
+    -- so Tab on `** L2 a` would also collapse its enclosing `* L1`
+    -- subtree -- visually identical to a global S-Tab and not what
+    -- Emacs `org-cycle` does.  Plain `:foldclose` closes only the
+    -- innermost folds inside the given range.
+    pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldclose")
   elseif state == "children" then
     vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
     pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldopen!")
