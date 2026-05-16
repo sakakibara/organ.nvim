@@ -333,10 +333,36 @@ local function wrap_prose(lines, cfg)
     if #para_lines == 0 then
       return
     end
-    local joined = table.concat(para_lines, " "):gsub("%s+", " ")
-    joined = joined:gsub("^%s+", ""):gsub("%s+$", "")
-    for _, l in ipairs(wrap_to_width(joined, width, para_first or "", para_cont or "")) do
-      out[#out + 1] = l
+    -- Org's hard-line-break syntax (verified against Emacs `org-mode`
+    -- + `fill-paragraph`, GNU Emacs 30.2) is `\\` at end of line, with
+    -- optional trailing whitespace.  Lines NOT ending in `\\` are
+    -- reflowed into the surrounding paragraph; lines ending in `\\`
+    -- terminate the current sub-paragraph and the next line starts a
+    -- new one.  Trailing spaces alone (markdown convention) have no
+    -- meaning in org.
+    local chunks = { {} }
+    for _, l in ipairs(para_lines) do
+      table.insert(chunks[#chunks], l)
+      if l:match("\\\\%s*$") then
+        table.insert(chunks, {})
+      end
+    end
+    if #chunks[#chunks] == 0 then
+      table.remove(chunks)
+    end
+    local first = para_first or ""
+    local cont = para_cont or ""
+    for _, chunk in ipairs(chunks) do
+      local joined = table.concat(chunk, " "):gsub("%s+", " ")
+      joined = joined:gsub("^%s+", ""):gsub("%s+$", "")
+      for _, l in ipairs(wrap_to_width(joined, width, first, cont)) do
+        out[#out + 1] = l
+      end
+      -- After a forced break, the next chunk is still part of the same
+      -- paragraph (or list item) -- use cont_indent for its first line
+      -- so list-item continuations stay aligned with the post-bullet
+      -- column.  For plain paragraphs first == cont, so this is a no-op.
+      first = cont
     end
     para_lines, para_first, para_cont = {}, nil, nil
   end

@@ -146,6 +146,61 @@ do
   check("format_range: rewrapped line 2", #lines >= 2 and #lines[2] <= 25, vim.inspect(lines))
 end
 
+-- ---------------------------------------------------------------------------
+-- Emacs-parity: `\\` at end of line is org's hard line-break syntax.
+-- Verified against GNU Emacs 30.2 `org-mode` + `fill-paragraph`.  Lines
+-- ending in `\\` (optional trailing whitespace) MUST stay split; other
+-- consecutive non-blank lines reflow into one paragraph.  Trailing
+-- spaces alone (markdown convention) have no meaning in org.
+-- ---------------------------------------------------------------------------
+local function format_input(input, cfg)
+  return fmt.format_lines(input, cfg or { wrap = { width = 80 } })
+end
+
+do
+  local got = format_input({ "first line", "second line" })
+  check(
+    "Emacs parity A: plain lines reflow into one paragraph",
+    #got == 1 and got[1] == "first line second line",
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "first line \\\\", "second line" })
+  check(
+    "Emacs parity B: `\\\\` at EOL preserved as hard break",
+    #got == 2 and got[1] == "first line \\\\" and got[2] == "second line",
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "first \\\\", "second", "third" })
+  check(
+    "Emacs parity C: lines after `\\\\` still reflow among themselves",
+    #got == 2 and got[1] == "first \\\\" and got[2] == "second third",
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "first line  ", "second line" })
+  check(
+    "Emacs parity D: trailing spaces (markdown convention) ignored",
+    #got == 1 and got[1] == "first line second line",
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input(
+    { "one two three four five six seven eight nine ten eleven twelve" },
+    { wrap = { width = 30 } }
+  )
+  check("Emacs parity E: wraps wider lines at width", #got >= 2, vim.inspect(got))
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
