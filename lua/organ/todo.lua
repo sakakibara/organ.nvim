@@ -425,6 +425,9 @@ local function is_active(state, sequence)
 end
 
 local function now_inactive_ts()
+  if M._now_ts_for_test then
+    return M._now_ts_for_test()
+  end
   local t = os.date("*t")
   local DOW = { [0] = "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" }
   local dow = DOW[tonumber(os.date("%w", os.time(t)))]
@@ -480,7 +483,12 @@ local function set_property(bufnr, hl_line, key, value)
   local element = require("organ.element")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local pd = element.property_drawer_range(bufnr, hl_line - 1)
-  local prop_line = string.format("  :%s: %s", key, value)
+  -- Emacs `-Q` writes drawer lines at column 0 by default
+  -- (verified with `org-todo "DONE"` on a repeating TODO).
+  -- `org-adapt-indentation` can change that, but our output should
+  -- match the default-vs-default baseline; user-level indent
+  -- adjustment can be re-applied as a separate format step.
+  local prop_line = string.format(":%s: %s", key, value)
   if pd then
     -- Replace existing key in drawer if present.
     for i = pd.start_line + 1, pd.end_line - 1 do
@@ -494,7 +502,7 @@ local function set_property(bufnr, hl_line, key, value)
   else
     -- Create a new drawer right after planning.
     local i = element.planning_end_line(bufnr, hl_line - 1)
-    obuf.set_lines(bufnr, i - 1, i - 1, { "  :PROPERTIES:", prop_line, "  :END:" })
+    obuf.set_lines(bufnr, i - 1, i - 1, { ":PROPERTIES:", prop_line, ":END:" })
   end
 end
 
