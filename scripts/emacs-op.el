@@ -98,6 +98,43 @@
           ((string= op "org-todo-done")
            (org-todo "DONE")
            (princ (buffer-string)))
+          ;; ---------------------------------------------------------------
+          ;; Inheritance probes -- dump each headline + its effective tags
+          ;; (direct + inherited), sorted, one per line.  Used to verify
+          ;; our tag-inheritance computation against `org-get-tags' which
+          ;; is the canonical Emacs op respecting `org-use-tag-inheritance'.
+          ;; ---------------------------------------------------------------
+          ((string= op "dump-tags")
+           (let ((rows '()))
+             (org-map-entries
+              (lambda ()
+                (let* ((heading (substring-no-properties
+                                 (org-get-heading t t t t)))
+                       (tags (sort (copy-sequence (org-get-tags))
+                                   #'string<)))
+                  (push (format "%s\t%s"
+                                heading
+                                (mapconcat #'identity tags ","))
+                        rows))))
+             (princ (mapconcat #'identity (nreverse rows) "\n"))
+             (princ "\n")))
+          ;; Property probe -- dump each headline + a chosen property's
+          ;; value (with inheritance), one per line.  PROPERTY is read
+          ;; from `organ-op--property' bound by the caller via --eval
+          ;; before invoking organ-op-run.
+          ((string= op "dump-property")
+           (let ((rows '())
+                 (prop (or (and (boundp 'organ-op--property)
+                                organ-op--property)
+                           "CATEGORY")))
+             (org-map-entries
+              (lambda ()
+                (let ((heading (substring-no-properties
+                                (org-get-heading t t t t)))
+                      (val (or (org-entry-get nil prop t) "")))
+                  (push (format "%s\t%s" heading val) rows))))
+             (princ (mapconcat #'identity (nreverse rows) "\n"))
+             (princ "\n")))
           (t (error "unknown op: %s" op))))))))
 
 (provide 'emacs-op)
