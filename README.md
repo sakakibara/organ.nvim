@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/sakakibara/organ.nvim/actions/workflows/test.yml"><img src="https://github.com/sakakibara/organ.nvim/actions/workflows/test.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://neovim.io/"><img src="https://img.shields.io/badge/Neovim-0.10%2B-57A143.svg?logo=neovim&logoColor=white" alt="Neovim 0.10+"></a>
+  <a href="https://neovim.io/"><img src="https://img.shields.io/badge/Neovim-0.11%2B-57A143.svg?logo=neovim&logoColor=white" alt="Neovim 0.11+"></a>
 </p>
 
 <p align="center">
@@ -141,7 +141,7 @@ Click a row to expand.  All demos are auto-rendered from
 
 ## Install
 
-**Requires** Neovim 0.10+, SQLite 3, and `git` + `make` + a C compiler
+**Requires** Neovim 0.11+, SQLite 3, and `git` + `make` + a C compiler
 to build the tree-sitter grammars.  No Node / npm / pnpm — the grammar
 repos (`tree-sitter-organ`, `tree-sitter-organ-inline`) commit the
 generated `parser.c`; install clones them and runs `make`.
@@ -588,7 +588,7 @@ Two helpers for users with a custom `'statuscolumn'`:
 
 | Helper | Replaces | Why |
 |---|---|---|
-| `require("organ.fold").statuscolumn_marker(lnum)` | the `foldlevel(lnum) > foldlevel(lnum-1)` "is this a fold start" idiom | That idiom misses heading lines whose foldlevel doesn't strictly exceed the previous line's (sibling headings at the same depth, or any heading after body in `body_fold = true`).  The helper marks every heading line as a fold-start. |
+| `require("organ.fold").statuscolumn_marker(lnum)` | the `foldlevel(lnum) > foldlevel(lnum-1)` "is this a fold start" idiom | That idiom misses heading lines whose foldlevel doesn't strictly exceed the previous line's (sibling headings at the same depth).  The helper marks every heading line as a fold-start. |
 | `require("organ.fold.contents").statuscolumn_lnum(lnum, relative)` | the value vim feeds into `%l` / `%r` for `'number'` / `'relativenumber'` | Vim counts buffer lines.  Under CONTENTS view body is concealed but its line numbers are still allocated -- a heading 5 buffer rows down with concealed body would render as `5` even though it's visually adjacent.  The helper returns visible-line distance instead. |
 
 Both helpers degrade to vim-equivalent values outside the contexts they care about, so it's safe to wire both unconditionally.
@@ -665,32 +665,16 @@ problem, so the helpers stay useful even alongside `%C`.
 
 ## Folding
 
-Two strategies, controlled by `fold.body_fold`:
-
-```lua
-require("organ").setup({
-  fold = { body_fold = false },  -- default
-})
-```
-
-**`body_fold = false` (default, Emacs-faithful):** body lines share
-the parent heading's foldlevel.  Each heading section is one fold;
-`za` on body folds the heading.  CONTENTS view (third `<S-Tab>`
-state) hides body via `conceal_lines` extmarks, leaving every
-heading visible at every depth.  Auto-bumps `conceallevel` and
-`concealcursor` while CONTENTS is active and restores both on exit.
-Requires Neovim 0.11+ for the `conceal_lines` primitive; on older
-Neovim CONTENTS degrades to "level-1 headings only" (`foldlevel=1`).
-
-**`body_fold = true`:** body sits at `body_level = max_heading_depth + 1`
-so `:set foldlevel = max_heading_depth` is itself the CONTENTS state.
-No conceal dependency -- pick this if you keep `conceallevel = 0`
-and don't want the temporary bump.  `za` on body folds the body
-line, not the heading.
+Body lines share the parent heading's foldlevel.  Each heading
+section is one fold; `za` on body folds the heading.  CONTENTS view
+(third `<S-Tab>` state) hides body via `conceal_lines` extmarks,
+leaving every heading visible at every depth.  Auto-bumps
+`conceallevel` and `concealcursor` while CONTENTS is active and
+restores both on exit.
 
 ### CONTENTS view: special-treatment summary
 
-When the third `<S-Tab>` state is active under `body_fold = false`,
+When the third `<S-Tab>` state is active,
 several treatments apply for the duration of the mode and are
 reverted on exit -- nothing is allowed to persist past the cycle:
 

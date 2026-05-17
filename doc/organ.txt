@@ -112,7 +112,8 @@ Status: Pre-1.0. API may change before 1.0. Feedback welcome.
 ==============================================================================
 REQUIREMENTS                                              *organ-requirements*
 
- - Neovim 0.10+ (uses `nvim_set_option_value`, `vim.uv`, etc.)
+ - Neovim 0.11+ (uses `nvim_set_option_value`, `vim.uv`, `conceal_lines`
+   extmarks, etc.)
  - SQLite 3 runtime — FFI-loaded; no Lua binding required. Linux/macOS
    ship it; Windows users may need to install it separately.
  - `git` + `make` + a C compiler to build the tree-sitter grammars.
@@ -871,29 +872,17 @@ Fold                                                       *organ-config-fold*
         vim.api.nvim_set_hl(0, "OrgFolded", { bg = "#333333" })
 <
 
-                                                 *organ-config-fold-body_fold*
-    `fold.body_fold` (bool, default: `false`)
-    Selects the body-fold strategy:
-
-    `false` -- body lines share the parent heading's foldlevel; each
-    section is one fold; `za` on body folds the heading (Emacs).
-    CONTENTS view (`<S-Tab>` third state) hides body via
-    `conceal_lines` extmarks, leaving every heading visible.  Auto-
-    bumps `conceallevel` and `concealcursor` while CONTENTS is active
-    and restores both on exit.  Each heading whose body is hidden
-    also gets a virt_text `…` suffix (per-level heading-title hl
-    via `@org.heading.title.<N>.org`, so the ellipsis matches the
-    heading color) -- the heading line reads identically to its
-    OVERVIEW counterpart where `emacs_foldtext` renders the same
-    suffix on the closed fold.  Requires Neovim 0.11+ for the
-    `conceal_lines` primitive; on older Neovim CONTENTS degrades to
-    "level-1 headings only" (`foldlevel = 1`).
-
-    `true` -- body sits at `body_level = max_heading_depth + 1` so
-    `:set foldlevel = max_heading_depth` is itself the CONTENTS
-    state.  No conceal dependency -- pick this if you keep
-    `conceallevel = 0` and don't want the temporary bump.  `za` on
-    body folds the body line, not the heading.
+    Body lines share the parent heading's foldlevel; each section is
+    one fold; `za` on body folds the heading (Emacs).  CONTENTS view
+    (`<S-Tab>` third state) hides body via `conceal_lines` extmarks,
+    leaving every heading visible.  Auto-bumps `conceallevel` and
+    `concealcursor` while CONTENTS is active and restores both on
+    exit.  Each heading whose body is hidden also gets a virt_text
+    `…` suffix (per-level heading-title hl via
+    `@org.heading.title.<N>.org`, so the ellipsis matches the heading
+    color) -- the heading line reads identically to its OVERVIEW
+    counterpart where `emacs_foldtext` renders the same suffix on the
+    closed fold.
 
                                               *organ-fold-statuscolumn_marker*
     `require("organ.fold").statuscolumn_marker(lnum)`

@@ -17,18 +17,13 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
-if not require("organ.fold.contents").is_supported() then
-  print("(skipped: nvim does not support `conceal_lines` extmark)")
-  print("fold_contents_winleave_state_test: SKIP")
-  os.exit(0)
-end
 
 require("organ").setup({
   org_dir = "/tmp",
   notify = false,
   scan_on_startup = false,
   watcher = { enabled = false },
-  fold = { auto_statuscolumn = false, body_fold = false },
+  fold = { auto_statuscolumn = false },
 })
 vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
 

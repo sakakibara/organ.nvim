@@ -16,11 +16,6 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
-if not require("organ.fold.contents").is_supported() then
-  print("(skipped: nvim does not support `conceal_lines` extmark)")
-  print("fold_contents_per_window_test: SKIP")
-  os.exit(0)
-end
 
 require("organ").setup({
   org_dir = "/tmp",
@@ -28,7 +23,7 @@ require("organ").setup({
   scan_on_startup = false,
   debounce_ms = 0,
   watcher = { enabled = false },
-  fold = { auto_statuscolumn = false, body_fold = false },
+  fold = { auto_statuscolumn = false },
 })
 vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
 
@@ -60,8 +55,8 @@ for _, w in ipairs({ wA, wB }) do
 end
 
 -- Window A: enter CONTENTS via cycle_global (S-Tab equivalent).
--- cycle_global is the public API S-Tab calls.  In default config
--- (body_fold = false) the third state is CONTENTS via conceal_lines.
+-- cycle_global is the public API S-Tab calls; third state is
+-- CONTENTS via conceal_lines extmarks.
 local fold = require("organ.fold")
 vim.api.nvim_set_current_win(wA)
 fold.cycle_global(b) -- SHOW_ALL -> OVERVIEW

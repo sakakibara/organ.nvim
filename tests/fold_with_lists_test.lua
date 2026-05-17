@@ -54,10 +54,10 @@ vim.bo[b].filetype = "org"
 
 local levels = fold._build_fold_levels(b)
 
--- Default `fold.body_fold = false`: body lines share their parent
--- heading's level, so the whole subtree is one fold and `za` on body
--- folds the heading.  Drawers / blocks bump one further than their
--- enclosing heading via the treesitter pass.
+-- Body lines share their parent heading's level, so the whole
+-- subtree is one fold and `za` on body folds the heading.  Drawers /
+-- blocks bump one further than their enclosing heading via the
+-- treesitter pass.
 local expected = {
   [1] = ">1", -- * Active
   [2] = ">2", -- ** TODO Item with list

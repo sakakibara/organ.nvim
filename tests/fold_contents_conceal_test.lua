@@ -1,7 +1,6 @@
--- Default `fold.body_fold = false`: CONTENTS view hides body via the
--- `conceal_lines` extmark layer in `organ.fold.contents`, not via
--- foldlevel.  Verify enter/leave/refresh place and clear the marks
--- and bump conceallevel correctly.
+-- CONTENTS view hides body via the `conceal_lines` extmark layer in
+-- `organ.fold.contents`, not via foldlevel.  Verify enter/leave/
+-- refresh place and clear the marks and bump conceallevel correctly.
 --
 -- Run via: nvim --headless -l tests/fold_contents_conceal_test.lua
 
@@ -15,11 +14,6 @@ require("organ").setup({
 
 local contents = require("organ.fold.contents")
 
-if not contents.is_supported() then
-  print("(skipped: nvim does not support `conceal_lines` extmark)")
-  print("fold_contents_conceal_test: SKIP")
-  os.exit(0)
-end
 
 local fails = 0
 local function check(label, ok, detail)

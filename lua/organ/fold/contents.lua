@@ -1,10 +1,10 @@
 -- CONTENTS view via `conceal_lines` extmarks (Emacs-fidelity).
 --
--- When `fold.body_fold = false`, body lines share the parent heading's
--- foldlevel, so there's no foldlevel state that hides body without
--- also hiding sub-headings.  Instead, CONTENTS state lays a conceal
--- layer over each section's body line range.  All headings stay
--- visible regardless of depth; body disappears.
+-- Body lines share the parent heading's foldlevel, so there's no
+-- foldlevel state that hides body without also hiding sub-headings.
+-- Instead, CONTENTS state lays a conceal layer over each section's
+-- body line range.  All headings stay visible regardless of depth;
+-- body disappears.  Requires nvim >= 0.11 (`conceal_lines` extmark).
 --
 -- CONTENTS is a PER-WINDOW state.  Two splits showing the same buffer
 -- can independently be in SHOW_ALL, OVERVIEW, or CONTENTS.  The decoration
@@ -22,7 +22,6 @@
 
 local M = {}
 
-local obuf = require("organ.buf")
 local NS = vim.api.nvim_create_namespace("organ_fold_contents")
 -- Decoration-provider namespace: distinct from NS so the provider's
 -- on_win can clear its own work without disturbing user-placed extmarks
@@ -66,38 +65,6 @@ local function invalidate_buf_cache(bufnr)
     end
   end
 end
-
--- Probe once: nvim_buf_set_extmark with `conceal_lines = ""` is the
--- primitive this module relies on (added in nvim 0.11).  On 0.10 the
--- argument is silently ignored; we detect it here and refuse to enter
--- so callers can fall back to the body_fold strategy.
-local supported = nil
-local function is_supported()
-  if supported ~= nil then
-    return supported
-  end
-  local probe_buf = vim.api.nvim_create_buf(false, true)
-  obuf.set_lines(probe_buf, 0, -1, { "a", "b" })
-  local probe_ns = vim.api.nvim_create_namespace("organ_fold_contents_probe")
-  local ok = pcall(function()
-    vim.api.nvim_buf_set_extmark(probe_buf, probe_ns, 0, 0, {
-      end_row = 1,
-      conceal_lines = "",
-    })
-  end)
-  if ok then
-    -- The extmark accepted; verify it actually conceals by inspecting
-    -- the metadata field on get_extmark_by_id.
-    local marks = vim.api.nvim_buf_get_extmarks(probe_buf, probe_ns, 0, -1, { details = true })
-    supported = #marks == 1 and marks[1][4] and marks[1][4].conceal_lines == ""
-  else
-    supported = false
-  end
-  pcall(vim.api.nvim_buf_delete, probe_buf, { force = true })
-  return supported
-end
-
-M.is_supported = is_supported
 
 -- Body range of every heading section: lines between the heading and
 -- the line BEFORE the next heading (any depth).  Sub-headings sit
@@ -667,9 +634,6 @@ local FOLD_KEYS = {
 }
 
 function M.enter(target)
-  if not is_supported() then
-    return
-  end
   local winid, bufnr = resolve(target)
   if not (winid and bufnr and vim.api.nvim_win_is_valid(winid)) then
     return

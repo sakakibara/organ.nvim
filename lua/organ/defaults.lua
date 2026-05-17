@@ -595,17 +595,6 @@ return {
     -- collapsed when an org buffer is opened. Set to false to keep
     -- them all expanded.
     close_drawers_on_open = true,
-    -- false: body lines have no fold of their own; `za` on body folds
-    --   the parent heading (Emacs behavior).  CONTENTS view (third
-    --   `<S-Tab>` state) uses `conceal_lines` extmarks to hide body
-    --   while keeping all headings visible — auto-bumps `conceallevel`
-    --   to 2 for the duration and restores on exit.  Requires
-    --   conceal-capable nvim (>= 0.11).
-    -- true: body lines sit in their own deeper fold layer; CONTENTS
-    --   uses `:set foldlevel = max_heading_depth`.  Doesn't depend on
-    --   conceal — pick this if you keep `conceallevel = 0` and don't
-    --   want the temporary bump.  `za` on body folds the body line.
-    body_fold = false,
     -- Number of trailing blank lines to keep visible after a folded
     -- section, matching Emacs `org-cycle-separator-lines` (default 2).
     -- The LAST `min(blanks, max(N, 1))` blank lines before the next

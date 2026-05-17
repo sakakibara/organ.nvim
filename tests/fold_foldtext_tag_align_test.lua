@@ -157,7 +157,7 @@ do
 end
 
 -- ── CONTENTS-view path ─────────────────────────────────────────────
-if contents.is_supported() then
+do
   local b = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_set_current_buf(b)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, {

@@ -195,105 +195,158 @@ function M.cycle(bufnr, line)
   M._state[bufnr][headline_line] = nxt
 end
 
--- <S-Tab>: cycle the global state through SHOW_ALL -> OVERVIEW ->
--- CONTENTS -> SHOW_ALL.  Mirrors Emacs `org-shifttab`.
+-- Global fold states, in Emacs `org-cycle` terms:
 --
--- SHOW_ALL: everything visible (foldlevel=99, no conceal layer).
--- OVERVIEW: only top-level headings (foldlevel=0).
--- CONTENTS: every heading visible, body hidden.  Two strategies:
---   * body_fold = false (default): conceal-layer over body ranges
---     (foldlevel stays at 99; body lines are concealed via extmarks).
---   * body_fold = true: foldlevel = max_heading_depth (body sits at
---     body_level so this hides body but keeps headings visible).
-function M.cycle_global(bufnr)
-  bufnr = nbuf(bufnr)
-  local body_fold = ((require("organ.buf_config").read(nil, "fold") or {}).body_fold == true)
-  local contents = require("organ.fold.contents")
-  local md = M._max_heading_depth(bufnr)
-  if md < 1 then
-    md = 1
+--   SHOW_ALL        every line visible; drawers stay folded
+--                   (`org-cycle-hide-drawers`).
+--   OVERVIEW        only top-level headings (foldlevel = 0).
+--   CONTENTS        every heading visible, body hidden via the
+--                   `conceal_lines` extmark layer
+--                   (organ.fold.contents).
+--   SHOW_EVERYTHING every line visible; drawers open too.  Startup
+--                   directive only (`#+STARTUP: showeverything`);
+--                   not on the <S-Tab> cycle.
+--
+-- One applier per state, used by BOTH <S-Tab> (cycle_global, below)
+-- and the `#+STARTUP:` path (ftplugin/core).  Routing both call sites
+-- through the same helper is what keeps them from drifting:
+-- previously the startup path inlined `foldlevel = 1` for overview,
+-- which disagreed with cycle_global's `foldlevel = 0` and surfaced as
+-- "the file opens showing more than overview is supposed to show".
+--
+-- Each applier takes explicit (winid, bufnr) so the caller doesn't
+-- have to depend on whichever window happens to be current.
+local function _set_local_foldlevel(winid, lvl)
+  pcall(vim.api.nvim_set_option_value, "foldlevel", lvl, { win = winid, scope = "local" })
+end
+
+local function _leave_contents_if_active(winid)
+  local ok, contents = pcall(require, "organ.fold.contents")
+  if ok and contents.is_active and contents.is_active(winid) then
+    contents.leave(winid)
   end
-  local lvl = vim.wo.foldlevel
-  if body_fold then
-    -- body_fold strategy: state encoded in foldlevel alone.
-    --   0  -> CONTENTS (md)
-    --   md -> SHOW_ALL (99)
-    --   else -> OVERVIEW (0)
-    if lvl == 0 then
-      vim.wo.foldlevel = md
-    elseif lvl == md then
-      vim.wo.foldlevel = 99
-    else
-      vim.wo.foldlevel = 0
-    end
-  elseif contents.is_supported() then
-    -- conceal strategy: state is OVERVIEW(foldlevel=0) /
-    -- CONTENTS(extmarks active for THIS window) / SHOW_ALL
-    -- (foldlevel=99, no extmarks for THIS window).  The per-window
-    -- focus is intentional: two splits showing the same buffer must
-    -- cycle independently (S-Tab in window A leaves window B alone).
-    -- contents.* accept a winid; pass current explicitly so the
-    -- intent is unambiguous at the call site.
-    local winid = vim.api.nvim_get_current_win()
-    if contents.is_active(winid) then
-      contents.leave(winid)
-      vim.wo.foldlevel = 99
-    elseif lvl == 0 then
-      vim.wo.foldlevel = 99
-      contents.enter(winid)
-    else
-      vim.wo.foldlevel = 0
-    end
-  else
-    -- conceal_lines extmark unavailable (nvim < 0.11): no way to hide
-    -- body without folding it.  Use a degraded CONTENTS where only
-    -- level-1 headings stay visible (foldlevel=1) -- body still has
-    -- no fold of its own.
-    --   99 -> 0 (OVERVIEW), 0 -> 1 (CONTENTS-degraded), else -> 99.
-    if lvl == 99 then
-      vim.wo.foldlevel = 0
-    elseif lvl == 0 then
-      vim.wo.foldlevel = 1
-    else
-      vim.wo.foldlevel = 99
-    end
+end
+
+-- Drawers (PROPERTIES, LOGBOOK, etc.) are noise unless the user
+-- explicitly opens them — Emacs's `org-cycle-hide-drawers` keeps
+-- them folded across every global-cycle state.  After a foldlevel
+-- change, re-close every drawer so a transition to "show all" still
+-- hides drawer bodies.  Tab on a drawer line still opens it
+-- (cycle()'s drawer-at-cursor branch handles that explicitly).
+--
+-- Debounce against rapid global-state changes (S-Tab spam): each
+-- call would otherwise schedule a `close_all_drawers` walk that is
+-- O(N tree nodes) and triggers a redraw per drawer.  Tagging each
+-- call with a fresh token and short-circuiting earlier schedules
+-- drops all but the final one.
+local function _schedule_drawer_close(bufnr)
+  if (require("organ.buf_config").read(nil, "fold") or {}).close_drawers_on_open == false then
+    return
   end
-  -- Drawers (PROPERTIES, LOGBOOK, etc.) are noise unless the user
-  -- explicitly opens them — Emacs's `org-cycle-hide-drawers` keeps
-  -- them folded across every global-cycle state.  After foldlevel
-  -- changes, re-close every drawer so a transition to "show all"
-  -- still hides drawer bodies.  Tab on a drawer line still opens
-  -- it (cycle()'s drawer-at-cursor branch above).
-  --
-  -- Debounce against rapid `<S-Tab>` presses: each global cycle
-  -- schedules a `close_all_drawers` walk, but on a real-world
-  -- buffer that walk is O(N tree nodes) and triggers a
-  -- redraw-per-drawer.  Without coalescing, spamming <S-Tab> 10x
-  -- queues 10 walks; each one runs to completion before the next
-  -- keystroke is processed, surfacing as a multi-second hang on
-  -- the next user input (the trigger for the "freeze on `za` after
-  -- spamming <S-Tab>" report).  Tagging each call with a fresh
-  -- token and short-circuiting earlier schedules drops all but the
-  -- final one.
-  if (require("organ.buf_config").read(nil, "fold") or {}).close_drawers_on_open ~= false then
-    local tok = {}
-    M._drawer_close_tok[bufnr] = tok
-    vim.schedule(function()
-      if M._drawer_close_tok[bufnr] ~= tok then
-        return
-      end
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        M.close_all_drawers(bufnr)
-      end
-    end)
-  end
-  -- foldlevel just changed -- the visible-distance cache is now
-  -- stale until something else (cursor move, edit) bumps its key.
-  -- Invalidate explicitly so statuscolumn relnum re-renders without
-  -- the user having to nudge the cursor.
+  local tok = {}
+  M._drawer_close_tok[bufnr] = tok
+  vim.schedule(function()
+    if M._drawer_close_tok[bufnr] ~= tok then
+      return
+    end
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      M.close_all_drawers(bufnr)
+    end
+  end)
+end
+
+-- foldlevel / extmark state changed -- the visible-distance cache is
+-- stale until something else (cursor move, edit) bumps its key.
+-- Invalidate so statuscolumn relnum re-renders without the user
+-- nudging the cursor.
+local function _invalidate_visible_cache(bufnr)
   pcall(function()
     require("organ.fold.contents").invalidate_visible_cache(bufnr)
   end)
+end
+
+function M.apply_overview(winid, bufnr)
+  _leave_contents_if_active(winid)
+  _set_local_foldlevel(winid, 0)
+  _schedule_drawer_close(bufnr)
+  _invalidate_visible_cache(bufnr)
+end
+
+function M.apply_content(winid, bufnr)
+  _set_local_foldlevel(winid, 99)
+  require("organ.fold.contents").enter(winid)
+  _schedule_drawer_close(bufnr)
+  _invalidate_visible_cache(bufnr)
+end
+
+function M.apply_show_all(winid, bufnr)
+  _leave_contents_if_active(winid)
+  _set_local_foldlevel(winid, 99)
+  _schedule_drawer_close(bufnr)
+  _invalidate_visible_cache(bufnr)
+end
+
+function M.apply_show_everything(winid, bufnr)
+  _leave_contents_if_active(winid)
+  -- zR sets foldlevel to the highest fold level present AND opens
+  -- every closed fold, including drawer folds.  That matches the
+  -- `showeverything` semantic (drawers open, unlike `showall`).
+  vim.api.nvim_win_call(winid, function()
+    vim.cmd("silent! normal! zR")
+  end)
+  _invalidate_visible_cache(bufnr)
+end
+
+-- Detect the current global state of a window so cycle_global can
+-- compute the next one without inlining the inverse of every
+-- applier.
+function M.detect_global_state(winid, bufnr)
+  local ok, contents = pcall(require, "organ.fold.contents")
+  if ok and contents.is_active and contents.is_active(winid) then
+    return "content"
+  end
+  local lvl = vim.api.nvim_get_option_value("foldlevel", { win = winid })
+  if lvl == 0 then
+    return "overview"
+  end
+  return "show_all"
+end
+
+-- <S-Tab>: show_all -> overview -> content -> show_all.  Mirrors
+-- Emacs `org-shifttab` / `org-cycle-global`.  `show_everything` is
+-- intentionally NOT on this cycle (startup-directive only); cycling
+-- through it would expose drawers and disagree with Emacs.
+local _NEXT_GLOBAL = {
+  show_all = "overview",
+  overview = "content",
+  content = "show_all",
+}
+
+function M.next_global_state(state)
+  return _NEXT_GLOBAL[state] or "overview"
+end
+
+local _APPLIERS = {
+  overview = function(w, b) M.apply_overview(w, b) end,
+  content = function(w, b) M.apply_content(w, b) end,
+  show_all = function(w, b) M.apply_show_all(w, b) end,
+  show_everything = function(w, b) M.apply_show_everything(w, b) end,
+}
+
+function M.apply_global_state(state, winid, bufnr)
+  local fn = _APPLIERS[state]
+  if fn then
+    fn(winid, bufnr)
+  end
+end
+
+function M.cycle_global(bufnr)
+  bufnr = nbuf(bufnr)
+  -- Per-window state: two splits showing the same buffer cycle
+  -- independently (S-Tab in window A doesn't move window B).
+  local winid = vim.api.nvim_get_current_win()
+  local next_state = M.next_global_state(M.detect_global_state(winid, bufnr))
+  M.apply_global_state(next_state, winid, bufnr)
 end
 
 -- Per-buffer "latest scheduled close_all_drawers" token; see the
@@ -414,78 +467,20 @@ local function build_fold_levels(bufnr)
   local nlines = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, nlines, false)
   local levels = {}
-  local body_fold = ((require("organ.buf_config").read(nil, "fold") or {}).body_fold == true)
-  -- body_fold = false (default): body shares the heading's level — the
-  -- whole subtree is one fold.  `za` on body folds the heading.
-  -- CONTENTS view is provided by an extmark layer (organ.fold.contents),
-  -- not by foldlevel.
-  -- body_fold = true (opt-in): body sits at body_level = max_depth + 1
-  -- so `:set foldlevel = max_depth` hides body but keeps headings
-  -- visible.  `za` on body folds just the body.
-  local body_level
-  if body_fold then
-    local max_depth = 0
-    for _, l in ipairs(lines) do
-      local stars = l:match("^(%*+)%s")
-      if stars and #stars > max_depth then
-        max_depth = #stars
-      end
-    end
-    body_level = math.max(2, max_depth + 1)
-  end
+  -- Body shares the parent heading's foldlevel, so the whole subtree
+  -- is one fold.  CONTENTS view is provided by an extmark layer
+  -- (organ.fold.contents), not by foldlevel.
   local cur_level = 0
-  local in_body = false
   for i = 1, nlines do
     local line = lines[i] or ""
     local stars = line:match("^(%*+)%s")
     if stars then
       cur_level = #stars
       levels[i] = ">" .. cur_level
-      in_body = false
     elseif cur_level > 0 then
-      if not body_fold then
-        levels[i] = tostring(cur_level)
-      elseif line:match("^%s*$") then
-        -- Blank lines stay at cur_level so a content-less heading's
-        -- separator doesn't open a phantom 1-line body fold.
-        levels[i] = in_body and tostring(body_level) or tostring(cur_level)
-      elseif not in_body then
-        levels[i] = ">" .. body_level
-        in_body = true
-      else
-        levels[i] = tostring(body_level)
-      end
+      levels[i] = tostring(cur_level)
     else
       levels[i] = "0"
-    end
-  end
-  if body_fold then
-    -- Demote trailing blanks (assigned body_level above) back to cur_level.
-    local section_level = 0
-    local trailing_start = nil
-    for i = 1, nlines do
-      local line = lines[i] or ""
-      local stars = line:match("^(%*+)%s")
-      if stars then
-        if trailing_start then
-          for j = trailing_start, i - 1 do
-            levels[j] = tostring(section_level)
-          end
-          trailing_start = nil
-        end
-        section_level = #stars
-      elseif section_level > 0 then
-        if line:match("^%s*$") then
-          trailing_start = trailing_start or i
-        else
-          trailing_start = nil
-        end
-      end
-    end
-    if trailing_start then
-      for j = trailing_start, nlines do
-        levels[j] = tostring(section_level)
-      end
     end
   end
   -- cycle-separator-lines: keep the LAST N trailing blank lines of each

@@ -9,6 +9,17 @@ if vim.g.loaded_organ then
 end
 vim.g.loaded_organ = true
 
+-- Minimum supported Neovim is 0.11 (CONTENTS view relies on the
+-- `conceal_lines` extmark primitive, added in 0.11).  Notify and bail
+-- out rather than silently 404 on every CONTENTS entry.
+if vim.fn.has("nvim-0.11") == 0 then
+  vim.notify(
+    "organ.nvim requires Neovim 0.11 or newer (got " .. tostring(vim.version()) .. ")",
+    vim.log.levels.ERROR
+  )
+  return
+end
+
 -- Ensure .org buffers always get filetype = "org".
 vim.filetype.add({ extension = { org = "org" } })
 

@@ -209,124 +209,75 @@ function M.attach(bufnr)
     end,
   })
 
-  -- Drawers start collapsed (Emacs default). Defer one tick so the TS
-  -- parser + foldexpr have populated before we try to close ranges.
-  -- Opt-out: cfg.fold.close_drawers_on_open = false.
-  if (cfg.fold or {}).close_drawers_on_open ~= false then
-    vim.schedule(function()
-      if vim.api.nvim_buf_is_valid(bufnr) then
-        require("organ.fold").close_all_drawers(bufnr)
-      end
-    end)
-  end
-
   -- Initial outline fold state (Emacs `org-startup-folded`).  Honor
   -- a buffer-local `#+STARTUP:` override (overview/content/showall/
   -- showeverything/fold/nofold) when present, else fall back to the
-  -- global `startup.folded` config.
+  -- global `startup.folded` config.  The four resolved states map
+  -- 1:1 onto organ.fold's apply_* helpers, so this path and the
+  -- <S-Tab> cycle path stay in lock-step: previously the startup
+  -- path inlined its own foldlevel writes that disagreed with
+  -- cycle_global (overview here was foldlevel=1, cycle_global's
+  -- overview is foldlevel=0), and the file opened in a state S-Tab
+  -- could never return to.
   --
   -- Scratch-style org buffers (capture float, etc.) opt out via
   -- `b:organ_no_startup_fold = true` so a 1-2 line entry isn't
   -- folded into a single headline-only line.
   if not vim.b[bufnr].organ_no_startup_fold then
-    do
-      local folded = (cfg.startup or {}).folded
-      -- Scan the first 50 lines for #+STARTUP: directives.
-      local lines = vim.api.nvim_buf_get_lines(
-        bufnr,
-        0,
-        math.min(50, vim.api.nvim_buf_line_count(bufnr)),
-        false
-      )
-      for _, l in ipairs(lines) do
-        local val = l:match("^%s*#%+[Ss][Tt][Aa][Rr][Tt][Uu][Pp]:%s*(.*)$")
-        if val then
-          for tok in val:gmatch("%S+") do
-            local lt = tok:lower()
-            if
-              lt == "overview"
-              or lt == "content"
-              or lt == "showall"
-              or lt == "showeverything"
-              or lt == "fold"
-              or lt == "nofold"
-            then
-              folded = lt
-            end
+    local folded = (cfg.startup or {}).folded
+    -- Scan the first 50 lines for #+STARTUP: directives.
+    local lines = vim.api.nvim_buf_get_lines(
+      bufnr,
+      0,
+      math.min(50, vim.api.nvim_buf_line_count(bufnr)),
+      false
+    )
+    for _, l in ipairs(lines) do
+      local val = l:match("^%s*#%+[Ss][Tt][Aa][Rr][Tt][Uu][Pp]:%s*(.*)$")
+      if val then
+        for tok in val:gmatch("%S+") do
+          local lt = tok:lower()
+          if
+            lt == "overview"
+            or lt == "content"
+            or lt == "showall"
+            or lt == "showeverything"
+            or lt == "fold"
+            or lt == "nofold"
+          then
+            folded = lt
           end
         end
       end
-      if folded == "fold" or folded == true then
-        folded = "overview"
-      end
-      if folded == "nofold" or folded == false then
-        folded = "showall"
-      end
+    end
+    if folded == "fold" or folded == true then
+      folded = "overview"
+    end
+    if folded == "nofold" or folded == false then
+      folded = "showall"
+    end
+    local STARTUP_TO_STATE = {
+      overview = "overview",
+      content = "content",
+      showall = "show_all",
+      showeverything = "show_everything",
+    }
+    local state = STARTUP_TO_STATE[folded]
+    if state then
+      -- Defer one tick: the TS parser + foldexpr need to have
+      -- populated before close_all_drawers / contents.enter can
+      -- find ranges to act on.  Resolve the winid at fire time so
+      -- nvim_buf_call's "current window" doesn't land on a capture
+      -- float that happens to be focused.
       vim.schedule(function()
         if not vim.api.nvim_buf_is_valid(bufnr) then
           return
         end
-        pcall(function()
-          -- Compute the deepest heading depth in the buffer. Used by
-          -- the `content` state ("all headings visible, no body") to
-          -- pick the right foldlevel for files of varying depth.
-          local function max_heading_depth()
-            local deepest = 0
-            local n = vim.api.nvim_buf_line_count(bufnr)
-            local buf_lines = vim.api.nvim_buf_get_lines(bufnr, 0, n, false)
-            for _, l in ipairs(buf_lines) do
-              local stars = l:match("^(%*+)%s")
-              if stars and #stars > deepest then
-                deepest = #stars
-              end
-            end
-            return deepest
-          end
-          -- Resolve the winid that holds bufnr at schedule-fire time.
-          -- nvim_buf_call doesn't switch windows, so `win = 0` would
-          -- target whatever window is current then -- if a different
-          -- buffer (e.g. a capture float) is current, foldlevel=1
-          -- lands on the wrong window.  Skip the fold-state push when
-          -- bufnr isn't on screen anywhere.
-          local target_winid = vim.fn.bufwinid(bufnr)
-          if target_winid <= 0 then
-            return
-          end
-          if folded == "overview" then
-            pcall(
-              vim.api.nvim_set_option_value,
-              "foldlevel",
-              1,
-              { win = target_winid, scope = "local" }
-            )
-          elseif folded == "content" then
-            local depth = max_heading_depth()
-            if depth < 1 then
-              depth = 1
-            end
-            pcall(
-              vim.api.nvim_set_option_value,
-              "foldlevel",
-              depth,
-              { win = target_winid, scope = "local" }
-            )
-            -- Drawers (level depth+1) close as a side effect of the
-            -- foldlevel; close_all_drawers above already collapsed
-            -- them, no extra work needed.
-          elseif folded == "showall" then
-            vim.api.nvim_win_call(target_winid, function()
-              vim.cmd("silent! normal! zR")
-              -- zR re-opens drawers we collapsed above; restore them
-              -- so `showall` matches Emacs (drawers hidden by default).
-              require("organ.fold").close_all_drawers(bufnr)
-            end)
-          elseif folded == "showeverything" then
-            vim.api.nvim_win_call(target_winid, function()
-              vim.cmd("silent! normal! zR")
-              -- showeverything is the one mode that opens drawers too.
-            end)
-          end
-        end)
+        local target_winid = vim.fn.bufwinid(bufnr)
+        if target_winid <= 0 then
+          return
+        end
+        require("organ.fold").apply_global_state(state, target_winid, bufnr)
       end)
     end
   end -- if not organ_no_startup_fold

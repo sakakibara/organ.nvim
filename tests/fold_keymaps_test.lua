@@ -17,9 +17,6 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
--- This test asserts the legacy `body_fold = true` strategy where
--- CONTENTS state hides body via foldlevel = max_heading_depth.
-require("organ").config.fold.body_fold = true
 
 local fails = 0
 local function check(label, ok, detail)
@@ -73,11 +70,33 @@ local function cleanup(tmp)
   vim.fn.delete(tmp)
 end
 
--- The user can READ this line's actual text — no fold is hiding it.
--- Use for body lines where the whole point of folding is to hide
--- content; the fold-head placeholder doesn't count as "body shown".
+-- The user can READ this line's actual text — neither a fold nor a
+-- conceal_lines extmark is hiding it.  Use for body lines where the
+-- whole point of folding is to hide content; the fold-head
+-- placeholder doesn't count as "body shown".  CONTENTS state hides
+-- body via conceal_lines extmarks (not folds), so foldclosed alone
+-- isn't enough.
 local function text_visible(l)
-  return vim.fn.foldclosed(l) == -1
+  if vim.fn.foldclosed(l) ~= -1 then
+    return false
+  end
+  local bufnr = vim.api.nvim_get_current_buf()
+  local ns = vim.api.nvim_get_namespaces()["organ_fold_contents"]
+  if not ns then
+    return true
+  end
+  local marks = vim.api.nvim_buf_get_extmarks(
+    bufnr, ns, { l - 1, 0 }, { l - 1, -1 },
+    { details = true, overlap = true }
+  )
+  for _, m in ipairs(marks) do
+    local opts = m[4]
+    local end_row = opts.end_row or m[2]
+    if m[2] <= (l - 1) and (l - 1) <= end_row and opts.conceal_lines == "" then
+      return false
+    end
+  end
+  return true
 end
 
 -- The user sees SOMETHING on this screen line — either the original
@@ -210,10 +229,9 @@ do
 
   require("organ.fold").cycle_global(0)
   vim.cmd("silent! normal! zx") -- recompute folds; headless skips auto-recompute
-  -- CONTENTS: every heading visible, every body line hidden.  The
-  -- body_level = max_heading_depth + 1 trick collapses ALL body
-  -- lines under the same level, so a single foldlevel = max_depth
-  -- hides them all regardless of which heading they sit under.
+  -- CONTENTS: every heading visible, every body line hidden via the
+  -- conceal_lines extmark layer.  foldlevel stays at 99 (no fold
+  -- closing); body is hidden purely via extmarks.
   check("S-Tab from OVERVIEW → CONTENTS: H1 visible", visible(1))
   check("CONTENTS: H2-a visible", visible(6))
   check("CONTENTS: H3 visible", visible(8))

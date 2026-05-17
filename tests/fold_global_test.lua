@@ -1,5 +1,4 @@
 -- fold.cycle_global(bufnr) cycles SHOW_ALL -> OVERVIEW -> CONTENTS.
--- Default `fold.body_fold = false` strategy:
 --   SHOW_ALL: foldlevel = 99, no conceal layer.
 --   OVERVIEW: foldlevel = 0.
 --   CONTENTS: foldlevel = 99 + conceal extmarks over body ranges.
@@ -17,11 +16,6 @@ require("organ").setup({
 local fold = require("organ.fold")
 local contents = require("organ.fold.contents")
 
-if not contents.is_supported() then
-  print("(skipped: nvim does not support `conceal_lines` extmark)")
-  print("fold_global_test: SKIP")
-  os.exit(0)
-end
 
 local fails = 0
 local function check(label, ok, detail)

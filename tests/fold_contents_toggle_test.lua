@@ -15,11 +15,6 @@ require("organ").setup({
 })
 
 local contents = require("organ.fold.contents")
-if not contents.is_supported() then
-  print("(skipped: nvim does not support `conceal_lines` extmark)")
-  print("fold_contents_toggle_test: SKIP")
-  os.exit(0)
-end
 
 local fails = 0
 local function check(label, ok, detail)
@@ -42,6 +37,11 @@ vim.api.nvim_buf_set_lines(b, 0, -1, false, {
   "* H3", -- 6
   "body of H3", -- 7
 })
+-- Opt out of ftplugin startup fold: this test drives CONTENTS state
+-- manually via `contents.enter(b)`, and a scheduled apply_show_everything
+-- (from the default `#+STARTUP: showeverything`) would leave the
+-- CONTENTS state right after we entered it.
+vim.b[b].organ_no_startup_fold = true
 vim.bo[b].filetype = "org"
 local TOTAL = 7
 local HEADINGS = 3 -- H1, H2 sub, H3

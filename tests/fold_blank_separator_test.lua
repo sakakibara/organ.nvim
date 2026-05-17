@@ -1,6 +1,5 @@
--- `fold.body_fold = false` semantics: body lines (including blanks)
--- share the parent heading's level.  No phantom body fold can exist
--- because body has no fold of its own.
+-- Body lines (including blanks) share the parent heading's level.
+-- No phantom body fold can exist because body has no fold of its own.
 --
 -- This test explicitly disables `cycle_separator_lines` (which would
 -- otherwise demote trailing blanks to an outer level so they stay
