@@ -508,7 +508,13 @@ local function build_fold_levels(bufnr)
       local line = lines[i] or ""
       local stars = line:match("^(%*+)%s")
       if stars then
-        if trailing_start and section_level > 0 then
+        -- Demote trailing blanks only when the next heading is a
+        -- sibling or shallower (`#stars <= section_level`).  When
+        -- going DEEPER (parent -> child), the blank is intra-parent
+        -- body, not an inter-subtree separator -- demoting it would
+        -- punch a hole in the parent's fold, truncating the parent's
+        -- fold range to the heading line alone.
+        if trailing_start and section_level > 0 and #stars <= section_level then
           local total_blanks = i - trailing_start
           local n_visible = math.min(total_blanks, visible_count)
           local outer = math.max(0, math.min(section_level, #stars) - 1)

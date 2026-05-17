@@ -128,6 +128,77 @@ do
   )
 end
 
+-- Parent -> child transition: blank between `* L1` and its `** Child` is
+-- INSIDE L1's subtree (not an inter-subtree separator), so it must stay
+-- at the parent's level (1).  Demoting it to 0 would punch a hole in
+-- the parent's fold range -- the L=1 fold would be truncated to the
+-- heading line alone, and `za` on the heading would toggle a 1-line
+-- fold (statuscolumn flips, but nothing visibly collapses).
+do
+  local lvls = fold_levels({ "* L1", "", "** Child", "body" }, 2)
+  check(
+    "parent -> child: blank between L1 and ** Child stays at L=1",
+    lvls[2] == "1",
+    vim.inspect(lvls)
+  )
+end
+do
+  local lvls = fold_levels({ "* L1", "", "", "** Child", "body" }, 2)
+  check(
+    "parent -> child with 2 blanks: both stay at L=1",
+    lvls[2] == "1" and lvls[3] == "1",
+    vim.inspect(lvls)
+  )
+end
+do
+  local lvls = fold_levels({ "** L2", "", "*** Child", "body" }, 2)
+  check(
+    "L2 -> L3 child: blank stays at L=2 (not demoted to L=1)",
+    lvls[2] == "2",
+    vim.inspect(lvls)
+  )
+end
+
+-- End-to-end: open a buffer mirroring the reported case (overview state
+-- + parent with a single blank-then-child structure) and verify the
+-- parent's closed fold spans the whole subtree, not just the heading.
+do
+  require("organ").setup({
+    db_path = vim.fn.tempname() .. ".db",
+    notify = false,
+    scan_on_startup = false,
+    watcher = { enabled = false },
+  })
+  local b = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+    "* Tasks",        -- 1
+    "",               -- 2
+    "** Group",       -- 3
+    "",               -- 4
+    "*** Child A",    -- 5
+    "body a",         -- 6
+    "",               -- 7
+    "*** Child B",    -- 8
+    "body b",         -- 9
+  })
+  vim.api.nvim_set_current_buf(b)
+  vim.bo[b].filetype = "org"
+  vim.treesitter.get_parser(b, "org"):parse()
+  vim.wo.foldmethod = "expr"
+  vim.wo.foldexpr = "v:lua.require'organ.fold'.foldexpr(v:lnum)"
+  vim.wo.foldenable = true
+  vim.wo.foldlevel = 1 -- overview: only L=1 visible, L>=2 closed
+  vim.cmd("normal! zx")
+  local fc = vim.fn.foldclosed(3)
+  local fce = vim.fn.foldclosedend(3)
+  check(
+    "overview state: ** Group's closed fold covers its whole subtree (not just heading line)",
+    fc == 3 and fce >= 8,
+    string.format("foldclosed(3)=%d foldclosedend(3)=%d (expected fc=3, fce>=8)", fc, fce)
+  )
+  vim.api.nvim_buf_delete(b, { force = true })
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
