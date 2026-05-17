@@ -118,6 +118,26 @@
                         rows))))
              (princ (mapconcat #'identity (nreverse rows) "\n"))
              (princ "\n")))
+          ;; Inline-markup probe -- dump each emphasis element in
+          ;; document order.  Emacs `org-element-parse-buffer' resolves
+          ;; the pre/post-char rules from `org-emphasis-regexp-
+          ;; components' so this is the ground truth for "what is and
+          ;; isn't recognized as bold/italic/etc."
+          ((string= op "dump-emphasis")
+           (let ((tree (org-element-parse-buffer))
+                 (rows '()))
+             (org-element-map tree
+                 '(bold italic underline strike-through code verbatim)
+               (lambda (el)
+                 (let* ((type (org-element-type el))
+                        (text (if (memq type '(code verbatim))
+                                  (or (org-element-property :value el) "")
+                                (buffer-substring-no-properties
+                                 (org-element-property :contents-begin el)
+                                 (org-element-property :contents-end el)))))
+                   (push (format "%s\t%s" type text) rows))))
+             (princ (mapconcat #'identity (nreverse rows) "\n"))
+             (princ "\n")))
           ;; Property probe -- dump each headline + a chosen property's
           ;; value (with inheritance), one per line.  PROPERTY is read
           ;; from `organ-op--property' bound by the caller via --eval

@@ -251,6 +251,22 @@ local function copy_artifact(src, dst)
     pcall(vim.uv.fs_unlink, tmp)
     return false, "rename " .. tmp .. " -> " .. dst .. ": " .. tostring(err)
   end
+  -- macOS only: ad-hoc-sign the replaced .so.  When a previously-loaded
+  -- code-signed mach-O is replaced in place, the kernel's CodeSigning
+  -- subsystem still has the OLD signature cached by path -- the next
+  -- process that tries to map a page from the file sees the cached
+  -- signature vs new mtime, marks the page invalid, and SIGKILLs the
+  -- process before any error can be reported.  Re-signing with the
+  -- ad-hoc cert (`-`) refreshes the cache so a subsequent nvim load
+  -- succeeds.  `vim.loop.os_uname().sysname == "Darwin"` is the right
+  -- guard; on Linux / other Unixes this is a no-op and `codesign` is
+  -- usually absent anyway.
+  if vim.uv.os_uname().sysname == "Darwin" and vim.fn.executable("codesign") == 1 then
+    local out = vim.fn.system({ "codesign", "--force", "--sign", "-", dst })
+    if vim.v.shell_error ~= 0 then
+      return false, "codesign failed for " .. dst .. ": " .. out
+    end
+  end
   return true
 end
 
