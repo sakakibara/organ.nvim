@@ -55,6 +55,30 @@ local function find_own_category(lines, i)
   return nil
 end
 
+-- Walk forward from the headline at line i, return:
+--   own       = value of `:KEY:` (override) or nil
+--   appended  = value of `:KEY+:` (appends to inherited) or nil
+-- `:KEY:` set overrides the inherited value; `:KEY+:` appends to it
+-- (Emacs `org-entry-get` with INHERIT=t resolves the chain top-down).
+local function find_own_property(lines, i, key)
+  local own, appended
+  local own_re = "^%s*:" .. key .. ":%s*(.-)%s*$"
+  local plus_re = "^%s*:" .. key .. "%+:%s*(.-)%s*$"
+  local j = i + 1
+  while j <= #lines and not lines[j]:match("^%*+%s") do
+    local v_own = lines[j]:match(own_re)
+    if v_own and v_own ~= "" then
+      own = v_own
+    end
+    local v_plus = lines[j]:match(plus_re)
+    if v_plus and v_plus ~= "" then
+      appended = v_plus
+    end
+    j = j + 1
+  end
+  return own, appended
+end
+
 local function our_dump_property(input)
   local lines = vim.split(input, "\n", { plain = true })
   if lines[#lines] == "" then
@@ -124,6 +148,89 @@ local cases = {
 for _, c in ipairs(cases) do
   local emacs_out = parity.run("dump-property", c.input)
   local our_out = our_dump_property(c.input)
+  check(c.label, emacs_out == our_out, string.format("emacs=%q\n     ours= %q", emacs_out, our_out))
+end
+
+-- ---------------------------------------------------------------------------
+-- `:KEY+:` append syntax: child's `+` value appends (space-joined) to
+-- parent's effective value, instead of overriding it.  Used for things
+-- like `:LATEX_HEADER+:` where multiple `\usepackage{...}` lines
+-- accumulate down the tree.  `org-entry-get nil KEY t` resolves the
+-- full chain.  Requires `org-use-property-inheritance` to be enabled
+-- (`t` for all properties, or a list / regex including KEY) on the
+-- Emacs side -- our test fixture uses `LATEX_HEADER` which is in the
+-- list of properties Emacs inherits by default for org-mode use.
+-- ---------------------------------------------------------------------------
+local function our_dump_property_plus(input, key)
+  local lines = vim.split(input, "\n", { plain = true })
+  if lines[#lines] == "" then
+    table.remove(lines)
+  end
+  local effective_at = {}
+  local out = {}
+  for i, line in ipairs(lines) do
+    local stars, rest = line:match("^(%*+)%s+(.*)$")
+    if stars then
+      local depth = #stars
+      local heading = heading_text(rest)
+      local own, appended = find_own_property(lines, i, key)
+      local inherited
+      for d = depth - 1, 1, -1 do
+        if effective_at[d] then
+          inherited = effective_at[d]
+          break
+        end
+      end
+      local effective
+      if own then
+        effective = own
+        if appended then
+          effective = effective .. " " .. appended
+        end
+      elseif appended then
+        effective = inherited and (inherited .. " " .. appended) or appended
+      else
+        effective = inherited
+      end
+      effective_at[depth] = effective
+      for d = depth + 1, #effective_at do
+        effective_at[d] = nil
+      end
+      out[#out + 1] = string.format("%s\t%s", heading, effective or "")
+    end
+  end
+  return table.concat(out, "\n") .. "\n"
+end
+
+-- Emacs needs `LATEX_HEADER` to inherit.  Since it's not in
+-- `org-use-property-inheritance`'s default value, the emacs-op call
+-- has to enable inheritance explicitly.  We do that via a separate
+-- op `dump-property-inherited` that sets the var before scanning.
+-- Until that op exists, use a property name Emacs DOES inherit by
+-- default: `CATEGORY` doesn't take `+` semantics, but `ARCHIVE` does
+-- and is in the default inheritance set.  Probe-confirmed below.
+local append_cases = {
+  {
+    label = "parent has own, child appends with `:KEY+:`",
+    input = "* Parent\n:PROPERTIES:\n:ARCHIVE: alpha\n:END:\n** Child\n:PROPERTIES:\n:ARCHIVE+: beta\n:END:\n",
+  },
+  {
+    label = "grandchild without `+` inherits parent's already-appended value",
+    input = "* Top\n:PROPERTIES:\n:ARCHIVE: a\n:END:\n** Mid\n:PROPERTIES:\n:ARCHIVE+: b\n:END:\n*** Leaf\n",
+  },
+  {
+    label = "child overrides parent (no `+`)",
+    input = "* Parent\n:PROPERTIES:\n:ARCHIVE: alpha\n:END:\n** Child\n:PROPERTIES:\n:ARCHIVE: gamma\n:END:\n",
+  },
+}
+
+for _, c in ipairs(append_cases) do
+  -- Inject the property name into the Emacs side via the op param.
+  -- emacs-op.el reads `organ-op--property` from --eval before running
+  -- the dump-property op.
+  local emacs_out =
+    parity.run_with_setup("dump-property", c.input, '(setq organ-op--property "ARCHIVE")')
+  local our_out = our_dump_property_plus(c.input, "ARCHIVE")
   check(c.label, emacs_out == our_out, string.format("emacs=%q\n     ours= %q", emacs_out, our_out))
 end
 

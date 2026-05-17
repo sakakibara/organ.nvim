@@ -35,13 +35,22 @@ end
 -- "<CURSOR>" marker inside places point for cursor-dependent ops.
 -- Returns Emacs's stdout (the resulting buffer contents).
 function M.run(op, input)
+  return M.run_with_setup(op, input, nil)
+end
+
+-- Same as `run` but also evals `setup_elisp` (an `--eval` form, e.g.
+-- `(setq organ-op--property "ARCHIVE")`) BEFORE invoking the op.
+-- Lets a single op definition (in emacs-op.el) read caller-set
+-- variables instead of needing N near-identical ops.
+function M.run_with_setup(op, input, setup_elisp)
   local tmp = vim.fn.tempname()
   local f = assert(io.open(tmp, "w"))
   f:write(input)
   f:close()
   local cmd = string.format(
-    "emacs --batch -Q -l %s --eval %s 2>/dev/null",
+    "emacs --batch -Q -l %s %s --eval %s 2>/dev/null",
     vim.fn.shellescape(script),
+    setup_elisp and ("--eval " .. vim.fn.shellescape(setup_elisp)) or "",
     vim.fn.shellescape(string.format('(organ-op-run "%s" "%s")', op, tmp))
   )
   local out = vim.fn.system(cmd)
