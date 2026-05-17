@@ -488,6 +488,52 @@ local function build_fold_levels(bufnr)
       end
     end
   end
+  -- cycle-separator-lines: keep the LAST N trailing blank lines of each
+  -- section visible after the section folds (Emacs `org-cycle-separator-
+  -- lines`).  N from config (default 2; 0 means "always 1 visible";
+  -- false disables and folds every trailing blank with the section).
+  -- Visible count = min(total_trailing_blanks, max(N, 1)).  The visible
+  -- blanks are the ONES CLOSEST TO THE NEXT HEADING -- they get an
+  -- outer foldlevel (min of the two surrounding heading levels minus 1,
+  -- clamped to >= 0; or 0 at EOF) so they sit outside the section's
+  -- fold range.
+  local cfg_fold = require("organ.buf_config").read(nil, "fold") or {}
+  local sep_n = cfg_fold.cycle_separator_lines
+  if sep_n ~= false then
+    sep_n = sep_n or 2
+    local visible_count = math.max(sep_n, 1)
+    local section_level = 0
+    local trailing_start = nil
+    for i = 1, nlines do
+      local line = lines[i] or ""
+      local stars = line:match("^(%*+)%s")
+      if stars then
+        if trailing_start and section_level > 0 then
+          local total_blanks = i - trailing_start
+          local n_visible = math.min(total_blanks, visible_count)
+          local outer = math.max(0, math.min(section_level, #stars) - 1)
+          for j = i - n_visible, i - 1 do
+            levels[j] = tostring(outer)
+          end
+        end
+        trailing_start = nil
+        section_level = #stars
+      elseif section_level > 0 then
+        if line:match("^%s*$") then
+          trailing_start = trailing_start or i
+        else
+          trailing_start = nil
+        end
+      end
+    end
+    if trailing_start and section_level > 0 then
+      local total_blanks = nlines - trailing_start + 1
+      local n_visible = math.min(total_blanks, visible_count)
+      for j = nlines - n_visible + 1, nlines do
+        levels[j] = "0"
+      end
+    end
+  end
   -- Pass 2: drawer / block sub-folds via tree-sitter.  Each foldable
   -- range bumps its fold level by 1 over the surrounding context.
   -- DFS order ensures nested foldables (e.g. a drawer inside a block)

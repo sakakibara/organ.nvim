@@ -1,11 +1,26 @@
--- Default `fold.body_fold = false`: body lines (including blanks)
+-- `fold.body_fold = false` semantics: body lines (including blanks)
 -- share the parent heading's level.  No phantom body fold can exist
 -- because body has no fold of its own.
+--
+-- This test explicitly disables `cycle_separator_lines` (which would
+-- otherwise demote trailing blanks to an outer level so they stay
+-- visible after the section folds -- the Emacs-default behavior, see
+-- tests/fold_cycle_separator_lines_test.lua).  The two features are
+-- orthogonal and this file pins the body-blank-at-section-level
+-- contract with separator-lines OFF.
 --
 -- Run via: nvim --headless -l tests/fold_blank_separator_test.lua
 
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
+
+require("organ").setup({
+  db_path = vim.fn.tempname() .. ".db",
+  notify = false,
+  scan_on_startup = false,
+  watcher = { enabled = false },
+  fold = { cycle_separator_lines = false },
+})
 
 local parser_path = require("organ.defaults").parser_path
 vim.treesitter.language.add("org", { path = parser_path })

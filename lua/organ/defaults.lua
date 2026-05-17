@@ -606,6 +606,14 @@ return {
     --   conceal — pick this if you keep `conceallevel = 0` and don't
     --   want the temporary bump.  `za` on body folds the body line.
     body_fold = false,
+    -- Number of trailing blank lines to keep visible after a folded
+    -- section, matching Emacs `org-cycle-separator-lines` (default 2).
+    -- The LAST `min(blanks, max(N, 1))` blank lines before the next
+    -- heading stay outside the section's fold; the rest are hidden
+    -- with the section.  N=0 reduces to "always 1 visible" (matches
+    -- Emacs).  Set to false to disable and fold every trailing blank
+    -- with the section above (the pre-0.x organ.nvim behavior).
+    cycle_separator_lines = 2,
     -- Renderer that `organ.fold.foldtext()` returns when your
     -- 'foldtext' option calls into it.  By default organ does NOT
     -- set 'foldtext' itself -- you wire it via your config (see
