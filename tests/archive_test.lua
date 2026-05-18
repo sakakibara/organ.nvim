@@ -207,14 +207,20 @@ do
 
   local arc_lines = read_lines(arc_path)
   local found_time, found_file = false, false
-  local today_prefix = os.date("[%Y-%m-%d", os.time())
+  -- Emacs ARCHIVE_TIME has NO `[ ]` brackets (per
+  -- `(substring (cdr org-time-stamp-formats) 1 -1)`).  Just the
+  -- bare `YYYY-MM-DD Dow HH:MM`.
+  local today_prefix = os.date("%Y-%m-%d", os.time())
   for _, l in ipairs(arc_lines) do
     if l:match(":ARCHIVE_TIME:") then
       found_time = true
-      -- Verify it has today's date.
       assert(
         l:find(today_prefix, 1, true),
         "test4: ARCHIVE_TIME does not contain today's date in: " .. l
+      )
+      assert(
+        not l:find("[", 1, true),
+        "test4: ARCHIVE_TIME should not have brackets, got: " .. l
       )
     end
     if l:match(":ARCHIVE_FILE:") then

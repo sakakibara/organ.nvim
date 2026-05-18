@@ -1030,9 +1030,45 @@ return {
 
   archive = {
     enabled = true,
-    file_pattern = "%s_archive", -- string (%s = source path) or function(path)->path
+    -- Emacs `org-archive-location` syntax: `"FILE::HEADLINE"`.
+    --   FILE      where to write entries.  `%s` is replaced with the
+    --             source file's basename (Emacs convention).
+    --             Relative paths resolve against the source's dir;
+    --             absolute paths and `~/...` are honored as-is.
+    --   HEADLINE  optional wrapper heading (with or without leading
+    --             `* `).  When empty, archived subtrees become top-
+    --             level headings in the archive file (Emacs default).
+    -- Precedence at archive time: a subtree's `:ARCHIVE:` property
+    -- overrides a buffer's `#+ARCHIVE:` directive overrides this
+    -- config value.  When unset, falls back to the legacy
+    -- `file_pattern` + `headline` combination below.
+    --
+    -- Examples:
+    --   "%s_archive::* Archive"      -- matches the legacy default
+    --   "%s_archive::"               -- Emacs default; no wrapper
+    --   "~/.org/archive/%s::"        -- centralised archive
+    --   "::* Old stuff"              -- same file, under "* Old stuff"
+    --
+    -- Unset (nil) by default so the legacy `file_pattern` +
+    -- `headline` knobs below stay in effect for existing configs.
+    -- `#+ARCHIVE:` / `:ARCHIVE:` overrides still work even when this
+    -- is unset.
+    location = nil,
+    -- Archive-destination knobs (used when `location` above is unset
+    -- and no `#+ARCHIVE:` / `:ARCHIVE:` override applies).  Prefer
+    -- `location` going forward -- one string covers file + headline
+    -- and supports per-buffer / per-subtree overrides for free.
+    --   file_pattern  string (%s = source basename) OR function(path)->path
+    --   headline      wrapper heading title in the archive file
+    file_pattern = "%s_archive",
     headline = "Archive",
     add_metadata = true, -- inject :ARCHIVE_TIME:, :ARCHIVE_FILE:, etc.
+    -- When true (default), write `# Archived entries from file
+    -- <path>` once at the top of the archive file the first time
+    -- entries are added.  Matches Emacs `org-archive--add-comment`
+    -- (which is hardcoded ON in Emacs; organ exposes a toggle).
+    -- Set to false to suppress the header line.
+    write_source_header = true,
     -- Default action for `:Org archive` (Emacs `org-archive-default-
     -- command`).  One of:
     --   "subtree"            — move the subtree to the archive file

@@ -32,26 +32,53 @@ local function split_todo(title_text, todo_sequence)
   return nil, title_text
 end
 
--- Compute parent-chain path like "GrandParent/Parent".
--- Returns a string or "" if the headline has no parents.
-local function parent_chain(bufnr, headline)
+-- Extract the trailing `:tag1:tag2:` tag block from a headline title,
+-- returning a list of tag strings (or empty list if no tag block).
+local function tags_from_title(title)
+  local tag_str = title and title:match("(:[%w_@#%%:]+:)%s*$")
+  local tags = {}
+  if not tag_str then
+    return tags
+  end
+  for tok in tag_str:gmatch(":([^:]+)") do
+    if tok ~= "" then
+      tags[#tags + 1] = tok
+    end
+  end
+  return tags
+end
+
+-- Compute parent-chain path like "GrandParent/Parent" AND, while we
+-- walk, collect each parent's tags (deepest -> shallowest).  Returns
+-- (olpath_string, parent_tags_list).  parent_tags_list is ordered
+-- from immediate parent outward and deduplicated.
+local function parent_chain_and_tags(bufnr, headline)
   local parts = {}
-  local level = headline.level
-  -- Walk backwards from hl.line - 1 collecting first headline at each
-  -- decreasing level.
-  local target_level = level - 1
+  local tags, seen = {}, {}
+  local target_level = headline.level - 1
   local scan_from = headline.line - 1
   while target_level >= 1 and scan_from >= 1 do
     for i = scan_from, 1, -1 do
       local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-      local stars, title = txt:match("^(%*+)%s+(.-)%s*$")
+      local stars, rest = txt:match("^(%*+)%s+(.-)%s*$")
       if stars and #stars == target_level then
+        local tag_str = rest:match("(:[%w_@#%%:]+:)%s*$")
+        -- Title without the tag block, for olpath display.
+        local title = rest
+        if tag_str then
+          title = rest:sub(1, rest:find(tag_str, 1, true) - 1):match("^(.-)%s*$") or rest
+        end
         table.insert(parts, 1, title)
+        for _, t in ipairs(tags_from_title(rest)) do
+          if not seen[t] then
+            seen[t] = true
+            tags[#tags + 1] = t
+          end
+        end
         scan_from = i - 1
         target_level = target_level - 1
         break
       elseif stars and #stars < target_level then
-        -- Jumped above without finding the level: stop
         scan_from = 0
         break
       end
@@ -60,7 +87,210 @@ local function parent_chain(bufnr, headline)
       break
     end
   end
-  return table.concat(parts, "/")
+  return table.concat(parts, "/"), tags
+end
+
+-- Back-compat wrapper.  Older code only needed the olpath string.
+local function parent_chain(bufnr, headline)
+  local olpath, _ = parent_chain_and_tags(bufnr, headline)
+  return olpath
+end
+
+-- Read `#+FILETAGS:` directives from the top of a buffer (scans
+-- first 50 lines, matching the buffer-startup scan).  Mirrors
+-- `indexer.parse_filetags_value`: tokens are separated by colons OR
+-- whitespace (`:tag1:tag2:` and `tag1 tag2` both work).
+local function buffer_filetags(bufnr)
+  local out, seen = {}, {}
+  local lines = vim.api.nvim_buf_get_lines(
+    bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false
+  )
+  for _, l in ipairs(lines) do
+    local val = l:match("^%s*#%+[Ff][Ii][Ll][Ee][Tt][Aa][Gg][Ss]:%s*(.-)%s*$")
+    if val then
+      for tok in val:gmatch("[^:%s]+") do
+        if not seen[tok] then
+          seen[tok] = true
+          out[#out + 1] = tok
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- Inherited tags for a headline (Emacs `org-get-tags` with inherit-only):
+-- parent headlines' tags (deepest first) UNION `#+FILETAGS:`, in walk
+-- order, deduplicated.  Direct tags on the headline being archived
+-- are NOT included -- they travel with the headline title and aren't
+-- "inherited" in Emacs's sense.
+local function inherited_tags(bufnr, headline)
+  local _, parent_tags = parent_chain_and_tags(bufnr, headline)
+  local file_tags = buffer_filetags(bufnr)
+  local out, seen = {}, {}
+  for _, t in ipairs(parent_tags) do
+    if not seen[t] then
+      seen[t] = true
+      out[#out + 1] = t
+    end
+  end
+  for _, t in ipairs(file_tags) do
+    if not seen[t] then
+      seen[t] = true
+      out[#out + 1] = t
+    end
+  end
+  return out
+end
+
+-- Format an absolute path with `~` prefix when it sits under $HOME.
+-- Matches Emacs `abbreviate-file-name`, which is what
+-- `org-archive-save-context-info` writes for ARCHIVE_FILE and the
+-- source-header comment.
+local function abbreviate_path(path)
+  return vim.fn.fnamemodify(path, ":~")
+end
+
+-- Format a timestamp for ARCHIVE_TIME.  Emacs uses the inactive
+-- timestamp format WITHOUT the `[ ]` brackets (per
+-- `(substring (cdr org-time-stamp-formats) 1 -1)`), so just the
+-- bare `YYYY-MM-DD Dow HH:MM` body.
+local function format_archive_time(ts)
+  return os.date("%Y-%m-%d %a %H:%M", ts)
+end
+
+-- Parse an Emacs `org-archive-location` string into (file_template,
+-- headline_title).  Format: `"FILE::HEADLINE"`, either part optional.
+--   `"%s_archive::"`              -> ("%s_archive", "")
+--   `"%s_archive::* Archive"`     -> ("%s_archive", "Archive")
+--   `"::* Archive"`               -> ("", "Archive")  (same file as source)
+--   `"~/.org/%s_archive::Old"`    -> ("~/.org/%s_archive", "Old")
+-- HEADLINE may be written with or without the leading `* ` (Emacs
+-- accepts both); we normalise to the bare title here so callers
+-- don't need to strip stars.
+local function parse_location(location_str)
+  local file_part, headline_part = location_str:match("^(.-)::(.*)$")
+  if not file_part then
+    file_part = location_str
+    headline_part = ""
+  end
+  headline_part = (headline_part or ""):gsub("^%s*%*+%s*", "")
+  headline_part = headline_part:gsub("^%s+", ""):gsub("%s+$", "")
+  return file_part, headline_part
+end
+
+-- Resolve a parsed (file_template, headline) pair against the source
+-- file path.  Substitutes `%s` with the source's basename-stem (so
+-- `"%s_archive"` becomes `"<stem>_archive.org"`), expands `~`, and
+-- resolves relative paths against the source's directory.  Returns
+-- the absolute archive file path.
+local function resolve_archive_path(file_template, src_path)
+  local fp = file_template
+  if fp == "" then
+    -- Empty file part -> same file as source.
+    return src_path
+  end
+  -- %s substitution -- replace with the source file's basename (Emacs
+  -- does the same; `"%s_archive"` -> `"todo.org_archive"` not the
+  -- whole path).
+  if fp:find("%%s", 1, false) then
+    local src_basename = vim.fn.fnamemodify(src_path, ":t")
+    fp = fp:gsub("%%s", src_basename)
+  end
+  fp = vim.fn.expand(fp) -- expand `~`
+  if not fp:match("^/") then
+    -- Relative -> resolve against the source's directory.
+    fp = vim.fn.fnamemodify(src_path, ":h") .. "/" .. fp
+  end
+  return vim.fn.fnamemodify(fp, ":p")
+end
+
+-- Look for an `:ARCHIVE:` property on the subtree being archived.
+-- The property drawer sits between the headline line and the first
+-- body line; scan only that range.  Returns the property value
+-- string (an archive-location spec) or nil.
+local function subtree_archive_property(bufnr, headline)
+  local scan_start = headline.line + 1
+  local last_line = vim.api.nvim_buf_line_count(bufnr)
+  -- Skip planning lines (SCHEDULED/DEADLINE/CLOSED) until the
+  -- drawer or first body line.
+  local i = scan_start
+  while i <= last_line do
+    local l = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+    if l:match("^%s*SCHEDULED:") or l:match("^%s*DEADLINE:") or l:match("^%s*CLOSED:") then
+      i = i + 1
+    else
+      break
+    end
+  end
+  if i > last_line then
+    return nil
+  end
+  local opener = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+  if not opener:match("^%s*:PROPERTIES:%s*$") then
+    return nil
+  end
+  for j = i + 1, last_line do
+    local l = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    if l:match("^%s*:END:%s*$") then
+      return nil
+    end
+    local val = l:match("^%s*:[Aa][Rr][Cc][Hh][Ii][Vv][Ee]:%s*(.-)%s*$")
+    if val and val ~= "" then
+      return val
+    end
+  end
+  return nil
+end
+
+-- Look for a `#+ARCHIVE:` directive in the buffer top (first 50
+-- lines).  Returns the directive value or nil.
+local function buffer_archive_directive(bufnr)
+  local lines = vim.api.nvim_buf_get_lines(
+    bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false
+  )
+  for _, l in ipairs(lines) do
+    local val = l:match("^%s*#%+[Aa][Rr][Cc][Hh][Ii][Vv][Ee]:%s*(.-)%s*$")
+    if val and val ~= "" then
+      return val
+    end
+  end
+  return nil
+end
+
+-- Resolve the archive destination for this headline: (archive_path,
+-- headline_title).  Precedence (highest -> lowest):
+--   1. `:ARCHIVE:` property on the subtree being archived
+--   2. `#+ARCHIVE:` directive at the buffer top
+--   3. `cfg.location` -- the Emacs-compatible string syntax
+--   4. Legacy `cfg.file_pattern` + `cfg.headline` (kept for back-
+--      compat; deprecated -- prefer `location` going forward)
+-- Mirrors Emacs `org-archive--compute-location`.
+local function resolve_archive_destination(bufnr, headline, cfg, src_path)
+  local location_str = subtree_archive_property(bufnr, headline)
+    or buffer_archive_directive(bufnr)
+    or cfg.location
+  if location_str then
+    local fp_template, hdline = parse_location(location_str)
+    local archive_path = resolve_archive_path(fp_template, src_path)
+    -- Empty headline part in the location syntax = no wrapper
+    -- heading (matches Emacs default).  Return nil so callers can
+    -- branch on "wrap vs. top-level append".
+    if hdline == "" then
+      return archive_path, nil
+    end
+    return archive_path, hdline
+  end
+  -- Legacy combined config: file_pattern (string or function) + headline.
+  local file_pattern = cfg.file_pattern or "%s_archive"
+  local archive_path
+  if type(file_pattern) == "function" then
+    archive_path = file_pattern(src_path)
+  else
+    archive_path = resolve_archive_path(file_pattern, src_path)
+  end
+  archive_path = vim.fn.fnamemodify(archive_path, ":p")
+  return archive_path, (cfg.headline or "Archive")
 end
 
 -- Ensure the file exists, creating parent dirs as needed.
@@ -213,18 +443,11 @@ function M.archive_subtree(opts)
   end
   src_path = vim.fn.fnamemodify(src_path, ":p") -- expand to absolute
 
-  -- 4. Determine archive file path.
-  local archive_path
-  local file_pattern = cfg.file_pattern or "%s_archive"
-  if type(file_pattern) == "function" then
-    archive_path = file_pattern(src_path)
-  else
-    archive_path = string.format(file_pattern, src_path)
-  end
-  archive_path = vim.fn.fnamemodify(archive_path, ":p")
-
-  -- 5. Determine archive headline title.
-  local archive_hl_title = cfg.headline or "Archive"
+  -- 4. Resolve archive destination from (in order): subtree
+  --    `:ARCHIVE:` property, buffer `#+ARCHIVE:` directive, config
+  --    `location`, legacy `file_pattern + headline`.
+  local archive_path, archive_hl_title =
+    resolve_archive_destination(bufnr, hl, cfg, src_path)
 
   -- 6. Read subtree lines from source buffer.
   local subtree_lines = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, subtree_end, false)
@@ -234,7 +457,7 @@ function M.archive_subtree(opts)
 
   -- 7. Collect metadata.
   local now_ts = os.time()
-  local archive_time = os.date("[%Y-%m-%d %a %H:%M]", now_ts)
+  local archive_time = format_archive_time(now_ts)
 
   local olpath = parent_chain(bufnr, hl)
 
@@ -246,17 +469,38 @@ function M.archive_subtree(opts)
   ensure_file(archive_path)
   local arc_lines = read_file_lines(archive_path)
 
-  -- Find or create the archive headline.
-  local arc_hl_line = find_top_headline(arc_lines, archive_hl_title)
-  if not arc_hl_line then
-    -- Append "* <headline>" to archive file.
-    arc_lines[#arc_lines + 1] = "* " .. archive_hl_title
-    arc_hl_line = #arc_lines
+  -- 8a. Source-file header comment.  Emacs's `org-archive--add-
+  --     comment` writes `# Archived entries from file <path>` once,
+  --     when the archive file is empty (newly created).  Default ON
+  --     for Emacs parity; opt out via `cfg.write_source_header =
+  --     false`.
+  local is_empty = (#arc_lines == 0)
+    or (#arc_lines == 1 and arc_lines[1] == "")
+  if is_empty and cfg.write_source_header ~= false then
+    arc_lines = {
+      "# Archived entries from file " .. abbreviate_path(src_path),
+      "",
+    }
   end
 
-  -- Archive headline level is 1 (top-level "* Archive").
-  -- Moved subtree top should become level 2 (child of archive hl).
-  local dst_level = 2 -- child of level-1 archive headline
+  -- Find or create the archive wrapper headline (when one is
+  -- configured).  `archive_hl_title == nil` means "no wrapper" --
+  -- the location syntax `"%s_archive::"` (empty headline part)
+  -- triggers this and the subtree is appended at the file's top
+  -- level instead.
+  local arc_hl_line, dst_level
+  if archive_hl_title then
+    arc_hl_line = find_top_headline(arc_lines, archive_hl_title)
+    if not arc_hl_line then
+      arc_lines[#arc_lines + 1] = "* " .. archive_hl_title
+      arc_hl_line = #arc_lines
+    end
+    dst_level = 2 -- child of the level-1 wrapper headline
+  else
+    arc_hl_line = #arc_lines -- append at end
+    dst_level = 1 -- top-level in the archive file
+  end
+
   local releveled = relevel_lines(subtree_lines, hl.level, dst_level)
 
   -- 9. Inject metadata into the moved subtree's top headline (releveled[1]).
@@ -291,7 +535,11 @@ function M.archive_subtree(opts)
       props[#props + 1] = { "ARCHIVE_TIME", archive_time }
     end
     if context_set.file then
-      props[#props + 1] = { "ARCHIVE_FILE", src_path }
+      -- Emacs writes ARCHIVE_FILE through `abbreviate-file-name`, so
+      -- `/Users/sho/...` becomes `~/...`.  Plain absolute would also
+      -- work but breaks portability across machines with different
+      -- home dirs.
+      props[#props + 1] = { "ARCHIVE_FILE", abbreviate_path(src_path) }
     end
     if context_set.olpath and olpath ~= "" then
       props[#props + 1] = { "ARCHIVE_OLPATH", olpath }
@@ -311,9 +559,16 @@ function M.archive_subtree(opts)
       end
     end
     if context_set.itags then
-      -- Inherited tags would require a query lookup; skip when absent.
-      if hl and hl.tags and #hl.tags > 0 then
-        props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(hl.tags, " ") }
+      -- Inherited tags = ancestor headlines' tags + `#+FILETAGS`.
+      -- Direct tags on the moved headline travel with its title and
+      -- aren't part of ARCHIVE_ITAGS (Emacs `org-get-tags` with
+      -- inherit-only behavior).
+      local itags = inherited_tags(bufnr, hl)
+      if #itags > 0 then
+        -- Emacs `org-archive-subtree` writes ARCHIVE_ITAGS as a
+        -- space-joined list (`mapconcat 'identity ... " "`), not
+        -- the colon-wrapped tag-block syntax.
+        props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(itags, " ") }
       end
     end
     releveled = inject_properties(releveled, props)
@@ -417,7 +672,7 @@ function M.archive_to_sibling(opts)
 
   local archive_hl_title = cfg.headline or "Archive"
   local now_ts = os.time()
-  local archive_time = os.date("[%Y-%m-%d %a %H:%M]", now_ts)
+  local archive_time = format_archive_time(now_ts)
 
   local olpath = parent_chain(bufnr, hl)
   local todo_seq = require("organ.todo").all_keywords()
@@ -447,19 +702,38 @@ function M.archive_to_sibling(opts)
     add_meta = true
   end
   if add_meta then
-    local props = {
-      { "ARCHIVE_TIME", archive_time },
-      { "ARCHIVE_OLPATH", olpath ~= "" and olpath or nil },
-      { "ARCHIVE_TODO", todo_kw },
-    }
-    -- Drop nil-valued slots before inject_properties.
-    local filtered = {}
-    for _, p in ipairs(props) do
-      if p[2] then
-        filtered[#filtered + 1] = p
+    -- Same `save_context_info` token set as archive_subtree.  ITAGS
+    -- (inherited tags) IS relevant for sibling archive too even
+    -- though the file doesn't change -- the archived headline loses
+    -- its olpath, so the tags it WOULD have inherited from its
+    -- former parents need to travel with it.  FILE / CATEGORY are
+    -- omitted because the destination is the same buffer.
+    local context_set
+    if cfg.save_context_info ~= nil then
+      context_set = {}
+      for _, k in ipairs(cfg.save_context_info) do
+        context_set[k] = true
+      end
+    else
+      context_set = { time = true, olpath = true, todo = true, itags = true }
+    end
+    local props = {}
+    if context_set.time then
+      props[#props + 1] = { "ARCHIVE_TIME", archive_time }
+    end
+    if context_set.olpath and olpath ~= "" then
+      props[#props + 1] = { "ARCHIVE_OLPATH", olpath }
+    end
+    if context_set.todo and todo_kw then
+      props[#props + 1] = { "ARCHIVE_TODO", todo_kw }
+    end
+    if context_set.itags then
+      local itags = inherited_tags(bufnr, hl)
+      if #itags > 0 then
+        props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(itags, " ") }
       end
     end
-    releveled = inject_properties(releveled, filtered)
+    releveled = inject_properties(releveled, props)
   end
 
   if todo_kw and add_meta then
