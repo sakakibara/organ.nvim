@@ -24,6 +24,7 @@ organ.setup({
   notify = false,
   scan_on_startup = false,
   debounce_ms = 0,
+  watcher = { enabled = false },
 })
 
 if opts.file then
