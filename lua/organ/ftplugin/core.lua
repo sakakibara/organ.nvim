@@ -226,12 +226,8 @@ function M.attach(bufnr)
   if not vim.b[bufnr].organ_no_startup_fold then
     local folded = (cfg.startup or {}).folded
     -- Scan the first 50 lines for #+STARTUP: directives.
-    local lines = vim.api.nvim_buf_get_lines(
-      bufnr,
-      0,
-      math.min(50, vim.api.nvim_buf_line_count(bufnr)),
-      false
-    )
+    local lines =
+      vim.api.nvim_buf_get_lines(bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false)
     for _, l in ipairs(lines) do
       local val = l:match("^%s*#%+[Ss][Tt][Aa][Rr][Tt][Uu][Pp]:%s*(.*)$")
       if val then

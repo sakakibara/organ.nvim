@@ -327,10 +327,18 @@ function M.next_global_state(state)
 end
 
 local _APPLIERS = {
-  overview = function(w, b) M.apply_overview(w, b) end,
-  content = function(w, b) M.apply_content(w, b) end,
-  show_all = function(w, b) M.apply_show_all(w, b) end,
-  show_everything = function(w, b) M.apply_show_everything(w, b) end,
+  overview = function(w, b)
+    M.apply_overview(w, b)
+  end,
+  content = function(w, b)
+    M.apply_content(w, b)
+  end,
+  show_all = function(w, b)
+    M.apply_show_all(w, b)
+  end,
+  show_everything = function(w, b)
+    M.apply_show_everything(w, b)
+  end,
 }
 
 function M.apply_global_state(state, winid, bufnr)

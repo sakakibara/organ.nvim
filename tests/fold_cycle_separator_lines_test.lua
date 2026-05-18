@@ -171,15 +171,15 @@ do
   })
   local b = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, {
-    "* Tasks",        -- 1
-    "",               -- 2
-    "** Group",       -- 3
-    "",               -- 4
-    "*** Child A",    -- 5
-    "body a",         -- 6
-    "",               -- 7
-    "*** Child B",    -- 8
-    "body b",         -- 9
+    "* Tasks", -- 1
+    "", -- 2
+    "** Group", -- 3
+    "", -- 4
+    "*** Child A", -- 5
+    "body a", -- 6
+    "", -- 7
+    "*** Child B", -- 8
+    "body b", -- 9
   })
   vim.api.nvim_set_current_buf(b)
   vim.bo[b].filetype = "org"

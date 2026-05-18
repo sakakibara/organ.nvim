@@ -17,7 +17,6 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
-
 local fails = 0
 local function check(label, ok, detail)
   if ok then
@@ -86,7 +85,10 @@ local function text_visible(l)
     return true
   end
   local marks = vim.api.nvim_buf_get_extmarks(
-    bufnr, ns, { l - 1, 0 }, { l - 1, -1 },
+    bufnr,
+    ns,
+    { l - 1, 0 },
+    { l - 1, -1 },
     { details = true, overlap = true }
   )
   for _, m in ipairs(marks) do

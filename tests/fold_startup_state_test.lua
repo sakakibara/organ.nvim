@@ -75,7 +75,10 @@ local function visible(bufnr, lnum)
     return true
   end
   local marks = vim.api.nvim_buf_get_extmarks(
-    bufnr, ns, { lnum - 1, 0 }, { lnum - 1, -1 },
+    bufnr,
+    ns,
+    { lnum - 1, 0 },
+    { lnum - 1, -1 },
     { details = true, overlap = true }
   )
   for _, m in ipairs(marks) do
@@ -123,11 +126,7 @@ do
     not visible(bufnr, 9),
     "L9 visible (should be inside L=1 closed fold)"
   )
-  check(
-    "overview: body hidden",
-    not visible(bufnr, 5),
-    "L5 (body) visible"
-  )
+  check("overview: body hidden", not visible(bufnr, 5), "L5 (body) visible")
   -- Position cycle_global at OVERVIEW.  cycle_global cycles
   -- show_all -> overview -> content -> show_all, so detect_global_state
   -- must already report "overview" here for S-Tab to land at "content"
@@ -145,11 +144,7 @@ do
   local winid, bufnr = open_with_startup("content")
   -- CONTENTS: every heading visible (L=1, L=2, L=3), every body line
   -- hidden via the `conceal_lines` extmark layer.
-  check(
-    "content: L=1 heading visible",
-    visible(bufnr, 4) and visible(bufnr, 12),
-    "L=1 hidden"
-  )
+  check("content: L=1 heading visible", visible(bufnr, 4) and visible(bufnr, 12), "L=1 hidden")
   check("content: L=2 heading visible", visible(bufnr, 7), "L7 hidden")
   check("content: L=3 heading visible", visible(bufnr, 9), "L9 hidden")
   check(
@@ -157,11 +152,7 @@ do
     not visible(bufnr, 5),
     "L5 (body) visible — extmark layer not active?"
   )
-  check(
-    "content: deep body hidden",
-    not visible(bufnr, 10),
-    "L10 visible"
-  )
+  check("content: deep body hidden", not visible(bufnr, 10), "L10 visible")
   local fold = require("organ.fold")
   check(
     "content: detect_global_state == 'content'",

@@ -16,7 +16,6 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
-
 require("organ").setup({
   org_dir = "/tmp",
   notify = false,

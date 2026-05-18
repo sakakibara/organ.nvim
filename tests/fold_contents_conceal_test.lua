@@ -14,7 +14,6 @@ require("organ").setup({
 
 local contents = require("organ.fold.contents")
 
-
 local fails = 0
 local function check(label, ok, detail)
   if ok then
