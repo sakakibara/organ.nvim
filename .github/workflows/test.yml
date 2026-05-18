@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        nvim-version: [stable, nightly, "v0.10.4"]
+        nvim-version: [stable, nightly]
     steps:
       - uses: actions/checkout@v5
 

@@ -790,8 +790,8 @@ Fold                                                       *organ-config-fold*
                        hides real content (Emacs `org-ellipsis`
                        look).  All-blank body is left bare.
                        Returns treesitter-aware highlight segments
-                       on nvim 0.10+, so the heading keeps its TODO
-                       / title / tag colors when folded.
+                       so the heading keeps its TODO / title / tag
+                       colors when folded.
         function(foldstart, foldend) -> string | list -- custom
                        renderer.  Return a string for plain text,
                        or a list of `{text, hl_group}` tuples for
