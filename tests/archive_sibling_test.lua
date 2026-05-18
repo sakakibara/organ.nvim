@@ -18,7 +18,7 @@ require("organ").setup({
   debounce_ms = 0,
   watcher = { enabled = false },
   todo = { log_done = false },
-  archive = { add_metadata = true, headline = "Archive" },
+  archive = { add_metadata = true, sibling_heading = "Archive" },
 })
 
 local archive = require("organ.archive")

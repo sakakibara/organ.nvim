@@ -226,7 +226,7 @@ f:write([[
 f:close()
 
 require("organ").config.org_dir = vim.fn.fnamemodify(tmpsrc, ":h")
-require("organ").config.archive.file_pattern = "%s_archive"
+require("organ").config.archive.location = "%s_archive::"
 
 vim.cmd("edit " .. vim.fn.fnameescape(tmpsrc))
 local bufnr = vim.api.nvim_get_current_buf()

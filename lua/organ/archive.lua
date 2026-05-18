@@ -259,38 +259,37 @@ local function buffer_archive_directive(bufnr)
 end
 
 -- Resolve the archive destination for this headline: (archive_path,
--- headline_title).  Precedence (highest -> lowest):
+-- headline_title_or_nil).  Precedence (highest -> lowest):
 --   1. `:ARCHIVE:` property on the subtree being archived
 --   2. `#+ARCHIVE:` directive at the buffer top
---   3. `cfg.location` -- the Emacs-compatible string syntax
---   4. Legacy `cfg.file_pattern` + `cfg.headline` (kept for back-
---      compat; deprecated -- prefer `location` going forward)
--- Mirrors Emacs `org-archive--compute-location`.
+--   3. `cfg.location` -- string OR function(src_path)->string
+-- Mirrors Emacs `org-archive--compute-location`, with the
+-- function-form `cfg.location` an organ extension for dynamic
+-- destinations (Emacs's `org-archive-location` is string-only).
+-- A nil headline title means "no wrapper heading -- append at the
+-- archive file's top level" (Emacs default for `"%s_archive::"`).
 local function resolve_archive_destination(bufnr, headline, cfg, src_path)
   local location_str = subtree_archive_property(bufnr, headline)
     or buffer_archive_directive(bufnr)
-    or cfg.location
-  if location_str then
-    local fp_template, hdline = parse_location(location_str)
-    local archive_path = resolve_archive_path(fp_template, src_path)
-    -- Empty headline part in the location syntax = no wrapper
-    -- heading (matches Emacs default).  Return nil so callers can
-    -- branch on "wrap vs. top-level append".
-    if hdline == "" then
-      return archive_path, nil
+  if not location_str then
+    local loc = cfg.location
+    if type(loc) == "function" then
+      location_str = loc(src_path)
+    else
+      location_str = loc
     end
-    return archive_path, hdline
   end
-  -- Legacy combined config: file_pattern (string or function) + headline.
-  local file_pattern = cfg.file_pattern or "%s_archive"
-  local archive_path
-  if type(file_pattern) == "function" then
-    archive_path = file_pattern(src_path)
-  else
-    archive_path = resolve_archive_path(file_pattern, src_path)
+  if not location_str or location_str == "" then
+    -- No location configured anywhere.  Fall back to the Emacs
+    -- default so archive isn't a hard error on a stripped config.
+    location_str = "%s_archive::"
   end
-  archive_path = vim.fn.fnamemodify(archive_path, ":p")
-  return archive_path, (cfg.headline or "Archive")
+  local fp_template, hdline = parse_location(location_str)
+  local archive_path = resolve_archive_path(fp_template, src_path)
+  if hdline == "" then
+    return archive_path, nil
+  end
+  return archive_path, hdline
 end
 
 -- Ensure the file exists, creating parent dirs as needed.
@@ -670,7 +669,7 @@ function M.archive_to_sibling(opts)
     return "subtree is empty"
   end
 
-  local archive_hl_title = cfg.headline or "Archive"
+  local archive_hl_title = cfg.sibling_heading or "Archive"
   local now_ts = os.time()
   local archive_time = format_archive_time(now_ts)
 

@@ -80,33 +80,30 @@ do
       .. table.concat(remaining, "|")
   )
 
-  -- Archive file should have "* Archive" and "** Done item" (TODO stripped).
+  -- With Emacs default `location = "%s_archive::"` (no wrapper
+  -- headline), the archived subtree appears at the archive file's
+  -- top level.  TODO keyword is stripped from the archived headline.
   local arc_lines = read_lines(arc_path)
-  local found_archive_hl, found_item = false, false
-  local found_time = false
+  local found_item, found_time = false, false
   for _, l in ipairs(arc_lines) do
-    if l:match("^%* Archive") then
-      found_archive_hl = true
-    end
-    if l:match("^%*%* Done item") then
+    if l:match("^%* Done item") then
       found_item = true
     end
     if l:match(":ARCHIVE_TIME:") then
       found_time = true
     end
   end
-  assert(found_archive_hl, "test1: archive file missing '* Archive' headline")
   assert(
     found_item,
-    "test1: archive file missing '** Done item' (got: " .. table.concat(arc_lines, "|") .. ")"
+    "test1: archive file missing '* Done item' (got: " .. table.concat(arc_lines, "|") .. ")"
   )
   assert(found_time, "test1: archive file missing :ARCHIVE_TIME: property")
 
   -- The TODO keyword should NOT appear on the archived headline line itself.
   for _, l in ipairs(arc_lines) do
-    if l:match("^%*%*") then
+    if l:match("^%*%s") then
       assert(
-        not l:match("^%*%* TODO"),
+        not l:match("^%* TODO"),
         "test1: TODO keyword should be stripped from archived headline, got: " .. l
       )
       break
@@ -134,13 +131,17 @@ do
   local err = archive.archive_subtree({ bufnr = b, line = 1 })
   assert(err == nil, "test2: archive error: " .. tostring(err))
 
+  -- Archive file pre-populated with a wrapper-style layout; with
+  -- the new default (no wrapper) the new item lands at level 1 as
+  -- a sibling of "* Archive", and the old level-2 entry is left
+  -- intact under it.
   local arc_lines = read_lines(arc_path)
   local found_old, found_new = false, false
   for _, l in ipairs(arc_lines) do
     if l:match("^%*%* Old item") then
       found_old = true
     end
-    if l:match("^%*%* New item") then
+    if l:match("^%* New item") then
       found_new = true
     end
   end
@@ -153,8 +154,12 @@ end
 
 -- ─── Test 3: Re-leveling nested headlines ─────────────────────────────────────
 do
-  -- Source: level-2 child "** Child" under "* Parent".
-  -- Archiving the top-level "* Parent" → archive gets "** Parent" with "*** Child".
+  -- Source: level-2 child "** Child" under "* Parent".  With the
+  -- default no-wrapper location, archiving "* Parent" preserves
+  -- structure: "* Parent" + "** Child" in the archive file.  (When
+  -- a wrapper headline IS configured, the subtree gets demoted by
+  -- one to nest under it -- see archive_emacs_parity_test for the
+  -- wrapper case.)
   local src_path = tmp .. "/relevel.org"
   local arc_path = src_path .. "_archive"
   pcall(vim.fn.delete, arc_path)
@@ -172,20 +177,20 @@ do
   local arc_lines = read_lines(arc_path)
   local found_parent_l2, found_child_l3 = false, false
   for _, l in ipairs(arc_lines) do
-    if l == "** Parent" then
+    if l == "* Parent" then
       found_parent_l2 = true
     end
-    if l == "*** Child" then
+    if l == "** Child" then
       found_child_l3 = true
     end
   end
   assert(
     found_parent_l2,
-    "test3: expected '** Parent' in archive (got: " .. table.concat(arc_lines, "|") .. ")"
+    "test3: expected '* Parent' in archive (got: " .. table.concat(arc_lines, "|") .. ")"
   )
   assert(
     found_child_l3,
-    "test3: expected '*** Child' in archive (got: " .. table.concat(arc_lines, "|") .. ")"
+    "test3: expected '** Child' in archive (got: " .. table.concat(arc_lines, "|") .. ")"
   )
 end
 
@@ -267,7 +272,7 @@ do
   })
 end
 
--- ─── Test 6: Custom headline (archive.headline = "Done") ─────────────────────
+-- ─── Test 6: Custom wrapper headline via `location` string ──────────────────
 do
   local src_path = tmp .. "/customhl.org"
   local arc_path = src_path .. "_archive"
@@ -280,14 +285,15 @@ do
   vim.fn.bufload(b)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* Custom item" })
 
-  -- Temporarily override archive config.
+  -- `location` with explicit wrapper headline -- archived subtree
+  -- gets demoted to nest under it.
   local orig_cfg = require("organ").config.archive
-  require("organ").config.archive = vim.tbl_extend("force", orig_cfg, { headline = "Done" })
+  require("organ").config.archive =
+    vim.tbl_extend("force", orig_cfg, { location = "%s_archive::* Done" })
 
   local err = archive.archive_subtree({ bufnr = b, line = 1 })
   assert(err == nil, "test6: archive error: " .. tostring(err))
 
-  -- Restore.
   require("organ").config.archive = orig_cfg
 
   local arc_lines = read_lines(arc_path)
@@ -310,7 +316,7 @@ do
   )
 end
 
--- ─── Test 7: Custom file_pattern (function) ───────────────────────────────────
+-- ─── Test 7: Custom dynamic destination via `location` function form ─────────
 do
   local all_archive = tmp .. "/all_archive.org"
   pcall(vim.fn.delete, all_archive)
@@ -323,10 +329,13 @@ do
   vim.fn.bufload(b)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* FnPat item" })
 
+  -- `location` as a function (organ extension over Emacs's
+  -- string-only `org-archive-location`) -- returns a location
+  -- string computed from src_path.
   local orig_cfg = require("organ").config.archive
   require("organ").config.archive = vim.tbl_extend("force", orig_cfg, {
-    file_pattern = function(_)
-      return all_archive
+    location = function(_)
+      return all_archive .. "::"
     end,
   })
 
@@ -335,7 +344,6 @@ do
 
   require("organ").config.archive = orig_cfg
 
-  -- The item must appear in all_archive, NOT in the default arc_path.
   local lines = read_lines(all_archive)
   local found = false
   for _, l in ipairs(lines) do

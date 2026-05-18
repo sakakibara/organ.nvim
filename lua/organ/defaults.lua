@@ -1030,7 +1030,8 @@ return {
 
   archive = {
     enabled = true,
-    -- Emacs `org-archive-location` syntax: `"FILE::HEADLINE"`.
+    -- Archive destination, in Emacs `org-archive-location` syntax:
+    -- `"FILE::HEADLINE"`.
     --   FILE      where to write entries.  `%s` is replaced with the
     --             source file's basename (Emacs convention).
     --             Relative paths resolve against the source's dir;
@@ -1038,41 +1039,33 @@ return {
     --   HEADLINE  optional wrapper heading (with or without leading
     --             `* `).  When empty, archived subtrees become top-
     --             level headings in the archive file (Emacs default).
-    -- Precedence at archive time: a subtree's `:ARCHIVE:` property
-    -- overrides a buffer's `#+ARCHIVE:` directive overrides this
-    -- config value.  When unset, falls back to the legacy
-    -- `file_pattern` + `headline` combination below.
     --
-    -- Examples:
-    --   "%s_archive::* Archive"      -- matches the legacy default
-    --   "%s_archive::"               -- Emacs default; no wrapper
-    --   "~/.org/archive/%s::"        -- centralised archive
-    --   "::* Old stuff"              -- same file, under "* Old stuff"
+    -- Default matches Emacs: `"%s_archive::"` -- sibling `_archive`
+    -- file, no wrapper heading.
     --
-    -- Unset (nil) by default so the legacy `file_pattern` +
-    -- `headline` knobs below stay in effect for existing configs.
-    -- `#+ARCHIVE:` / `:ARCHIVE:` overrides still work even when this
-    -- is unset.
-    location = nil,
-    -- Archive-destination knobs (used when `location` above is unset
-    -- and no `#+ARCHIVE:` / `:ARCHIVE:` override applies).  Prefer
-    -- `location` going forward -- one string covers file + headline
-    -- and supports per-buffer / per-subtree overrides for free.
-    --   file_pattern  string (%s = source basename) OR function(path)->path
-    --   headline      wrapper heading title in the archive file
-    file_pattern = "%s_archive",
-    headline = "Archive",
+    -- Override precedence at archive time:
+    --   1. `:ARCHIVE:` property on the subtree being archived
+    --   2. `#+ARCHIVE:` directive at the buffer top
+    --   3. this config value
+    --
+    -- May also be a function `(src_path) -> location_string` for
+    -- dynamic destinations (e.g. dated archive dirs) -- an organ
+    -- extension over Emacs's string-only `org-archive-location`.
+    location = "%s_archive::",
+    -- Heading title for `:Org archive to_sibling` (Emacs
+    -- `org-archive-sibling-heading`, default `"Archive"`).
+    sibling_heading = "Archive",
     add_metadata = true, -- inject :ARCHIVE_TIME:, :ARCHIVE_FILE:, etc.
-    -- When true (default), write `# Archived entries from file
-    -- <path>` once at the top of the archive file the first time
-    -- entries are added.  Matches Emacs `org-archive--add-comment`
-    -- (which is hardcoded ON in Emacs; organ exposes a toggle).
-    -- Set to false to suppress the header line.
+    -- When true (default, matches Emacs), write `# Archived entries
+    -- from file <path>` once at the top of the archive file the
+    -- first time entries are added.  Emacs hardcodes this on
+    -- (`org-archive--add-comment`); organ exposes a toggle.  Set to
+    -- false to suppress the header line.
     write_source_header = true,
     -- Default action for `:Org archive` (Emacs `org-archive-default-
     -- command`).  One of:
-    --   "subtree"            — move the subtree to the archive file
-    --                          under the `headline` heading (default)
+    --   "subtree"            — move the subtree per `location` above
+    --                          (default)
     --   "to_archive_sibling" — move the subtree under a `* Archive`
     --                          sibling in the SAME file
     --   "set_archive_tag"    — leave the subtree in place and add the
