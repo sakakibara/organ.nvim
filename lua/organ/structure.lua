@@ -139,17 +139,29 @@ local function subtree_headline_lines(bufnr, start_line, end_line)
   return out
 end
 
+-- How many stars to add/remove per promote/demote step.  Returns 2 when
+-- the buffer-effective `structure.odd_levels_only` is true (Emacs
+-- `org-odd-levels-only`: only `*`, `***`, `*****`, ... are valid heading
+-- levels, so each step bumps the star count by 2 to land on the next
+-- valid level).  Returns 1 otherwise.  Read fresh per call so a runtime
+-- config toggle takes effect immediately.
+local function level_step()
+  local cfg = require("organ.buf_config").read(nil, "structure") or {}
+  return cfg.odd_levels_only and 2 or 1
+end
+
 function M.promote_headline(opts)
   local bufnr, line = resolve(opts)
   local hl = M._find_containing_headline(bufnr, line)
   if not hl then
     return "not on a headline"
   end
-  if hl.level == 1 then
-    return "cannot promote level-1 headline"
+  local step = level_step()
+  if hl.level - step < 1 then
+    return "cannot promote past level-1"
   end
   local snap = snapshot_fold_state({ hl.line })
-  local err = rewrite_stars(bufnr, hl.line, hl.level - 1)
+  local err = rewrite_stars(bufnr, hl.line, hl.level - step)
   restore_fold_state(snap)
   return err
 end
@@ -160,8 +172,9 @@ function M.promote_subtree(opts)
   if not hl then
     return "not on a headline"
   end
-  if hl.level == 1 then
-    return "cannot promote level-1 subtree"
+  local step = level_step()
+  if hl.level - step < 1 then
+    return "cannot promote past level-1"
   end
   local subtree_end = M._subtree_end(bufnr, hl)
   local snap = snapshot_fold_state(subtree_headline_lines(bufnr, hl.line, subtree_end))
@@ -172,10 +185,10 @@ function M.promote_subtree(opts)
   -- Apply in reverse line order.
   for i = #descendants, 1, -1 do
     local d = descendants[i]
-    rewrite_stars(bufnr, d.line, d.level - 1)
+    rewrite_stars(bufnr, d.line, d.level - step)
   end
   -- Then the current headline.
-  rewrite_stars(bufnr, hl.line, hl.level - 1)
+  rewrite_stars(bufnr, hl.line, hl.level - step)
   restore_fold_state(snap)
   return nil
 end
@@ -186,11 +199,12 @@ function M.demote_headline(opts)
   if not hl then
     return "not on a headline"
   end
-  if hl.level >= 9 then
+  local step = level_step()
+  if hl.level + step > 9 then
     return "cannot demote past level 9"
   end
   local snap = snapshot_fold_state({ hl.line })
-  local err = rewrite_stars(bufnr, hl.line, hl.level + 1)
+  local err = rewrite_stars(bufnr, hl.line, hl.level + step)
   restore_fold_state(snap)
   return err
 end
@@ -211,7 +225,8 @@ function M.demote_subtree(opts)
       deepest = d.level
     end
   end
-  if deepest >= 9 then
+  local step = level_step()
+  if deepest + step > 9 then
     return "cannot demote past level 9"
   end
   local snap_lines = {}
@@ -222,7 +237,7 @@ function M.demote_subtree(opts)
   -- Apply in forward line order; rewrite_stars preserves the line count
   -- (replace 1 line with 1 line) so indexes stay valid as we go.
   for _, h in ipairs(headlines) do
-    rewrite_stars(bufnr, h.line, h.level + 1)
+    rewrite_stars(bufnr, h.line, h.level + step)
   end
   restore_fold_state(snap)
   return nil

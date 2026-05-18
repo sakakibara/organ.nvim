@@ -545,6 +545,15 @@ return {
 
   structure = {
     enabled = true,
+    -- Mirror Emacs `org-odd-levels-only`: when true, only odd-numbered
+    -- star counts are valid heading levels (`*`, `***`, `*****`, ...).
+    -- Promote / demote step by 2 stars instead of 1 so each step lands
+    -- on the next valid level.  Note: the tree-sitter grammar still
+    -- treats `**` as a level-2 heading -- this knob only affects
+    -- promote / demote / move ops.  Setting it on a buffer that has
+    -- even-level headings will produce mixed-parity output until you
+    -- normalize the existing headings.
+    odd_levels_only = false,
     keymaps = {
       -- Primary (single-chord, mirrors Emacs M-<arrow>): Alt + h/j/k/l for
       -- promote / move-down / move-up / demote of the subtree at cursor.

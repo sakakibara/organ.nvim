@@ -112,6 +112,19 @@
            (org-shiftmetaleft)
            (princ (buffer-string)))
           ;; ---------------------------------------------------------------
+          ;; Heading promote / demote (M-Right / M-Left / `org-demote` /
+          ;; `org-promote`).  `org-odd-levels-only` (a buffer-local toggle)
+          ;; makes each step bump the star count by 2 instead of 1, so
+          ;; promote/demote always land on an odd valid level.  Set via
+          ;; `(setq-local org-odd-levels-only t)` in the setup eval.
+          ;; ---------------------------------------------------------------
+          ((string= op "heading-demote")
+           (org-do-demote)
+           (princ (buffer-string)))
+          ((string= op "heading-promote")
+           (org-do-promote)
+           (princ (buffer-string)))
+          ;; ---------------------------------------------------------------
           ;; Inheritance probes -- dump each headline + its effective tags
           ;; (direct + inherited), sorted, one per line.  Used to verify
           ;; our tag-inheritance computation against `org-get-tags' which
