@@ -99,6 +99,19 @@
            (org-todo "DONE")
            (princ (buffer-string)))
           ;; ---------------------------------------------------------------
+          ;; List-item indent ops.  `org-shiftmetaright` is the general
+          ;; demote (works on any list item, empty or not); the Tab-on-
+          ;; empty-bullet UX path (`org-cycle-item-indentation`) is a
+          ;; restricted special case of the same demote.  Our `list.demote`
+          ;; targets the general behavior, so use `org-shiftmetaright`
+          ;; for the parity baseline.  Cursor placed via `<CURSOR>`.
+          ((string= op "list-demote")
+           (org-shiftmetaright)
+           (princ (buffer-string)))
+          ((string= op "list-promote")
+           (org-shiftmetaleft)
+           (princ (buffer-string)))
+          ;; ---------------------------------------------------------------
           ;; Inheritance probes -- dump each headline + its effective tags
           ;; (direct + inherited), sorted, one per line.  Used to verify
           ;; our tag-inheritance computation against `org-get-tags' which

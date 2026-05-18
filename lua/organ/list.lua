@@ -169,6 +169,101 @@ function M.sort(bufnr, cursor_line, comparator)
   return #groups
 end
 
+-- Width of the bullet + trailing space, used to compute the indent
+-- column where a sub-item starts beneath a parent.  `- ` / `+ ` / `* `
+-- are width 2; `1. ` is width 3; `10. ` is width 4, etc.
+local function prefix_width(item)
+  -- `bullet` is "-"/"+"/"*" for unordered (length 1), or "1."/"2)" etc.
+  -- for ordered (length = digits + 1 sep).
+  return #item.bullet + 1
+end
+
+-- Walk upward from `line` looking for the previous list-item line that
+-- the cursor's item belongs to (same or shallower indent).  Returns the
+-- matched item's parse result + its line number, or nil if there isn't
+-- one (cursor is the first item, or no list above).
+local function previous_sibling(bufnr, line)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur then
+    return nil
+  end
+  for j = line - 1, 1, -1 do
+    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    local item = M.parse_item(text)
+    if item and #item.indent <= #cur.indent then
+      return item, j
+    end
+    -- A heading or a blank line ends the list scope.
+    if text:match("^%*+%s") or text == "" then
+      return nil
+    end
+  end
+  return nil
+end
+
+-- Demote: indent the list item at `line` to become a sub-item of the
+-- previous sibling.  Indent rule probed against Emacs 30.2:
+--   new_indent = previous_sibling.indent + width(previous_sibling.bullet)
+-- No-op if there's no previous sibling (Emacs raises "Cannot move item"
+-- in that case).  Returns true on a change, false otherwise.
+function M.demote(bufnr, line)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur then
+    return false
+  end
+  local prev = previous_sibling(bufnr, line)
+  if not prev then
+    return false
+  end
+  local new_indent = string.rep(" ", #prev.indent + prefix_width(prev))
+  local body = cur_text:sub(#cur.indent + 1)
+  local new_line = new_indent .. body
+  if new_line == cur_text then
+    return false
+  end
+  obuf.set_lines(bufnr, line - 1, line, { new_line })
+  return true
+end
+
+-- Promote: un-indent the list item at `line` to the nearest ancestor's
+-- indent (becomes a sibling of the ancestor).  Falls back to removing
+-- two leading spaces if no strict ancestor is in scope.  Returns true
+-- on a change, false if already at indent 0.
+function M.promote(bufnr, line)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur or #cur.indent == 0 then
+    return false
+  end
+  for j = line - 1, 1, -1 do
+    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    local item = M.parse_item(text)
+    if item and #item.indent < #cur.indent then
+      local body = cur_text:sub(#cur.indent + 1)
+      local new_line = item.indent .. body
+      if new_line == cur_text then
+        return false
+      end
+      obuf.set_lines(bufnr, line - 1, line, { new_line })
+      return true
+    end
+    if text:match("^%*+%s") or text == "" then
+      break
+    end
+  end
+  if #cur.indent >= 2 then
+    local body = cur_text:sub(#cur.indent + 1)
+    obuf.set_lines(bufnr, line - 1, line, { cur.indent:sub(3) .. body })
+    return true
+  end
+  return false
+end
+
+M._previous_sibling = previous_sibling
+M._prefix_width = prefix_width
+
 M.commands = {
   ["list repair"] = {
     fn = function()
@@ -195,6 +290,26 @@ M.commands = {
     end,
     nargs = "?",
     desc = "Sort the list at cursor by `alpha` (default), `numeric`, or `length`",
+  },
+  ["list demote"] = {
+    fn = function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      if not M.demote(bufnr, line) then
+        require("organ.notify").warn("cannot demote: not on a list item or no previous sibling")
+      end
+    end,
+    desc = "Indent the list item under the previous sibling (Emacs Tab-on-empty-bullet)",
+  },
+  ["list promote"] = {
+    fn = function()
+      local bufnr = vim.api.nvim_get_current_buf()
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      if not M.promote(bufnr, line) then
+        require("organ.notify").warn("cannot promote: not on a list item or already at indent 0")
+      end
+    end,
+    desc = "Un-indent the list item to its ancestor's level",
   },
 }
 
