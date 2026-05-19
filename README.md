@@ -322,7 +322,7 @@ default) with example inputs.
 
 `:Org capture` (template via `:Org capture <key>`), `:Org capture_prompt`,
 `:Org refile`, `:Org archive subtree`, `:Org archive to_sibling`,
-`:Org archive set_tag`
+`:Org archive set_tag`, `:Org unarchive`
 </details>
 
 <details>

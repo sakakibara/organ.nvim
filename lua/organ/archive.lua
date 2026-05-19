@@ -848,6 +848,248 @@ function M.set_archive_tag(opts)
   return tag_writer.write(bufnr, hl.line, current)
 end
 
+-- Read every property from the subtree's :PROPERTIES: drawer into a
+-- lower-cased-key map.  Returns `{}` when there's no drawer (or the
+-- drawer is empty).  Skips planning lines (SCHEDULED / DEADLINE /
+-- CLOSED) before looking for the drawer, mirroring inject_properties.
+local function extract_subtree_properties(bufnr, headline)
+  local out = {}
+  local last_line = vim.api.nvim_buf_line_count(bufnr)
+  local i = headline.line + 1
+  while i <= last_line do
+    local l = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+    if l:match("^%s*SCHEDULED:") or l:match("^%s*DEADLINE:") or l:match("^%s*CLOSED:") then
+      i = i + 1
+    else
+      break
+    end
+  end
+  if i > last_line then
+    return out
+  end
+  local opener = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+  if not opener:match("^%s*:PROPERTIES:%s*$") then
+    return out
+  end
+  for j = i + 1, last_line do
+    local l = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    if l:match("^%s*:END:%s*$") then
+      break
+    end
+    local key, val = l:match("^%s*:([%w_+]+):%s*(.-)%s*$")
+    if key then
+      out[key:lower()] = val
+    end
+  end
+  return out
+end
+
+-- Strip every `ARCHIVE_*` property from the :PROPERTIES: drawer in
+-- `lines` (a subtree snapshot).  If the drawer becomes empty, drop
+-- the whole `:PROPERTIES:`/`:END:` block too -- a bare empty drawer
+-- is noise.  Used by unarchive when restoring a subtree to its
+-- source: the ARCHIVE_* set is bookkeeping that loses meaning the
+-- moment the subtree is back in place.
+local function strip_archive_properties(lines)
+  local out = {}
+  local in_drawer = false
+  local kept = {}
+  for _, l in ipairs(lines) do
+    if not in_drawer then
+      if l:match("^%s*:PROPERTIES:%s*$") then
+        in_drawer = true
+        kept = {}
+      else
+        out[#out + 1] = l
+      end
+    else
+      if l:match("^%s*:END:%s*$") then
+        in_drawer = false
+        if #kept > 0 then
+          out[#out + 1] = ":PROPERTIES:"
+          for _, p in ipairs(kept) do
+            out[#out + 1] = p
+          end
+          out[#out + 1] = ":END:"
+        end
+        kept = {}
+      else
+        local key = l:match("^%s*:([%w_+]+):")
+        if not (key and key:upper():match("^ARCHIVE_")) then
+          kept[#kept + 1] = l
+        end
+      end
+    end
+  end
+  return out
+end
+
+-- Walk an `ARCHIVE_OLPATH` segment list against `dest_bufnr`'s
+-- headline cache to find the parent the subtree should land under.
+-- Each segment must match a heading at the corresponding depth
+-- (segment 1 -> level 1, segment 2 -> level 2, ...) within the
+-- subtree of the previous segment's match.  Returns the matched
+-- headline `{ line, level }` or nil when the chain breaks (parent
+-- moved / renamed / deleted since archive time).
+local function find_parent_by_olpath(dest_bufnr, segments)
+  if #segments == 0 then
+    return nil
+  end
+  local headlines = require("organ.element_cache").headlines(dest_bufnr)
+  local search_start = 1
+  local search_end = vim.api.nvim_buf_line_count(dest_bufnr)
+  local last_match
+  for depth, seg in ipairs(segments) do
+    local match
+    for _, h in ipairs(headlines) do
+      if h.line >= search_start and h.line <= search_end and h.level == depth then
+        -- Heading title from the cache may include tags-block;
+        -- strip the trailing `:tag1:tag2:` block before comparing.
+        local title = (h.title or ""):gsub("(:[%w_@#%%:]+:)%s*$", ""):gsub("%s*$", "")
+        if title == seg then
+          match = h
+          break
+        end
+      elseif h.line >= search_start and h.line <= search_end and h.level < depth then
+        -- Walked out of the parent's subtree without finding the
+        -- next segment.  Chain is broken.
+        return nil
+      end
+    end
+    if not match then
+      return nil
+    end
+    last_match = match
+    -- For the next segment, search within this heading's subtree:
+    -- from the line after the match, up to (but not including) the
+    -- next heading of the same-or-shallower depth.
+    search_start = match.line + 1
+    for _, h in ipairs(headlines) do
+      if h.line > match.line and h.level <= match.level then
+        search_end = h.line - 1
+        break
+      end
+    end
+  end
+  return last_match and { line = last_match.line, level = last_match.level } or nil
+end
+
+-- Restore a subtree from the archive file back to its original
+-- source.  Cursor must be on the archived headline (i.e. inside the
+-- archive file -- mirror image of `archive_subtree`).
+--
+-- Reads `:ARCHIVE_FILE:` (destination) and `:ARCHIVE_OLPATH:`
+-- (parent chain in the destination) off the subtree's :PROPERTIES:
+-- drawer, walks the OLPATH in the destination to locate the parent,
+-- strips every ARCHIVE_* property from the subtree, re-levels to fit
+-- under the located parent (or to top-level when OLPATH is empty),
+-- inserts at the end of the parent's section, and deletes the
+-- subtree from the archive file.
+--
+-- Soft-fallback: if OLPATH no longer resolves (parent renamed /
+-- moved / deleted), the subtree lands at the destination file's
+-- top level and a notice is printed.  Hard failures (no
+-- ARCHIVE_FILE property, destination unreadable) return an error
+-- string.
+--
+-- @param opts? { bufnr?: number, line?: number }
+-- @return string|nil err          nil on success, error string on failure
+-- @return string|nil dest_path    absolute path written to (on success)
+function M.unarchive(opts)
+  opts = opts or {}
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local line = opts.line or vim.fn.line(".")
+
+  local cfg = require("organ.buf_config").read(bufnr, "archive") or {}
+  if cfg.enabled == false then
+    return "archive feature is disabled"
+  end
+
+  local hl = structure._find_containing_headline(bufnr, line)
+  if not hl then
+    return "no headline at or above cursor"
+  end
+
+  local props = extract_subtree_properties(bufnr, hl)
+  local dest_str = props.archive_file
+  if not dest_str or dest_str == "" then
+    return "no :ARCHIVE_FILE: property on this subtree -- can't unarchive without it"
+  end
+  local dest_path = vim.fn.fnamemodify(vim.fn.expand(dest_str), ":p")
+  if not vim.loop.fs_stat(dest_path) then
+    return "destination file does not exist: " .. dest_path
+  end
+
+  local subtree_end = structure._subtree_end(bufnr, hl)
+  local subtree_lines = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, subtree_end, false)
+  if #subtree_lines == 0 then
+    return "subtree is empty"
+  end
+
+  local cleaned = strip_archive_properties(subtree_lines)
+
+  -- Load the destination so we can use structure helpers + apply
+  -- changes through buffer APIs (preserves any concurrent open
+  -- buffer's view, and writes through the normal `:write` flow
+  -- that fires BufWritePre/Post for plugins like indexer).
+  local dest_bufnr = vim.fn.bufadd(dest_path)
+  vim.fn.bufload(dest_bufnr)
+  require("organ.element_cache").invalidate(dest_bufnr)
+
+  local olpath_segments = {}
+  local olpath_str = props.archive_olpath or ""
+  for seg in olpath_str:gmatch("[^/]+") do
+    olpath_segments[#olpath_segments + 1] = seg
+  end
+
+  local parent = find_parent_by_olpath(dest_bufnr, olpath_segments)
+  local insert_at, dst_level, fell_back
+  if parent then
+    local parent_end = structure._subtree_end(dest_bufnr, parent)
+    insert_at = parent_end + 1
+    dst_level = parent.level + 1
+  else
+    -- No OLPATH, OR OLPATH didn't resolve -- append at file end at
+    -- top level.  This is a soft fallback (not an error) so the
+    -- user doesn't lose the archived content when a parent moved.
+    insert_at = vim.api.nvim_buf_line_count(dest_bufnr) + 1
+    dst_level = 1
+    fell_back = (#olpath_segments > 0)
+  end
+
+  local releveled = relevel_lines(cleaned, hl.level, dst_level)
+
+  vim.api.nvim_buf_set_lines(dest_bufnr, insert_at - 1, insert_at - 1, false, releveled)
+  vim.api.nvim_buf_call(dest_bufnr, function()
+    vim.cmd("silent! write")
+  end)
+
+  -- Delete the subtree from the archive file (current buffer).
+  obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
+  pcall(function()
+    require("organ.spacing").normalize_at_cut(bufnr, hl.line)
+  end)
+  local cur = vim.api.nvim_get_current_buf()
+  if bufnr ~= cur then
+    vim.api.nvim_set_current_buf(bufnr)
+  end
+  vim.cmd("silent! write")
+  if bufnr ~= cur then
+    vim.api.nvim_set_current_buf(cur)
+  end
+
+  if fell_back then
+    pcall(function()
+      require("organ.notify").warn(
+        "ARCHIVE_OLPATH `" .. olpath_str .. "` no longer resolves in "
+          .. dest_path .. "; restored at top level"
+      )
+    end)
+  end
+
+  return nil, dest_path
+end
+
 -- Dispatch to the action chosen by `archive.default_command`.
 function M.default(opts)
   local bufnr = (opts and opts.bufnr) or vim.api.nvim_get_current_buf()
@@ -908,6 +1150,17 @@ M.commands = {
       end
     end,
     desc = "Toggle the :ARCHIVE: tag on the headline at cursor (no move)",
+  },
+  unarchive = {
+    fn = function()
+      local err, dest_path = M.unarchive()
+      if err then
+        require("organ.notify").error(err)
+      else
+        require("organ.notify").info("restored to " .. (dest_path or "source file"))
+      end
+    end,
+    desc = "Restore the archived subtree at cursor to its source file (uses :ARCHIVE_FILE: / :ARCHIVE_OLPATH:)",
   },
 }
 

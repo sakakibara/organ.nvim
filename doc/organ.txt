@@ -2971,6 +2971,33 @@ SUBTREE, NARROW, ARCHIVE                               *organ-cmd-subtree-ops*
     Toggle the `:ARCHIVE:` tag on the headline at cursor without
     moving it.  Mirrors Emacs `org-toggle-archive-tag` (`C-c C-x a`).
 
+*:Org-unarchive*
+    `:Org unarchive`
+    Restore the archived subtree at cursor (in an archive file) to
+    its original source.  Reads `:ARCHIVE_FILE:` (destination) and
+    `:ARCHIVE_OLPATH:` (parent chain) off the subtree's
+    `:PROPERTIES:` drawer, walks OLPATH in the destination to
+    locate the parent, strips every `ARCHIVE_*` property from the
+    subtree, re-levels to fit under the located parent (or top-
+    level when OLPATH is empty / missing), inserts at the end of
+    the parent's section, and deletes the subtree from the archive
+    file.  Saves both files atomically.
+
+    Soft fallback: if `OLPATH` no longer resolves (parent renamed
+    / moved / deleted in the source since archive time), the
+    subtree lands at the destination file's top level and a
+    notice is printed -- so a stale OLPATH doesn't lose archived
+    content.
+
+    Hard errors:
+      - no `:ARCHIVE_FILE:` property on the subtree (nothing to
+        restore against -- archive without `archive.add_metadata`
+        produces unrestorable entries)
+      - destination file from `:ARCHIVE_FILE:` no longer exists
+
+    Organ extension over Emacs (which has no `org-unarchive` --
+    standard Emacs workflow is manual cut/paste).
+
 ==============================================================================
 LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
 
