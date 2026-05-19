@@ -697,10 +697,46 @@ local function write_logbook(bufnr, hl_line, cfg, from_state, to_state, note)
   end
 end
 
+-- Indent string for a brand-new planning line under `hl_line`.
+-- Drives SCHEDULED / DEADLINE / CLOSED so all three agree.  Config
+-- `todo.planning_indent`:
+--   "adapt"  (default)  heading_level + 1 spaces -- matches Emacs
+--                       `org-adapt-indentation = 'headline-data'`
+--                       default in Org 9.5+ / Emacs 30.x: `* L1` ->
+--                       2, `** L2` -> 3, `*** L3` -> 4.
+--   <number>            fixed N spaces regardless of heading depth.
+--                       Pre-9.5 Emacs convention is usually 2.
+--   0  (or false)       flush left, no indent.  Matches Emacs
+--                       `org-adapt-indentation = nil`.
+--
+-- Public so schedule.lua can call into it -- planning_indent is a
+-- cross-planning-kind concept and lives here under todo because the
+-- TODO state machine owns CLOSED line writing.
+function M._planning_indent(bufnr, hl_line)
+  local cfg = require("organ.buf_config").read(bufnr, "todo") or {}
+  local mode = cfg.planning_indent
+  if mode == nil then
+    mode = "adapt"
+  end
+  if type(mode) == "number" then
+    return string.rep(" ", math.max(0, mode))
+  end
+  if mode == false then
+    return ""
+  end
+  if mode == "adapt" then
+    local line = (vim.api.nvim_buf_get_lines(bufnr, hl_line - 1, hl_line, false) or {})[1] or ""
+    local stars = line:match("^(%*+)%s")
+    local level = stars and #stars or 1
+    return string.rep(" ", level + 1)
+  end
+  return ""
+end
+
 local function insert_closed_line(bufnr, hl_line)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local block = find_planning_block(lines, hl_line)
-  local new = "  CLOSED: " .. now_inactive_ts()
+  local new = M._planning_indent(bufnr, hl_line) .. "CLOSED: " .. now_inactive_ts()
   if block.closed then
     -- Replace existing CLOSED line in place.
     obuf.set_lines(bufnr, block.closed - 1, block.closed, { new })

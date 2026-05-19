@@ -904,6 +904,19 @@ return {
     log_reschedule = false,
     log_redeadline = false,
     log_refile = false,
+    -- Indent for newly-inserted planning lines (SCHEDULED:,
+    -- DEADLINE:, CLOSED:).  Mirrors Emacs `org-adapt-indentation`:
+    --   "adapt"   (default)  heading_level + 1 spaces -- matches
+    --                        Emacs `'headline-data` (Org 9.5+ /
+    --                        Emacs 30.x default): `* L1` -> 2,
+    --                        `** L2` -> 3, `*** L3` -> 4.
+    --   <number>             fixed N spaces regardless of depth.
+    --                        Older Emacs convention is usually 2.
+    --   0 (or false)         flush left.  Matches Emacs
+    --                        `org-adapt-indentation = nil`.
+    -- Existing-line edits preserve whatever indent is already there;
+    -- this only governs the FIRST write under a headline.
+    planning_indent = "adapt",
     -- Dependency enforcement on every TODO state transition. Mirrors
     -- Emacs `org-enforce-todo-dependencies = t` and `:ORDERED:` siblings.
     -- A child carrying `:NOBLOCKING: t` is exempt from parent-blocking.

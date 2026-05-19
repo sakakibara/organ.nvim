@@ -630,6 +630,25 @@ TODO                                                       *organ-config-todo*
     false, entries appear as bare list items immediately after the
     planning block. Mirrors Emacs `org-log-into-drawer`.
 
+                                           *organ-config-todo-planning_indent*
+    `todo.planning_indent` (string|number, default: `"adapt"`)
+    Indent of newly-inserted planning lines (`SCHEDULED:`,
+    `DEADLINE:`, `CLOSED:`).  Mirrors Emacs `org-adapt-indentation`:
+      `"adapt"`    heading_level + 1 spaces -- matches Emacs
+                   `'headline-data` (Org 9.5+ / Emacs 30.x default):
+                   `* L1` -> 2, `** L2` -> 3, `*** L3` -> 4.
+      <number>     fixed N spaces regardless of heading depth.  Pre-
+                   9.5 Emacs convention is usually 2.
+      `0` (or `false`)
+                   flush left.  Matches Emacs
+                   `org-adapt-indentation = nil`.
+
+    Drives all three planning writers (`SCHEDULED:` /
+    `DEADLINE:` first-set via `:Org schedule` / `:Org deadline`,
+    `CLOSED:` written on a `DONE` transition) so the three agree.
+    Existing-line edits preserve whatever indent is already on the
+    line; this only governs the FIRST write under a headline.
+
                                                    *organ-config-todo-keymaps*
     `todo.keymaps` (table)
     All default to `nil`:

@@ -100,8 +100,13 @@ local function _set_planning(bufnr, hl_line, kind, date_str)
     end
     obuf.set_lines(bufnr, pl - 1, pl, { line })
   else
-    -- No planning line yet — insert a new one right after the headline.
-    local new_line = kind .. ": " .. ts
+    -- No planning line yet — insert a new one right after the
+    -- headline.  Indent via `todo._planning_indent` so SCHEDULED /
+    -- DEADLINE / CLOSED all agree (the three were previously
+    -- inconsistent: SCHEDULED/DEADLINE went to col 0, CLOSED to
+    -- col 2).
+    local indent = require("organ.todo")._planning_indent(bufnr, hl_line)
+    local new_line = indent .. kind .. ": " .. ts
     obuf.set_lines(bufnr, hl_line, hl_line, { new_line })
   end
 
