@@ -31,7 +31,7 @@ do
   sched._set_planning(b, 1, "SCHEDULED", "2026-04-28")
   local lines = get_lines(b)
   assert_eq(lines[1], "* Task")
-  assert_eq(lines[2], "SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
   assert_eq(lines[3], "  body")
   assert_eq(#lines, 3)
 end
@@ -100,7 +100,7 @@ do
   assert(triggered, "calendar.pick should have been called")
   local lines = get_lines(b)
   -- Planning line should be at line 2.
-  assert_eq(lines[2], "SCHEDULED: <2026-04-28 Tue>", "planning line inserted at correct position")
+  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>", "planning line inserted at correct position")
 end
 
 io.write("schedule ok\n")
