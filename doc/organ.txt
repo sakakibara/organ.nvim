@@ -802,13 +802,13 @@ Archive                                                 *organ-config-archive*
       2. `#+ARCHIVE:` directive at the buffer top
       3. this config value
 
-                                       *organ-config-archive-sibling_heading*
+                                        *organ-config-archive-sibling_heading*
     `archive.sibling_heading` (string, default: `"Archive"`)
     Heading title for `:Org archive to_sibling` (Emacs
     `org-archive-sibling-heading`).  The archived subtree is nested
     under `* <sibling_heading>` in the SAME buffer.
 
-                                          *organ-config-archive-add_metadata*
+                                           *organ-config-archive-add_metadata*
     `archive.add_metadata` (bool, default: `true`)
     Inject `:ARCHIVE_TIME:` / `:ARCHIVE_FILE:` / `:ARCHIVE_OLPATH:` /
     `:ARCHIVE_CATEGORY:` / `:ARCHIVE_TODO:` / `:ARCHIVE_ITAGS:`
@@ -840,7 +840,7 @@ Archive                                                 *organ-config-archive*
     `org-archive--add-comment` (which is hardcoded ON in Emacs;
     organ exposes a toggle).  Set to `false` to suppress.
 
-                                       *organ-config-archive-default_command*
+                                        *organ-config-archive-default_command*
     `archive.default_command` (string, default: `"subtree"`)
     Action invoked by `:Org archive` (no subcommand).  Mirrors Emacs
     `org-archive-default-command`.  One of:
@@ -848,7 +848,7 @@ Archive                                                 *organ-config-archive*
       `"to_archive_sibling"`  use |organ-config-archive-sibling_heading|
       `"set_archive_tag"`     leave the subtree, toggle `:ARCHIVE:` tag
 
-                                                      *organ-archive-overrides*
+                                                     *organ-archive-overrides*
     Per-buffer and per-subtree overrides (Emacs-compatible):
 
     Buffer-level: `#+ARCHIVE:` directive at the top of an org file.
