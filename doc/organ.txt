@@ -517,6 +517,19 @@ Structure                                             *organ-config-structure*
                                               *organ-config-structure-enabled*
     `structure.enabled` (bool, default: `true`)
 
+                                      *organ-config-structure-odd_levels_only*
+    `structure.odd_levels_only` (bool, default: `false`)
+    Mirror Emacs `org-odd-levels-only`: when `true`, only odd-
+    numbered star counts (`*`, `***`, `*****`, ...) are treated as
+    valid heading levels.  Promote / demote step by 2 stars instead
+    of 1 so each step lands on the next valid level.
+
+    Note: the tree-sitter grammar still parses `**` as a level-2
+    heading -- this knob only changes promote / demote / move ops.
+    Enabling it on a buffer with mixed-parity existing headings
+    produces mixed-parity output until you normalise the buffer
+    manually.
+
                                               *organ-config-structure-keymaps*
     `structure.keymaps` (table)
      `promote_subtree`   `"<<"` — promote subtree one level
@@ -2973,6 +2986,32 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
 *:Org-list_repair*
     `:Org list repair`
     Renumber numeric list items consistently (1., 2., 3., …).
+
+*:Org-list_demote*
+    `:Org list demote`
+    Indent the list item at cursor under the previous sibling
+    (becomes the previous item's first child).  Mirrors Emacs
+    `org-shiftmetaright`.  Indent rule probed against Emacs 30.2:
+    `new_indent = previous_sibling.indent + width(its_bullet_prefix)`
+    -- so `- one` (prefix width 2) yields 2-space indent, `1. one`
+    (width 3) yields 3-space, `10. one` (width 4) yields 4-space.
+
+    No-op when not on a list item or when there is no previous
+    sibling at the current depth.  Not bound to a keymap by default
+    (Tab is overloaded with fold-cycle on headlines and indent on
+    body); bind to your preferred chord via `vim.keymap.set`.
+
+    Caveat: numeric-list renumbering after demotion is NOT yet
+    automatic -- Emacs renumbers the whole list when demotion
+    changes which items are siblings; organ indents only.  Follow
+    with `:Org list repair` if you need consistent numbering.
+
+*:Org-list_promote*
+    `:Org list promote`
+    Un-indent the list item at cursor to its nearest ancestor's
+    indent (becomes the ancestor's sibling).  Mirrors Emacs
+    `org-shiftmetaleft`.  No-op when not on a list item or when
+    already at indent 0.
 
 *:Org-list_to_subtree*
     `:Org list to_subtree`

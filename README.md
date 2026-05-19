@@ -358,7 +358,8 @@ default) with example inputs.
 <summary><strong>Lists, checkboxes, tables, sparse trees, footnotes</strong></summary>
 
 `:Org toggle_checkbox`, `:Org toggle_item`, `:Org list sort`,
-`:Org list repair`, `:Org list to_subtree`, `:Org update_statistics`,
+`:Org list repair`, `:Org list demote`, `:Org list promote`,
+`:Org list to_subtree`, `:Org update_statistics`,
 `:Org table sort`, `:Org table_*` (insert/delete/move row/col),
 `:Org table eval_formulas`, `:Org table import`, `:Org table export`,
 `:Org sparse_tree_*` (`todo` / `tag` / `regex` / `match` / `clear`),
