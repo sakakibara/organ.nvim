@@ -79,7 +79,11 @@ do
   vim.bo[b].buftype = "nofile"
 
   local after, wins = pick_with(b, 1, "d")
-  check("default style: a floating window is up during getcharstr", wins >= 1, "got " .. wins .. " floats")
+  check(
+    "default style: a floating window is up during getcharstr",
+    wins >= 1,
+    "got " .. wins .. " floats"
+  )
   check("default style: 'd' -> DONE", after == "* DONE Pick", "got " .. tostring(after))
 
   vim.api.nvim_buf_delete(b, { force = true })

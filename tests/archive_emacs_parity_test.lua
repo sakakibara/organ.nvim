@@ -110,9 +110,8 @@ do
   -- different from parity1's; use a custom location so they share one).
   local b2 = load_buf("* Item two\n", src2)
   local orig = require("organ").config.archive
-  require("organ").config.archive = vim.tbl_extend(
-    "force", orig, { location = arc .. "::* Archive" }
-  )
+  require("organ").config.archive =
+    vim.tbl_extend("force", orig, { location = arc .. "::* Archive" })
   archive.archive_subtree({ bufnr = b2, line = 1 })
   require("organ").config.archive = orig
 
@@ -135,16 +134,13 @@ do
   local src = tmp .. "/parity2.org"
   local arc = src .. "_archive"
   pcall(vim.fn.delete, arc)
-  local b = load_buf(
-    table.concat({
-      "#+FILETAGS: :inbox:project:",
-      "",
-      "* Parent :home:",
-      "** Child to archive :urgent:",
-      "body line",
-    }, "\n") .. "\n",
-    src
-  )
+  local b = load_buf(table.concat({
+    "#+FILETAGS: :inbox:project:",
+    "",
+    "* Parent :home:",
+    "** Child to archive :urgent:",
+    "body line",
+  }, "\n") .. "\n", src)
   archive.archive_subtree({ bufnr = b, line = 4 }) -- cursor on ** Child
   local lines = read_lines(arc)
   local itags_line
@@ -159,9 +155,21 @@ do
     -- inherited = parent's "home" + filetags "inbox" + "project".
     -- The DIRECT tag "urgent" travels with the headline title and
     -- is NOT in ARCHIVE_ITAGS (Emacs inherit-only semantic).
-    check("ARCHIVE_ITAGS includes parent's `home` tag", itags_line:find("home", 1, true) ~= nil, itags_line)
-    check("ARCHIVE_ITAGS includes filetag `inbox`", itags_line:find("inbox", 1, true) ~= nil, itags_line)
-    check("ARCHIVE_ITAGS includes filetag `project`", itags_line:find("project", 1, true) ~= nil, itags_line)
+    check(
+      "ARCHIVE_ITAGS includes parent's `home` tag",
+      itags_line:find("home", 1, true) ~= nil,
+      itags_line
+    )
+    check(
+      "ARCHIVE_ITAGS includes filetag `inbox`",
+      itags_line:find("inbox", 1, true) ~= nil,
+      itags_line
+    )
+    check(
+      "ARCHIVE_ITAGS includes filetag `project`",
+      itags_line:find("project", 1, true) ~= nil,
+      itags_line
+    )
     check(
       "ARCHIVE_ITAGS does NOT include the direct `urgent` tag",
       not itags_line:find("urgent", 1, true),
@@ -192,12 +200,12 @@ do
       has_top = true
     end
   end
-  check("location with empty headline: no `* Archive` wrapper", not has_wrapper, table.concat(lines, "|"))
   check(
-    "location with empty headline: subtree stays at level 1",
-    has_top,
+    "location with empty headline: no `* Archive` wrapper",
+    not has_wrapper,
     table.concat(lines, "|")
   )
+  check("location with empty headline: subtree stays at level 1", has_top, table.concat(lines, "|"))
 end
 
 -- 5b: `#+ARCHIVE:` directive overrides config.
@@ -205,10 +213,7 @@ do
   local src = tmp .. "/parity4.org"
   local custom_arc = tmp .. "/custom_via_directive.org"
   pcall(vim.fn.delete, custom_arc)
-  local b = load_buf(
-    "#+ARCHIVE: " .. custom_arc .. "::* Via directive\n* Item\n",
-    src
-  )
+  local b = load_buf("#+ARCHIVE: " .. custom_arc .. "::* Via directive\n* Item\n", src)
   archive.archive_subtree({ bufnr = b, line = 2 })
 
   local lines = read_lines(custom_arc)
@@ -232,26 +237,25 @@ do
   local prop_arc = tmp .. "/from_property.org"
   pcall(vim.fn.delete, dir_arc)
   pcall(vim.fn.delete, prop_arc)
-  local b = load_buf(
-    table.concat({
-      "#+ARCHIVE: " .. dir_arc .. "::* From directive",
-      "",
-      "* Item",
-      ":PROPERTIES:",
-      ":ARCHIVE: " .. prop_arc .. "::* From property",
-      ":END:",
-      "body",
-    }, "\n") .. "\n",
-    src
-  )
+  local b = load_buf(table.concat({
+    "#+ARCHIVE: " .. dir_arc .. "::* From directive",
+    "",
+    "* Item",
+    ":PROPERTIES:",
+    ":ARCHIVE: " .. prop_arc .. "::* From property",
+    ":END:",
+    "body",
+  }, "\n") .. "\n", src)
   archive.archive_subtree({ bufnr = b, line = 3 }) -- cursor on * Item
 
   check(
     ":ARCHIVE: property wins over #+ARCHIVE: directive",
     vim.loop.fs_stat(prop_arc) ~= nil and vim.loop.fs_stat(dir_arc) == nil,
-    string.format("prop_arc exists=%s, dir_arc exists=%s",
+    string.format(
+      "prop_arc exists=%s, dir_arc exists=%s",
       tostring(vim.loop.fs_stat(prop_arc) ~= nil),
-      tostring(vim.loop.fs_stat(dir_arc) ~= nil))
+      tostring(vim.loop.fs_stat(dir_arc) ~= nil)
+    )
   )
 end
 

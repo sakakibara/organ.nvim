@@ -102,9 +102,8 @@ end
 -- whitespace (`:tag1:tag2:` and `tag1 tag2` both work).
 local function buffer_filetags(bufnr)
   local out, seen = {}, {}
-  local lines = vim.api.nvim_buf_get_lines(
-    bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false
-  )
+  local lines =
+    vim.api.nvim_buf_get_lines(bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false)
   for _, l in ipairs(lines) do
     local val = l:match("^%s*#%+[Ff][Ii][Ll][Ee][Tt][Aa][Gg][Ss]:%s*(.-)%s*$")
     if val then
@@ -246,9 +245,8 @@ end
 -- Look for a `#+ARCHIVE:` directive in the buffer top (first 50
 -- lines).  Returns the directive value or nil.
 local function buffer_archive_directive(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(
-    bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false
-  )
+  local lines =
+    vim.api.nvim_buf_get_lines(bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false)
   for _, l in ipairs(lines) do
     local val = l:match("^%s*#%+[Aa][Rr][Cc][Hh][Ii][Vv][Ee]:%s*(.-)%s*$")
     if val and val ~= "" then
@@ -269,8 +267,7 @@ end
 -- A nil headline title means "no wrapper heading -- append at the
 -- archive file's top level" (Emacs default for `"%s_archive::"`).
 local function resolve_archive_destination(bufnr, headline, cfg, src_path)
-  local location_str = subtree_archive_property(bufnr, headline)
-    or buffer_archive_directive(bufnr)
+  local location_str = subtree_archive_property(bufnr, headline) or buffer_archive_directive(bufnr)
   if not location_str then
     local loc = cfg.location
     if type(loc) == "function" then
@@ -445,8 +442,7 @@ function M.archive_subtree(opts)
   -- 4. Resolve archive destination from (in order): subtree
   --    `:ARCHIVE:` property, buffer `#+ARCHIVE:` directive, config
   --    `location`, legacy `file_pattern + headline`.
-  local archive_path, archive_hl_title =
-    resolve_archive_destination(bufnr, hl, cfg, src_path)
+  local archive_path, archive_hl_title = resolve_archive_destination(bufnr, hl, cfg, src_path)
 
   -- 6. Read subtree lines from source buffer.
   local subtree_lines = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, subtree_end, false)
@@ -473,8 +469,7 @@ function M.archive_subtree(opts)
   --     when the archive file is empty (newly created).  Default ON
   --     for Emacs parity; opt out via `cfg.write_source_header =
   --     false`.
-  local is_empty = (#arc_lines == 0)
-    or (#arc_lines == 1 and arc_lines[1] == "")
+  local is_empty = (#arc_lines == 0) or (#arc_lines == 1 and arc_lines[1] == "")
   if is_empty and cfg.write_source_header ~= false then
     arc_lines = {
       "# Archived entries from file " .. abbreviate_path(src_path),
@@ -1081,8 +1076,11 @@ function M.unarchive(opts)
   if fell_back then
     pcall(function()
       require("organ.notify").warn(
-        "ARCHIVE_OLPATH `" .. olpath_str .. "` no longer resolves in "
-          .. dest_path .. "; restored at top level"
+        "ARCHIVE_OLPATH `"
+          .. olpath_str
+          .. "` no longer resolves in "
+          .. dest_path
+          .. "; restored at top level"
       )
     end)
   end

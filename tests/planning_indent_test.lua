@@ -82,10 +82,7 @@ do
   check(
     "adapt L1: SCHEDULED at col 2 (1 star + space)",
     leading_spaces(sched) == 2,
-    "got "
-      .. leading_spaces(sched)
-      .. " leading spaces on: "
-      .. vim.inspect(sched)
+    "got " .. leading_spaces(sched) .. " leading spaces on: " .. vim.inspect(sched)
   )
 
   -- Now apply done -> CLOSED should also be 2 spaces (consistent)
@@ -184,10 +181,7 @@ do
   -- Buffer already has SCHEDULED at col 7 (deliberately weird).  A
   -- DEADLINE add should join the SAME line and preserve the
   -- existing leading whitespace, not re-indent per config.
-  local b = load_buf(
-    "* TODO Existing\n       SCHEDULED: <2026-05-19 Tue>\n",
-    "existing.org"
-  )
+  local b = load_buf("* TODO Existing\n       SCHEDULED: <2026-05-19 Tue>\n", "existing.org")
   schedule._set_planning(b, 1, "DEADLINE", "2026-05-20")
   local pl = planning_line(b, 1)
   check(

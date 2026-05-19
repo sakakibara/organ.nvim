@@ -223,10 +223,7 @@ do
         l:find(today_prefix, 1, true),
         "test4: ARCHIVE_TIME does not contain today's date in: " .. l
       )
-      assert(
-        not l:find("[", 1, true),
-        "test4: ARCHIVE_TIME should not have brackets, got: " .. l
-      )
+      assert(not l:find("[", 1, true), "test4: ARCHIVE_TIME should not have brackets, got: " .. l)
     end
     if l:match(":ARCHIVE_FILE:") then
       found_file = true

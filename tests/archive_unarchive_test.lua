@@ -123,11 +123,7 @@ do
       still_archived = true
     end
   end
-  check(
-    "round1: entry removed from archive file",
-    not still_archived,
-    table.concat(arc_after, "|")
-  )
+  check("round1: entry removed from archive file", not still_archived, table.concat(arc_after, "|"))
 end
 
 -- ─── 2. Nested round trip (OLPATH = "Parent") ────────────────────────────────
@@ -303,16 +299,13 @@ do
   pcall(vim.fn.delete, arc)
   -- Source has an :ID: property -- after archive + unarchive, the ID
   -- must survive (only ARCHIVE_* gets stripped).
-  local b = load_buf(
-    table.concat({
-      "* Entry with ID",
-      ":PROPERTIES:",
-      ":ID: abc-123",
-      ":END:",
-      "body",
-    }, "\n") .. "\n",
-    src
-  )
+  local b = load_buf(table.concat({
+    "* Entry with ID",
+    ":PROPERTIES:",
+    ":ID: abc-123",
+    ":END:",
+    "body",
+  }, "\n") .. "\n", src)
 
   archive.archive_subtree({ bufnr = b, line = 1 })
 
