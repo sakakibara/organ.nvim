@@ -27,6 +27,7 @@ TABLE OF CONTENTS                                                  *organ-toc*
     Watcher .............................. |organ-config-watcher|
     Backlinks ............................ |organ-config-backlinks|
     Sparse trees ......................... |organ-config-sparse|
+    Archive .............................. |organ-config-archive|
     Fold ................................. |organ-config-fold|
     Indent ............................... |organ-config-indent|
     Format ............................... |organ-config-format|
@@ -765,6 +766,103 @@ Sparse trees                                             *organ-config-sparse*
                                                  *organ-config-sparse-enabled*
     `sparse.enabled` (bool, default: `true`)
     Gates `:Org sparse_tree_*` commands.
+
+------------------------------------------------------------------------------
+Archive                                                 *organ-config-archive*
+
+                                                *organ-config-archive-enabled*
+    `archive.enabled` (bool, default: `true`)
+    Gates `:Org archive` commands and the `<LocalLeader>$` keymap.
+
+                                               *organ-config-archive-location*
+    `archive.location` (string|function, default: `"%s_archive::"`)
+    Where archived subtrees go.  Emacs `org-archive-location` syntax:
+    `"FILE::HEADLINE"`.
+      `FILE`      where to write entries.  `%s` is replaced with the
+                  source file's basename (Emacs convention).  Relative
+                  paths resolve against the source's directory;
+                  absolute paths and `~/...` are honored as-is.
+      `HEADLINE`  optional wrapper heading (with or without leading
+                  `* `).  When empty, archived subtrees become top-
+                  level headings in the archive file (Emacs default).
+
+    Examples:
+>lua
+        location = "%s_archive::"           -- Emacs default; no wrapper
+        location = "%s_archive::* Archive"  -- wrap under "* Archive"
+        location = "~/.org/archive/%s::"    -- centralised archive dir
+        location = "::* Old stuff"          -- same file, under "* Old stuff"
+<
+    May also be a function `(src_path) -> location_string` for
+    dynamic destinations (e.g. dated archive dirs) -- an organ
+    extension over Emacs's string-only `org-archive-location`.
+
+    Override precedence at archive time:
+      1. `:ARCHIVE:` property on the subtree being archived
+      2. `#+ARCHIVE:` directive at the buffer top
+      3. this config value
+
+                                       *organ-config-archive-sibling_heading*
+    `archive.sibling_heading` (string, default: `"Archive"`)
+    Heading title for `:Org archive to_sibling` (Emacs
+    `org-archive-sibling-heading`).  The archived subtree is nested
+    under `* <sibling_heading>` in the SAME buffer.
+
+                                          *organ-config-archive-add_metadata*
+    `archive.add_metadata` (bool, default: `true`)
+    Inject `:ARCHIVE_TIME:` / `:ARCHIVE_FILE:` / `:ARCHIVE_OLPATH:` /
+    `:ARCHIVE_CATEGORY:` / `:ARCHIVE_TODO:` / `:ARCHIVE_ITAGS:`
+    properties on the moved headline.  Which subset gets emitted is
+    controlled by |organ-config-archive-save_context_info| below.
+    Set to `false` to suppress all property injection regardless.
+
+                                      *organ-config-archive-save_context_info*
+    `archive.save_context_info` (list, default: `{"time","file","olpath","category","todo","itags"}`)
+    Subset of `ARCHIVE_*` properties to inject when
+    `add_metadata` is on.  Mirrors Emacs
+    `org-archive-save-context-info`.  Property formats match Emacs:
+      `time`      `YYYY-MM-DD Dow HH:MM` (no `[ ]` brackets)
+      `file`      source file path with `~/...` prefix when under $HOME
+                  (via Emacs `abbreviate-file-name`)
+      `olpath`    parent-chain path like `"GrandParent/Parent"`
+      `category`  source file basename (without `.org`)
+      `todo`      TODO keyword stripped from the moved headline
+      `itags`     INHERITED tags only: ancestor headlines' tags ∪
+                  `#+FILETAGS:`, deduplicated.  Direct tags on the
+                  moved headline travel with its title and are NOT in
+                  ITAGS (matches Emacs's `org-get-tags` inherit-only
+                  semantic).
+
+                                    *organ-config-archive-write_source_header*
+    `archive.write_source_header` (bool, default: `true`)
+    When the archive file is first created (empty), write
+    `# Archived entries from file <path>` at the top.  Matches Emacs
+    `org-archive--add-comment` (which is hardcoded ON in Emacs;
+    organ exposes a toggle).  Set to `false` to suppress.
+
+                                       *organ-config-archive-default_command*
+    `archive.default_command` (string, default: `"subtree"`)
+    Action invoked by `:Org archive` (no subcommand).  Mirrors Emacs
+    `org-archive-default-command`.  One of:
+      `"subtree"`             move per |organ-config-archive-location|
+      `"to_archive_sibling"`  use |organ-config-archive-sibling_heading|
+      `"set_archive_tag"`     leave the subtree, toggle `:ARCHIVE:` tag
+
+                                                      *organ-archive-overrides*
+    Per-buffer and per-subtree overrides (Emacs-compatible):
+
+    Buffer-level: `#+ARCHIVE:` directive at the top of an org file.
+>org
+        #+ARCHIVE: ~/.org/inbox_archive.org::* Inbox archive
+<
+    Per-subtree: `:ARCHIVE:` property in the subtree's
+    `:PROPERTIES:` drawer.  Highest precedence.
+>org
+        * Big project
+        :PROPERTIES:
+        :ARCHIVE: ~/.org/projects_archive.org::
+        :END:
+<
 
 ------------------------------------------------------------------------------
 Fold                                                       *organ-config-fold*
@@ -2839,13 +2937,26 @@ SUBTREE, NARROW, ARCHIVE                               *organ-cmd-subtree-ops*
 
 *:Org-archive_subtree*
     `:Org archive subtree`
-    Move the subtree at cursor to `<file>.org_archive` (matches Emacs
-    convention).
+    Move the subtree at cursor to the archive location resolved per
+    |organ-archive-overrides|.  With the default
+    |organ-config-archive-location| `"%s_archive::"`, that's a
+    sibling `<src>_archive` file with the subtree at the file's top
+    level.  Inject `ARCHIVE_*` metadata per
+    |organ-config-archive-save_context_info|.  On first archive into
+    a file, prefix `# Archived entries from file <path>` (toggle via
+    |organ-config-archive-write_source_header|).
 
 *:Org-archive_to_sibling*
     `:Org archive to_sibling`
-    Move the subtree to a sibling-level `Archived` headline within the
-    same file.
+    Move the subtree under a sibling-level
+    |organ-config-archive-sibling_heading| (default `* Archive`)
+    within the SAME file.  Mirrors Emacs `org-archive-to-archive-
+    sibling` (`C-c C-x A`).
+
+*:Org-archive_set_tag*
+    `:Org archive set_tag`
+    Toggle the `:ARCHIVE:` tag on the headline at cursor without
+    moving it.  Mirrors Emacs `org-toggle-archive-tag` (`C-c C-x a`).
 
 ==============================================================================
 LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*

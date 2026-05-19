@@ -136,9 +136,9 @@ check(
   "src after:\n" .. table.concat(lines_after, "\n")
 )
 
--- Archive file was created. The default file_pattern is "%s_archive"
--- (matches Emacs's org-archive-location default), so work.org →
--- work.org_archive (not work_archive.org).
+-- Archive file was created. The default `archive.location` is
+-- `"%s_archive::"` (matches Emacs's `org-archive-location`), where
+-- `%s` is the source basename -- so work.org → work.org_archive.
 local archive_file = fixture .. "_archive"
 check(
   "archive: archive file created",

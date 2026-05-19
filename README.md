@@ -113,12 +113,13 @@ Click a row to expand.  All demos are auto-rendered from
 </details>
 
 <details>
-<summary><strong>Archive</strong> — move a subtree to its archive sibling</summary>
+<summary><strong>Archive</strong> — Emacs <code>org-archive-location</code> syntax (file + headline + per-buffer / per-subtree overrides)</summary>
 
 <p align="center">
   <img src="assets/demos/archive.gif" alt="archive demo" width="780">
 </p>
 
+Configure via `archive.location = "FILE::HEADLINE"`.  `%s` in `FILE` is the source basename (Emacs convention).  Empty `HEADLINE` part = subtree appended at the archive file's top level (Emacs default).  Buffer-level `#+ARCHIVE:` directive and per-subtree `:ARCHIVE:` property both override.  Inherited tags are written as `:ARCHIVE_ITAGS:` (ancestor tags + `#+FILETAGS:`).  Full reference: `:h organ-config-archive`.
 </details>
 
 <details>
@@ -320,7 +321,8 @@ default) with example inputs.
 <summary><strong>Capture, refile, archive</strong></summary>
 
 `:Org capture` (template via `:Org capture <key>`), `:Org capture_prompt`,
-`:Org refile`, `:Org archive subtree`, `:Org archive to_sibling`
+`:Org refile`, `:Org archive subtree`, `:Org archive to_sibling`,
+`:Org archive set_tag`
 </details>
 
 <details>
