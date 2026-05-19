@@ -1044,20 +1044,48 @@ local function fast_select(bufnr, line)
     require("organ.notify").warn("organ: no TODO keywords configured")
     return
   end
-  -- Render `[t] TODO   [w] WAIT   [d] DONE` on a single status line.
-  -- Long sequences wrap.  Highlights via echo for now (no float to
-  -- keep this lightweight; matches Emacs's echo-area prompt style).
-  local pieces = {}
-  for _, m in ipairs(entries) do
-    pieces[#pieces + 1] = string.format("[%s] %s", m.key, m.name)
+  -- Dispatch by `todo.fast_pick_style`:
+  --   "popup"  (default)  floating window that blocks on
+  --                       getcharstr until the user picks.  Stays
+  --                       visible regardless of what other async
+  --                       UI plugins do (noice / snacks /
+  --                       completion etc.) -- those routes overdraw
+  --                       the nvim_echo prompt and the echo style
+  --                       "goes away after a while".  Matches the
+  --                       agenda dispatcher's default style.
+  --   "echo"              terminal-classic nvim_echo + getcharstr.
+  --                       Lighter; subject to overdraw.
+  local style = cfg.fast_pick_style
+  if style == nil then
+    style = "popup"
   end
-  vim.api.nvim_echo({
-    { "Set TODO: ", "Question" },
-    { table.concat(pieces, "  "), "Normal" },
-    { "  (<Space>=clear, <Esc>=cancel)", "Comment" },
-  }, false, {})
-  local code = vim.fn.getcharstr()
-  vim.api.nvim_echo({ { "" } }, false, {})
+
+  local code
+  if style == "echo" then
+    local pieces = {}
+    for _, m in ipairs(entries) do
+      pieces[#pieces + 1] = string.format("[%s] %s", m.key, m.name)
+    end
+    vim.api.nvim_echo({
+      { "Set TODO: ", "Question" },
+      { table.concat(pieces, "  "), "Normal" },
+      { "  (<Space>=clear, <Esc>=cancel)", "Comment" },
+    }, false, {})
+    code = vim.fn.getcharstr()
+    vim.api.nvim_echo({ { "" } }, false, {})
+  else
+    -- popup: shared util with agenda dispatcher.
+    local popup_entries = {}
+    for _, m in ipairs(entries) do
+      popup_entries[#popup_entries + 1] = { m.key, m.name, m.name }
+    end
+    local _, ch = require("organ.popup_menu").pick(popup_entries, {
+      title = "Set TODO state",
+      prompt = "Press key (<Space>=clear, <Esc>=cancel):",
+    })
+    code = ch or ""
+  end
+
   if code == "" or code == "\27" then -- <Esc>
     return
   end

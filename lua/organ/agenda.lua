@@ -5157,62 +5157,14 @@ end
 M._build_dispatch_entries = build_dispatch_entries
 
 -- Show a single-keystroke menu in a centered floating window and
--- block on getcharstr until the user picks.  Returns the matched
--- entry's action (a function) or nil on cancel / unmapped key.
--- Works under any UI plugin (noice / snacks / native cmdline) since
--- it doesn't go through nvim_echo or vim.notify -- those routes
--- get intercepted and the menu fades.
+-- Thin wrapper around `organ.popup_menu.pick` -- the actual
+-- single-keystroke popup primitive lives there so the TODO fast-
+-- pick can use the same modal-blocking UI.
 local function show_popup_menu(entries, title)
-  local lines = { "Press key for an agenda command:", "" }
-  for _, e in ipairs(entries) do
-    lines[#lines + 1] = string.format("  %s   %s", e[1], e[2])
-  end
-  local width = 0
-  for _, l in ipairs(lines) do
-    if #l > width then
-      width = #l
-    end
-  end
-  width = math.max(width + 2, #(title or "") + 4)
-  local height = #lines
-
-  local bufnr = vim.api.nvim_create_buf(false, true)
-  obuf.set_lines(bufnr, 0, -1, lines)
-  vim.bo[bufnr].buftype = "nofile"
-  vim.bo[bufnr].bufhidden = "wipe"
-  vim.bo[bufnr].swapfile = false
-  vim.bo[bufnr].modifiable = false
-
-  local row = math.max(0, math.floor((vim.o.lines - height) / 2))
-  local col = math.max(0, math.floor((vim.o.columns - width) / 2))
-  local win = vim.api.nvim_open_win(bufnr, false, {
-    relative = "editor",
-    width = width,
-    height = height,
-    row = row,
-    col = col,
-    border = "rounded",
-    style = "minimal",
-    title = title and (" " .. title .. " ") or nil,
-    title_pos = title and "center" or nil,
-    noautocmd = true,
+  return require("organ.popup_menu").pick(entries, {
+    title = title,
+    prompt = "Press key for an agenda command:",
   })
-
-  -- Force a redraw so the popup is visible before getcharstr blocks.
-  pcall(vim.cmd, "redraw")
-  local ok, char = pcall(vim.fn.getcharstr)
-  pcall(vim.api.nvim_win_close, win, true)
-  pcall(vim.cmd, "redraw")
-
-  if not ok or not char or char == "" then
-    return nil, nil
-  end
-  for _, e in ipairs(entries) do
-    if e[1] == char then
-      return e[3], char
-    end
-  end
-  return nil, char
 end
 
 --- Open the agenda dispatcher menu (Emacs `C-c a`).  Style is controlled

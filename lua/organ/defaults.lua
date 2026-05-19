@@ -904,6 +904,17 @@ return {
     log_reschedule = false,
     log_redeadline = false,
     log_refile = false,
+    -- Style for `todo.keymaps.fast_pick` (`:Org todo` with
+    -- selection menu).  Mirrors `agenda.dispatcher_style`:
+    --   "popup"  (default)  floating window that blocks on
+    --                       getcharstr -- stays put regardless of
+    --                       async UI plugins (noice / snacks /
+    --                       completion) that would overdraw the
+    --                       echo-area prompt.
+    --   "echo"              nvim_echo + getcharstr; lighter but
+    --                       subject to overdraw -- the prompt
+    --                       can disappear before the user picks.
+    fast_pick_style = "popup",
     -- Indent for newly-inserted planning lines (SCHEDULED:,
     -- DEADLINE:, CLOSED:).  Mirrors Emacs `org-adapt-indentation`:
     --   "adapt"   (default)  heading_level + 1 spaces -- matches

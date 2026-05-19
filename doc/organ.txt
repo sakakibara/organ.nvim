@@ -630,6 +630,22 @@ TODO                                                       *organ-config-todo*
     false, entries appear as bare list items immediately after the
     planning block. Mirrors Emacs `org-log-into-drawer`.
 
+                                           *organ-config-todo-fast_pick_style*
+    `todo.fast_pick_style` (string, default: `"popup"`)
+    UI for the single-keystroke TODO picker (`todo.keymaps.fast_pick`,
+    default `<LocalLeader>t`).  Matches `agenda.dispatcher_style`
+    semantics:
+      `"popup"`   floating window that blocks on `getcharstr` until
+                  the user types a key.  Modal -- stays visible
+                  regardless of what async UI plugins (noice /
+                  snacks / completion) draw to the screen.  This is
+                  the default and matches the agenda dispatcher's
+                  default.
+      `"echo"`    terminal-classic `nvim_echo` + `getcharstr`.
+                  Lighter; subject to overdraw by async UI plugins
+                  -- the prompt can "go away" before the user picks,
+                  even though `getcharstr` itself still blocks.
+
                                            *organ-config-todo-planning_indent*
     `todo.planning_indent` (string|number, default: `"adapt"`)
     Indent of newly-inserted planning lines (`SCHEDULED:`,
