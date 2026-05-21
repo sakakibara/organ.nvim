@@ -10,8 +10,12 @@
 --     beyond the cursor target column.
 --   * Every cell is padded with trailing space inside its highlight range,
 --     making `selected` / `today` highlights visible across the full cell.
---   * Cursor is hidden via `winhl=Cursor:OrganCalendarCursor` (transparent
---     fg/bg). The selection is shown by the cell's own highlight.
+--   * Cursor is masked by pointing `guicursor` at `OrganCalendarCursor`,
+--     which LINKS to the selection highlight.  Since the cursor always
+--     sits on the selected cell, the cursor block renders with the same
+--     colors as the selection and blends in -- no `termguicolors` /
+--     compositing needed (unlike a `blend = 100` mask, which silently
+--     does nothing without termguicolors).
 --   * Footer line shows keymaps; toggleable via opt.footer = false.
 --   * Optional 3-month layout (opts.three_months = true) renders prev /
 --     current / next side-by-side, mirroring Emacs `calendar`.
@@ -567,10 +571,15 @@ function M.pick(opts, callback)
   end
   local win = vim.api.nvim_open_win(bufnr, true, win_opts)
 
-  -- Hide the cursor inside the calendar (selection highlight stands in for it).
+  -- Mask the cursor inside the calendar.  The cursor always sits on
+  -- the selected cell (see _refresh), so linking the cursor highlight
+  -- to the selection highlight makes the block indistinguishable from
+  -- the selection -- works on any terminal, unlike `blend = 100`
+  -- (which needs `termguicolors` + compositing or it's a no-op and the
+  -- block shows through).
   local saved_guicursor = vim.o.guicursor
   vim.o.guicursor = "a:OrganCalendarCursor"
-  vim.api.nvim_set_hl(0, "OrganCalendarCursor", { blend = 100 })
+  vim.api.nvim_set_hl(0, "OrganCalendarCursor", { link = "@organ.calendar.selected" })
 
   -- Pin the window so cursor moves don't horizontally scroll. With
   -- `style = "minimal"` and a width that exactly matches the rendered
