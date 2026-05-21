@@ -456,6 +456,22 @@ function M._time_digit(t, d)
   end
 end
 
+-- Step the focused segment.  `delta` is +1 / -1.  Hours step by 1
+-- (wrap 0..23); minutes by `minute_step` (wrap 0..59).
+function M._time_step(t, delta, minute_step)
+  t.active = true
+  t.tens = nil
+  local hour = _is_hour_seg(t.focus)
+  if hour then
+    local cur = (t.focus == "start_h") and t.start_h or t.end_h
+    _set_seg(t, t.focus, (cur + delta) % 24)
+  else
+    local cur = (t.focus == "start_m") and t.start_m or t.end_m
+    local step = minute_step or 5
+    _set_seg(t, t.focus, (cur + delta * step) % 60)
+  end
+end
+
 local NS = vim.api.nvim_create_namespace("organ_calendar")
 
 local hl_registered = false

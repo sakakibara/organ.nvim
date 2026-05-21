@@ -103,6 +103,40 @@ do
   check("digit min '7': committed 07", t.start_m == 7)
 end
 
+-- Stepping: hour ±1 with wrap
+do
+  local t = cal._time_new({ start = "14:30" })
+  t.focus = "start_h"
+  cal._time_step(t, 1, 5)
+  check("step hour +1 -> 15", t.start_h == 15)
+  t.start_h = 23
+  cal._time_step(t, 1, 5)
+  check("step hour +1 wrap 23->0", t.start_h == 0)
+  cal._time_step(t, -1, 5)
+  check("step hour -1 wrap 0->23", t.start_h == 23)
+end
+
+-- Stepping: minute ±step (5) with wrap
+do
+  local t = cal._time_new({ start = "14:30" })
+  t.focus = "start_m"
+  cal._time_step(t, 1, 5)
+  check("step min +1*5 -> 35", t.start_m == 35)
+  t.start_m = 58
+  cal._time_step(t, 1, 5)
+  check("step min wrap 58 +5 -> 3", t.start_m == 3)
+  cal._time_step(t, -1, 5)
+  check("step min wrap 3 -5 -> 58", t.start_m == 58)
+end
+
+-- Stepping activates a previously-inactive field
+do
+  local t = cal._time_new(nil)
+  t.focus = "start_h"
+  cal._time_step(t, 1, 5)
+  check("step activates field", t.active == true)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
