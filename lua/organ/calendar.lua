@@ -386,6 +386,76 @@ function M._time_render(t, zone_focused)
   return out
 end
 
+-- Order of segments for focus advancement.
+local function _seg_order(t)
+  if t.has_end then
+    return { "start_h", "start_m", "end_h", "end_m" }
+  end
+  return { "start_h", "start_m" }
+end
+
+local function _advance_focus(t)
+  local order = _seg_order(t)
+  for i, name in ipairs(order) do
+    if name == t.focus and order[i + 1] then
+      t.focus = order[i + 1]
+      return
+    end
+  end
+  -- already at the last segment: stay
+end
+
+local function _is_hour_seg(name)
+  return name == "start_h" or name == "end_h"
+end
+
+local function _set_seg(t, name, value)
+  if name == "start_h" then
+    t.start_h = value
+  elseif name == "start_m" then
+    t.start_m = value
+  elseif name == "end_h" then
+    t.end_h = value
+  elseif name == "end_m" then
+    t.end_m = value
+  end
+end
+
+-- Feed a digit (0-9) to the focused segment.  Two-digit accumulation
+-- per the design's precise hour/minute rules.
+function M._time_digit(t, d)
+  t.active = true
+  local hour = _is_hour_seg(t.focus)
+  if t.tens == nil then
+    -- First digit.
+    if hour then
+      if d == 0 or d == 1 or d == 2 then
+        t.tens = d -- wait for a possible second digit
+      else
+        _set_seg(t, t.focus, d) -- 0d
+        _advance_focus(t)
+      end
+    else
+      if d >= 0 and d <= 5 then
+        t.tens = d
+      else
+        _set_seg(t, t.focus, d) -- 0d
+        _advance_focus(t)
+      end
+    end
+  else
+    -- Second digit: combine tens*10 + d.
+    local value = t.tens * 10 + d
+    local maxv = hour and 23 or 59
+    if value <= maxv then
+      _set_seg(t, t.focus, value)
+      t.tens = nil
+      _advance_focus(t)
+    end
+    -- else: reject (no-op); held tens digit stands.
+  end
+end
+
 local NS = vim.api.nvim_create_namespace("organ_calendar")
 
 local hl_registered = false

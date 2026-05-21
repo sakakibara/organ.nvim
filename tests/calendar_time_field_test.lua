@@ -61,6 +61,48 @@ do
   check("render inactive focused", cal._time_render(t, true) == "[--]:--")
 end
 
+-- Digit accumulation: hour segment
+do
+  local t = cal._time_new(nil)
+  cal._time_digit(t, 1) -- tens held, stay on start_h
+  check("digit hour '1': tens held, still start_h", t.tens == 1 and t.focus == "start_h")
+  cal._time_digit(t, 4) -- 14, commit, advance to minute
+  check("digit hour '14': committed", t.start_h == 14 and t.active == true)
+  check("digit hour '14': advanced to start_m", t.focus == "start_m" and t.tens == nil)
+  cal._time_digit(t, 3) -- minute tens held
+  check("digit min '3': tens held", t.tens == 3 and t.focus == "start_m")
+  cal._time_digit(t, 0) -- 30, commit
+  check("digit min '30': committed", t.start_m == 30 and t.tens == nil)
+  local info = cal._time_to_info(t)
+  check("digit -> 14:30", info and info.start == "14:30", vim.inspect(info))
+end
+
+-- Hour first-digit 3..9 commits as 0d and advances
+do
+  local t = cal._time_new(nil)
+  cal._time_digit(t, 9)
+  check("digit hour '9': committed 09, advanced", t.start_h == 9 and t.focus == "start_m")
+end
+
+-- Hour second digit that would exceed 23 is rejected
+do
+  local t = cal._time_new(nil)
+  cal._time_digit(t, 2) -- tens=2
+  cal._time_digit(t, 5) -- 25 invalid -> reject, tens still 2, still start_h
+  check("digit hour '2','5': rejected", t.tens == 2 and t.focus == "start_h")
+  cal._time_digit(t, 3) -- 23 ok
+  check("digit hour '2','3': 23 committed", t.start_h == 23 and t.focus == "start_m")
+end
+
+-- Minute first-digit 6..9 commits as 0d
+do
+  local t = cal._time_new(nil)
+  t.focus = "start_m"
+  t.active = true
+  cal._time_digit(t, 7)
+  check("digit min '7': committed 07", t.start_m == 7)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
