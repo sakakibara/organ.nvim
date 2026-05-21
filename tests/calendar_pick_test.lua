@@ -140,3 +140,53 @@ do
   assert(fired and got_time == nil, "pick: date-only callback should get nil time_info")
   print("PASS  pick: date-only callback gets nil time_info")
 end
+
+-- Time-field keymap routing through the actual installed buffer maps
+-- (regression: the digit `3` collides with the 3-month-layout toggle;
+-- in the time zone `3` must enter a digit, in the grid zone it must
+-- still toggle the layout).
+do
+  local cal = require("organ.calendar")
+  local bufnr = cal.pick({ time = true, initial = "2026-05-21" }, function() end)
+  local function cb_for(lhs)
+    for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
+      if m.lhs == lhs and m.callback then
+        return m.callback
+      end
+    end
+  end
+  local function st()
+    return vim.b[bufnr].organ_calendar
+  end
+
+  -- grid zone: `3` toggles three_months
+  local before = st().three_months
+  cb_for("3")()
+  assert(st().three_months ~= before, "grid '3' should toggle three_months")
+
+  -- enter time zone, type 14:30 (the '3' digit must work here)
+  cb_for("<Tab>")()
+  assert(st().zone == "time", "<Tab> should switch to time zone")
+  cb_for("1")()
+  cb_for("4")()
+  cb_for("3")()
+  cb_for("0")()
+  local info = cal._time_to_info(st().time)
+  assert(info and info.start == "14:30", "time-zone digits should build 14:30, got " .. vim.inspect(info))
+
+  -- range via '-' then 16:00
+  cb_for("-")()
+  cb_for("1")()
+  cb_for("6")()
+  cb_for("0")()
+  cb_for("0")()
+  info = cal._time_to_info(st().time)
+  assert(info and info.finish == "16:00", "range end should be 16:00, got " .. vim.inspect(info))
+
+  -- 'x' clears back to date-only
+  cb_for("x")()
+  assert(cal._time_to_info(st().time) == nil, "'x' should clear to date-only")
+
+  print("PASS  pick: time-field keymap routing (incl. '3' zone overload)")
+  pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+end

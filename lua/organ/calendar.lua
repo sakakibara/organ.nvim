@@ -798,9 +798,18 @@ local function install_keymaps(bufnr)
     vim.b[bufnr].organ_calendar = s
     _refresh(bufnr)
   end)
-  map("3", function() -- toggle 3-month layout on the fly
+  -- `3` is overloaded: in the time zone it's the digit 3 (the digit
+  -- loop above also maps it, but this later map wins, so route here);
+  -- in the grid zone it toggles the 3-month layout.
+  map("3", function()
     local s = vim.b[bufnr].organ_calendar
     if not s then
+      return
+    end
+    if s.time and s.zone == "time" then
+      M._time_digit(s.time, 3)
+      vim.b[bufnr].organ_calendar = s
+      _refresh(bufnr)
       return
     end
     s.three_months = not s.three_months
