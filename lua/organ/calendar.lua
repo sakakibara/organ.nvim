@@ -313,6 +313,79 @@ function M._move_month(state, delta_months)
   return out
 end
 
+-- ── Time-field state machine ────────────────────────────────────────
+-- Pure helpers (M._time_*) so the time field is testable without a
+-- window.  See the time-field design doc for the full spec.
+
+local function _pad2(n)
+  return string.format("%02d", n)
+end
+
+-- Construct a time-field state.  `prefill` is nil (date-only) or
+-- `{ start = "HH:MM", finish = "HH:MM"? }`.
+function M._time_new(prefill)
+  local t = {
+    active = false,
+    start_h = 0,
+    start_m = 0,
+    has_end = false,
+    end_h = 0,
+    end_m = 0,
+    focus = "start_h",
+    tens = nil,
+  }
+  if prefill and prefill.start then
+    local h, m = prefill.start:match("^(%d%d?):(%d%d)$")
+    if h then
+      t.active = true
+      t.start_h = tonumber(h)
+      t.start_m = tonumber(m)
+      if prefill.finish then
+        local eh, em = prefill.finish:match("^(%d%d?):(%d%d)$")
+        if eh then
+          t.has_end = true
+          t.end_h = tonumber(eh)
+          t.end_m = tonumber(em)
+        end
+      end
+    end
+  end
+  return t
+end
+
+-- Structured result for the picker callback: nil (date-only) or
+-- { start = "HH:MM", finish = "HH:MM"|nil }.
+function M._time_to_info(t)
+  if not t.active then
+    return nil
+  end
+  local info = { start = _pad2(t.start_h) .. ":" .. _pad2(t.start_m) }
+  if t.has_end then
+    info.finish = _pad2(t.end_h) .. ":" .. _pad2(t.end_m)
+  end
+  return info
+end
+
+-- Display string for the time row (without the "Time: " prefix).
+-- When `zone_focused` is true, bracket the focused segment.
+function M._time_render(t, zone_focused)
+  local sh, sm = _pad2(t.start_h), _pad2(t.start_m)
+  if not t.active then
+    sh, sm = "--", "--"
+  end
+  local function seg(text, name)
+    if zone_focused and t.focus == name then
+      return "[" .. text .. "]"
+    end
+    return text
+  end
+  local out = seg(sh, "start_h") .. ":" .. seg(sm, "start_m")
+  if t.has_end then
+    out = out .. "-" .. seg(_pad2(t.end_h), "end_h") .. ":" .. seg(_pad2(t.end_m), "end_m")
+  end
+  return out
+end
+
 local NS = vim.api.nvim_create_namespace("organ_calendar")
 
 local hl_registered = false
