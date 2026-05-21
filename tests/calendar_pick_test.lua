@@ -101,3 +101,42 @@ do
 end
 
 io.write("calendar pick ok\n")
+
+-- opts.time: pick() seeds a time substate; _confirm fires callback with time_info
+do
+  local cal = require("organ.calendar")
+  local got_iso, got_time, fired = nil, nil, false
+  local bufnr = cal.pick({ time = true, initial = "2026-05-21" }, function(iso, time_info)
+    got_iso = iso
+    got_time = time_info
+    fired = true
+  end)
+  local st = vim.b[bufnr].organ_calendar
+  assert(st ~= nil, "pick: no calendar state")
+  assert(st.time ~= nil, "pick: opts.time=true should seed a time substate")
+  cal._time_digit(st.time, 1)
+  cal._time_digit(st.time, 4)
+  cal._time_digit(st.time, 3)
+  cal._time_digit(st.time, 0)
+  vim.b[bufnr].organ_calendar = st
+  cal._confirm(bufnr)
+  assert(fired, "pick: callback did not fire on confirm")
+  assert(got_iso == "2026-05-21", "pick: wrong iso " .. tostring(got_iso))
+  assert(got_time and got_time.start == "14:30", "pick: wrong time " .. vim.inspect(got_time))
+  print("PASS  pick: opts.time seeds substate + callback receives time_info")
+end
+
+-- opts.time omitted: date-only, time_info nil
+do
+  local cal = require("organ.calendar")
+  local got_time, fired = "sentinel", false
+  local bufnr = cal.pick({ initial = "2026-05-21" }, function(_, time_info)
+    got_time = time_info
+    fired = true
+  end)
+  local st = vim.b[bufnr].organ_calendar
+  assert(st.time == nil, "pick: no opts.time should not seed a time substate")
+  cal._confirm(bufnr)
+  assert(fired and got_time == nil, "pick: date-only callback should get nil time_info")
+  print("PASS  pick: date-only callback gets nil time_info")
+end

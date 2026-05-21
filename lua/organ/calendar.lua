@@ -593,13 +593,22 @@ local function _refresh(bufnr)
     return
   end
   local out = M._render_layout(state, _today_iso(), state.week_start, _holiday_set_for_month)
-  -- Footer.
   local lines = vim.list_extend({}, out.lines)
+
+  -- Optional time row (opts.time).
+  local time_row = nil
+  if state.time then
+    lines[#lines + 1] = string.rep("-", GRID_WIDTH)
+    time_row = #lines + 1
+    lines[#lines + 1] = "Time: " .. M._time_render(state.time, state.zone == "time")
+  end
+
   if state.show_footer then
     lines[#lines + 1] = ""
-    for _, l in ipairs(FOOTER_LINES) do
-      lines[#lines + 1] = l
-    end
+    local footer = (state.zone == "time")
+        and "0-9 set  +/- step  h/l seg  - range  x clear  <Tab> grid"
+      or FOOTER_LINES[1]
+    lines[#lines + 1] = footer
   end
 
   vim.bo[bufnr].modifiable = true
@@ -613,25 +622,27 @@ local function _refresh(bufnr)
     })
   end
   if state.show_footer then
-    local footer_row = #out.lines + 2 -- after the blank separator
+    local footer_row = #lines -- footer is always the last line
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, footer_row - 1, 0, {
       end_col = #lines[footer_row],
       hl_group = "@organ.calendar.footer",
     })
   end
 
-  -- Move cursor to the selected day's cell. Cursor sits ON the cell so
-  -- 'h'/'l'/'j'/'k' user-mode motions are intercepted by our keymaps; the
-  -- transparent guicursor mask hides the actual block.
-  local p = state.selected_iso:match("^%d%d%d%d%-%d%d%-(%d%d)$")
-  local day = tonumber(p) or 1
-  local cell = out.day_cells[day]
-  if cell then
-    pcall(vim.api.nvim_win_set_cursor, 0, { cell.row, cell.col_start })
+  -- Move cursor to the selected day's cell (grid zone) or the time row.
+  if state.zone ~= "time" then
+    local pday = state.selected_iso:match("^%d%d%d%d%-%d%d%-(%d%d)$")
+    local day = tonumber(pday) or 1
+    local cell = out.day_cells[day]
+    if cell then
+      pcall(vim.api.nvim_win_set_cursor, 0, { cell.row, cell.col_start })
+    end
+  elseif time_row then
+    pcall(vim.api.nvim_win_set_cursor, 0, { time_row, 0 })
   end
 end
 
-local function _close_and_callback(bufnr, iso_or_nil)
+local function _close_and_callback(bufnr, iso_or_nil, time_info)
   local state = vim.b[bufnr].organ_calendar
   if not state or state.fired then
     return
@@ -639,7 +650,6 @@ local function _close_and_callback(bufnr, iso_or_nil)
   state.fired = true
   vim.b[bufnr].organ_calendar = state
   local cb = state.callback
-  -- Restore guicursor before closing.
   if state.saved_guicursor then
     vim.o.guicursor = state.saved_guicursor
   end
@@ -649,8 +659,24 @@ local function _close_and_callback(bufnr, iso_or_nil)
   end
   pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
   if cb then
-    pcall(cb, iso_or_nil)
+    pcall(cb, iso_or_nil, time_info)
   end
+end
+
+-- Confirm the current selection: normalize the time field (if any)
+-- and fire the callback with (iso, time_info).  Test seam for <CR>.
+function M._confirm(bufnr)
+  local s = vim.b[bufnr].organ_calendar
+  if not s then
+    return
+  end
+  local time_info = nil
+  if s.time then
+    M._time_normalize(s.time)
+    vim.b[bufnr].organ_calendar = s
+    time_info = M._time_to_info(s.time)
+  end
+  _close_and_callback(bufnr, s.selected_iso, time_info)
 end
 
 local function install_keymaps(bufnr)
@@ -681,8 +707,76 @@ local function install_keymaps(bufnr)
       _refresh(bufnr)
     end
   end
-  map("h", move(-1))
-  map("l", move(1))
+  local function with_state(fn)
+    return function()
+      local s = vim.b[bufnr].organ_calendar
+      if not s then
+        return
+      end
+      fn(s)
+      vim.b[bufnr].organ_calendar = s
+      _refresh(bufnr)
+    end
+  end
+
+  local function step_cfg()
+    return (require("organ.buf_config").read(nil, "calendar") or {}).time_step_minutes or 5
+  end
+
+  local function toggle_zone(s)
+    if not s.time then
+      return
+    end
+    s.zone = (s.zone == "time") and "grid" or "time"
+  end
+  map("<Tab>", with_state(toggle_zone))
+  map("<S-Tab>", with_state(toggle_zone))
+
+  for d = 0, 9 do
+    map(tostring(d), with_state(function(s)
+      if s.time and s.zone == "time" then
+        M._time_digit(s.time, d)
+      end
+    end))
+  end
+  map("+", with_state(function(s)
+    if s.time and s.zone == "time" then
+      M._time_step(s.time, 1, step_cfg())
+    end
+  end))
+  map("=", with_state(function(s)
+    if s.time and s.zone == "time" then
+      M._time_step(s.time, 1, step_cfg())
+    end
+  end))
+  map("x", with_state(function(s)
+    if s.time and s.zone == "time" then
+      M._time_clear(s.time)
+    end
+  end))
+  map("-", with_state(function(s)
+    if s.time and s.zone == "time" then
+      M._time_range(s.time)
+    end
+  end))
+
+  local function h_l(delta, time_dir)
+    return function()
+      local s = vim.b[bufnr].organ_calendar
+      if not s then
+        return
+      end
+      if s.time and s.zone == "time" then
+        M._time_move(s.time, time_dir)
+        vim.b[bufnr].organ_calendar = s
+      else
+        vim.b[bufnr].organ_calendar = M._move_selection(s, delta)
+      end
+      _refresh(bufnr)
+    end
+  end
+  map("h", h_l(-1, "left"))
+  map("l", h_l(1, "right"))
   map("k", move(-7))
   map("j", move(7))
   map("<Left>", move(-1))
@@ -720,11 +814,7 @@ local function install_keymaps(bufnr)
     _refresh(bufnr)
   end)
   map("<CR>", function()
-    local s = vim.b[bufnr].organ_calendar
-    if not s then
-      return
-    end
-    _close_and_callback(bufnr, s.selected_iso)
+    M._confirm(bufnr)
   end)
   map("q", function()
     _close_and_callback(bufnr, nil)
@@ -761,6 +851,11 @@ function M.pick(opts, callback)
     end
   end
 
+  local time_state = nil
+  if opts.time then
+    time_state = M._time_new(opts.prefill_time)
+  end
+
   local bufnr = vim.api.nvim_create_buf(false, true)
   vim.bo[bufnr].buftype = "nofile"
   vim.bo[bufnr].swapfile = false
@@ -769,7 +864,7 @@ function M.pick(opts, callback)
   local lines_ui = vim.o.lines
   local cols_ui = vim.o.columns
   local width = three_months and (GRID_WIDTH * 3 + INTER_MONTH_GAP * 2) or GRID_WIDTH
-  local height = 8 + (show_footer and 2 or 0)
+  local height = 8 + (time_state and 2 or 0) + (show_footer and 2 or 0)
   local row = math.max(0, math.floor((lines_ui - height) / 2))
   local col = math.max(0, math.floor((cols_ui - width) / 2))
   local win_opts = {
@@ -816,6 +911,8 @@ function M.pick(opts, callback)
     callback = callback,
     fired = false,
     saved_guicursor = saved_guicursor,
+    time = time_state,
+    zone = "grid",
   }
 
   install_keymaps(bufnr)
