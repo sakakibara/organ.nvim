@@ -517,6 +517,19 @@ function M._time_clear(t)
   t.tens = nil
 end
 
+-- Finalize the state for confirmation: commit any held tens digit
+-- (value*10) and collapse an untouched (end == start) range back to a
+-- single time.
+function M._time_normalize(t)
+  if t.tens ~= nil then
+    _set_seg(t, t.focus, t.tens * 10)
+    t.tens = nil
+  end
+  if t.has_end and t.end_h == t.start_h and t.end_m == t.start_m then
+    t.has_end = false
+  end
+end
+
 local NS = vim.api.nvim_create_namespace("organ_calendar")
 
 local hl_registered = false

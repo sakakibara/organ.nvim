@@ -181,6 +181,44 @@ do
   check("clear: to_info nil", cal._time_to_info(t) == nil)
 end
 
+-- Normalize: held tens digit becomes value*10 (14:3 -> 14:30)
+do
+  local t = cal._time_new(nil)
+  cal._time_digit(t, 1)
+  cal._time_digit(t, 4) -- start_h=14, focus start_m
+  cal._time_digit(t, 3) -- tens=3 held on minute
+  cal._time_normalize(t)
+  local info = cal._time_to_info(t)
+  check("normalize 14:3 -> 14:30", info and info.start == "14:30", vim.inspect(info))
+  check("normalize clears tens", t.tens == nil)
+end
+
+-- Normalize: held tens on hour (1 -> 10:00, value*10)
+do
+  local t = cal._time_new(nil)
+  cal._time_digit(t, 1) -- tens=1 on hour
+  cal._time_normalize(t)
+  local info = cal._time_to_info(t)
+  check("normalize hour tens 1 -> 10:00", info and info.start == "10:00", vim.inspect(info))
+end
+
+-- Normalize: range seeded but end == start collapses to single time
+do
+  local t = cal._time_new({ start = "14:30" })
+  cal._time_range(t) -- end seeded = 14:30, untouched
+  cal._time_normalize(t)
+  local info = cal._time_to_info(t)
+  check("normalize collapses untouched range", info and info.finish == nil, vim.inspect(info))
+end
+
+-- Normalize: range with a genuinely different end is kept
+do
+  local t = cal._time_new({ start = "14:30", finish = "16:00" })
+  cal._time_normalize(t)
+  local info = cal._time_to_info(t)
+  check("normalize keeps real range", info and info.finish == "16:00", vim.inspect(info))
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
