@@ -5,16 +5,28 @@
 local M = {}
 
 local obuf = require("organ.buf")
--- Build an org active timestamp string: <YYYY-MM-DD Day>
-local function format_active_ts(iso)
+-- Build an org active timestamp string from an ISO date and optional
+-- time_info ({ start = "HH:MM", finish = "HH:MM"? } or nil):
+--   nil                       -> <YYYY-MM-DD Day>
+--   { start }                 -> <YYYY-MM-DD Day HH:MM>
+--   { start, finish }         -> <YYYY-MM-DD Day HH:MM-HH:MM>
+local function format_active_ts(iso, time_info)
   local y, mo, d = iso:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
   if not y then
     return nil
   end
   local t = os.time({ year = tonumber(y), month = tonumber(mo), day = tonumber(d), hour = 12 })
   local wd = os.date("%a", t) -- Mon / Tue / Wed …
-  return string.format("<%s %s>", iso, wd)
+  local time_str = ""
+  if time_info and time_info.start then
+    time_str = " " .. time_info.start
+    if time_info.finish then
+      time_str = time_str .. "-" .. time_info.finish
+    end
+  end
+  return string.format("<%s %s%s>", iso, wd, time_str)
 end
+M._format_active_ts = format_active_ts
 
 -- Return the 1-based line number of the planning line directly after hl_line,
 -- or nil if no planning line exists there.
