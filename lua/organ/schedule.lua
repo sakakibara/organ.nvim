@@ -26,7 +26,6 @@ local function format_active_ts(iso, time_info)
   end
   return string.format("<%s %s%s>", iso, wd, time_str)
 end
-M._format_active_ts = format_active_ts
 
 -- Return the 1-based line number of the planning line directly after hl_line,
 -- or nil if no planning line exists there.
