@@ -61,6 +61,8 @@ M.defaults = {
   -- archive
   { "<LocalLeader>aa", "Org archive subtree", desc = "Archive subtree to file" },
   { "<LocalLeader>as", "Org archive to_sibling", desc = "Archive to sibling" },
+  { "<LocalLeader>at", "Org archive set_tag", desc = "Toggle :ARCHIVE: tag (no move)" },
+  { "<LocalLeader>au", "Org unarchive", desc = "Restore archived subtree to source" },
 
   -- clock secondary ops (in/out wired in ftplugin/core.lua via clock.keymaps)
   { "<LocalLeader>cc", "Org clock cancel", desc = "Cancel active clock" },
