@@ -137,6 +137,50 @@ do
   check("step activates field", t.active == true)
 end
 
+-- Range create via _time_range: seeds end = start, focuses end_h
+do
+  local t = cal._time_new({ start = "14:30" })
+  cal._time_range(t)
+  check("range: has_end", t.has_end == true)
+  check("range: end seeded from start", t.end_h == 14 and t.end_m == 30)
+  check("range: focus end_h", t.focus == "end_h")
+  cal._time_range(t)
+  check("range: second call no-op", t.has_end == true and t.focus == "end_h")
+end
+
+-- Navigation: left/right across segments (no wrap)
+do
+  local t = cal._time_new({ start = "14:30", finish = "16:00" })
+  t.focus = "start_h"
+  cal._time_move(t, "right")
+  check("move right start_h->start_m", t.focus == "start_m")
+  cal._time_move(t, "right")
+  check("move right start_m->end_h", t.focus == "end_h")
+  cal._time_move(t, "left")
+  check("move left end_h->start_m", t.focus == "start_m")
+  t.focus = "start_h"
+  cal._time_move(t, "left")
+  check("move left start_h clamps (no wrap)", t.focus == "start_h")
+end
+
+-- Navigation: right from start_m with no range creates the range
+do
+  local t = cal._time_new({ start = "14:30" })
+  t.focus = "start_m"
+  cal._time_move(t, "right")
+  check("move right past start_m creates range", t.has_end == true and t.focus == "end_h")
+end
+
+-- Clear resets to date-only
+do
+  local t = cal._time_new({ start = "14:30", finish = "16:00" })
+  cal._time_clear(t)
+  check("clear: inactive", t.active == false)
+  check("clear: has_end false", t.has_end == false)
+  check("clear: focus start_h", t.focus == "start_h")
+  check("clear: to_info nil", cal._time_to_info(t) == nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

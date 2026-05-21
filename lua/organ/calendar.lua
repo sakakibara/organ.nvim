@@ -472,6 +472,51 @@ function M._time_step(t, delta, minute_step)
   end
 end
 
+-- Create the range end (seed end = start) and focus it.  No-op if a
+-- range already exists.
+function M._time_range(t)
+  t.tens = nil
+  if t.has_end then
+    return
+  end
+  t.active = true
+  t.has_end = true
+  t.end_h = t.start_h
+  t.end_m = t.start_m
+  t.focus = "end_h"
+end
+
+-- Move focus left/right across segments.  Moving right past start_m
+-- when no range exists creates the range (mirrors `-`).
+function M._time_move(t, dir)
+  t.tens = nil
+  if dir == "right" and t.focus == "start_m" and not t.has_end then
+    M._time_range(t)
+    return
+  end
+  local order = _seg_order(t)
+  for i, name in ipairs(order) do
+    if name == t.focus then
+      if dir == "right" and order[i + 1] then
+        t.focus = order[i + 1]
+      elseif dir == "left" and order[i - 1] then
+        t.focus = order[i - 1]
+      end
+      return
+    end
+  end
+end
+
+-- Clear back to date-only.
+function M._time_clear(t)
+  t.active = false
+  t.start_h, t.start_m = 0, 0
+  t.has_end = false
+  t.end_h, t.end_m = 0, 0
+  t.focus = "start_h"
+  t.tens = nil
+end
+
 local NS = vim.api.nvim_create_namespace("organ_calendar")
 
 local hl_registered = false
