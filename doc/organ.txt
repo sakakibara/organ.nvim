@@ -28,6 +28,7 @@ TABLE OF CONTENTS                                                  *organ-toc*
     Backlinks ............................ |organ-config-backlinks|
     Sparse trees ......................... |organ-config-sparse|
     Archive .............................. |organ-config-archive|
+    Calendar ............................. |organ-config-calendar|
     Fold ................................. |organ-config-fold|
     Indent ............................... |organ-config-indent|
     Format ............................... |organ-config-format|
@@ -911,6 +912,35 @@ Archive                                                 *organ-config-archive*
         :ARCHIVE: ~/.org/projects_archive.org::
         :END:
 <
+
+------------------------------------------------------------------------------
+Calendar                                               *organ-config-calendar*
+
+                                            *organ-config-calendar-week_start*
+    `calendar.week_start` (string, default: `"mon"`)
+    First column of the week: `"mon"` or `"sun"`.
+
+                                          *organ-config-calendar-three_months*
+    `calendar.three_months` (boolean, default: `false`)
+    Show prev / current / next month side-by-side.  Toggle live with
+    `3` while the calendar is open (grid focus).
+
+                                                *organ-config-calendar-footer*
+    `calendar.footer` (boolean, default: `true`)
+    Show the one-line keymap reference at the bottom of the calendar.
+
+                                     *organ-config-calendar-time_step_minutes*
+    `calendar.time_step_minutes` (number, default: `5`)
+    Minute step for `+`/`-` on the time field's minute segment when
+    `:Org schedule` / `:Org deadline` open the calendar with time
+    input.  The hour segment always steps by 1.
+
+    Time field: <Tab> moves focus between the day grid and the time
+    field.  In the time field: `0`-`9` set the focused segment,
+    `+`/`-` step it, `h`/`l` move between segments, `-` adds a
+    `HH:MM-HH:MM` range end, `x` clears back to date-only.  An empty
+    time field emits a date-only `<YYYY-MM-DD Day>`; a set time emits
+    `<... HH:MM>` or `<... HH:MM-HH:MM>` (Emacs-compatible).
 
 ------------------------------------------------------------------------------
 Fold                                                       *organ-config-fold*

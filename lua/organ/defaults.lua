@@ -463,6 +463,10 @@ return {
     three_months = false,
     -- Print a one-line keymap reference at the bottom of the calendar.
     footer = true,
+    -- Minute step for `+`/`-` on the time field's minute segment
+    -- (`:Org schedule` / `:Org deadline` with the time field).  The
+    -- hour segment always steps by 1.
+    time_step_minutes = 5,
   },
 
   backlinks = {
