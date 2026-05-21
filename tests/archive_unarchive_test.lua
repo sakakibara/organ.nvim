@@ -373,7 +373,7 @@ do
     "   :EFFORT: 1:30",
     "   :END:",
     "   :LOGBOOK:",
-    "   - State \"TODO\"       from              [2026-05-20 Wed 09:00]",
+    '   - State "TODO"       from              [2026-05-20 Wed 09:00]',
     "   :END:",
     "   body paragraph one",
     "*** TODO sub-entry :deep:",
@@ -408,7 +408,7 @@ do
   present(":ID: rich%-1", "ID property preserved")
   present(":EFFORT: 1:30", "EFFORT property preserved")
   present(":LOGBOOK:", "LOGBOOK drawer preserved")
-  present("State \"TODO\"", "LOGBOOK entry text preserved")
+  present('State "TODO"', "LOGBOOK entry text preserved")
   present("body paragraph one", "body text preserved")
   present("%*%*%* TODO sub%-entry :deep:", "sub-heading (keyword + tag) preserved at correct depth")
 
