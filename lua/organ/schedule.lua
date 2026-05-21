@@ -47,11 +47,29 @@ local function existing_ts(line, kind)
   return line:match(kind .. ":%s*(<[^>]*>)")
 end
 
+-- Parse the time component of an org timestamp string into a prefill
+-- table { start = "HH:MM", finish = "HH:MM"? } or nil (date-only).
+local function parse_ts_time(ts)
+  if not ts then
+    return nil
+  end
+  local s, e = ts:match("(%d%d?:%d%d)%-(%d%d?:%d%d)>")
+  if s then
+    return { start = s, finish = e }
+  end
+  local single = ts:match(" (%d%d?:%d%d)>")
+  if single then
+    return { start = single }
+  end
+  return nil
+end
+M._parse_ts_time = parse_ts_time
+
 -- Insert or update a SCHEDULED/DEADLINE keyword on the planning line.
 -- kind    = "SCHEDULED" | "DEADLINE"
 -- date_str = iso string "YYYY-MM-DD"
-local function _set_planning(bufnr, hl_line, kind, date_str)
-  local ts = format_active_ts(date_str)
+local function _set_planning(bufnr, hl_line, kind, date_str, time_info)
+  local ts = format_active_ts(date_str, time_info)
   if not ts then
     require("organ.notify").error("organ: invalid date: " .. tostring(date_str))
     return
@@ -140,12 +158,23 @@ function M.set_schedule(opts)
     require("organ.notify").warn("not on a headline")
     return
   end
-  require("organ.calendar").pick({ title = "Schedule" }, function(iso)
-    if not iso then
-      return
-    end -- user cancelled
-    _set_planning(bufnr, hl.line, "SCHEDULED", iso)
-  end)
+  local prefill
+  do
+    local pl = find_planning_line(bufnr, hl.line)
+    if pl then
+      local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
+      prefill = parse_ts_time(existing_ts(line, "SCHEDULED"))
+    end
+  end
+  require("organ.calendar").pick(
+    { title = "Schedule", time = true, prefill_time = prefill },
+    function(iso, time_info)
+      if not iso then
+        return
+      end
+      _set_planning(bufnr, hl.line, "SCHEDULED", iso, time_info)
+    end
+  )
 end
 
 -- Public: set DEADLINE timestamp via calendar picker.  `opts.bufnr` and
@@ -160,12 +189,23 @@ function M.set_deadline(opts)
     require("organ.notify").warn("not on a headline")
     return
   end
-  require("organ.calendar").pick({ title = "Deadline" }, function(iso)
-    if not iso then
-      return
-    end -- user cancelled
-    _set_planning(bufnr, hl.line, "DEADLINE", iso)
-  end)
+  local prefill
+  do
+    local pl = find_planning_line(bufnr, hl.line)
+    if pl then
+      local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
+      prefill = parse_ts_time(existing_ts(line, "DEADLINE"))
+    end
+  end
+  require("organ.calendar").pick(
+    { title = "Deadline", time = true, prefill_time = prefill },
+    function(iso, time_info)
+      if not iso then
+        return
+      end
+      _set_planning(bufnr, hl.line, "DEADLINE", iso, time_info)
+    end
+  )
 end
 
 -- Expose helper for tests.
