@@ -1023,6 +1023,18 @@ function M.unarchive(opts)
 
   local cleaned = strip_archive_properties(subtree_lines)
 
+  -- Restore the TODO keyword that archive_subtree stripped off the
+  -- headline into ARCHIVE_TODO.  Without this the round trip loses
+  -- the state: `* DONE Foo` archives to `* Foo` + `:ARCHIVE_TODO:
+  -- DONE`, and unarchive would otherwise drop the keyword when it
+  -- strips the property.  Prepend it back onto the headline line.
+  if props.archive_todo and props.archive_todo ~= "" then
+    local stars, title = cleaned[1]:match("^(%*+%s+)(.*)$")
+    if stars then
+      cleaned[1] = stars .. props.archive_todo .. " " .. title
+    end
+  end
+
   -- Load the destination so we can use structure helpers + apply
   -- changes through buffer APIs (preserves any concurrent open
   -- buffer's view, and writes through the normal `:write` flow

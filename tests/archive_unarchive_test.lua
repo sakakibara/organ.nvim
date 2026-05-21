@@ -95,10 +95,17 @@ do
 
   -- Re-read source from disk.
   local src_lines = read_lines(src)
-  local found_top, has_archive_file, has_archive_olpath = false, false, false
+  local found_top, found_top_with_todo = false, false
+  local has_archive_file, has_archive_olpath, has_archive_todo = false, false, false
   for _, l in ipairs(src_lines) do
-    if l:match("^%* Top thing") then
+    if l:match("^%*+ .*Top thing") then
       found_top = true
+    end
+    -- archive stripped the TODO keyword into ARCHIVE_TODO; unarchive
+    -- must restore it -- the round trip should NOT silently demote
+    -- `* TODO Top thing` to `* Top thing`.
+    if l:match("^%* TODO Top thing") then
+      found_top_with_todo = true
     end
     if l:match(":ARCHIVE_FILE:") then
       has_archive_file = true
@@ -106,14 +113,23 @@ do
     if l:match(":ARCHIVE_OLPATH:") then
       has_archive_olpath = true
     end
+    if l:match(":ARCHIVE_TODO:") then
+      has_archive_todo = true
+    end
   end
   check("round1: top-level subtree restored to source", found_top)
+  check(
+    "round1: TODO keyword restored on the headline (round-trip preserves state)",
+    found_top_with_todo,
+    "src:\n" .. table.concat(src_lines, "\n")
+  )
   check(
     "round1: ARCHIVE_FILE property stripped on restore",
     not has_archive_file,
     table.concat(src_lines, "|")
   )
   check("round1: ARCHIVE_OLPATH property stripped on restore", not has_archive_olpath)
+  check("round1: ARCHIVE_TODO property stripped on restore", not has_archive_todo)
 
   -- Archive file no longer contains the entry.
   local arc_after = read_lines(arc)
@@ -154,21 +170,23 @@ do
   check("round2: unarchive succeeded", uerr == nil, tostring(uerr))
 
   local src_lines = read_lines(src)
+  -- TODO keyword is restored (round-trip preserves state), so the
+  -- child comes back as `** TODO Child task`.
   local found_parent, found_child_l2, found_child_l1 = false, false, false
   for _, l in ipairs(src_lines) do
     if l == "* Parent" then
       found_parent = true
     end
-    if l == "** Child task" then
+    if l == "** TODO Child task" then
       found_child_l2 = true
     end
-    if l == "* Child task" then
+    if l == "* TODO Child task" then
       found_child_l1 = true
     end
   end
   check("round2: parent still present", found_parent)
   check(
-    "round2: child restored as level-2 child of parent (not top-level)",
+    "round2: child restored as level-2 child of parent (with TODO state, not top-level)",
     found_child_l2 and not found_child_l1,
     "src:\n" .. table.concat(src_lines, "\n")
   )
@@ -337,6 +355,69 @@ do
   check("round6: :ID: property survives unarchive", has_id, table.concat(src_lines, "|"))
   check("round6: ARCHIVE_FILE still stripped on unarchive", not has_archive_file)
   check("round6: PROPERTIES drawer kept (it had non-ARCHIVE entries)", has_drawer)
+end
+
+-- ─── 7. Full-fidelity round trip: keyword + tags + planning + LOGBOOK ─────────
+-- Everything except the ARCHIVE_* bookkeeping should survive a
+-- archive -> unarchive round trip byte-for-byte.
+do
+  local src = tmp .. "/round7.org"
+  local arc = src .. "_archive"
+  pcall(vim.fn.delete, arc)
+  local subtree = table.concat({
+    "* Parent",
+    "** TODO Rich entry :work:urgent:",
+    "   DEADLINE: <2026-05-25 Mon> SCHEDULED: <2026-05-21 Thu>",
+    "   :PROPERTIES:",
+    "   :ID: rich-1",
+    "   :EFFORT: 1:30",
+    "   :END:",
+    "   :LOGBOOK:",
+    "   - State \"TODO\"       from              [2026-05-20 Wed 09:00]",
+    "   :END:",
+    "   body paragraph one",
+    "*** TODO sub-entry :deep:",
+    "   sub body",
+  }, "\n") .. "\n"
+  local b = load_buf(subtree, src)
+
+  archive.archive_subtree({ bufnr = b, line = 2 }) -- cursor on ** Rich entry
+
+  local arc_buf = vim.fn.bufadd(arc)
+  vim.fn.bufload(arc_buf)
+  local arc_lines = vim.api.nvim_buf_get_lines(arc_buf, 0, -1, false)
+  local archived_line
+  for i, l in ipairs(arc_lines) do
+    if l:match("^%*%s") then
+      archived_line = i
+      break
+    end
+  end
+  archive.unarchive({ bufnr = arc_buf, line = archived_line })
+
+  local src_lines = read_lines(src)
+  local body = table.concat(src_lines, "\n")
+
+  local function present(pat, label)
+    check("round7: " .. label, body:find(pat) ~= nil, "src:\n" .. body)
+  end
+
+  present("%*%* TODO Rich entry :work:urgent:", "headline keyword + direct tags restored")
+  present("DEADLINE: <2026%-05%-25 Mon>", "DEADLINE planning line preserved")
+  present("SCHEDULED: <2026%-05%-21 Thu>", "SCHEDULED planning line preserved")
+  present(":ID: rich%-1", "ID property preserved")
+  present(":EFFORT: 1:30", "EFFORT property preserved")
+  present(":LOGBOOK:", "LOGBOOK drawer preserved")
+  present("State \"TODO\"", "LOGBOOK entry text preserved")
+  present("body paragraph one", "body text preserved")
+  present("%*%*%* TODO sub%-entry :deep:", "sub-heading (keyword + tag) preserved at correct depth")
+
+  -- And the ARCHIVE_* bookkeeping is gone.
+  check(
+    "round7: no ARCHIVE_* properties leak back into source",
+    not body:find(":ARCHIVE_"),
+    "src:\n" .. body
+  )
 end
 
 vim.fn.delete(tmp, "rf")
