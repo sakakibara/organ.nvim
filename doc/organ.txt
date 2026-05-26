@@ -540,6 +540,17 @@ Structure                                             *organ-config-structure*
      `move_subtree_up`   `"gK"` — swap with previous sibling
      `move_subtree_down` `"gJ"` — swap with next sibling
 
+    Visual mode: the promote / demote chords also bind in visual
+    mode, where they shift the level of EVERY headline in the
+    selection by one step (Emacs region M-LEFT / M-RIGHT: "promotion
+    and demotion work on all headlines in the region").  Selecting
+    whole trees therefore promotes / demotes each of them; relative
+    structure is preserved because parents and their in-selection
+    children both shift by one.  The bare `<` / `>` aliases stay
+    context-aware: when the visual selection contains no headline
+    they fall through to Vim's native visual indent, so you can still
+    indent body text / code blocks.
+
 ------------------------------------------------------------------------------
 Table                                                     *organ-config-table*
 

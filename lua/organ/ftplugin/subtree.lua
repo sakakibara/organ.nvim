@@ -56,6 +56,74 @@ function M.attach(bufnr)
     entry.fn({ args = "", fargs = {} })
   end
 
+  -- Which promote/demote slots get a visual-mode binding, and the
+  -- direction.  move_* / meta_return have no region semantics.
+  local visual_dir = {
+    promote_subtree = "promote",
+    demote_subtree = "demote",
+    promote_subtree_alt = "promote",
+    demote_subtree_alt = "demote",
+    promote_headline = "promote",
+    demote_headline = "demote",
+    promote_headline_alt = "promote",
+    demote_headline_alt = "demote",
+  }
+
+  -- Visual-mode promote/demote: shift the level of EVERY heading in the
+  -- selection by one step (Emacs region M-LEFT/M-RIGHT).  `native` is
+  -- the literal key to fall through to when the selection contains NO
+  -- heading (so a bare `<`/`>` keeps Vim's visual-indent on
+  -- non-heading selections); nil = org-only chord (no native meaning).
+  local function visual_op(dir, native)
+    return function()
+      local n = math.max(1, vim.v.count1)
+      local vs = vim.fn.getpos("v")[2]
+      local cur = vim.fn.getpos(".")[2]
+      local s = math.min(vs, cur)
+      local e = math.max(vs, cur)
+      local structure = require("organ.structure")
+      local esc = vim.api.nvim_replace_termcodes("<Esc>", true, false, true)
+      if structure._range_has_headline(0, s, e) then
+        -- Leave visual mode first (the selection is consumed), then
+        -- shift the selected headings.  Line range stays valid because
+        -- each rewrite is in-place (no line-count change).
+        vim.api.nvim_feedkeys(esc, "nx", false)
+        local fn = (dir == "promote") and structure.promote_region or structure.demote_region
+        for _ = 1, n do
+          local err = fn({ start_line = s, end_line = e })
+          if err then
+            require("organ.notify").warn(err)
+            break
+          end
+        end
+      elseif native then
+        -- No heading in the selection: preserve Vim's native visual
+        -- indent.  Re-feed the key (noremap, so this map doesn't
+        -- recurse); still in visual mode here so it indents + exits.
+        local keys = (n > 1 and tostring(n) or "") .. native
+        vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), "n", false)
+      else
+        -- org-only chord (e.g. <M-h>) with no heading selected: nothing
+        -- to do; just leave visual mode.
+        vim.api.nvim_feedkeys(esc, "nx", false)
+      end
+    end
+  end
+
+  -- Derive the visual-mode lhs + native-fallthrough key for a slot's
+  -- normal-mode lhs.  A bare `<`/`<<`/... collapses to a single `<`
+  -- (Vim's visual indent operator is single-char) with `<` fallthrough;
+  -- likewise `>`.  Everything else (Alt chords, <LocalLeader>< ...) maps
+  -- as-is with no native fallthrough.
+  local function visual_binding(lhs)
+    if lhs:match("^<+$") then
+      return "<", "<"
+    elseif lhs:match("^>+$") then
+      return ">", ">"
+    end
+    return lhs, nil
+  end
+
   for key, path in pairs(cmd_map) do
     local lhs = cfg[key]
     if lhs and lhs ~= "" and lhs ~= false then
@@ -102,6 +170,20 @@ function M.attach(bufnr)
           callback = function()
             dispatch(path)
           end,
+        })
+      end
+      -- Visual-mode binding for promote/demote slots: shift every
+      -- heading in the selection by one step (Emacs region behaviour).
+      -- A bare `<`/`>` stays context-aware (native indent when the
+      -- selection holds no heading).
+      local dir = visual_dir[key]
+      if dir then
+        local vlhs, native = visual_binding(lhs)
+        vim.api.nvim_buf_set_keymap(bufnr, "x", vlhs, "", {
+          noremap = true,
+          silent = true,
+          desc = (descs[key] or key) .. " (visual selection)",
+          callback = visual_op(dir, native),
         })
       end
     end

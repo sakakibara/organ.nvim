@@ -243,6 +243,84 @@ function M.demote_subtree(opts)
   return nil
 end
 
+-- True when any line in [start_line, end_line] is a headline.  Used by
+-- the visual-mode `<`/`>` bindings to decide between an org promote/
+-- demote and Vim's native visual indent.
+function M._range_has_headline(bufnr, start_line, end_line)
+  if start_line > end_line then
+    start_line, end_line = end_line, start_line
+  end
+  for i = start_line, end_line do
+    local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+    if parse_headline_line(txt) then
+      return true
+    end
+  end
+  return false
+end
+
+-- Shift the level of EVERY headline in [start_line, end_line] by one
+-- step (Emacs region M-LEFT/M-RIGHT: "promotion and demotion work on
+-- all headlines in the region").  Shifting every heading uniformly
+-- preserves relative structure (a parent and its in-range children
+-- both move by one).  `delta` is -1 (promote) or +1 (demote), scaled
+-- by `level_step()`.  Atomic: if any heading would cross a bound
+-- (< level 1 for promote, > level 9 for demote) nothing changes and an
+-- error string is returned.  No-op (returns nil) when the range holds
+-- no headline.
+local function shift_region(opts, dir)
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local s = opts.start_line
+  local e = opts.end_line
+  if not s or not e then
+    return "missing range"
+  end
+  if s > e then
+    s, e = e, s
+  end
+  local step = level_step() * (dir == "promote" and -1 or 1)
+  local headings = {}
+  for i = s, e do
+    local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+    local p = parse_headline_line(txt)
+    if p then
+      headings[#headings + 1] = { line = i, level = p.level }
+    end
+  end
+  if #headings == 0 then
+    return nil
+  end
+  for _, h in ipairs(headings) do
+    local target = h.level + step
+    if target < 1 then
+      return "cannot promote past level-1"
+    end
+    if target > 9 then
+      return "cannot demote past level 9"
+    end
+  end
+  local snap_lines = {}
+  for _, h in ipairs(headings) do
+    snap_lines[#snap_lines + 1] = h.line
+  end
+  local snap = snapshot_fold_state(snap_lines)
+  -- Each rewrite replaces one line in place (no line-count change), so
+  -- line indices stay valid regardless of iteration order.
+  for _, h in ipairs(headings) do
+    rewrite_stars(bufnr, h.line, h.level + step)
+  end
+  restore_fold_state(snap)
+  return nil
+end
+
+function M.promote_region(opts)
+  return shift_region(opts, "promote")
+end
+
+function M.demote_region(opts)
+  return shift_region(opts, "demote")
+end
+
 -- Find the previous sibling headline at the same level, or nil if none.
 local function prev_sibling(bufnr, headline)
   for i = headline.line - 1, 1, -1 do
