@@ -12,6 +12,8 @@
 
 local M = {}
 
+local profile = require("organ.profile")
+
 -- providers: name -> { name, ns, enabled, on_win, on_line, on_lines_only }
 local providers = {}
 local provider_order = {} -- preserves registration order for stable dispatch
@@ -25,53 +27,76 @@ local warn_once = {}
 -- Disabled-for-buffer (after raising): bufnr -> name -> true
 local disabled = {}
 
--- Per-buffer cached parse: { tick = changedtick, ok = bool, tree = tree_or_nil }.
--- Refreshed at the start of each redraw cycle via on_buf, and lazily by
--- providers driven outside the redraw cycle (e.g. test-facing _apply()).
--- Providers consume this via M.get_tree() instead of calling parser:parse
--- themselves so we (a) parse at most once per buffer per redraw, and
--- (b) never use the range form of parser:parse, which interacts badly
--- with org_inline injection bookkeeping and produces "Index out of bounds"
--- crashes inside vim/treesitter.lua's buf_range_get_text.
+-- Per-buffer cached parse: { tick, top, bot, ok, tree }.  Warmed for the
+-- visible range at the start of each window's dispatch (dispatch_on_win),
+-- keyed by changedtick + range so a scroll or edit reparses.  Providers
+-- read it via M.get_tree() rather than calling parser:parse themselves.
 local _tree_cache = {}
 
-local function refresh_tree(bufnr)
+-- Parse and cache the org tree for `bufnr`.  When `top`/`bot` are given,
+-- parse only that row range so injection (org_inline) cost is bounded by
+-- the viewport; without a range, parse the whole injection forest.
+--
+-- The range form matters on the redraw path: plain parser:parse() (no
+-- args) leaves parser:children() empty, so conceal / modern.pills, which
+-- walk org_inline trees for emphasis and timestamp nodes, see nothing.
+-- parser:parse(true) populates the whole forest but parses every
+-- injection tree in the buffer (hundreds on a long file) -- a
+-- multi-hundred-ms synchronous parse on each cold / first-post-edit
+-- redraw.  parser:parse({top, bot+1}) populates org_inline children for
+-- the visible rows only, with identical viewport coverage at sub-ms cost.
+local function refresh_tree(bufnr, top, bot)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return { tick = -1, ok = false, tree = nil }
   end
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
   local cached = _tree_cache[bufnr]
-  if cached and cached.tick == tick then
+  if cached and cached.tick == tick and cached.top == top and cached.bot == bot then
     return cached
   end
   local ok_parser, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok_parser or not parser then
-    _tree_cache[bufnr] = { tick = tick, ok = false, tree = nil }
+    _tree_cache[bufnr] = { tick = tick, top = top, bot = bot, ok = false, tree = nil }
     return _tree_cache[bufnr]
   end
-  -- Pass `true` to parse the entire injection forest in one shot.
-  -- Plain parser:parse() (no args) parses ONLY the root tree on nvim
-  -- 0.12.x: parser:children() is empty afterwards, and for_each_tree
-  -- yields just the root.  Injection trees are not lazily materialized
-  -- on access (verified empirically against the org grammar), so
-  -- conceal and modern.pills, which walk org_inline trees for emphasis
-  -- and timestamp nodes, would see no nodes under plain parse().  The
-  -- range form parser:parse({...}) DOES populate injection children,
-  -- but left org_inline bookkeeping in a stale state that downstream
-  -- queries tripped over with "Index out of bounds" in
-  -- buf_range_get_text.  parser:parse(true) is the correct call.
-  local ok_parse = pcall(function()
-    parser:parse(true)
-  end)
+  local pt0
+  if profile.frame_enabled then
+    pt0 = vim.uv.hrtime()
+  end
+  local ok_parse
+  if top and bot then
+    ok_parse = pcall(function()
+      parser:parse({ top, bot + 1 })
+    end)
+  else
+    ok_parse = pcall(function()
+      parser:parse(true)
+    end)
+  end
+  if pt0 then
+    profile.record_frame("frame.parse", (vim.uv.hrtime() - pt0) / 1e6, "buf=" .. bufnr)
+  end
   local tree
   if ok_parse then
     tree = (parser:trees() or {})[1]
   end
-  _tree_cache[bufnr] = { tick = tick, ok = ok_parse and tree ~= nil, tree = tree }
+  _tree_cache[bufnr] =
+    { tick = tick, top = top, bot = bot, ok = ok_parse and tree ~= nil, tree = tree }
   return _tree_cache[bufnr]
 end
 
+-- Providers call this during on_win, after dispatch warmed the tree for
+-- the visible range.  Return that cached tree as long as it matches the
+-- current changedtick; only parse (full forest) when genuinely cold --
+-- e.g. the test-facing _apply paths that drive on_win outside a redraw.
 function M.get_tree(bufnr)
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return nil
+  end
+  local cached = _tree_cache[bufnr]
+  if cached and cached.tick == vim.api.nvim_buf_get_changedtick(bufnr) then
+    return cached.tree
+  end
   return refresh_tree(bufnr).tree
 end
 
@@ -211,6 +236,7 @@ local function dispatch_on_win(_tick, winid, bufnr, topline, botline)
   if not attached_buffers[bufnr] then
     return
   end
+  refresh_tree(bufnr, topline, botline)
   warn_once[bufnr] = warn_once[bufnr] or {}
   disabled[bufnr] = disabled[bufnr] or {}
   for _, name in ipairs(provider_order) do
@@ -218,7 +244,14 @@ local function dispatch_on_win(_tick, winid, bufnr, topline, botline)
     if p and p.on_win and not disabled[bufnr][name] then
       local ok_enabled, enabled_v = pcall(p.enabled, bufnr)
       if ok_enabled and enabled_v then
+        local wt0
+        if profile.frame_enabled then
+          wt0 = vim.uv.hrtime()
+        end
         local ok_call, err_call = pcall(p.on_win, bufnr, winid, topline, botline)
+        if wt0 then
+          profile.record_frame("frame.on_win:" .. name, (vim.uv.hrtime() - wt0) / 1e6)
+        end
         if not ok_call then
           if not warn_once[bufnr][name] then
             warn_once[bufnr][name] = true
@@ -296,7 +329,14 @@ local function dispatch_on_line(_tick, winid, bufnr, row)
       local ok_enabled, enabled = pcall(p.enabled, bufnr)
       if ok_enabled and enabled then
         pcall(vim.api.nvim_buf_clear_namespace, bufnr, p.ns, row, row + 1)
+        local lt0
+        if profile.frame_enabled then
+          lt0 = vim.uv.hrtime()
+        end
         local ok_call, err_call = pcall(p.on_line, bufnr, winid, row)
+        if lt0 then
+          profile.record_frame("frame.on_line:" .. name, (vim.uv.hrtime() - lt0) / 1e6)
+        end
         if not ok_call then
           warn_once[bufnr] = warn_once[bufnr] or {}
           if not warn_once[bufnr][name] then
@@ -343,12 +383,6 @@ end
 do
   local provider_ns = vim.api.nvim_create_namespace("organ_decoration_provider")
   vim.api.nvim_set_decoration_provider(provider_ns, {
-    on_buf = function(_, bufnr, _tick)
-      -- Warm the parse cache once per redraw cycle, before on_win runs
-      -- for any window backed by this buffer.  All providers then read
-      -- from the cached tree via M.get_tree().
-      refresh_tree(bufnr)
-    end,
     on_win = function(_, winid, bufnr, topline, botline)
       dispatch_on_win(0, winid, bufnr, topline, botline)
       return true
