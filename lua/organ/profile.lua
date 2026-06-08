@@ -18,6 +18,7 @@
 local M = {}
 
 M._enabled = false
+M.frame_enabled = false -- decoration redraw-path timing (per-frame, higher overhead)
 M._slow_ms = 50
 M._records = {}
 M._wrapped = false -- so multiple :Org profile start calls don't double-wrap
@@ -27,7 +28,7 @@ local function now_ms()
 end
 
 local function record(name, dt_ms, extra)
-  if not M._enabled then
+  if not (M._enabled or M.frame_enabled) then
     return
   end
   local r = M._records[name]
@@ -85,6 +86,12 @@ end
 -- M.wrap directly.)
 M.wrap = wrap
 
+-- Record a single decoration-frame sample.  Call sites guard on
+-- M.frame_enabled before timing so the disabled path costs one field read.
+function M.record_frame(name, dt_ms, extra)
+  record(name, dt_ms, extra)
+end
+
 -- Default wrapping set. Each entry: { module, fn, optional label arg index }.
 local DEFAULT_WRAPS = {
   { "organ", "drain_blocking" },
@@ -115,11 +122,13 @@ function M.start(opts)
   M._records = {}
   ensure_wrapped()
   M._enabled = true
+  M.frame_enabled = true
   return true
 end
 
 function M.stop()
   M._enabled = false
+  M.frame_enabled = false
   return M.report()
 end
 
