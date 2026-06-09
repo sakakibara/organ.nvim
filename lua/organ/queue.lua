@@ -24,7 +24,9 @@ local function new_state(opts)
     process = opts.process or function() end,
     process_batch = opts.process_batch, -- optional; if set, used for background drains
     debounce_ms = opts.debounce_ms or 0,
-    scan_batch_size = opts.scan_batch_size or 50,
+    scan_batch_size = opts.scan_batch_size or 50, -- max files per background tick
+    scan_budget_ms = opts.scan_budget_ms or 10, -- target wall time per background tick
+    bg_batch = 1, -- adaptive batch size, converges so a tick costs ~scan_budget_ms
     row_chunk = opts.row_chunk or 10000,
     pending = {},
     running = false,
@@ -74,9 +76,14 @@ local function step()
         require("organ.notify").error("queue: worker error: " .. tostring(err))
       end)
     end
-  -- Background tier: batched.
+  -- Background tier: adaptive batch sized to the per-tick time budget.
+  -- A fixed count freezes the UI proportional to file size (10 large
+  -- files in one synchronous transaction = a multi-hundred-ms block on
+  -- startup); sizing by observed per-item cost keeps each tick near
+  -- scan_budget_ms regardless of file size, yielding between ticks.
   elseif #state.background.q > 0 then
-    local batch, n = {}, math.min(state.scan_batch_size, #state.background.q)
+    local n = math.min(state.bg_batch, #state.background.q)
+    local batch = {}
     for _ = 1, n do
       local p = table.remove(state.background.q, 1)
       local key = (type(p) == "string" and ("index\0" .. p)) or (p.kind .. "\0" .. p.path)
@@ -84,6 +91,7 @@ local function step()
       batch[#batch + 1] = p
     end
     state.running = true
+    local t0 = vim.uv.hrtime()
     local ok, err
     if state.process_batch then
       ok, err = pcall(state.process_batch, batch, "background")
@@ -96,6 +104,12 @@ local function step()
       end
     end
     state.running = false
+    local dt_ms = (vim.uv.hrtime() - t0) / 1e6
+    if dt_ms > 0 then
+      local per_item = dt_ms / n
+      state.bg_batch =
+        math.max(1, math.min(state.scan_batch_size, math.floor(state.scan_budget_ms / per_item)))
+    end
     if not ok then
       vim.schedule(function()
         require("organ.notify").error("queue: worker error: " .. tostring(err))

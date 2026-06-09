@@ -867,6 +867,7 @@ function M.setup(opts)
     process_batch = process_batch,
     debounce_ms = M.config.debounce_ms,
     scan_batch_size = M.config.scan_batch_size,
+    scan_budget_ms = M.config.scan_budget_ms,
     row_chunk = M.config.row_chunk,
   })
   local group = vim.api.nvim_create_augroup("organ", { clear = true })

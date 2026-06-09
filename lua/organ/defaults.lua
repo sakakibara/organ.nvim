@@ -73,12 +73,12 @@ return {
   -- (extra inode + cleanup); enable for paranoid setups.
   write = { keep_bak = false },
   ignore_globs = { "**/archive/**", "**/.git/**", "**/node_modules/**" },
-  -- Per-tick batch size for the background scan. Each batch runs in one
-  -- synchronous SQLite transaction on the UI loop, so larger batches are
-  -- fewer transactions but bigger UI blocks. 10 keeps the UI responsive
-  -- (~10-30ms per tick on typical org files); raise for faster bulk
-  -- scans on machines that won't notice the longer block.
+  -- Background scan pacing. The per-tick batch size adapts to hit
+  -- scan_budget_ms of wall time per tick (sized from observed per-item
+  -- cost), so a tick stays responsive regardless of file size.
+  -- scan_batch_size is the upper bound on that adaptive size.
   scan_batch_size = 10,
+  scan_budget_ms = 10,
   row_chunk = 10000,
 
   notify = true,
