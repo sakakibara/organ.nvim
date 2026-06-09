@@ -827,12 +827,22 @@ function M.planning_lines(bufnr, headline_row)
       -- Skip a drawer (e.g. :PROPERTIES:) so planning placed after it
       -- (org-habit layout) is still found, matching the tree-sitter path.
       i = i + 1
+      local hit_headline = false
       while i <= total do
         local d = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-        if d:match("^%s*:[Ee][Nn][Dd]:%s*$") or d:match("^%*+%s") then
+        if d:match("^%*+%s") then
+          hit_headline = true
+          break
+        end
+        if d:match("^%s*:[Ee][Nn][Dd]:%s*$") then
           break
         end
         i = i + 1
+      end
+      if hit_headline then
+        -- Unterminated drawer ran into the next headline: the section
+        -- ends here; never read planning from a sibling headline.
+        break
       end
       i = i + 1 -- past :END:
     else

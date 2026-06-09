@@ -82,6 +82,24 @@ do
   check("no planning -> nil", pl.scheduled == nil and pl.deadline == nil and pl.closed == nil)
 end
 
+-- Unterminated drawer running into the next headline must NOT leak the
+-- sibling headline's planning into this headline's result.
+do
+  local b = noparser_buf({
+    "* TODO Broken",
+    "  :LOGBOOK:",
+    "  CLOCK: [2026-05-04 Mon 12:00]",
+    "* TODO Sibling",
+    "  SCHEDULED: <2026-05-06 Wed>",
+  })
+  local pl = element.planning_lines(b, 0)
+  check(
+    "unterminated drawer does not leak sibling planning",
+    pl.scheduled == nil,
+    "got " .. tostring(pl.scheduled)
+  )
+end
+
 if fails > 0 then
   error(fails .. " checks failed")
 end
