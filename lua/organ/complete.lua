@@ -149,8 +149,9 @@ local function list_dir(dir, query)
 end
 
 function M.items_for(kind, query)
+  local query_cap = get_config().query_max_results or 500
   if kind == "id" then
-    local rows = require("organ.query").headlines({ has_id = true })
+    local rows = require("organ.query").headlines({ has_id = true, limit = query_cap })
     local items = {}
     for _, r in ipairs(rows) do
       items[#items + 1] = {
@@ -169,7 +170,7 @@ function M.items_for(kind, query)
   end
 
   if kind == "headline" then
-    local rows = require("organ.query").headlines({})
+    local rows = require("organ.query").headlines({ limit = query_cap })
     local items = {}
     for _, r in ipairs(rows) do
       items[#items + 1] = {
@@ -223,6 +224,7 @@ function M.items_for(kind, query)
     local rows = require("organ.query").headlines({
       has_property = trigger.key,
       include_properties = true,
+      limit = query_cap,
     })
     local items = {}
     local seen = {}

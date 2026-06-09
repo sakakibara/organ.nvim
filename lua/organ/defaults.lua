@@ -786,6 +786,10 @@ return {
     enabled = true,
     attachment_dir = nil,
     file_walk_max_results = 500,
+    -- Cap on DB-backed completion candidates (id / headline / property
+    -- value) so a large corpus can't produce a giant synchronous query +
+    -- tag hydration on a keystroke.
+    query_max_results = 500,
     cmp = true,
     blink = true,
     -- When true AND blink.cmp / nvim-cmp is loaded, register an additional
