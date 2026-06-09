@@ -16,7 +16,8 @@ M.config = require("organ.defaults")
 
 M._db = nil
 M._last_status = { last_file = nil, last_ts = nil, errors = {} }
-M._scan = { in_flight = false, ok_count = 0, err_snapshot = 0 }
+M._scan =
+  { in_flight = false, ok_count = 0, err_snapshot = 0, indexed_files = 0, indexed_headlines = 0 }
 -- Largest single main-thread slice the cooperative indexer has held, and
 -- how many slices it has run. Observability for "indexing never blocks";
 -- the async-indexer regression test asserts max_slice_ms stays bounded.
@@ -29,6 +30,15 @@ local function notify(msg, level)
   end
   vim.schedule(function()
     require("organ.notify").notify(level or vim.log.levels.INFO, msg)
+  end)
+end
+
+local function notify_debug(msg)
+  if not M.config.notify then
+    return
+  end
+  vim.schedule(function()
+    require("organ.notify").debug(msg)
   end)
 end
 
@@ -255,6 +265,12 @@ local function fire_scan_done()
   if pruned > 0 then
     notify(string.format("pruned %d orphan file(s) from index", pruned))
   end
+  local n_files = M._scan.indexed_files
+  if n_files > 0 then
+    notify(
+      string.format("indexed %d headline(s) across %d file(s)", M._scan.indexed_headlines, n_files)
+    )
+  end
   local errs = {}
   for i = M._scan.err_snapshot + 1, #M._last_status.errors do
     errs[#errs + 1] = M._last_status.errors[i]
@@ -265,6 +281,8 @@ end
 local function start_scan()
   M._scan.in_flight = true
   M._scan.ok_count = 0
+  M._scan.indexed_files = 0
+  M._scan.indexed_headlines = 0
   M._scan.err_snapshot = #M._last_status.errors
 end
 
@@ -408,9 +426,11 @@ local function index_body(op, tier)
   M._last_status.last_ts = os.time()
   if tier == "background" and M._scan.in_flight then
     M._scan.ok_count = M._scan.ok_count + 1
+    M._scan.indexed_files = M._scan.indexed_files + 1
+    M._scan.indexed_headlines = M._scan.indexed_headlines + #headlines
   end
   events.emit("indexed", { path = path, n_headlines = #headlines })
-  notify(("indexed %d headlines from %s"):format(#headlines, path))
+  notify_debug(("indexed %d headlines from %s"):format(#headlines, path))
 end
 
 -- Queue worker: drive index_body as a coroutine so indexing never blocks
