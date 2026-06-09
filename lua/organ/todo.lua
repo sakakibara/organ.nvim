@@ -506,62 +506,12 @@ local function set_property(bufnr, hl_line, key, value)
   end
 end
 
--- Find SCHEDULED / DEADLINE lines under hl_line. Returns
---   { scheduled = idx | nil, deadline = idx | nil }
---
--- Walks every line of the headline's section (until the next `* ` headline
--- or end of buffer), skipping over drawer ranges (`:NAME:` … `:END:`)
--- and stopping early only when content that's clearly outside planning
--- begins (a non-whitespace, non-drawer, non-planning line).  This handles
--- common org layouts where planning sits AFTER a property drawer (the
--- layout `org-habit` recommends).
-local function find_planning_lines(buf_lines, hl_line, bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local pl = require("organ.element").planning_lines(bufnr, hl_line - 1)
-  -- TS path returns scheduled/deadline (closed not used by callers here).
-  if pl.scheduled or pl.deadline then
-    return pl
-  end
-  -- Regex fallback for parser-not-loaded scratch buffers.
-  local out = {}
-  local i = hl_line + 1
-  while i <= #buf_lines do
-    local ln = buf_lines[i]
-    if ln:match("^%*+%s") then
-      break
-    end
-    if ln:match("^%s*[Ss][Cc][Hh][Ee][Dd][Uu][Ll][Ee][Dd]:") then
-      out.scheduled = i
-      i = i + 1
-    elseif ln:match("^%s*[Dd][Ee][Aa][Dd][Ll][Ii][Nn][Ee]:") then
-      out.deadline = i
-      i = i + 1
-    elseif ln:match("^%s*[Cc][Ll][Oo][Ss][Ee][Dd]:") then
-      i = i + 1
-    elseif ln:match("^%s*:[%w_%-]+:%s*$") then
-      i = i + 1
-      while i <= #buf_lines and not buf_lines[i]:match("^%s*:[Ee][Nn][Dd]:%s*$") do
-        if buf_lines[i]:match("^%*+%s") then
-          break
-        end
-        i = i + 1
-      end
-      i = i + 1
-    elseif ln:match("^%s*$") then
-      i = i + 1
-    else
-      break
-    end
-  end
-  return out
-end
-
 -- Try to bump SCHEDULED/DEADLINE timestamps if they have repeaters. Returns
 -- true if any bump happened (and the state transition should be cancelled).
 local function try_bump_repeaters(bufnr, hl_line, now_yyyy_mm_dd)
   local rep = require("organ.todo.repeater")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local pl = find_planning_lines(lines, hl_line, bufnr)
+  local pl = require("organ.element").planning_lines(bufnr, hl_line - 1)
   local bumped = false
 
   for _, key in ipairs({ "scheduled", "deadline" }) do
@@ -587,12 +537,6 @@ local function try_bump_repeaters(bufnr, hl_line, now_yyyy_mm_dd)
 end
 
 local drawer = require("organ.drawer")
-local function find_drawer(buf_lines, hl_line, drawer_name, bufnr)
-  return drawer.find(buf_lines, hl_line, drawer_name, bufnr)
-end
-local function drawer_insert_position(buf_lines, hl_line, bufnr)
-  return drawer.insert_position(buf_lines, hl_line, bufnr)
-end
 
 local function build_logbook_entry(from_state, to_state, note)
   local ts = now_inactive_ts()
@@ -612,13 +556,13 @@ end
 local function add_logbook_entry(bufnr, hl_line, drawer_name, from_state, to_state, note)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local entry = build_logbook_entry(from_state, to_state, note)
-  local start_idx, end_idx = find_drawer(lines, hl_line, drawer_name, bufnr)
+  local start_idx, end_idx = drawer.find(lines, hl_line, drawer_name, bufnr)
   if start_idx then
     -- Insert entry just after the :DRAWER: line (newest first).
     obuf.set_lines(bufnr, start_idx, start_idx, entry)
   else
     -- Create a new drawer.
-    local pos = drawer_insert_position(lines, hl_line, bufnr)
+    local pos = drawer.insert_position(lines, hl_line, bufnr)
     local block = { ":" .. drawer_name .. ":" }
     for _, l in ipairs(entry) do
       block[#block + 1] = l
@@ -634,7 +578,7 @@ end
 local function add_logbook_entry_bare(bufnr, hl_line, from_state, to_state, note)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local entry = build_logbook_entry(from_state, to_state, note)
-  local pos = drawer_insert_position(lines, hl_line, bufnr)
+  local pos = drawer.insert_position(lines, hl_line, bufnr)
   obuf.set_lines(bufnr, pos - 1, pos - 1, entry)
 end
 
