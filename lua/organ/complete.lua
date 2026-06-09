@@ -113,6 +113,20 @@ local function walk_files(root_dir, query, cap)
   return results
 end
 
+-- Build completion items from a list of relative file paths.
+local function file_items(paths)
+  local items = {}
+  for _, p in ipairs(paths) do
+    items[#items + 1] = {
+      kind = "file",
+      display = p,
+      insert_text = p,
+      description = vim.fn.fnamemodify(p, ":t"),
+    }
+  end
+  return items
+end
+
 local function list_dir(dir, query)
   local results = {}
   local q_lower = (query or ""):lower()
@@ -174,19 +188,12 @@ function M.items_for(kind, query)
   end
 
   if kind == "file" then
+    -- Synchronous walk; used by the omnifunc path (Vim completion must
+    -- return items synchronously). The snacks-picker path walks
+    -- asynchronously via open_picker so it never blocks the keystroke.
     local cfg = get_config()
     local cap = cfg.file_walk_max_results or 500
-    local paths = walk_files(vim.fn.getcwd(), query, cap)
-    local items = {}
-    for _, p in ipairs(paths) do
-      items[#items + 1] = {
-        kind = "file",
-        display = p,
-        insert_text = p,
-        description = vim.fn.fnamemodify(p, ":t"),
-      }
-    end
-    return items
+    return file_items(walk_files(vim.fn.getcwd(), query, cap))
   end
 
   if kind == "attachment" then
@@ -247,13 +254,10 @@ end
 
 M._open_for = {}
 
-function M.open_picker(bufnr, trigger)
-  local items
-  if trigger.kind == "property_value" then
-    items = M.items_for(trigger.kind, trigger)
-  else
-    items = M.items_for(trigger.kind, trigger.query)
-  end
+-- Entries the async file walk processes per event-loop yield.
+local FILE_WALK_BATCH = 256
+
+local function show_picker(bufnr, trigger, items)
   local picker_items = {}
   for _, it in ipairs(items) do
     picker_items[#picker_items + 1] = {
@@ -272,6 +276,57 @@ function M.open_picker(bufnr, trigger)
       end,
     },
   })
+end
+
+-- Recursively collect matching files asynchronously (walk_async, the same
+-- cooperative walker the indexer uses), then open the picker from on_done.
+-- The keystroke returns immediately; the fs walk never blocks the UI.
+-- `dedupe_key` is the maybe_open guard key for this position; clear it if
+-- the walk aborts so the same position can re-trigger, but only when no
+-- newer trigger has replaced it.
+local function open_file_picker_async(bufnr, trigger, dedupe_key)
+  local cfg = get_config()
+  local cap = cfg.file_walk_max_results or 500
+  local root = vim.fn.getcwd()
+  local q_lower = (trigger.query or ""):lower()
+  local paths = {}
+  require("organ.walk").walk_async(root, FILE_WALK_BATCH, nil, function(full, _st)
+    if #paths >= cap then
+      return
+    end
+    local rel = relpath(full)
+    if q_lower == "" or rel:lower():find(q_lower, 1, true) then
+      paths[#paths + 1] = rel
+    end
+  end, function()
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
+    end
+    -- The cursor may have moved while we walked; only open the picker if
+    -- the same file trigger is still active at the same position.
+    local fresh = M.trigger_at_cursor(bufnr)
+    if not fresh or fresh.kind ~= "file" or fresh.prefix_col ~= trigger.prefix_col then
+      if M._open_for[bufnr] == dedupe_key then
+        M._open_for[bufnr] = nil
+      end
+      return
+    end
+    show_picker(bufnr, fresh, file_items(paths))
+  end)
+end
+
+function M.open_picker(bufnr, trigger, dedupe_key)
+  if trigger.kind == "file" then
+    open_file_picker_async(bufnr, trigger, dedupe_key)
+    return
+  end
+  local items
+  if trigger.kind == "property_value" then
+    items = M.items_for(trigger.kind, trigger)
+  else
+    items = M.items_for(trigger.kind, trigger.query)
+  end
+  show_picker(bufnr, trigger, items)
 end
 
 -- True when a host completion plugin is already loaded; we then skip the
@@ -303,7 +358,7 @@ function M.maybe_open(bufnr)
   end
   M._open_for[bufnr] = key
 
-  M.open_picker(bufnr, trigger)
+  M.open_picker(bufnr, trigger, key)
 end
 
 function M.apply_selection(bufnr, trigger, item)
