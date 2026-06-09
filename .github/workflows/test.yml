@@ -69,6 +69,9 @@ jobs:
       - name: parity-check
         run: make parity-check
 
+      - name: section parity-check
+        run: make parity-section-check
+
   smoke-lazy:
     name: smoke (lazy.nvim install + load)
     runs-on: ubuntu-latest
