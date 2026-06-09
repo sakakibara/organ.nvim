@@ -363,6 +363,20 @@ function M.maybe_open(bufnr)
   M.open_picker(bufnr, trigger, key)
 end
 
+-- Debounced entry for the TextChangedI autocmd: rapid keystrokes collapse
+-- to a single maybe_open after complete.debounce_ms of quiet, so no
+-- completion work runs on the per-keystroke path.
+local _debounced_open
+function M.schedule_open(bufnr)
+  if not _debounced_open then
+    local ms = get_config().debounce_ms or 150
+    _debounced_open = require("organ.debounce").trailing(ms, function(b)
+      M.maybe_open(b)
+    end)
+  end
+  _debounced_open(bufnr)
+end
+
 function M.apply_selection(bufnr, trigger, item)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return

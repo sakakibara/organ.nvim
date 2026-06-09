@@ -302,7 +302,7 @@ function M.attach(bufnr)
       group = group,
       buffer = bufnr,
       callback = function()
-        require("organ.complete").maybe_open(bufnr)
+        require("organ.complete").schedule_open(bufnr)
       end,
     })
   end

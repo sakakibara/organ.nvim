@@ -790,6 +790,9 @@ return {
     -- value) so a large corpus can't produce a giant synchronous query +
     -- tag hydration on a keystroke.
     query_max_results = 500,
+    -- Trailing debounce for the insert-mode auto-trigger: completion only
+    -- fires after this many ms of quiet, never on every keystroke.
+    debounce_ms = 150,
     cmp = true,
     blink = true,
     -- When true AND blink.cmp / nvim-cmp is loaded, register an additional
