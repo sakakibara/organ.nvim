@@ -1,5 +1,5 @@
--- enqueue_background_op accepts {kind, path}; process_batch receives op records
--- alongside legacy string paths.
+-- enqueue_background_op accepts {kind, path}; the worker receives op
+-- records alongside legacy string paths, one at a time in FIFO order.
 -- Run via: nvim --headless -l tests/queue_op_test.lua
 
 local root = vim.fn.getcwd()
@@ -10,11 +10,9 @@ local queue = require("organ.queue")
 local got = {}
 queue.init({
   debounce_ms = 0,
-  scan_batch_size = 10,
-  process_batch = function(items, _tier)
-    for _, it in ipairs(items) do
-      got[#got + 1] = it
-    end
+  process = function(item, _tier, done)
+    got[#got + 1] = item
+    done()
   end,
 })
 

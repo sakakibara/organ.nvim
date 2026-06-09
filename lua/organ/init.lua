@@ -17,6 +17,10 @@ M.config = require("organ.defaults")
 M._db = nil
 M._last_status = { last_file = nil, last_ts = nil, errors = {} }
 M._scan = { in_flight = false, ok_count = 0, err_snapshot = 0 }
+-- Largest single main-thread slice the cooperative indexer has held, and
+-- how many slices it has run. Observability for "indexing never blocks";
+-- the async-indexer regression test asserts max_slice_ms stays bounded.
+M._index_stats = { max_slice_ms = 0, slices = 0 }
 M._compat_listeners = {} -- { {event, fn}, ... } listeners registered by back-compat shims
 
 local function notify(msg, level)
@@ -286,13 +290,27 @@ local function poll_scan_completion()
   )
 end
 
--- Core per-file indexing logic. Raises via error(...) on write failure
--- (caller is expected to wrap in h:transaction). Returns early (no error)
--- when a skip rule fires.
-local function process_file_body(path, tier, bufnr)
-  -- Fix 1: if bufnr was not threaded through (e.g. debounced path) but the
-  -- buffer is still loaded, look it up so incremental TS parse can fire.
-  if bufnr == nil and M.config.incremental then
+-- Cooperative per-file indexer body. Runs inside a coroutine (see
+-- index_async) so it can yield: a thunk `function(resume)` for an
+-- off-main-thread step (async parse), or "slice" to resume next tick.
+-- Raises on read/write failure; index_async records it.
+local function index_body(op, tier)
+  local path = op.path
+  local h = require("organ.runtime").db()
+
+  if op.kind == "delete" then
+    local derr = h:transaction(function()
+      indexer.forget_body(h, path)
+    end)
+    if derr then
+      record_error("delete " .. path .. ": " .. tostring(derr))
+    end
+    events.emit("indexed", { path = path, deleted = true })
+    return
+  end
+
+  local bufnr
+  if M.config.incremental then
     local b = vim.fn.bufnr(path)
     if b > 0 and vim.api.nvim_buf_is_loaded(b) then
       bufnr = b
@@ -304,7 +322,7 @@ local function process_file_body(path, tier, bufnr)
     local st = vim.loop.fs_stat(path)
     if st then
       mtime = st.mtime.sec
-      if indexer.should_skip(require("organ.runtime").db(), path, mtime, nil) == "mtime" then
+      if indexer.should_skip(h, path, mtime, nil) == "mtime" then
         if tier == "background" and M._scan.in_flight then
           M._scan.ok_count = M._scan.ok_count + 1
         end
@@ -315,7 +333,7 @@ local function process_file_body(path, tier, bufnr)
   end
 
   local src
-  if bufnr and M.config.incremental and vim.api.nvim_buf_is_valid(bufnr) then
+  if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     src = table.concat(lines, "\n") .. "\n"
   else
@@ -328,10 +346,7 @@ local function process_file_body(path, tier, bufnr)
   end
 
   local hash = vim.fn.sha256(src)
-  if
-    M.config.hash_skip
-    and indexer.should_skip(require("organ.runtime").db(), path, nil, hash) == "hash"
-  then
+  if M.config.hash_skip and indexer.should_skip(h, path, nil, hash) == "hash" then
     if tier == "background" and M._scan.in_flight then
       M._scan.ok_count = M._scan.ok_count + 1
     end
@@ -339,12 +354,39 @@ local function process_file_body(path, tier, bufnr)
     return
   end
 
-  local headlines
-  if bufnr and M.config.incremental and vim.api.nvim_buf_is_valid(bufnr) then
-    headlines = indexer.extract(bufnr, path, M.config.parser_path)
-  else
-    headlines = indexer.extract(src, path, M.config.parser_path)
+  -- Parse off the main thread (async), then time-slice the extract walk so
+  -- neither blocks the UI for more than ~a frame.
+  indexer.ensure_languages(M.config.parser_path)
+  local sp = vim.treesitter.get_string_parser(src, "org")
+  coroutine.yield(function(resume)
+    sp:parse(true, function()
+      resume()
+    end)
+  end)
+  local trees = sp:trees() or {}
+  local root = trees[1] and trees[1]:root() or nil
+
+  -- Yield the walk after this much wall time so it never blocks the UI
+  -- for more than ~a frame; the parse already ran off the main thread.
+  local slice_ms = M.config.scan_budget_ms or 8
+  local last = vim.uv.hrtime()
+  local headlines = {}
+  if root then
+    headlines = indexer._walk(root, sp, src, path, function()
+      if (vim.uv.hrtime() - last) / 1e6 >= slice_ms then
+        coroutine.yield("slice")
+        last = vim.uv.hrtime()
+      end
+    end)
   end
+  pcall(function()
+    sp:destroy()
+  end)
+
+  -- The DB write is one transaction (it must not span yields -- an open
+  -- write txn would block UI reads).  Give it its own slice so it doesn't
+  -- pile onto the walk's tail.
+  coroutine.yield("slice")
 
   local meta = {
     path = path,
@@ -353,12 +395,17 @@ local function process_file_body(path, tier, bufnr)
     file_tags = indexer.scan_filetags(src),
     file_todo_keywords = indexer.scan_todo_keywords(src),
   }
-  indexer.write_body(require("organ.runtime").db(), meta, headlines, function() end)
+  local werr = h:transaction(function()
+    indexer.write_body(h, meta, headlines, function() end)
+  end)
+  if werr then
+    record_error("write " .. path .. ": " .. tostring(werr))
+    notify("index failed for " .. path .. ": " .. tostring(werr), vim.log.levels.ERROR)
+    return
+  end
 
   M._last_status.last_file = path
   M._last_status.last_ts = os.time()
-  -- Fix 3: track per-file successes during a background scan so on_scan_done
-  -- receives an accurate count.
   if tier == "background" and M._scan.in_flight then
     M._scan.ok_count = M._scan.ok_count + 1
   end
@@ -366,37 +413,37 @@ local function process_file_body(path, tier, bufnr)
   notify(("indexed %d headlines from %s"):format(#headlines, path))
 end
 
--- Interactive-tier entry: wraps process_file_body in a per-file transaction.
-local function process_file(path, tier, bufnr)
-  local h = require("organ.runtime").db()
-  local err = h:transaction(function()
-    process_file_body(path, tier, bufnr)
+-- Queue worker: drive index_body as a coroutine so indexing never blocks
+-- the UI.  The coroutine yields either a thunk (resume after an off-thread
+-- step) or "slice" (resume next event-loop tick); `done` advances the
+-- queue once the file is fully indexed.
+local function index_async(item, tier, done)
+  local op = (type(item) == "string") and { kind = "index", path = item } or item
+  local co = coroutine.create(function()
+    index_body(op, tier)
   end)
-  if err then
-    record_error("write " .. path .. ": " .. tostring(err))
-    notify("index failed for " .. path .. ": " .. tostring(err), vim.log.levels.ERROR)
-  end
-end
-
-local function process_batch(items, _tier)
-  local h = require("organ.runtime").db()
-  local err = h:transaction(function()
-    for _, it in ipairs(items) do
-      local op = (type(it) == "string") and { kind = "index", path = it } or it
-      local ok, perr
-      if op.kind == "delete" then
-        ok, perr = pcall(indexer.forget_body, h, op.path)
-      else
-        ok, perr = pcall(process_file_body, op.path, "background", nil)
-      end
-      if not ok then
-        record_error("batch item " .. tostring(op.path) .. ": " .. tostring(perr))
-      end
+  local function pump()
+    local t0 = vim.uv.hrtime()
+    local ok, signal = coroutine.resume(co)
+    local slice_ms = (vim.uv.hrtime() - t0) / 1e6
+    M._index_stats.slices = M._index_stats.slices + 1
+    if slice_ms > M._index_stats.max_slice_ms then
+      M._index_stats.max_slice_ms = slice_ms
     end
-  end)
-  if err then
-    record_error("batch txn: " .. tostring(err))
+    if not ok then
+      record_error("index " .. tostring(op.path) .. ": " .. tostring(signal))
+      return done()
+    end
+    if coroutine.status(co) == "dead" then
+      return done()
+    end
+    if type(signal) == "function" then
+      signal(pump) -- off-thread step resumes us via the passed callback
+    else
+      vim.schedule(pump) -- "slice": let the UI breathe, continue next tick
+    end
   end
+  pump()
 end
 
 -- Recursive streaming scanner. Enqueues .org paths into the background tier
@@ -861,13 +908,8 @@ function M.setup(opts)
   -- Queue must be initialised at setup time so BufWritePost / scan callbacks
   -- can enqueue immediately. The DB is opened lazily on first queue drain.
   queue.init({
-    process = function(path, tier)
-      process_file(path, tier, nil)
-    end,
-    process_batch = process_batch,
+    process = index_async,
     debounce_ms = M.config.debounce_ms,
-    scan_batch_size = M.config.scan_batch_size,
-    scan_budget_ms = M.config.scan_budget_ms,
     row_chunk = M.config.row_chunk,
   })
   local group = vim.api.nvim_create_augroup("organ", { clear = true })

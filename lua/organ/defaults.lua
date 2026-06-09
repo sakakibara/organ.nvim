@@ -73,11 +73,12 @@ return {
   -- (extra inode + cleanup); enable for paranoid setups.
   write = { keep_bak = false },
   ignore_globs = { "**/archive/**", "**/.git/**", "**/node_modules/**" },
-  -- Background scan pacing. The per-tick batch size adapts to hit
-  -- scan_budget_ms of wall time per tick (sized from observed per-item
-  -- cost), so a tick stays responsive regardless of file size.
-  -- scan_batch_size is the upper bound on that adaptive size.
+  -- Entries the recursive directory scanner processes per vim.schedule
+  -- yield while enumerating org files.
   scan_batch_size = 10,
+  -- Per-slice wall-time budget for the cooperative indexer: it yields the
+  -- UI after this many ms of extract work on a file, so indexing never
+  -- blocks for more than ~a frame regardless of file size.
   scan_budget_ms = 10,
   row_chunk = 10000,
 

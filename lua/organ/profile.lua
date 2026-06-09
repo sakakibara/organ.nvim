@@ -1,8 +1,8 @@
 -- Lightweight per-call profiler for organ's hot paths.
 --
--- Wraps a small set of functions (process_file_body, agenda.refresh,
--- indexer.extract, indexer.write_body) so each invocation logs its
--- wall-clock duration. Slow calls (default ≥50 ms) are flagged.
+-- Wraps a small set of functions (indexer.extract, indexer.write_body,
+-- agenda.refresh, query.*) so each invocation logs its wall-clock
+-- duration. Slow calls (default >=50 ms) are flagged.
 --
 -- Usage:
 --   :Org profile start       -- begin recording

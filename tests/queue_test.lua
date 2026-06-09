@@ -7,8 +7,9 @@ local queue = require("organ.queue")
 
 local processed = {}
 queue.init({
-  process = function(path, tier)
+  process = function(path, tier, done)
     processed[#processed + 1] = { path = path, tier = tier }
+    done()
   end,
 })
 
@@ -35,8 +36,9 @@ assert(processed[3].path == "c.org")
 do
   local processed2 = {}
   queue.init({
-    process = function(path, tier)
+    process = function(path, tier, done)
       processed2[#processed2 + 1] = { path = path, tier = tier }
+      done()
     end,
   })
 
@@ -78,8 +80,9 @@ do
   local processed3 = {}
   queue.init({
     debounce_ms = 120,
-    process = function(path)
+    process = function(path, _tier, done)
       processed3[#processed3 + 1] = path
+      done()
     end,
   })
 
@@ -100,14 +103,15 @@ do
 end
 
 ----------------------------------------------------------------------
--- Batched-commit: background drains call process_batch with <= scan_batch_size paths.
+-- Background tier: items drain one at a time, in FIFO order, via the
+-- async worker contract (each calls done() when finished).
 
 do
-  local batches = {}
+  local processedb = {}
   queue.init({
-    scan_batch_size = 3,
-    process_batch = function(paths, tier)
-      batches[#batches + 1] = { n = #paths, tier = tier, paths = vim.deepcopy(paths) }
+    process = function(item, tier, done)
+      processedb[#processedb + 1] = { item = item, tier = tier }
+      done()
     end,
   })
 
@@ -117,18 +121,16 @@ do
 
   assert(
     vim.wait(1500, function()
-      return #batches >= 1 and batches[#batches].paths[#batches[#batches].paths] == "f07.org"
+      return #processedb == 7
     end),
-    "never saw final file; batches so far: " .. vim.inspect(batches)
+    "expected 7 processed, got " .. #processedb
   )
 
-  local total = 0
-  for _, b in ipairs(batches) do
-    assert(b.tier == "background")
-    assert(b.n <= 3, "batch too large: " .. b.n)
-    total = total + b.n
+  for _, p in ipairs(processedb) do
+    assert(p.tier == "background")
   end
-  assert(total == 7, "total processed " .. total)
+  assert(processedb[1].item == "f01.org", "FIFO broken: first = " .. tostring(processedb[1].item))
+  assert(processedb[7].item == "f07.org", "FIFO broken: last = " .. tostring(processedb[7].item))
 end
 
 ----------------------------------------------------------------------
@@ -137,10 +139,10 @@ end
 do
   local processed4 = {}
   queue.init({
-    process = function(p)
+    process = function(p, _tier, done)
       processed4[#processed4 + 1] = p
+      done()
     end,
-    process_batch = nil, -- fall back to per-file process
   })
   queue.enqueue_background("x1.org")
   queue.enqueue_background("x2.org")

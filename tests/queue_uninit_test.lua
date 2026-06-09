@@ -62,8 +62,9 @@ check(
 -- needs the event loop to tick.
 local processed = {}
 queue.init({
-  process = function(path)
+  process = function(path, _tier, done)
     processed[path] = true
+    done()
   end,
   debounce_ms = 0,
 })

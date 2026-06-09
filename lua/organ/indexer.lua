@@ -626,7 +626,7 @@ local function parse_link_text(text)
   return nil
 end
 
-local function collect_all_inline_links(doc_parser, src)
+local function collect_all_inline_links(doc_parser, src, yield_fn)
   local links = {}
   if not doc_parser then
     return links
@@ -641,6 +641,9 @@ local function collect_all_inline_links(doc_parser, src)
     if child_tree:lang() == "org_inline" then
       for _, tree in ipairs(child_tree:trees()) do
         local function walk(node)
+          if yield_fn then
+            yield_fn()
+          end
           local t = node:type()
           if t == "link_regular" or t == "link_plain" or t == "link_angle" then
             local row = node:range()
@@ -691,12 +694,15 @@ local function collect_links(heading_node, all_links)
   return out
 end
 
-local function collect_all_headings(node, out)
+local function collect_all_headings(node, out, yield_fn)
+  if yield_fn then
+    yield_fn()
+  end
   if node:type() == "headline" then
     out[#out + 1] = node
   end
   for c in node:iter_children() do
-    collect_all_headings(c, out)
+    collect_all_headings(c, out, yield_fn)
   end
 end
 
@@ -813,19 +819,24 @@ local function extract_file_level(root_node, src, file_path)
   }
 end
 
-function M.extract(source, file_path, parser_path)
-  local root_node, src_for_text
-  local string_parser = nil
-
+-- Register the org + org_inline languages from the bundled parser dir.
+-- Idempotent; both extract and the async indexer call it before parsing.
+function M.ensure_languages(parser_path)
   local ipath = inline_parser_path(parser_path)
   if ipath then
     pcall(safe_add_lang, "org_inline", ipath)
   end
-
   local ok_lang, err_lang = safe_add_lang("org", parser_path)
   if not ok_lang then
     error("organ.indexer: " .. tostring(err_lang) .. " (rebuild on this host: `make -C grammar`)")
   end
+end
+
+function M.extract(source, file_path, parser_path)
+  local root_node, src_for_text
+  local string_parser = nil
+
+  M.ensure_languages(parser_path)
 
   if type(source) == "number" then
     local bufnr = source
@@ -853,7 +864,22 @@ function M.extract(source, file_path, parser_path)
     end)
   end
 
-  local all_inline_links = collect_all_inline_links(string_parser, src_for_text)
+  local headlines = M._walk(root_node, string_parser, src_for_text, file_path)
+  if string_parser then
+    pcall(function()
+      string_parser:destroy()
+    end)
+  end
+  return headlines
+end
+
+-- Walk an already-parsed org tree into headline records.  `yield_fn`,
+-- when given, is invoked throughout the walk (per inline node, per tree
+-- node, per heading) so a cooperative caller can time-slice it (yield)
+-- on large files.  The caller owns `string_parser`'s lifetime -- _walk
+-- does not destroy it.
+function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
+  local all_inline_links = collect_all_inline_links(string_parser, src_for_text, yield_fn)
 
   -- Pre-split string-source ONCE so per-heading helpers
   -- (collect_habit_completions, collect_state_changes) can slice
@@ -865,7 +891,7 @@ function M.extract(source, file_path, parser_path)
     or nil
 
   local all_heading_nodes = {}
-  collect_all_headings(root_node, all_heading_nodes)
+  collect_all_headings(root_node, all_heading_nodes, yield_fn)
 
   local headlines = {}
   local stack = {}
@@ -879,6 +905,9 @@ function M.extract(source, file_path, parser_path)
   end
 
   for _, hnode in ipairs(all_heading_nodes) do
+    if yield_fn then
+      yield_fn()
+    end
     local full_text = get_text(hnode, src_for_text) or ""
     local first_line = full_text:match("^[^\n]*") or ""
     local parsed = parse_heading_line(first_line)
@@ -945,11 +974,6 @@ function M.extract(source, file_path, parser_path)
     ::continue::
   end
 
-  if string_parser then
-    pcall(function()
-      string_parser:destroy()
-    end)
-  end
   return headlines
 end
 

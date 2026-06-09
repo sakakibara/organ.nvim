@@ -21,12 +21,14 @@ local function new_state(opts)
   return {
     interactive = { q = {}, seen = {} },
     background = { q = {}, seen = {} },
-    process = opts.process or function() end,
-    process_batch = opts.process_batch, -- optional; if set, used for background drains
+    -- Async worker: process(item, tier, done).  `done` is called once the
+    -- item is fully handled -- possibly after off-thread work and several
+    -- event-loop ticks -- which advances the queue.  Processing yields
+    -- between ticks so a scan never blocks the UI.
+    process = opts.process or function(_item, _tier, done)
+      done()
+    end,
     debounce_ms = opts.debounce_ms or 0,
-    scan_batch_size = opts.scan_batch_size or 50, -- max files per background tick
-    scan_budget_ms = opts.scan_budget_ms or 10, -- target wall time per background tick
-    bg_batch = 1, -- adaptive batch size, converges so a tick costs ~scan_budget_ms
     row_chunk = opts.row_chunk or 10000,
     pending = {},
     running = false,
@@ -64,61 +66,41 @@ local function step()
     return
   end
 
-  -- Interactive tier: one-at-a-time (low latency).
-  if #state.interactive.q > 0 then
-    local path = table.remove(state.interactive.q, 1)
-    state.interactive.seen[path] = nil
-    state.running = true
-    local ok, err = pcall(state.process, path, "interactive")
+  -- `advance` releases the single-worker lock and reschedules; the worker
+  -- calls it once the item is fully handled (after any off-thread / sliced
+  -- work).  Until then `running` stays set, so the next item waits and the
+  -- UI is never blocked by a synchronous batch.
+  local function advance()
     state.running = false
-    if not ok then
-      vim.schedule(function()
-        require("organ.notify").error("queue: worker error: " .. tostring(err))
-      end)
-    end
-  -- Background tier: adaptive batch sized to the per-tick time budget.
-  -- A fixed count freezes the UI proportional to file size (10 large
-  -- files in one synchronous transaction = a multi-hundred-ms block on
-  -- startup); sizing by observed per-item cost keeps each tick near
-  -- scan_budget_ms regardless of file size, yielding between ticks.
-  elseif #state.background.q > 0 then
-    local n = math.min(state.bg_batch, #state.background.q)
-    local batch = {}
-    for _ = 1, n do
-      local p = table.remove(state.background.q, 1)
-      local key = (type(p) == "string" and ("index\0" .. p)) or (p.kind .. "\0" .. p.path)
-      state.background.seen[key] = nil
-      batch[#batch + 1] = p
-    end
-    state.running = true
-    local t0 = vim.uv.hrtime()
-    local ok, err
-    if state.process_batch then
-      ok, err = pcall(state.process_batch, batch, "background")
-    else
-      for _, p in ipairs(batch) do
-        ok, err = pcall(state.process, p, "background")
-        if not ok then
-          break
-        end
-      end
-    end
-    state.running = false
-    local dt_ms = (vim.uv.hrtime() - t0) / 1e6
-    if dt_ms > 0 then
-      local per_item = dt_ms / n
-      state.bg_batch =
-        math.max(1, math.min(state.scan_batch_size, math.floor(state.scan_budget_ms / per_item)))
-    end
-    if not ok then
-      vim.schedule(function()
-        require("organ.notify").error("queue: worker error: " .. tostring(err))
-      end)
+    if #state.interactive.q > 0 or #state.background.q > 0 then
+      vim.schedule(step)
     end
   end
 
-  if #state.interactive.q > 0 or #state.background.q > 0 then
-    vim.schedule(step)
+  local item, tier
+  -- Interactive tier preempts background.
+  if #state.interactive.q > 0 then
+    item = table.remove(state.interactive.q, 1)
+    state.interactive.seen[item] = nil
+    tier = "interactive"
+  elseif #state.background.q > 0 then
+    item = table.remove(state.background.q, 1)
+    local key = (type(item) == "string" and ("index\0" .. item)) or (item.kind .. "\0" .. item.path)
+    state.background.seen[key] = nil
+    tier = "background"
+  else
+    return
+  end
+
+  state.running = true
+  local ok, err = pcall(state.process, item, tier, advance)
+  if not ok then
+    -- Worker raised before scheduling its own completion; surface it and
+    -- release the lock so the queue doesn't wedge.
+    vim.schedule(function()
+      require("organ.notify").error("queue: worker error: " .. tostring(err))
+    end)
+    advance()
   end
 end
 
