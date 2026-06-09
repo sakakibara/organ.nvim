@@ -84,6 +84,47 @@ do
   check("parse bare: no logbook", m.logbook == nil)
 end
 
+-- 3. where(): drawer + property_drawer insertion rows.
+do
+  -- planning only, no drawers: both a new property drawer and a new
+  -- named drawer go right after the planning block.
+  local b = buf_with({
+    "* TODO Plan only",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  body",
+  })
+  check(
+    "where property_drawer after planning",
+    section.where(b, 0, "property_drawer") == 3,
+    "got " .. tostring(section.where(b, 0, "property_drawer"))
+  )
+  check(
+    "where drawer after planning",
+    section.where(b, 0, "drawer") == 3,
+    "got " .. tostring(section.where(b, 0, "drawer"))
+  )
+end
+do
+  -- with an existing property drawer, a new named drawer goes AFTER it.
+  local b = buf_with({
+    "* TODO Has props",
+    "  :PROPERTIES:",
+    "  :ID: x",
+    "  :END:",
+    "  body",
+  })
+  check(
+    "where drawer after property drawer",
+    section.where(b, 0, "drawer") == 5,
+    "got " .. tostring(section.where(b, 0, "drawer"))
+  )
+  check(
+    "where property_drawer with existing drawer points at its start",
+    section.where(b, 0, "property_drawer") == 2,
+    "got " .. tostring(section.where(b, 0, "property_drawer"))
+  )
+end
+
 if fails > 0 then
   error(fails .. " checks failed")
 end
