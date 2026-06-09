@@ -36,22 +36,17 @@ require("organ").setup({
 local PINNED_IN = os.time({ year = 2026, month = 5, day = 4, hour = 12, min = 0, sec = 0 })
 local PINNED_OUT = os.time({ year = 2026, month = 5, day = 4, hour = 13, min = 30, sec = 0 })
 
-local real_time = os.time
-local real_date = os.date
-os.time = function(t)
-  if t ~= nil then
-    return real_time(t)
-  end
-  return PINNED_IN
-end
-os.date = function(fmt, t)
-  return real_date(fmt, t == nil and PINNED_IN or t)
-end
-
 local todo = require("organ.todo")
 local schedule = require("organ.schedule")
 local property = require("organ.property")
 local clock_writer = require("organ.clock.writer")
+
+-- Pin the CLOSED stamp through organ's own injection seam rather than a
+-- global os.time patch. The clock entries already pass explicit timestamps;
+-- only the DONE-transition CLOSED line reads "now". Run under TZ=UTC.
+todo._now_ts_for_test = function()
+  return os.date("[%Y-%m-%d %a %H:%M]", PINNED_IN)
+end
 
 local function open_copy(seed_path)
   local tmp = vim.fn.tempname() .. ".org"
