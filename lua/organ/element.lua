@@ -817,16 +817,27 @@ function M.planning_lines(bufnr, headline_row)
       out.closed = i
     end
     if
-      not (
-        ln:match("^%s*SCHEDULED:")
-        or ln:match("^%s*DEADLINE:")
-        or ln:match("^%s*CLOSED:")
-        or ln:match("^%s*$")
-      )
+      ln:match("^%s*SCHEDULED:")
+      or ln:match("^%s*DEADLINE:")
+      or ln:match("^%s*CLOSED:")
+      or ln:match("^%s*$")
     then
+      i = i + 1
+    elseif ln:match("^%s*:[%w_%-]+:%s*$") then
+      -- Skip a drawer (e.g. :PROPERTIES:) so planning placed after it
+      -- (org-habit layout) is still found, matching the tree-sitter path.
+      i = i + 1
+      while i <= total do
+        local d = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+        if d:match("^%s*:[Ee][Nn][Dd]:%s*$") or d:match("^%*+%s") then
+          break
+        end
+        i = i + 1
+      end
+      i = i + 1 -- past :END:
+    else
       break
     end
-    i = i + 1
   end
   return out
 end
