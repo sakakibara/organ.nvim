@@ -1,0 +1,34 @@
+==> 01-close.org
+* DONE Close me
+CLOSED: [2026-05-04 Mon 12:00]
+
+==> 02-plan.org
+* DONE Plan me
+CLOSED: [2026-05-04 Mon 12:00] DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>
+
+==> 03-prop-then-plan.org
+* TODO Prop then plan
+SCHEDULED: <2026-05-06 Wed>
+  :PROPERTIES:
+  :CUSTOM_ID: existing
+  :END:
+
+==> 04-logbook.org
+* DONE Logbook me
+CLOSED: [2026-05-04 Mon 12:00]
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 12:00]--[2026-05-04 Mon 13:30] =>  1:30
+- State "DONE"       from "TODO"       [2026-05-04 Mon 12:00]
+:END:
+
+==> 05-full.org
+* DONE Full house
+CLOSED: [2026-05-04 Mon 12:00] DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>
+:PROPERTIES:
+:FOO:      bar
+:END:
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 12:00]--[2026-05-04 Mon 13:30] =>  1:30
+- State "DONE"       from "TODO"       [2026-05-04 Mon 12:00]
+:END:
+

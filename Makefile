@@ -11,7 +11,8 @@ GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
                  -c 'qa' 2>&1 | tr -d '\r')
 
 .PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
-        demos demos-force clean-demos parity parity-emacs parity-organ parity-update parity-check
+        demos demos-force clean-demos parity parity-emacs parity-organ parity-update parity-check \
+        parity-section parity-section-emacs parity-section-organ parity-section-check
 
 help:
 	@echo "organ.nvim - make targets"
@@ -300,6 +301,11 @@ PARITY_SPAN   := week
 PARITY_EMACS  := $(PARITY_DIR)/EMACS-EXPECTED.txt
 PARITY_ORGAN  := $(PARITY_DIR)/ORGAN-EXPECTED.txt
 
+PARITY_SECTION_DIR    := $(PARITY_DIR)/section
+PARITY_SECTION_SEED   := $(PARITY_SECTION_DIR)/seed
+PARITY_SECTION_EMACS  := $(PARITY_SECTION_DIR)/EMACS-EXPECTED.txt
+PARITY_SECTION_ORGAN  := $(PARITY_SECTION_DIR)/ORGAN-EXPECTED.txt
+
 parity-emacs:
 	@command -v emacs >/dev/null 2>&1 || { \
 	  echo "emacs not on PATH; install GNU Emacs (apt: emacs-nox / brew: emacs) first" >&2; \
@@ -349,3 +355,29 @@ parity-check: parity-emacs parity-organ
 	  exit 1; \
 	fi
 	@echo "parity-check: no drift"
+
+parity-section-emacs:
+	@command -v emacs >/dev/null 2>&1 || { \
+	  echo "emacs not on PATH; install GNU Emacs first" >&2; exit 1; }
+	@emacs --batch -Q -l scripts/emacs-section-snapshot.el \
+	  --eval '(organ-section-snapshot "$(PWD)/$(PARITY_SECTION_SEED)")' \
+	  2>/dev/null > $(PARITY_SECTION_EMACS)
+	@echo "wrote $(PARITY_SECTION_EMACS) ($$(wc -l < $(PARITY_SECTION_EMACS)) lines)"
+
+parity-section-organ: grammar
+	@TZ=UTC $(NVIM) --headless -l scripts/organ-section-snapshot.lua \
+	  $(PWD)/$(PARITY_SECTION_SEED) \
+	  2>/dev/null > $(PARITY_SECTION_ORGAN)
+	@echo "wrote $(PARITY_SECTION_ORGAN) ($$(wc -l < $(PARITY_SECTION_ORGAN)) lines)"
+
+parity-section: parity-section-emacs parity-section-organ
+	@diff -u $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN) || true
+
+parity-section-check: parity-section-emacs parity-section-organ
+	@if ! git diff --quiet -- $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN); then \
+	  echo ""; \
+	  echo "SECTION PARITY DRIFT against committed fixtures:"; \
+	  git --no-pager diff -- $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN); \
+	  exit 1; \
+	fi
+	@echo "parity-section-check: no drift"
