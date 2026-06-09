@@ -125,6 +125,87 @@ do
   )
 end
 
+-- 4. render_planning: canonical aligned block, fixed order, only present keys.
+do
+  local lines = section.render_planning({
+    scheduled = "<2026-05-06 Wed>",
+    deadline = "<2026-05-07 Thu>",
+    closed = "[2026-05-04 Mon 12:00]",
+  }, "  ")
+  check(
+    "render: three aligned lines in order",
+    vim.deep_equal(lines, {
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  DEADLINE:  <2026-05-07 Thu>",
+      "  CLOSED:    [2026-05-04 Mon 12:00]",
+    }),
+    vim.inspect(lines)
+  )
+end
+do
+  local lines = section.render_planning({ deadline = "<2026-05-07 Thu>" }, "  ")
+  check(
+    "render: single keyword still aligned to SCHEDULED width",
+    vim.deep_equal(lines, {
+      "  DEADLINE:  <2026-05-07 Thu>",
+    }),
+    vim.inspect(lines)
+  )
+end
+do
+  check("render: empty entries -> no lines", vim.deep_equal(section.render_planning({}, "  "), {}))
+end
+
+-- 5. set_planning: collapse a combined line into canonical separate lines.
+do
+  local b = buf_with({
+    "* TODO Combined",
+    "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
+    "  body",
+  })
+  section.set_planning(b, 0, "DEADLINE", "<2026-05-08 Fri>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: combined line becomes two aligned lines, deadline updated",
+    vim.deep_equal(got, {
+      "* TODO Combined",
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  DEADLINE:  <2026-05-08 Fri>",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+do
+  local b = buf_with({ "* TODO Fresh", "  body" })
+  section.set_planning(b, 0, "SCHEDULED", "<2026-05-06 Wed>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: fresh scheduled after headline",
+    vim.deep_equal(got, {
+      "* TODO Fresh",
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+do
+  local b = buf_with({ "* DONE Keep", "  CLOSED: [2026-05-04 Mon 12:00]", "  body" })
+  section.set_planning(b, 0, "SCHEDULED", "<2026-05-06 Wed>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: preserves CLOSED, emits canonical order",
+    vim.deep_equal(got, {
+      "* DONE Keep",
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  CLOSED:    [2026-05-04 Mon 12:00]",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+
 if fails > 0 then
   error(fails .. " checks failed")
 end

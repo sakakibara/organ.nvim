@@ -39,4 +39,71 @@ function M.where(bufnr, headline_row, kind)
   error("section.where: unknown kind " .. tostring(kind))
 end
 
+-- Canonical planning order. Values align under the SCHEDULED keyword,
+-- whose "SCHEDULED:" is the widest at 10 columns.
+local PLANNING_ORDER = { "SCHEDULED", "DEADLINE", "CLOSED" }
+local PLANNING_PAD = 10
+
+-- Render the canonical planning block: one keyword per line, in fixed
+-- order, values column-aligned, prefixed with `indent`. `entries` maps
+-- lower-case keyword -> timestamp string (e.g. "<...>" or "[...]").
+function M.render_planning(entries, indent)
+  local out = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local ts = entries[kw:lower()]
+    if ts then
+      out[#out + 1] = indent .. string.format("%-" .. PLANNING_PAD .. "s %s", kw .. ":", ts)
+    end
+  end
+  return out
+end
+
+-- Pull the timestamp for `kw` (e.g. "SCHEDULED") out of a planning line,
+-- handling both active <...> and inactive [...] forms. nil if absent.
+local function ts_on_line(line, kw)
+  return line:match(kw .. ":%s*(<[^>]*>)") or line:match(kw .. ":%s*(%b[])")
+end
+
+-- Set/update/clear one planning keyword under the headline at 0-based
+-- `headline_row`, then rewrite the whole planning block in canonical form.
+-- `kind` is "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp
+-- string, or nil to remove that keyword.
+function M.set_planning(bufnr, headline_row, kind, ts)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local model = M.parse(bufnr, headline_row)
+  local p = model.planning
+
+  local entries = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local row = p[kw:lower()]
+    if row then
+      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+      entries[kw:lower()] = ts_on_line(line, kw)
+    end
+  end
+  entries[kind:lower()] = ts
+
+  local hl = vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false)[1] or ""
+  local stars = hl:match("^(%*+)")
+  local indent = string.rep(" ", (stars and #stars or 1) + 1)
+
+  local block = M.render_planning(entries, indent)
+
+  local rows = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    if p[kw:lower()] then
+      rows[#rows + 1] = p[kw:lower()]
+    end
+  end
+  if #rows > 0 then
+    local lo, hi = rows[1], rows[1]
+    for _, r in ipairs(rows) do
+      lo, hi = math.min(lo, r), math.max(hi, r)
+    end
+    vim.api.nvim_buf_set_lines(bufnr, lo - 1, hi, false, block)
+  else
+    vim.api.nvim_buf_set_lines(bufnr, headline_row + 1, headline_row + 1, false, block)
+  end
+end
+
 return M
