@@ -70,16 +70,28 @@ end
 do
   local b = mkbuf({ "* One", "** Two" })
   local err = structure.promote_region({ bufnr = b, start_line = 1, end_line = 2 })
-  check("promote at level-1: returns error", err ~= nil and err:find("level%-1") ~= nil, tostring(err))
+  check(
+    "promote at level-1: returns error",
+    err ~= nil and err:find("level%-1") ~= nil,
+    tostring(err)
+  )
   local l = lines(b)
-  check("promote at level-1: nothing changed (atomic)", l[1] == "* One" and l[2] == "** Two", table.concat(l, "|"))
+  check(
+    "promote at level-1: nothing changed (atomic)",
+    l[1] == "* One" and l[2] == "** Two",
+    table.concat(l, "|")
+  )
 end
 
 -- demote_region: atomic bounds error at level 9
 do
   local b = mkbuf({ "********* Deep", "body" }) -- 9 stars
   local err = structure.demote_region({ bufnr = b, start_line = 1, end_line = 2 })
-  check("demote at level-9: returns error", err ~= nil and err:find("level 9") ~= nil, tostring(err))
+  check(
+    "demote at level-9: returns error",
+    err ~= nil and err:find("level 9") ~= nil,
+    tostring(err)
+  )
   check("demote at level-9: unchanged", lines(b)[1] == "********* Deep")
 end
 

@@ -733,32 +733,47 @@ local function install_keymaps(bufnr)
   map("<S-Tab>", with_state(toggle_zone))
 
   for d = 0, 9 do
-    map(tostring(d), with_state(function(s)
-      if s.time and s.zone == "time" then
-        M._time_digit(s.time, d)
-      end
-    end))
+    map(
+      tostring(d),
+      with_state(function(s)
+        if s.time and s.zone == "time" then
+          M._time_digit(s.time, d)
+        end
+      end)
+    )
   end
-  map("+", with_state(function(s)
-    if s.time and s.zone == "time" then
-      M._time_step(s.time, 1, step_cfg())
-    end
-  end))
-  map("=", with_state(function(s)
-    if s.time and s.zone == "time" then
-      M._time_step(s.time, 1, step_cfg())
-    end
-  end))
-  map("x", with_state(function(s)
-    if s.time and s.zone == "time" then
-      M._time_clear(s.time)
-    end
-  end))
-  map("-", with_state(function(s)
-    if s.time and s.zone == "time" then
-      M._time_range(s.time)
-    end
-  end))
+  map(
+    "+",
+    with_state(function(s)
+      if s.time and s.zone == "time" then
+        M._time_step(s.time, 1, step_cfg())
+      end
+    end)
+  )
+  map(
+    "=",
+    with_state(function(s)
+      if s.time and s.zone == "time" then
+        M._time_step(s.time, 1, step_cfg())
+      end
+    end)
+  )
+  map(
+    "x",
+    with_state(function(s)
+      if s.time and s.zone == "time" then
+        M._time_clear(s.time)
+      end
+    end)
+  )
+  map(
+    "-",
+    with_state(function(s)
+      if s.time and s.zone == "time" then
+        M._time_range(s.time)
+      end
+    end)
+  )
 
   local function h_l(delta, time_dir)
     return function()

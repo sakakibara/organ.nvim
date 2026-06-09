@@ -172,7 +172,10 @@ do
   cb_for("3")()
   cb_for("0")()
   local info = cal._time_to_info(st().time)
-  assert(info and info.start == "14:30", "time-zone digits should build 14:30, got " .. vim.inspect(info))
+  assert(
+    info and info.start == "14:30",
+    "time-zone digits should build 14:30, got " .. vim.inspect(info)
+  )
 
   -- range via '-' then 16:00
   cb_for("-")()

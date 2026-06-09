@@ -36,7 +36,11 @@ do
   local parse = schedule._parse_ts_time
   check("parse date-only", parse("<2026-05-21 Thu>") == nil)
   local single = parse("<2026-05-21 Thu 14:30>")
-  check("parse single", single and single.start == "14:30" and single.finish == nil, vim.inspect(single))
+  check(
+    "parse single",
+    single and single.start == "14:30" and single.finish == nil,
+    vim.inspect(single)
+  )
   local range = parse("<2026-05-21 Thu 14:30-16:00>")
   check(
     "parse range",

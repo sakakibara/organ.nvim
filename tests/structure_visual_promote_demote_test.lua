@@ -82,8 +82,16 @@ do
   feed("Vj>") -- select lines 2-3 (alpha, beta) only, indent
   local l = lines(b)
   check("native indent: heading untouched", l[1] == "* Heading", l[1])
-  check("native indent: alpha gained leading whitespace", l[2]:match("^%s+alpha$") ~= nil, "[" .. l[2] .. "]")
-  check("native indent: beta gained leading whitespace", l[3]:match("^%s+beta$") ~= nil, "[" .. l[3] .. "]")
+  check(
+    "native indent: alpha gained leading whitespace",
+    l[2]:match("^%s+alpha$") ~= nil,
+    "[" .. l[2] .. "]"
+  )
+  check(
+    "native indent: beta gained leading whitespace",
+    l[3]:match("^%s+beta$") ~= nil,
+    "[" .. l[3] .. "]"
+  )
   check("native indent: alpha still not a heading", l[2]:match("^%*") == nil)
 end
 
