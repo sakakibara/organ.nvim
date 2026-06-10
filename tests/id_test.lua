@@ -39,9 +39,9 @@ do
   assert(is_uuid_v7(result), "returned value should be UUID v7: " .. tostring(result))
   local lines = get_lines(b)
   -- :PROPERTIES: drawer should have been created.
-  assert_eq(lines[2], ":PROPERTIES:")
-  assert_eq(lines[3], ":ID: " .. result)
-  assert_eq(lines[4], ":END:")
+  assert_eq(lines[2], "  :PROPERTIES:")
+  assert_eq(lines[3], "  :ID: " .. result)
+  assert_eq(lines[4], "  :END:")
   assert_eq(lines[5], "  body")
 end
 
@@ -76,9 +76,9 @@ do
   assert(is_uuid_v7(result), "result should be UUID v7: " .. tostring(result))
   local lines = get_lines(b)
   -- Drawer inserted at line 2.
-  assert_eq(lines[2], ":PROPERTIES:")
-  assert_eq(lines[3], ":ID: " .. result)
-  assert_eq(lines[4], ":END:")
+  assert_eq(lines[2], "  :PROPERTIES:")
+  assert_eq(lines[3], "  :ID: " .. result)
+  assert_eq(lines[4], "  :END:")
 end
 
 io.write("id ok\n")

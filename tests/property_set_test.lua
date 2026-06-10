@@ -30,9 +30,9 @@ do
   local err = prop.set(b, 1, "ID", "abc")
   assert_eq(err, nil)
   local lines = get_lines(b)
-  assert_eq(lines[2], ":PROPERTIES:")
-  assert_eq(lines[3], ":ID: abc")
-  assert_eq(lines[4], ":END:")
+  assert_eq(lines[2], "  :PROPERTIES:")
+  assert_eq(lines[3], "  :ID: abc")
+  assert_eq(lines[4], "  :END:")
   assert_eq(lines[5], "  body")
 end
 
@@ -74,9 +74,9 @@ do
   local lines = get_lines(b)
   assert_eq(lines[1], "* TODO X")
   assert_eq(lines[2], "SCHEDULED: <2026-04-27 Mon>")
-  assert_eq(lines[3], ":PROPERTIES:")
-  assert_eq(lines[4], ":ID: abc")
-  assert_eq(lines[5], ":END:")
+  assert_eq(lines[3], "  :PROPERTIES:")
+  assert_eq(lines[4], "  :ID: abc")
+  assert_eq(lines[5], "  :END:")
   assert_eq(lines[6], ":LOGBOOK:")
 end
 
@@ -96,7 +96,7 @@ do
   local b = mk_buf({ "* A" })
   prop.set(b, 1, "FOO", "")
   local lines = get_lines(b)
-  assert_eq(lines[3], ":FOO: ")
+  assert_eq(lines[3], "  :FOO: ")
 end
 
 ----------------------------------------------------------------------

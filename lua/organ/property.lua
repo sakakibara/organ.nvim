@@ -73,22 +73,28 @@ function M.set(bufnr, line, key, value)
       local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
       local k = parse_property_line(txt)
       if k == key then
-        local new = ":" .. key .. ": " .. value
+        local cur = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
+        local lead = cur:match("^(%s*)") or ""
+        local new = lead .. ":" .. key .. ": " .. value
         obuf.set_lines(bufnr, i - 1, i, { new })
         return nil
       end
     end
     -- Insert before :END:.
-    local new = ":" .. key .. ": " .. value
+    local open = vim.api.nvim_buf_get_lines(bufnr, drawer.start_line - 1, drawer.start_line, false)[1]
+      or ""
+    local lead = open:match("^(%s*)") or ""
+    local new = lead .. ":" .. key .. ": " .. value
     obuf.set_lines(bufnr, drawer.end_line - 1, drawer.end_line - 1, { new })
     return nil
   end
   -- No drawer: insert at planning_end.
   local insert_at = planning_end(bufnr, hl)
+  local indent = require("organ.section").planning_indent(bufnr, hl - 1)
   local new_drawer = {
-    ":PROPERTIES:",
-    ":" .. key .. ": " .. value,
-    ":END:",
+    indent .. ":PROPERTIES:",
+    indent .. ":" .. key .. ": " .. value,
+    indent .. ":END:",
   }
   obuf.set_lines(bufnr, insert_at - 1, insert_at - 1, new_drawer)
   return nil
