@@ -64,6 +64,32 @@ local function ts_on_line(line, kw)
   return line:match(kw .. ":%s*(<[^>]*>)") or line:match(kw .. ":%s*(%b[])")
 end
 
+-- Indent string for planning lines under the headline at 0-based
+-- `headline_row`, honoring the `todo.planning_indent` config: a number
+-- (fixed spaces), false (none), or "adapt"/default (headline level + 1).
+function M.planning_indent(bufnr, headline_row)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local cfg = require("organ.buf_config").read(bufnr, "todo") or {}
+  local mode = cfg.planning_indent
+  if mode == nil then
+    mode = "adapt"
+  end
+  if type(mode) == "number" then
+    return string.rep(" ", math.max(0, mode))
+  end
+  if mode == false then
+    return ""
+  end
+  if mode == "adapt" then
+    local line = (vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false) or {})[1]
+      or ""
+    local stars = line:match("^(%*+)%s")
+    local level = stars and #stars or 1
+    return string.rep(" ", level + 1)
+  end
+  return ""
+end
+
 -- Set/update/clear one planning keyword under the headline at 0-based
 -- `headline_row`, then rewrite the whole planning block in canonical form.
 -- `kind` is "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp
@@ -83,7 +109,7 @@ function M.set_planning(bufnr, headline_row, kind, ts)
   end
   entries[kind:lower()] = ts
 
-  local indent = require("organ.todo")._planning_indent(bufnr, headline_row + 1)
+  local indent = M.planning_indent(bufnr, headline_row)
 
   local block = M.render_planning(entries, indent)
 

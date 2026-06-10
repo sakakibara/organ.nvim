@@ -206,6 +206,16 @@ do
   )
 end
 
+-- 6. planning_indent honors config + adapts to headline level.
+do
+  local b = buf_with({ "** TODO Deep", "  body" })
+  check(
+    "planning_indent adapt: level 2 -> 3 spaces",
+    section.planning_indent(b, 0) == "   ",
+    "got " .. string.format("%q", section.planning_indent(b, 0))
+  )
+end
+
 if fails > 0 then
   error(fails .. " checks failed")
 end

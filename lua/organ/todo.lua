@@ -657,24 +657,7 @@ end
 -- cross-planning-kind concept and lives here under todo because the
 -- TODO state machine owns CLOSED line writing.
 function M._planning_indent(bufnr, hl_line)
-  local cfg = require("organ.buf_config").read(bufnr, "todo") or {}
-  local mode = cfg.planning_indent
-  if mode == nil then
-    mode = "adapt"
-  end
-  if type(mode) == "number" then
-    return string.rep(" ", math.max(0, mode))
-  end
-  if mode == false then
-    return ""
-  end
-  if mode == "adapt" then
-    local line = (vim.api.nvim_buf_get_lines(bufnr, hl_line - 1, hl_line, false) or {})[1] or ""
-    local stars = line:match("^(%*+)%s")
-    local level = stars and #stars or 1
-    return string.rep(" ", level + 1)
-  end
-  return ""
+  return require("organ.section").planning_indent(bufnr, hl_line - 1)
 end
 
 local function insert_closed_line(bufnr, hl_line)
