@@ -1,9 +1,19 @@
 -- Native Emacs Calc port for org-table formulas.
 --
--- IMPLEMENTED (this module):
+-- Thin facade: the implementation lives in the calc/ submodules, merged
+-- onto this module's table:
+--   calc/bn.lua       arbitrary-precision integers
+--   calc/core.lua     value tower, arithmetic, math fns, vectors, units, symbols
+--   calc/finance.lua  pmt / fv / pv / npv / irr
+--   calc/date.lua     proleptic-Gregorian date arithmetic
+--   calc/primes.lua   primality + factoring
+--   calc/matrix.lua   matrix algebra + eigenvalues
+--   calc/cas.lua      symbolic differentiation / integration / limits / expand
+--
+-- IMPLEMENTED (this package):
 --   - Arbitrary-precision integers (bignum) and rationals.
---   - IEEE-754 floats with mixed-type promotion rules (int + float → float,
---     rat + float → float; int / int that doesn't divide cleanly → rat).
+--   - IEEE-754 floats with mixed-type promotion rules (int + float -> float,
+--     rat + float -> float; int / int that doesn't divide cleanly -> rat).
 --   - Comparison, logical (and / or / not), conditional (`if(c, a, b)`).
 --   - Math functions: sqrt, cbrt, exp, ln, log, log10, log2, sin, cos,
 --     tan, asin, acos, atan, atan2, sinh, cosh, tanh, gcd, lcm, factorial,
@@ -28,10 +38,10 @@
 --   - Date arithmetic: M.date / M.date_from_string / M.date_to_string;
 --     M.date_add_days, M.date_add_months, M.date_diff, M.date_cmp,
 --     M.date_year / month / day / weekday. Proleptic Gregorian.
---   - Limits: M.limit(ast, var, c) — direct substitution with
---     L'Hôpital fallback for 0/0 forms.
+--   - Limits: M.limit(ast, var, c) -- direct substitution with
+--     L'Hopital fallback for 0/0 forms.
 --   - Symbolic integration via antiderivative table: polynomials,
---     1/x → ln, sin/cos/exp; constant factors and sums. NOT YET:
+--     1/x -> ln, sin/cos/exp; constant factors and sums. NOT YET:
 --     integration by parts, substitution / chain-rule inverse.
 --   - Polynomial / algebraic manipulation: M.expand distributes
 --     multiplication over addition (and lowers small literal-int
@@ -39,8 +49,8 @@
 --     difference-of-squares and shared common factor in sums;
 --     M.simplify iterates ast_simplify to fixpoint.
 --
--- NOT YET IMPLEMENTED — TODO before considering Calc parity complete:
---   - Indeterminate forms beyond 0/0 (∞/∞, 0·∞, 0^0, etc.).
+-- NOT YET IMPLEMENTED -- TODO before considering Calc parity complete:
+--   - Indeterminate forms beyond 0/0 (inf/inf, 0*inf, 0^0, etc.).
 --   - Integration by parts; chain-rule inverse / u-substitution.
 --   - Full polynomial CAS (general factor, like-term collection,
 --     canonical-form representation, simplify(x^2 - y^2) by
@@ -53,7 +63,7 @@
 --   integer  { kind = "int",   n = bignum (see organ/calc/bn.lua) }
 --   rational { kind = "rat",   num = bignum, den = bignum (>0, gcd=1) }
 --   float    { kind = "float", v = number }
---   unit     { kind = "unit",  v = numeric Calc value, dim = {…}, name = str }
+--   unit     { kind = "unit",  v = numeric Calc value, dim = {...}, name = str }
 --   symbol   { kind = "sym",   name = string }
 --
 -- Public API:
@@ -69,8 +79,8 @@
 --   M.mod(a, b)        integer mod (errors on rationals)
 --   M.neg(v)
 --   M.abs(v)
---   M.sign(v)          → -1 / 0 / 1
---   M.cmp(a, b)        → -1 / 0 / 1
+--   M.sign(v)          -> -1 / 0 / 1
+--   M.cmp(a, b)        -> -1 / 0 / 1
 --   M.eq, lt, le, gt, ge
 
 local M = {}
@@ -97,7 +107,7 @@ merge(primes)
 merge(matrix)
 merge(cas)
 
--- Future-work registry — runtime-discoverable list of "not yet
+-- Future-work registry -- runtime-discoverable list of "not yet
 -- implemented" Calc capabilities. Keep in sync with the module header.
 
 M.NOT_IMPLEMENTED = {
