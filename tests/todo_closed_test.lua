@@ -57,6 +57,63 @@ for _, ln in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
 end
 assert(closed_count == 1, "expected 1 CLOSED line, got " .. closed_count)
 
+-- SCHEDULED + CLOSED: reopen removes only CLOSED, preserves SCHEDULED.
+local fixture2 = org_dir .. "/y.org"
+local fh2 = assert(io.open(fixture2, "w"))
+fh2:write([[* TODO Task
+  SCHEDULED: <2026-05-06 Wed>
+  body
+]])
+fh2:close()
+
+local b2 = vim.fn.bufadd(fixture2)
+vim.fn.bufload(b2)
+
+-- active -> DONE: CLOSED added, SCHEDULED preserved.
+assert(todo.set(b2, 1, "DONE") == nil)
+local lines2 = vim.api.nvim_buf_get_lines(b2, 0, -1, false)
+assert(lines2[1] == "* DONE Task", "headline: " .. lines2[1])
+local found_scheduled_after_done = false
+local found_closed_after_done = false
+local scheduled_row_after_done = nil
+local closed_row_after_done = nil
+for i, ln in ipairs(lines2) do
+  if ln:match("SCHEDULED:") then
+    found_scheduled_after_done = true
+    scheduled_row_after_done = i
+  end
+  if ln:match("^%s*CLOSED:%s+%[") then
+    found_closed_after_done = true
+    closed_row_after_done = i
+  end
+end
+assert(found_scheduled_after_done, "SCHEDULED missing after active->DONE")
+assert(found_closed_after_done, "CLOSED missing after active->DONE")
+assert(
+  scheduled_row_after_done < closed_row_after_done,
+  "expected SCHEDULED before CLOSED; SCHEDULED row "
+    .. tostring(scheduled_row_after_done)
+    .. ", CLOSED row "
+    .. tostring(closed_row_after_done)
+)
+
+-- DONE -> active: CLOSED removed, SCHEDULED still present.
+assert(todo.set(b2, 1, "TODO") == nil)
+lines2 = vim.api.nvim_buf_get_lines(b2, 0, -1, false)
+assert(lines2[1] == "* TODO Task", "headline: " .. lines2[1])
+local found_scheduled_after_reopen = false
+local found_closed_after_reopen = false
+for _, ln in ipairs(lines2) do
+  if ln:match("SCHEDULED:") then
+    found_scheduled_after_reopen = true
+  end
+  if ln:match("CLOSED:") then
+    found_closed_after_reopen = true
+  end
+end
+assert(found_scheduled_after_reopen, "SCHEDULED lost after DONE->active reopen")
+assert(not found_closed_after_reopen, "CLOSED should be gone after DONE->active reopen")
+
 vim.fn.delete(tmp, "rf")
 io.write("todo closed ok\n")
 os.exit(0)
