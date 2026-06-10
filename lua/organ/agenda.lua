@@ -2,8 +2,8 @@
 --
 -- This module is split into:
 --   * Pure rendering: render(records, view_opts) -> { lines, extmarks, line_index }
---   * Buffer machinery: open(view_opts), refresh(bufnr), filetype setup (Task 10)
---   * Keymaps + autocmds (Task 11)
+--   * Buffer machinery: open(view_opts), refresh(bufnr), filetype setup
+--   * Keymaps + autocmds
 --
 -- The renderer takes records already produced by query.headlines / query.agenda.
 -- It does no I/O, no DB access — just formatting.
@@ -12,125 +12,7 @@ local M = {}
 
 local obuf = require("organ.buf")
 local highlights = require("organ.agenda.highlights")
--- Clock reads — funnel through these so the snapshot test (and any
--- other harness that wants a deterministic agenda) can pin "now" via
--- `config.agenda.now_override`.  The override accepts:
---
---   "YYYY-MM-DD"            → date only; HH:MM derived from os.time()
---                            (use the timestamp form for full
---                            determinism)
---   "YYYY-MM-DDTHH:MM"      → date + time of day
---
--- Production agenda renders leave it nil and use the wall clock.
-
-local function _now_iso()
-  local override = (require("organ.buf_config").read(nil, "agenda") or {}).now_override
-  if override then
-    return override
-  end
-  return os.date("%Y-%m-%dT%H:%M")
-end
-
-local function _today_iso()
-  return _now_iso():sub(1, 10)
-end
-
-local function _now_ts()
-  local override = (require("organ.buf_config").read(nil, "agenda") or {}).now_override
-  if not override then
-    return os.time()
-  end
-  local y, mo, d, h, mi = override:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)")
-  if not y then
-    y, mo, d = override:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
-    h, mi = "12", "00"
-  end
-  return os.time({
-    year = tonumber(y),
-    month = tonumber(mo),
-    day = tonumber(d),
-    hour = tonumber(h),
-    min = tonumber(mi),
-  })
-end
-
--- Date-header format mirrors Emacs's `org-agenda-format-date`:
---   "Sunday      3 May 2026" — full weekday name (left-padded to 9 chars
---   so all weekdays line up), day-of-month with no leading zero, full
---   month name, year.
-local WDAY_FULL = { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }
-local MONTH_FULL = {
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-}
-
--- ISO week number per ISO 8601 (week-of-year for date in `t`).
-local function iso_week_of(t)
-  -- %V = ISO 8601 week number, available on most modern strftime
-  -- implementations (Lua 5.1 + LuaJIT use the C library's strftime).
-  local w = tonumber(os.date("%V", t))
-  if w then
-    return w
-  end
-  -- Defensive fallback: derive via Thursday-of-week trick.
-  local wday = tonumber(os.date("%w", t)) -- 0=Sun..6=Sat
-  local thurs = t + (4 - (wday == 0 and 7 or wday)) * 86400
-  local y0 = tonumber(os.date("%Y", thurs))
-  local jan4 = os.time({ year = y0, month = 1, day = 4, hour = 12 })
-  return math.floor((thurs - jan4) / (86400 * 7)) + 1
-end
-
--- "2026-05-03" → "Sunday      3 May 2026 W18".  Day name left-padded
--- to 11 chars (matches Emacs `org-agenda-format-date` default —
--- Wednesday is 9 chars, so the longer names get 2 trailing spaces and
--- the shorter ones pad up; everything aligns at column 13).
-local function date_header(iso_date)
-  local y, m, d = iso_date:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
-  if not y then
-    return iso_date
-  end
-  local t = os.time({ year = tonumber(y), month = tonumber(m), day = tonumber(d), hour = 12 })
-  local wday = WDAY_FULL[tonumber(os.date("%w", t)) + 1]
-  local month = MONTH_FULL[tonumber(m)]
-  return string.format("%-11s %d %s %s W%02d", wday, tonumber(d), month, y, iso_week_of(t))
-end
-
-local function date_only(iso)
-  if not iso then
-    return nil
-  end
-  return iso:sub(1, 10)
-end
-
--- Returns "9:00" / "23:45" — no leading zero on the hour, mirroring
--- Emacs's default `org-agenda-time-leading-zero = nil`.
-local function time_only(iso)
-  if not iso or #iso < 16 then
-    return nil
-  end
-  if iso:sub(11, 11) ~= "T" then
-    return nil
-  end
-  local hh, mm = iso:sub(12, 13), iso:sub(15, 16)
-  -- `agenda.time_leading_zero` (Emacs `org-agenda-time-leading-zero`):
-  --   false (default) → strip leading zero  ` 9:00` (compact, Emacs default)
-  --   true            → keep `09:00`        (uniform 5-cell column)
-  local lead = (require("organ.buf_config").read(nil, "agenda") or {}).time_leading_zero
-  if lead == true then
-    return hh .. ":" .. mm
-  end
-  return tostring(tonumber(hh)) .. ":" .. mm
-end
+local dates = require("organ.agenda.dates")
 
 local function append_effort(parts, marks, col_start, r)
   local cfg_effort = (require("organ.buf_config").read(nil, "effort") or {})
@@ -342,45 +224,12 @@ end
 --                "Scheduled:"; future items show "In N d.:"; deadlines
 --                always show "Deadline:".
 --   %?s          same, blank when empty
-local function date_only_str(iso)
-  if type(iso) ~= "string" then
-    return nil
-  end
-  return iso:match("^(%d%d%d%d%-%d%d%-%d%d)")
-end
-
-local function iso_to_ts(iso)
-  local d = date_only_str(iso)
-  if not d then
-    return nil
-  end
-  local y, mo, da = d:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
-  if not y then
-    return nil
-  end
-  return os.time({
-    year = tonumber(y),
-    month = tonumber(mo),
-    day = tonumber(da),
-    hour = 12,
-    min = 0,
-    sec = 0,
-  })
-end
-
-local function days_diff(from_iso, to_iso)
-  local a, b = iso_to_ts(from_iso), iso_to_ts(to_iso)
-  if not a or not b then
-    return nil
-  end
-  return math.floor((b - a) / 86400 + 0.5)
-end
 
 -- Compute the per-row scheduling label. `today` is an ISO yyyy-mm-dd
 -- string (the renderer's reference point, may be back-dated for tests).
 local function sched_label_for(r, today)
   if not today then
-    today = _today_iso()
+    today = dates.today_iso()
   end
   -- Log-mode synthetic rows carry their own labels (closed / clock /
   -- state) so the prefix reads naturally instead of "Scheduled:".
@@ -407,8 +256,8 @@ local function sched_label_for(r, today)
   -- "In 2 d.:" because the deadline is later in the week).
   local has_sched = r.scheduled_date and r.scheduled_date ~= ""
   local has_dead = r.deadline_date and r.deadline_date ~= ""
-  local sched_d = has_sched and days_diff(today, r.scheduled_date) or nil
-  local dead_d = has_dead and days_diff(today, r.deadline_date) or nil
+  local sched_d = has_sched and dates.days_diff(today, r.scheduled_date) or nil
+  local dead_d = has_dead and dates.days_diff(today, r.deadline_date) or nil
   -- Habit rows projected forward to a future cycle (`_synthetic_repeater`)
   -- get NO sched-label, matching Emacs's style: only the carryover
   -- (Sched.Nx) and the row's own scheduled-day get a label, every
@@ -483,7 +332,7 @@ end
 
 local function format_prefix(spec, r, opts)
   local cat = category_for(r)
-  local tstr = time_only(r.scheduled_date) or ""
+  local tstr = dates.time_only(r.scheduled_date) or ""
   local sched = sched_label_for(r, opts and opts.today)
   -- Note: Emacs's org-agenda DOES emit "Scheduled:" / "Sched. Nx:"
   -- on habit rows; the habit consistency graph appears AFTER the
@@ -707,7 +556,7 @@ local function format_line(r, block_opts)
     if cat_start then
       marks[#marks + 1] = { "@organ.agenda.category", cat_start - 1, cat_start - 1 + #cat }
     end
-    local tstr = time_only(r.scheduled_date)
+    local tstr = dates.time_only(r.scheduled_date)
     if tstr then
       local t_start = prefix_str:find(tstr, 1, true)
       if t_start then
@@ -1109,20 +958,20 @@ function M.resolve_span(block, agenda_cfg)
   local start_day = block.start_day or agenda_cfg.start_day or "today"
   local function resolve_anchor(s)
     if s == "today" then
-      return _today_iso()
+      return dates.today_iso()
     end
     local sign, n = s:match("^([%+%-])(%d+)d$")
     if sign and n then
       local off = tonumber(n) * 86400 * (sign == "-" and -1 or 1)
-      return os.date("%Y-%m-%d", _now_ts() + off)
+      return os.date("%Y-%m-%d", dates.now_ts() + off)
     end
     if s:match("^%d%d%d%d%-%d%d%-%d%d") then
       return s:sub(1, 10)
     end
-    return _today_iso()
+    return dates.today_iso()
   end
   local anchor = resolve_anchor(start_day)
-  local anchor_ts = iso_to_ts(anchor)
+  local anchor_ts = dates.iso_to_ts(anchor)
   if not anchor_ts then
     return nil
   end
@@ -1313,7 +1162,7 @@ end
 -- group_by day/none, sort, format_line.
 local function render_block(rows, block, now_override)
   block = block or {}
-  local today = now_override or _today_iso()
+  local today = now_override or dates.today_iso()
   local opts = render_opts()
 
   -- Auto-fit TODO column to the longest keyword actually present in this
@@ -1436,8 +1285,8 @@ local function render_block(rows, block, now_override)
     local repeater_mod_ok, repeater_mod = pcall(require, "organ.todo.repeater")
     if show_repeats and repeater_mod_ok and block.from and block.to then
       local q = require("organ.query")
-      local from_ts = iso_to_ts(q.parse_date and q.parse_date(block.from) or block.from)
-      local to_ts = iso_to_ts(q.parse_date and q.parse_date(block.to) or block.to)
+      local from_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.from) or block.from)
+      local to_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.to) or block.to)
       if from_ts and to_ts then
         local function period_seconds(rep)
           local n = rep.value or 1
@@ -1463,7 +1312,7 @@ local function render_block(rows, block, now_override)
           local rep = r.scheduled and r.scheduled ~= "" and repeater_mod.parse(r.scheduled) or nil
           local origin_ts = r.scheduled_date
               and r.scheduled_date ~= ""
-              and iso_to_ts(r.scheduled_date)
+              and dates.iso_to_ts(r.scheduled_date)
             or nil
           local emit_clones = false
           if rep and rep.value and rep.unit and origin_ts then
@@ -1525,7 +1374,7 @@ local function render_block(rows, block, now_override)
   if block.include_overdue then
     local overdue = {}
     for _, r in ipairs(rows) do
-      local dd = date_only(r.deadline_date)
+      local dd = dates.date_only(r.deadline_date)
       if dd and dd < today and not r.closed_date then
         overdue[#overdue + 1] = r
       end
@@ -1547,7 +1396,7 @@ local function render_block(rows, block, now_override)
       not (
         block.include_overdue
         and r.deadline_date
-        and date_only(r.deadline_date) < today
+        and dates.date_only(r.deadline_date) < today
         and not r.closed_date
       )
     then
@@ -1574,7 +1423,7 @@ local function render_block(rows, block, now_override)
     local roll_overdue = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
       == true
     local window_from = block.from
-      and date_only(
+      and dates.date_only(
         (require("organ.query").parse_date and require("organ.query").parse_date(block.from))
           or block.from
       )
@@ -1623,8 +1472,8 @@ local function render_block(rows, block, now_override)
       skip_dl_prewarn_if_sched = true
     end
     for _, r in ipairs(effective) do
-      local sched_key = date_only(r.scheduled_date)
-      local dead_key = date_only(r.deadline_date)
+      local sched_key = dates.date_only(r.scheduled_date)
+      local dead_key = dates.date_only(r.deadline_date)
       if r._bucket_date then
         -- `_bucket_date` is set by the repeater-overdue carryover path
         -- to force the row onto today's bucket while preserving the
@@ -1662,7 +1511,7 @@ local function render_block(rows, block, now_override)
         and warning_days > 0
         and (not r.scheduled_date or not skip_dl_prewarn_if_sched)
       then
-        local d = days_diff(today, dead_key)
+        local d = dates.days_diff(today, dead_key)
         if d and d > 0 and d <= warning_days and dead_key ~= today then
           local clone = vim.tbl_extend("force", {}, r)
           clone._deadline_warning = true
@@ -1714,7 +1563,7 @@ local function render_block(rows, block, now_override)
     -- ("2026-05-04T12:00") via now_override.
     local now_hhmm
     if now_override and #now_override > 10 then
-      now_hhmm = os.date("%H:%M", iso_to_ts(now_override))
+      now_hhmm = os.date("%H:%M", dates.iso_to_ts(now_override))
     else
       now_hhmm = os.date("%H:%M", os.time())
     end
@@ -1776,7 +1625,7 @@ local function render_block(rows, block, now_override)
     local TOKEN_FNS = {
       ["time-up"] = function(a, b)
         local ta, tb =
-          tominutes(time_only(a.scheduled_date)), tominutes(time_only(b.scheduled_date))
+          tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
         if ta and not tb then
           return -1
         end
@@ -1790,7 +1639,7 @@ local function render_block(rows, block, now_override)
       end,
       ["time-down"] = function(a, b)
         local ta, tb =
-          tominutes(time_only(a.scheduled_date)), tominutes(time_only(b.scheduled_date))
+          tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
         if ta and not tb then
           return -1
         end
@@ -1942,7 +1791,7 @@ local function render_block(rows, block, now_override)
         end
       end
       local hl = key == today and "@organ.agenda.date_today" or "@organ.agenda.header"
-      local hdr = date_header(key)
+      local hdr = dates.date_header(key)
       emit_line(hdr, { { hl, 0, #hdr } }, nil)
 
       -- "← now" marker: insert in the today-bucket between rows
@@ -2035,7 +1884,7 @@ local function render_block(rows, block, now_override)
               emit_line(hdr, { { "@organ.agenda.block_header", 0, #hdr } }, nil)
             end
             for _, r in ipairs(p.rows) do
-              local row_time = time_only(r.scheduled_date)
+              local row_time = dates.time_only(r.scheduled_date)
               if row_time then
                 maybe_emit_now(row_time)
               end
@@ -2060,7 +1909,7 @@ local function render_block(rows, block, now_override)
         end
         local untimed = {}
         for _, r in ipairs(buckets[key]) do
-          local rt = time_only(r.scheduled_date)
+          local rt = dates.time_only(r.scheduled_date)
           if rt then
             local hh, mm = rt:match("^(%d?%d):(%d%d)$")
             if hh and mm then
@@ -2147,7 +1996,7 @@ local function render_block(rows, block, now_override)
         end
       else
         for _, r in ipairs(buckets[key]) do
-          local row_time = time_only(r.scheduled_date)
+          local row_time = dates.time_only(r.scheduled_date)
           if row_time then
             maybe_emit_now(row_time)
           end
@@ -2249,18 +2098,18 @@ local function compute_view_header(blocks_with_rows, _opts)
   end
   local q = require("organ.query")
   local from_iso = (q.parse_date and q.parse_date(first.from)) or first.from
-  local from_ts = iso_to_ts(from_iso)
+  local from_ts = dates.iso_to_ts(from_iso)
   if not from_ts then
     return nil
   end
-  local from_w = iso_week_of(from_ts)
+  local from_w = dates.iso_week_of(from_ts)
   local span = "Day"
   if first.to and first.to ~= first.from then
     span = "Week"
     local to_iso = (q.parse_date and q.parse_date(first.to)) or first.to
-    local to_ts = iso_to_ts(to_iso)
+    local to_ts = dates.iso_to_ts(to_iso)
     if to_ts then
-      local to_w = iso_week_of(to_ts)
+      local to_w = dates.iso_week_of(to_ts)
       if to_w ~= from_w then
         return string.format("%s-agenda (W%02d-W%02d):", span, from_w, to_w)
       end
@@ -2745,8 +2594,8 @@ local function annotate_habits(rows)
     end
   end
   if #habit_ids > 0 then
-    local today = _today_iso()
-    local from = os.date("%Y-%m-%d", _now_ts() - 13 * 86400)
+    local today = dates.today_iso()
+    local from = os.date("%Y-%m-%d", dates.now_ts() - 13 * 86400)
     local comps = query.habit_completions({ headline_id = habit_ids, from = from, to = today })
     for _, r in ipairs(rows) do
       if r.is_habit then
@@ -3161,7 +3010,7 @@ local function run_query(block)
       end
     end
     for _, r in ipairs(overdue_rows or {}) do
-      local rd = date_only(r.scheduled_date)
+      local rd = dates.date_only(r.scheduled_date)
       if rd and rd < from_iso and not seen[r.id] then
         rows[#rows + 1] = r
       end
@@ -3227,7 +3076,7 @@ local function run_query(block)
         end
         for _, r in ipairs(closed_rows) do
           if r.id and not seen[r.id] and r.closed_date then
-            r._bucket_date = date_only(r.closed_date)
+            r._bucket_date = dates.date_only(r.closed_date)
             r._log_mode = "closed"
             rows[#rows + 1] = r
           end
@@ -3354,7 +3203,7 @@ function M.refresh(bufnr)
   -- doesn't have to reach into vim.b for every entry-text decision.
   local rstate = buf_state(bufnr)
   local out = M.render(blocks_with_rows, {
-    now = _today_iso(),
+    now = dates.today_iso(),
     entry_text = rstate.entry_text,
   })
 
@@ -4544,12 +4393,12 @@ local function format_buf_name(view, view_name)
   elseif view_name == "week" then
     local from_iso = as_iso(first.from)
     local to_iso = as_iso(first.to or first.from)
-    local from_ts = from_iso and iso_to_ts(from_iso)
-    local to_ts = to_iso and iso_to_ts(to_iso)
+    local from_ts = from_iso and dates.iso_to_ts(from_iso)
+    local to_ts = to_iso and dates.iso_to_ts(to_iso)
     if from_ts and to_ts then
       local fy = os.date("%Y", from_ts)
-      local fw = iso_week_of(from_ts)
-      local tw = iso_week_of(to_ts)
+      local fw = dates.iso_week_of(from_ts)
+      local tw = dates.iso_week_of(to_ts)
       if tw == fw then
         body = string.format("Week %s-W%02d", fy, fw)
       else
@@ -5218,7 +5067,7 @@ local function open_habits_view(days_arg)
     return
   end
 
-  local today = _today_iso()
+  local today = dates.today_iso()
   local lines = { string.format("Habits -- %d days ending %s", days, today), "" }
   for _, r in ipairs(rows) do
     local repeater = nil
