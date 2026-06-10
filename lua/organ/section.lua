@@ -83,9 +83,7 @@ function M.set_planning(bufnr, headline_row, kind, ts)
   end
   entries[kind:lower()] = ts
 
-  local hl = vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false)[1] or ""
-  local stars = hl:match("^(%*+)")
-  local indent = string.rep(" ", (stars and #stars or 1) + 1)
+  local indent = require("organ.todo")._planning_indent(bufnr, headline_row + 1)
 
   local block = M.render_planning(entries, indent)
 

@@ -173,20 +173,20 @@ do
   end
 end
 
--- ─── 4. existing-line edits preserve indent ─────────────────────────────────
+-- ─── 4. canonical rewrite normalizes indent to config ────────────────────────
 do
   fresh_setup({ todo = { planning_indent = "adapt" } })
   local schedule = require("organ.schedule")
 
-  -- Buffer already has SCHEDULED at col 7 (deliberately weird).  A
-  -- DEADLINE add should join the SAME line and preserve the
-  -- existing leading whitespace, not re-indent per config.
+  -- Buffer has SCHEDULED at col 7 (off-spec).  Adding DEADLINE triggers a
+  -- full canonical rewrite: indent is now derived from the config ("adapt" ->
+  -- level + 1 = 2 for a level-1 headline), not preserved from the old line.
   local b = load_buf("* TODO Existing\n       SCHEDULED: <2026-05-19 Tue>\n", "existing.org")
   schedule._set_planning(b, 1, "DEADLINE", "2026-05-20")
   local pl = planning_line(b, 1)
   check(
-    "existing-line indent preserved (config ignored on edit)",
-    leading_spaces(pl) == 7,
+    "canonical rewrite: SCHEDULED normalized to adapt indent (col 2)",
+    leading_spaces(pl) == 2,
     "got " .. leading_spaces(pl) .. " on: " .. vim.inspect(pl)
   )
 end

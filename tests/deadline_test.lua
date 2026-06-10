@@ -25,41 +25,41 @@ local function assert_eq(a, b, msg)
 end
 
 ----------------------------------------------------------------------
--- 1. Set deadline on fresh headline — planning line inserted with DEADLINE:.
+-- 1. Set deadline on fresh headline — canonical line inserted with DEADLINE:.
+--    "DEADLINE:" padded to 10 cols -> one trailing space before timestamp.
 do
   local b = mk_buf({ "* Task", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
   assert_eq(lines[1], "* Task")
-  assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri>")
+  assert_eq(lines[2], "  DEADLINE:  <2026-05-01 Fri>")
   assert_eq(lines[3], "  body")
   assert_eq(#lines, 3)
 end
 
 ----------------------------------------------------------------------
--- 2. Set deadline when planning line already has DEADLINE — replaced in place.
+-- 2. Set deadline when planning line already has DEADLINE — canonical rewrite.
+--    Indent normalised to adapt (level 1 -> 2 spaces).
 do
   local b = mk_buf({ "* Task", "DEADLINE: <2026-01-01 Thu>", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
-  assert_eq(lines[2], "DEADLINE: <2026-05-01 Fri>")
+  assert_eq(lines[2], "  DEADLINE:  <2026-05-01 Fri>")
   assert_eq(#lines, 3, "no extra lines added")
 end
 
 ----------------------------------------------------------------------
 -- 3. Set deadline when planning line already has SCHEDULED only —
---    DEADLINE appended to same line in canonical order.
+--    canonical rewrite produces separate aligned lines in order:
+--    SCHEDULED first, DEADLINE second.
 do
   local b = mk_buf({ "* Task", "SCHEDULED: <2026-04-28 Tue>", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
-  local pl = lines[2]
-  local si = pl:find("SCHEDULED:", 1, true)
-  local di = pl:find("DEADLINE:", 1, true)
-  assert(si, "SCHEDULED: missing from planning line: " .. tostring(pl))
-  assert(di, "DEADLINE: missing from planning line: " .. tostring(pl))
-  assert(si < di, "SCHEDULED must precede DEADLINE; got: " .. pl)
-  assert_eq(#lines, 3, "no extra lines inserted")
+  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[3], "  DEADLINE:  <2026-05-01 Fri>")
+  assert_eq(lines[4], "  body")
+  assert_eq(#lines, 4, "one extra line from canonical separate-line format")
 end
 
 ----------------------------------------------------------------------
@@ -95,7 +95,7 @@ do
   calendar.pick = real_pick
   assert(triggered, "calendar.pick should have been called")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri>", "planning line inserted at correct position")
+  assert_eq(lines[2], "  DEADLINE:  <2026-05-01 Fri>", "planning line inserted at correct position")
 end
 
 io.write("deadline ok\n")

@@ -71,7 +71,9 @@ do
   check("changed set_text: modified becomes true", vim.bo[b].modified == true)
 end
 
--- 5. End-to-end: set_deadline on the same date does NOT mark modified.
+-- 5. End-to-end: set_deadline on the same date with non-canonical existing
+--    format DOES mark modified because the canonical rewrite normalizes indent
+--    and keyword padding even when the timestamp is unchanged.
 do
   local b = new_buf()
   vim.api.nvim_set_current_buf(b)
@@ -83,14 +85,15 @@ do
   })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   vim.bo[b].modified = false
-  -- Stub the calendar picker to return the SAME date already set.
   require("organ.calendar").pick = function(_, cb)
     cb("2026-05-15")
   end
   require("organ.schedule").set_deadline()
+  -- The canonical rewrite normalizes "DEADLINE: " -> "  DEADLINE:  " even for
+  -- a same-date set, so the buffer is marked modified.
   check(
-    "deadline same-date: modified stays false",
-    vim.bo[b].modified == false,
+    "deadline same-date non-canonical: modified becomes true",
+    vim.bo[b].modified == true,
     "buffer state: " .. tostring(vim.bo[b].modified)
   )
 end

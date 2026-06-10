@@ -4,7 +4,6 @@
 
 local M = {}
 
-local obuf = require("organ.buf")
 -- Build an org active timestamp string from an ISO date and optional
 -- time_info ({ start = "HH:MM", finish = "HH:MM"? } or nil):
 --   nil                       -> <YYYY-MM-DD Day>
@@ -25,20 +24,6 @@ local function format_active_ts(iso, time_info)
     end
   end
   return string.format("<%s %s%s>", iso, wd, time_str)
-end
-
--- Return the 1-based line number of the planning line directly after hl_line,
--- or nil if no planning line exists there.
-local function find_planning_line(bufnr, hl_line)
-  local total = vim.api.nvim_buf_line_count(bufnr)
-  if hl_line + 1 > total then
-    return nil
-  end
-  local txt = vim.api.nvim_buf_get_lines(bufnr, hl_line, hl_line + 1, false)[1] or ""
-  if txt:match("^%s*SCHEDULED:") or txt:match("^%s*DEADLINE:") or txt:match("^%s*CLOSED:") then
-    return hl_line + 1
-  end
-  return nil
 end
 
 -- Extract the existing <…> timestamp string for `kind` from a planning line,
@@ -75,69 +60,23 @@ local function _set_planning(bufnr, hl_line, kind, date_str, time_info)
     return
   end
 
-  -- Snapshot the existing timestamp BEFORE we overwrite, so the log entry can
-  -- record the previous value.
   local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local policy_key = kind == "DEADLINE" and "log_redeadline" or "log_reschedule"
   local policy = cfg[policy_key]
   local verb = kind == "DEADLINE" and "New deadline" or "Rescheduled"
 
-  local pl = find_planning_line(bufnr, hl_line)
+  -- Snapshot the previous value for the optional LOGBOOK note.
+  local pl_lines = require("organ.element").planning_lines(bufnr, hl_line - 1)
   local old_ts
-  if pl then
-    local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
-    old_ts = existing_ts(line, kind)
+  do
+    local row = pl_lines[kind:lower()]
+    if row then
+      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+      old_ts = existing_ts(line, kind)
+    end
   end
 
-  if pl then
-    -- Planning line exists — update or append this kind.
-    local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
-    local pattern = kind .. ":%s*<[^>]*>"
-    if line:match(kind .. ":") then
-      -- Replace existing timestamp for this kind.
-      line = line:gsub(kind .. ":%s*<[^>]*>", kind .. ": " .. ts, 1)
-    else
-      -- Append this kind to the line, maintaining canonical order:
-      -- SCHEDULED → DEADLINE → CLOSED
-      local ORDER = { "SCHEDULED", "DEADLINE", "CLOSED" }
-      local new_kw = kind .. ": " .. ts
-      -- Find where to insert (after any keywords that come before `kind` in the order).
-      local our_pos = 1
-      for i, k in ipairs(ORDER) do
-        if k == kind then
-          our_pos = i
-          break
-        end
-      end
-      -- Look for the last keyword whose order position < our_pos.
-      local insert_after_pat = nil
-      for i = our_pos - 1, 1, -1 do
-        local k = ORDER[i]
-        if line:match(k .. ":") then
-          insert_after_pat = k .. ":%s*<[^>]*>"
-          break
-        end
-      end
-      if insert_after_pat then
-        -- Insert after that keyword's timestamp.
-        line = line:gsub("(" .. insert_after_pat .. ")", "%1 " .. new_kw, 1)
-      else
-        -- Prepend to the line (trim leading whitespace to re-add uniformly).
-        local leading = line:match("^(%s*)") or ""
-        line = leading .. new_kw .. " " .. line:gsub("^%s*", "")
-      end
-    end
-    obuf.set_lines(bufnr, pl - 1, pl, { line })
-  else
-    -- No planning line yet — insert a new one right after the
-    -- headline.  Indent via `todo._planning_indent` so SCHEDULED /
-    -- DEADLINE / CLOSED all agree (the three were previously
-    -- inconsistent: SCHEDULED/DEADLINE went to col 0, CLOSED to
-    -- col 2).
-    local indent = require("organ.todo")._planning_indent(bufnr, hl_line)
-    local new_line = indent .. kind .. ": " .. ts
-    obuf.set_lines(bufnr, hl_line, hl_line, { new_line })
-  end
+  require("organ.section").set_planning(bufnr, hl_line - 1, kind, ts)
 
   -- LOGBOOK note (only for true CHANGES; first-time schedule with no prior
   -- value bypasses the log to avoid noise — Emacs parity).
@@ -160,9 +99,10 @@ function M.set_schedule(opts)
   end
   local prefill
   do
-    local pl = find_planning_line(bufnr, hl.line)
-    if pl then
-      local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
+    local pl_lines = require("organ.element").planning_lines(bufnr, hl.line - 1)
+    local row = pl_lines.scheduled
+    if row then
+      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
       prefill = parse_ts_time(existing_ts(line, "SCHEDULED"))
     end
   end
@@ -191,9 +131,10 @@ function M.set_deadline(opts)
   end
   local prefill
   do
-    local pl = find_planning_line(bufnr, hl.line)
-    if pl then
-      local line = vim.api.nvim_buf_get_lines(bufnr, pl - 1, pl, false)[1] or ""
+    local pl_lines = require("organ.element").planning_lines(bufnr, hl.line - 1)
+    local row = pl_lines.deadline
+    if row then
+      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
       prefill = parse_ts_time(existing_ts(line, "DEADLINE"))
     end
   end

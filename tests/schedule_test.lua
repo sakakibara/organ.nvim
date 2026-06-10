@@ -38,29 +38,28 @@ end
 
 ----------------------------------------------------------------------
 -- 2. Set schedule when planning line already has SCHEDULED — replaced in place.
+--    Canonical rewrite: indent from adapt (level 1 -> 2 spaces).
 do
   local b = mk_buf({ "* Task", "SCHEDULED: <2026-01-01 Thu>", "  body" })
   sched._set_planning(b, 1, "SCHEDULED", "2026-04-28")
   local lines = get_lines(b)
-  assert_eq(lines[2], "SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
   assert_eq(#lines, 3, "no extra lines added")
 end
 
 ----------------------------------------------------------------------
 -- 3. Set schedule when planning line already has DEADLINE only —
---    SCHEDULED prepended to same line in canonical order.
+--    canonical rewrite produces separate aligned lines in order:
+--    SCHEDULED first, DEADLINE second.
 do
   local b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri>", "  body" })
   sched._set_planning(b, 1, "SCHEDULED", "2026-04-28")
   local lines = get_lines(b)
-  -- SCHEDULED should appear before DEADLINE on the same planning line.
-  local pl = lines[2]
-  local si = pl:find("SCHEDULED:", 1, true)
-  local di = pl:find("DEADLINE:", 1, true)
-  assert(si, "SCHEDULED: missing from planning line: " .. tostring(pl))
-  assert(di, "DEADLINE: missing from planning line: " .. tostring(pl))
-  assert(si < di, "SCHEDULED must precede DEADLINE; got: " .. pl)
-  assert_eq(#lines, 3, "no extra lines inserted")
+  -- Each keyword now occupies its own line.
+  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[3], "  DEADLINE:  <2026-05-01 Fri>")
+  assert_eq(lines[4], "  body")
+  assert_eq(#lines, 4, "one extra line from canonical separate-line format")
 end
 
 ----------------------------------------------------------------------
