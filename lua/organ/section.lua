@@ -131,4 +131,74 @@ function M.set_planning(bufnr, headline_row, kind, ts)
   end
 end
 
+-- Reorder a headline's recognized prefix elements into canonical order:
+-- planning (re-rendered canonical) -> property drawer -> LOGBOOK. CONSERVATIVE:
+-- it only rewrites a contiguous region made up ENTIRELY of recognized element
+-- lines; if any other line (blank, comment, body, unknown drawer) falls inside
+-- that region it ABORTS without changes, so content is never lost or mangled.
+-- No-op-safe writes: canonical input neither changes nor dirties the buffer.
+function M.canonicalize(bufnr, headline_row)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local model = M.parse(bufnr, headline_row)
+  local p = model.planning
+
+  local recognized = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local r = p[kw:lower()]
+    if r then
+      recognized[r] = true
+    end
+  end
+  local pd = model.property_drawer
+  if pd then
+    for r = pd.start_line, pd.end_line do
+      recognized[r] = true
+    end
+  end
+  local lb = model.logbook
+  if lb then
+    for r = lb.start_line, lb.end_line do
+      recognized[r] = true
+    end
+  end
+
+  local rows = {}
+  for r in pairs(recognized) do
+    rows[#rows + 1] = r
+  end
+  if #rows == 0 then
+    return
+  end
+  table.sort(rows)
+  local lo, hi = rows[1], rows[#rows]
+
+  for r = lo, hi do
+    if not recognized[r] then
+      return
+    end
+  end
+
+  local entries = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local r = p[kw:lower()]
+    if r then
+      local line = vim.api.nvim_buf_get_lines(bufnr, r - 1, r, false)[1] or ""
+      entries[kw:lower()] = ts_on_line(line, kw)
+    end
+  end
+  local block = M.render_planning(entries, M.planning_indent(bufnr, headline_row))
+  if pd then
+    for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, pd.start_line - 1, pd.end_line, false)) do
+      block[#block + 1] = l
+    end
+  end
+  if lb then
+    for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, lb.start_line - 1, lb.end_line, false)) do
+      block[#block + 1] = l
+    end
+  end
+
+  obuf.set_lines(bufnr, lo - 1, hi, block)
+end
+
 return M

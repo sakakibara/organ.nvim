@@ -216,6 +216,131 @@ do
   )
 end
 
+-- 7. canonicalize: no-op on already-canonical organ output.
+do
+  local b = buf_with({
+    "* DONE Task",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  DEADLINE:  <2026-05-07 Thu>",
+    "  CLOSED:    [2026-05-04 Mon 12:00]",
+    "  :PROPERTIES:",
+    "  :FOO: bar",
+    "  :END:",
+    "  :LOGBOOK:",
+    "  CLOCK: [2026-05-04 Mon 12:00]--[2026-05-04 Mon 13:30] =>  1:30",
+    "  :END:",
+    "  body",
+  })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  vim.bo[b].modified = false
+  section.canonicalize(b, 0)
+  local after = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check("canonicalize: no-op on canonical input", vim.deep_equal(before, after), vim.inspect(after))
+  check("canonicalize: canonical input stays unmodified", vim.bo[b].modified == false)
+end
+
+-- 8. canonicalize: repair a property drawer placed BEFORE planning.
+do
+  local b = buf_with({
+    "* TODO Task",
+    "  :PROPERTIES:",
+    "  :FOO: bar",
+    "  :END:",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  body",
+  })
+  section.canonicalize(b, 0)
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "canonicalize: planning moved above the property drawer",
+    vim.deep_equal(got, {
+      "* TODO Task",
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  :PROPERTIES:",
+      "  :FOO: bar",
+      "  :END:",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+
+-- 9. canonicalize: collapse a combined planning line.
+do
+  local b = buf_with({
+    "* TODO Task",
+    "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
+    "  body",
+  })
+  section.canonicalize(b, 0)
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "canonicalize: combined planning split to canonical lines",
+    vim.deep_equal(got, {
+      "* TODO Task",
+      "  SCHEDULED: <2026-05-06 Wed>",
+      "  DEADLINE:  <2026-05-07 Thu>",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+
+-- 10. canonicalize: SAFETY -- a blank line within the prefix region aborts.
+do
+  local b = buf_with({
+    "* TODO Task",
+    "  :PROPERTIES:",
+    "  :FOO: bar",
+    "  :END:",
+    "",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  body",
+  })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  section.canonicalize(b, 0)
+  local after = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "canonicalize: aborts when a blank splits the prefix region",
+    vim.deep_equal(before, after),
+    vim.inspect(after)
+  )
+end
+
+-- 11. canonicalize: SAFETY -- an unknown drawer within the region aborts.
+do
+  local b = buf_with({
+    "* TODO Task",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  :CUSTOM:",
+    "  stuff",
+    "  :END:",
+    "  :LOGBOOK:",
+    "  CLOCK: [2026-05-04 Mon 12:00]--[2026-05-04 Mon 13:30] =>  1:30",
+    "  :END:",
+    "  body",
+  })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  section.canonicalize(b, 0)
+  local after = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "canonicalize: aborts on an unknown drawer in the region",
+    vim.deep_equal(before, after),
+    vim.inspect(after)
+  )
+end
+
+-- 12. canonicalize: empty section is a no-op.
+do
+  local b = buf_with({ "* TODO Bare", "  body" })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  section.canonicalize(b, 0)
+  check(
+    "canonicalize: no recognized prefix -> no-op",
+    vim.deep_equal(before, vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+end
+
 if fails > 0 then
   error(fails .. " checks failed")
 end
