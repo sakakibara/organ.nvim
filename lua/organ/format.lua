@@ -624,6 +624,23 @@ local function realign_tables(bufnr, lo, hi)
   end
 end
 
+local function normalize_section(bufnr)
+  local ok, section = pcall(require, "organ.section")
+  if not ok then
+    return
+  end
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local rows = {}
+  for i, l in ipairs(lines) do
+    if is_headline(l) then
+      rows[#rows + 1] = i - 1
+    end
+  end
+  for i = #rows, 1, -1 do
+    pcall(section.canonicalize, bufnr, rows[i])
+  end
+end
+
 local function repair_lists(bufnr)
   local ok, list_mod = pcall(require, "organ.list")
   if not ok or not list_mod or not list_mod.repair then
@@ -691,6 +708,9 @@ function M.format_buffer(bufnr)
   bufnr = bufnr or 0
   local cfg = format_cfg()
   M.format_range(bufnr, 1, vim.api.nvim_buf_line_count(bufnr))
+  if (cfg.section or {}).normalize ~= false then
+    normalize_section(bufnr)
+  end
   if (cfg.lists or {}).repair_numbering ~= false then
     repair_lists(bufnr)
   end

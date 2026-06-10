@@ -1393,6 +1393,14 @@ return {
     lists = {
       repair_numbering = true,
     },
+
+    -- Reorder each headline's planning / property-drawer / LOGBOOK prefix
+    -- into canonical order on format (planning first, one keyword per line).
+    -- Conservative: a section with interleaved non-element content is left
+    -- untouched. Set normalize = false to disable.
+    section = {
+      normalize = true,
+    },
   },
 
   -- Inline emphasis + link concealment (mirror Emacs `org-hide-
