@@ -50,17 +50,11 @@
 --
 -- Calc value kinds:
 --
---   integer  { kind = "int",   n = bignum }
+--   integer  { kind = "int",   n = bignum (see organ/calc/bn.lua) }
 --   rational { kind = "rat",   num = bignum, den = bignum (>0, gcd=1) }
 --   float    { kind = "float", v = number }
 --   unit     { kind = "unit",  v = numeric Calc value, dim = {…}, name = str }
 --   symbol   { kind = "sym",   name = string }
---
--- A bignum is { sign = 1|-1, d = { lsb-digit, …, msb-digit } } where each
--- digit is a base-10^7 limb. Zero is { sign = 1, d = { 0 } }. Base
--- 10^7 keeps the product of two digits within Lua's exact-int range
--- (2^53), so multiplication never loses precision and decimal printing
--- is straightforward.
 --
 -- Public API:
 --
@@ -80,296 +74,7 @@
 --   M.eq, lt, le, gt, ge
 
 local M = {}
-
--- Bignum primitives.
-
-local BASE = 10 ^ 7
-local BASE_DIGITS = 7
-
-local function bn_zero()
-  return { sign = 1, d = { 0 } }
-end
-
-local function bn_normalize(b)
-  while #b.d > 1 and b.d[#b.d] == 0 do
-    b.d[#b.d] = nil
-  end
-  if #b.d == 1 and b.d[1] == 0 then
-    b.sign = 1
-  end
-  return b
-end
-
-local function bn_copy(b)
-  local d = {}
-  for i = 1, #b.d do
-    d[i] = b.d[i]
-  end
-  return { sign = b.sign, d = d }
-end
-
-local function bn_from_int(n)
-  if n == 0 then
-    return bn_zero()
-  end
-  local sign = n < 0 and -1 or 1
-  n = math.abs(n)
-  local d = {}
-  while n > 0 do
-    d[#d + 1] = n % BASE
-    n = math.floor(n / BASE)
-  end
-  return { sign = sign, d = d }
-end
-
-local function bn_from_digits_string(s)
-  -- s is a (possibly empty) string of decimal digits, no sign.
-  if s == "" then
-    return bn_zero()
-  end
-  local d = {}
-  local i = #s
-  while i > 0 do
-    local lo = math.max(1, i - BASE_DIGITS + 1)
-    d[#d + 1] = tonumber(s:sub(lo, i))
-    i = lo - 1
-  end
-  return bn_normalize({ sign = 1, d = d })
-end
-
-local function bn_to_string(b)
-  local out = {}
-  for i = #b.d, 1, -1 do
-    if i == #b.d then
-      out[#out + 1] = tostring(b.d[i])
-    else
-      out[#out + 1] = string.format("%0" .. BASE_DIGITS .. "d", b.d[i])
-    end
-  end
-  local s = table.concat(out)
-  if b.sign < 0 and s ~= "0" then
-    s = "-" .. s
-  end
-  return s
-end
-
--- Compare magnitudes only (sign ignored). -1 / 0 / 1.
-local function bn_cmp_mag(a, b)
-  if #a.d ~= #b.d then
-    return #a.d < #b.d and -1 or 1
-  end
-  for i = #a.d, 1, -1 do
-    if a.d[i] ~= b.d[i] then
-      return a.d[i] < b.d[i] and -1 or 1
-    end
-  end
-  return 0
-end
-
-local function bn_cmp(a, b)
-  if a.sign ~= b.sign then
-    return a.sign < b.sign and -1 or 1
-  end
-  local mag = bn_cmp_mag(a, b)
-  return a.sign < 0 and -mag or mag
-end
-
-local function bn_is_zero(b)
-  return #b.d == 1 and b.d[1] == 0
-end
-
-local function bn_neg(b)
-  if bn_is_zero(b) then
-    return bn_zero()
-  end
-  return {
-    sign = -b.sign,
-    d = (function()
-      local d = {}
-      for i = 1, #b.d do
-        d[i] = b.d[i]
-      end
-      return d
-    end)(),
-  }
-end
-
--- Magnitude addition (a + b, both treated as positive).
-local function bn_add_mag(a, b)
-  local d = {}
-  local carry = 0
-  local n = math.max(#a.d, #b.d)
-  for i = 1, n do
-    local s = (a.d[i] or 0) + (b.d[i] or 0) + carry
-    if s >= BASE then
-      carry = 1
-      d[i] = s - BASE
-    else
-      carry = 0
-      d[i] = s
-    end
-  end
-  if carry > 0 then
-    d[#d + 1] = carry
-  end
-  return { sign = 1, d = d }
-end
-
--- Magnitude subtraction (a - b, requires |a| >= |b|; result is non-negative).
-local function bn_sub_mag(a, b)
-  local d = {}
-  local borrow = 0
-  for i = 1, #a.d do
-    local s = a.d[i] - (b.d[i] or 0) - borrow
-    if s < 0 then
-      borrow = 1
-      d[i] = s + BASE
-    else
-      borrow = 0
-      d[i] = s
-    end
-  end
-  return bn_normalize({ sign = 1, d = d })
-end
-
-local function bn_add(a, b)
-  if a.sign == b.sign then
-    local r = bn_add_mag(a, b)
-    r.sign = a.sign
-    return r
-  end
-  local mag = bn_cmp_mag(a, b)
-  if mag == 0 then
-    return bn_zero()
-  end
-  if mag > 0 then
-    local r = bn_sub_mag(a, b)
-    r.sign = a.sign
-    return r
-  else
-    local r = bn_sub_mag(b, a)
-    r.sign = b.sign
-    return r
-  end
-end
-
-local function bn_sub(a, b)
-  return bn_add(a, bn_neg(b))
-end
-
-local function bn_mul(a, b)
-  local d = {}
-  for i = 1, #a.d + #b.d do
-    d[i] = 0
-  end
-  for i = 1, #a.d do
-    local carry = 0
-    for j = 1, #b.d do
-      local p = a.d[i] * b.d[j] + d[i + j - 1] + carry
-      carry = math.floor(p / BASE)
-      d[i + j - 1] = p - carry * BASE
-    end
-    if carry > 0 then
-      d[i + #b.d] = d[i + #b.d] + carry
-    end
-  end
-  local r = bn_normalize({ sign = a.sign * b.sign, d = d })
-  if bn_is_zero(r) then
-    r.sign = 1
-  end
-  return r
-end
-
--- Division by a single-digit divisor. Used internally by long division.
-local function bn_divmod_single(a, divisor)
-  if divisor == 0 then
-    error("calc: division by zero")
-  end
-  local q = {}
-  local r = 0
-  for i = #a.d, 1, -1 do
-    local cur = r * BASE + a.d[i]
-    q[i] = math.floor(cur / divisor)
-    r = cur - q[i] * divisor
-  end
-  return bn_normalize({ sign = 1, d = q }), r
-end
-
--- General divmod via shifted long division.
-local function bn_divmod(a, b)
-  if bn_is_zero(b) then
-    error("calc: division by zero")
-  end
-  local cmp_mag = bn_cmp_mag(a, b)
-  if cmp_mag < 0 then
-    return bn_zero(), bn_copy(a)
-  end
-  if #b.d == 1 then
-    local q, r = bn_divmod_single(a, b.d[1])
-    q.sign = a.sign * b.sign
-    if bn_is_zero(q) then
-      q.sign = 1
-    end
-    local rem = bn_from_int(r)
-    rem.sign = bn_is_zero(rem) and 1 or a.sign
-    return q, rem
-  end
-  -- Long division by trial: shift b leftward and binary-search the limb digit.
-  local n_a = #a.d
-  local n_b = #b.d
-  local quot_d = {}
-  for i = 1, n_a - n_b + 1 do
-    quot_d[i] = 0
-  end
-  local rem = bn_copy(a)
-  rem.sign = 1
-  local pos_b = bn_copy(b)
-  pos_b.sign = 1
-  for shift = n_a - n_b, 0, -1 do
-    -- Build b * BASE^shift.
-    local sb = { sign = 1, d = {} }
-    for _ = 1, shift do
-      sb.d[#sb.d + 1] = 0
-    end
-    for i = 1, n_b do
-      sb.d[#sb.d + 1] = pos_b.d[i]
-    end
-    local lo, hi = 0, BASE - 1
-    while lo < hi do
-      local mid = math.floor((lo + hi + 1) / 2)
-      local trial = bn_mul(sb, bn_from_int(mid))
-      if bn_cmp_mag(trial, rem) <= 0 then
-        lo = mid
-      else
-        hi = mid - 1
-      end
-    end
-    if lo > 0 then
-      rem = bn_sub_mag(rem, bn_mul(sb, bn_from_int(lo)))
-    end
-    quot_d[shift + 1] = lo
-  end
-  local quot = bn_normalize({ sign = a.sign * b.sign, d = quot_d })
-  if bn_is_zero(quot) then
-    quot.sign = 1
-  end
-  rem = bn_normalize(rem)
-  rem.sign = bn_is_zero(rem) and 1 or a.sign
-  return quot, rem
-end
-
-local function bn_gcd(a, b)
-  a = bn_copy(a)
-  b = bn_copy(b)
-  a.sign = 1
-  b.sign = 1
-  while not bn_is_zero(b) do
-    local _, r = bn_divmod(a, b)
-    a = b
-    b = r
-  end
-  return a
-end
+local bn = require("organ.calc.bn")
 
 -- Public Calc-value API.
 
@@ -417,17 +122,17 @@ local function new_int(b)
 end
 
 local function reduce_rat(num, den)
-  if bn_is_zero(num) then
-    return new_int(bn_zero())
+  if bn.is_zero(num) then
+    return new_int(bn.zero())
   end
   if den.sign < 0 then
-    num = bn_neg(num)
-    den = bn_neg(den)
+    num = bn.neg(num)
+    den = bn.neg(den)
   end
-  local g = bn_gcd(num, den)
-  if not (bn_is_zero(g) or (#g.d == 1 and g.d[1] == 1)) then
-    num = (bn_divmod(num, g))
-    den = (bn_divmod(den, g))
+  local g = bn.gcd(num, den)
+  if not (bn.is_zero(g) or (#g.d == 1 and g.d[1] == 1)) then
+    num = (bn.divmod(num, g))
+    den = (bn.divmod(den, g))
   end
   if #den.d == 1 and den.d[1] == 1 then
     return new_int(num)
@@ -437,7 +142,7 @@ end
 
 local function as_rat_parts(v)
   if is_int(v) then
-    return v.n, bn_from_int(1)
+    return v.n, bn.from_int(1)
   end
   return v.num, v.den
 end
@@ -446,7 +151,7 @@ function M.from_int(n)
   if n ~= math.floor(n) or math.abs(n) > 2 ^ 53 then
     error("calc.from_int: " .. tostring(n) .. " is not an exact integer")
   end
-  return new_int(bn_from_int(n))
+  return new_int(bn.from_int(n))
 end
 
 function M.from_float(x)
@@ -461,7 +166,7 @@ function M.from_number(x)
     error("calc.from_number: non-finite " .. tostring(x))
   end
   if x == math.floor(x) and math.abs(x) < 2 ^ 53 then
-    return new_int(bn_from_int(x))
+    return new_int(bn.from_int(x))
   end
   return M.from_float(x)
 end
@@ -480,9 +185,9 @@ function M.from_string(s)
   end
   local num_s, den_s = s:match("^(%d+)/(%d+)$")
   if num_s then
-    local num = bn_from_digits_string(num_s)
-    local den = bn_from_digits_string(den_s)
-    if bn_is_zero(den) then
+    local num = bn.from_digits_string(num_s)
+    local den = bn.from_digits_string(den_s)
+    if bn.is_zero(den) then
       error("calc.from_string: division by zero in " .. s)
     end
     num.sign = sign
@@ -506,21 +211,21 @@ function M.from_string(s)
   if int_part then
     -- 12.5 → 125 / 10
     local digits = int_part .. frac_part
-    local num = bn_from_digits_string(digits)
+    local num = bn.from_digits_string(digits)
     local den_str = "1" .. string.rep("0", #frac_part)
-    local den = bn_from_digits_string(den_str)
+    local den = bn.from_digits_string(den_str)
     num.sign = sign
     return reduce_rat(num, den)
   end
   local dec_only = s:match("^%.(%d+)$")
   if dec_only then
-    local num = bn_from_digits_string(dec_only)
-    local den = bn_from_digits_string("1" .. string.rep("0", #dec_only))
+    local num = bn.from_digits_string(dec_only)
+    local den = bn.from_digits_string("1" .. string.rep("0", #dec_only))
     num.sign = sign
     return reduce_rat(num, den)
   end
   if s:match("^%d+$") then
-    local n = bn_from_digits_string(s)
+    local n = bn.from_digits_string(s)
     n.sign = sign
     return new_int(n)
   end
@@ -536,10 +241,10 @@ end
 
 function M.to_string(v)
   if is_int(v) then
-    return bn_to_string(v.n)
+    return bn.to_string(v.n)
   end
   if is_rat(v) then
-    return bn_to_string(v.num) .. "/" .. bn_to_string(v.den)
+    return bn.to_string(v.num) .. "/" .. bn.to_string(v.den)
   end
   if is_float(v) then
     return format_float(v.v)
@@ -555,10 +260,10 @@ end
 
 function M.to_number(v)
   if is_int(v) then
-    return tonumber(bn_to_string(v.n))
+    return tonumber(bn.to_string(v.n))
   end
   if is_rat(v) then
-    return tonumber(bn_to_string(v.num)) / tonumber(bn_to_string(v.den))
+    return tonumber(bn.to_string(v.num)) / tonumber(bn.to_string(v.den))
   end
   if is_float(v) then
     return v.v
@@ -584,10 +289,10 @@ end
 
 function M.neg(v)
   if is_int(v) then
-    return new_int(bn_neg(v.n))
+    return new_int(bn.neg(v.n))
   end
   if is_rat(v) then
-    return reduce_rat(bn_neg(v.num), v.den)
+    return reduce_rat(bn.neg(v.num), v.den)
   end
   if is_float(v) then
     return M.from_float(-v.v)
@@ -600,12 +305,12 @@ end
 
 function M.abs(v)
   if is_int(v) then
-    local n = bn_copy(v.n)
+    local n = bn.copy(v.n)
     n.sign = 1
     return new_int(n)
   end
   if is_rat(v) then
-    local num = bn_copy(v.num)
+    local num = bn.copy(v.num)
     num.sign = 1
     return reduce_rat(num, v.den)
   end
@@ -620,13 +325,13 @@ end
 
 function M.sign(v)
   if is_int(v) then
-    if bn_is_zero(v.n) then
+    if bn.is_zero(v.n) then
       return 0
     end
     return v.n.sign
   end
   if is_rat(v) then
-    if bn_is_zero(v.num) then
+    if bn.is_zero(v.num) then
       return 0
     end
     return v.num.sign
@@ -661,8 +366,8 @@ function M.cmp(a, b)
     return 0
   end
   local an, ad = as_rat_parts(a)
-  local bn, bd = as_rat_parts(b)
-  return bn_cmp(bn_mul(an, bd), bn_mul(bn, ad))
+  local bnum, bd = as_rat_parts(b)
+  return bn.cmp(bn.mul(an, bd), bn.mul(bnum, ad))
 end
 
 function M.eq(a, b)
@@ -719,11 +424,11 @@ function M.add(a, b)
     return M.from_float(to_float_value(a) + to_float_value(b))
   end
   if is_int(a) and is_int(b) then
-    return new_int(bn_add(a.n, b.n))
+    return new_int(bn.add(a.n, b.n))
   end
   local an, ad = as_rat_parts(a)
-  local bn, bd = as_rat_parts(b)
-  return reduce_rat(bn_add(bn_mul(an, bd), bn_mul(bn, ad)), bn_mul(ad, bd))
+  local bnum, bd = as_rat_parts(b)
+  return reduce_rat(bn.add(bn.mul(an, bd), bn.mul(bnum, ad)), bn.mul(ad, bd))
 end
 
 function M.sub(a, b)
@@ -741,11 +446,11 @@ function M.mul(a, b)
     return M.from_float(to_float_value(a) * to_float_value(b))
   end
   if is_int(a) and is_int(b) then
-    return new_int(bn_mul(a.n, b.n))
+    return new_int(bn.mul(a.n, b.n))
   end
   local an, ad = as_rat_parts(a)
-  local bn, bd = as_rat_parts(b)
-  return reduce_rat(bn_mul(an, bn), bn_mul(ad, bd))
+  local bnum, bd = as_rat_parts(b)
+  return reduce_rat(bn.mul(an, bnum), bn.mul(ad, bd))
 end
 
 function M.div(a, b)
@@ -759,12 +464,12 @@ function M.div(a, b)
     end
     return M.from_float(to_float_value(a) / bv)
   end
-  local bn, bd = as_rat_parts(b)
-  if bn_is_zero(bn) then
+  local bnum, bd = as_rat_parts(b)
+  if bn.is_zero(bnum) then
     error("calc: division by zero")
   end
   local an, ad = as_rat_parts(a)
-  return reduce_rat(bn_mul(an, bd), bn_mul(ad, bn))
+  return reduce_rat(bn.mul(an, bd), bn.mul(ad, bnum))
 end
 
 function M.mod(a, b)
@@ -778,10 +483,10 @@ function M.mod(a, b)
   if not (is_int(a) and is_int(b)) then
     error("calc.mod: integers or floats only")
   end
-  if bn_is_zero(b.n) then
+  if bn.is_zero(b.n) then
     error("calc: modulo by zero")
   end
-  local _, r = bn_divmod(a.n, b.n)
+  local _, r = bn.divmod(a.n, b.n)
   return new_int(r)
 end
 
@@ -793,7 +498,7 @@ function M.pow(v, n)
   -- Integer exponent: exact arithmetic.
   if type(n) == "table" then
     if is_int(n) then
-      n = tonumber(bn_to_string(n.n))
+      n = tonumber(bn.to_string(n.n))
     elseif is_rat(n) then
       -- Rational exponent → drop to float.
       return M.from_float(to_float_value(v) ^ to_float_value(n))
@@ -834,7 +539,7 @@ function M.sqrt(v)
     local x = M.from_float(math.sqrt(M.to_number(v)))
     local guess = M.from_int(math.floor(M.to_number(x)))
     -- One Newton refinement; then check exactness.
-    if not bn_is_zero(v.n) then
+    if not bn.is_zero(v.n) then
       guess = M.div(M.add(guess, M.div(v, guess)), M.from_int(2))
       if M.is_int(guess) and M.eq(M.mul(guess, guess), v) then
         return guess
@@ -908,11 +613,11 @@ function M.ceil(v)
     return v
   end
   if is_rat(v) then
-    local q, r = bn_divmod(v.num, v.den)
-    if bn_is_zero(r) or v.num.sign < 0 then
+    local q, r = bn.divmod(v.num, v.den)
+    if bn.is_zero(r) or v.num.sign < 0 then
       return new_int(q)
     end
-    return new_int(bn_add(q, bn_from_int(1)))
+    return new_int(bn.add(q, bn.from_int(1)))
   end
   return M.from_float(math.ceil(as_float(v)))
 end
@@ -922,11 +627,11 @@ function M.floor(v)
     return v
   end
   if is_rat(v) then
-    local q, r = bn_divmod(v.num, v.den)
-    if bn_is_zero(r) or v.num.sign > 0 then
+    local q, r = bn.divmod(v.num, v.den)
+    if bn.is_zero(r) or v.num.sign > 0 then
       return new_int(q)
     end
-    return new_int(bn_sub(q, bn_from_int(1)))
+    return new_int(bn.sub(q, bn.from_int(1)))
   end
   return M.from_float(math.floor(as_float(v)))
 end
@@ -936,7 +641,7 @@ function M.trunc(v)
     return v
   end
   if is_rat(v) then
-    return new_int((bn_divmod(v.num, v.den)))
+    return new_int((bn.divmod(v.num, v.den)))
   end
   local x = as_float(v)
   return M.from_float(x >= 0 and math.floor(x) or math.ceil(x))
@@ -948,12 +653,12 @@ function M.round(v)
   end
   if is_rat(v) then
     -- round half away from zero
-    local doubled = bn_mul(v.num, bn_from_int(2))
+    local doubled = bn.mul(v.num, bn.from_int(2))
     doubled.sign = math.abs(doubled.sign)
-    local q, _ = bn_divmod(doubled, v.den)
+    local q, _ = bn.divmod(doubled, v.den)
     local sign = v.num.sign
     -- Adjust sign and halve.
-    local r = (bn_divmod(bn_add(q, bn_from_int(1)), bn_from_int(2)))
+    local r = (bn.divmod(bn.add(q, bn.from_int(1)), bn.from_int(2)))
     r.sign = sign
     return new_int(r)
   end
@@ -965,27 +670,27 @@ function M.gcd(a, b)
   if not (is_int(a) and is_int(b)) then
     error("calc.gcd: integers only")
   end
-  return new_int(bn_gcd(a.n, b.n))
+  return new_int(bn.gcd(a.n, b.n))
 end
 
 function M.lcm(a, b)
   if not (is_int(a) and is_int(b)) then
     error("calc.lcm: integers only")
   end
-  if bn_is_zero(a.n) or bn_is_zero(b.n) then
+  if bn.is_zero(a.n) or bn.is_zero(b.n) then
     return M.from_int(0)
   end
-  local g = bn_gcd(a.n, b.n)
-  local p = bn_mul(a.n, b.n)
+  local g = bn.gcd(a.n, b.n)
+  local p = bn.mul(a.n, b.n)
   p.sign = 1
-  return new_int((bn_divmod(p, g)))
+  return new_int((bn.divmod(p, g)))
 end
 
 function M.factorial(n)
   if not is_int(n) or n.n.sign < 0 then
     error("calc.factorial: non-negative integer required")
   end
-  local k = tonumber(bn_to_string(n.n))
+  local k = tonumber(bn.to_string(n.n))
   if not k then
     error("calc.factorial: too big to enumerate")
   end
@@ -1004,8 +709,8 @@ function M.binomial(n, k)
     return M.from_int(0)
   end
   -- C(n,k) = n! / (k! * (n-k)!), computed via the multiplicative form
-  local nn = tonumber(bn_to_string(n.n))
-  local kk = tonumber(bn_to_string(k.n))
+  local nn = tonumber(bn.to_string(n.n))
+  local kk = tonumber(bn.to_string(k.n))
   if not (nn and kk) then
     error("calc.binomial: argument too large")
   end
@@ -1588,72 +1293,41 @@ local SMALL_PRIMES = {
   113,
 }
 
-local function bn_one()
-  return bn_from_int(1)
-end
-
--- Modular multiplication for bignums via long multiplication then mod.
-local function bn_mod(a, m)
-  return (select(2, bn_divmod(a, m)))
-end
-
-local function bn_mod_mul(a, b, m)
-  return bn_mod(bn_mul(a, b), m)
-end
-
-local function bn_mod_pow(base, exp, m)
-  local result = bn_one()
-  base = bn_mod(base, m)
-  -- exp is treated as a non-negative bignum; iterate via bit shifts.
-  local e = bn_copy(exp)
-  e.sign = 1
-  while not bn_is_zero(e) do
-    -- low bit of e: e mod 2
-    local _, r = bn_divmod(e, bn_from_int(2))
-    if not bn_is_zero(r) then
-      result = bn_mod_mul(result, base, m)
-    end
-    base = bn_mod_mul(base, base, m)
-    e = (bn_divmod(e, bn_from_int(2)))
-  end
-  return result
-end
-
 -- Miller-Rabin with deterministic witnesses for n < 3 317 044 064 679 887 385 961 981.
 -- For larger n we use 20 random-ish bases derived from small primes
 -- (probability of false positive < 4^-20 ≈ 10^-12 per call).
 local function miller_rabin(n)
-  if bn_cmp(n, bn_from_int(2)) < 0 then
+  if bn.cmp(n, bn.from_int(2)) < 0 then
     return false
   end
   for _, p in ipairs({ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37 }) do
-    local pp = bn_from_int(p)
-    if bn_cmp(n, pp) == 0 then
+    local pp = bn.from_int(p)
+    if bn.cmp(n, pp) == 0 then
       return true
     end
-    local _, r = bn_divmod(n, pp)
-    if bn_is_zero(r) then
+    local _, r = bn.divmod(n, pp)
+    if bn.is_zero(r) then
       return false
     end
   end
   -- write n-1 as d * 2^s
-  local d = bn_sub(n, bn_one())
+  local d = bn.sub(n, bn.one())
   local s = 0
   while true do
-    local q, r = bn_divmod(d, bn_from_int(2))
-    if not bn_is_zero(r) then
+    local q, r = bn.divmod(d, bn.from_int(2))
+    if not bn.is_zero(r) then
       break
     end
     d = q
     s = s + 1
   end
   for _, a in ipairs({ 2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37 }) do
-    local x = bn_mod_pow(bn_from_int(a), d, n)
-    if not (bn_cmp(x, bn_one()) == 0 or bn_cmp(x, bn_sub(n, bn_one())) == 0) then
+    local x = bn.mod_pow(bn.from_int(a), d, n)
+    if not (bn.cmp(x, bn.one()) == 0 or bn.cmp(x, bn.sub(n, bn.one())) == 0) then
       local composite = true
       for _ = 1, s - 1 do
-        x = bn_mod_mul(x, x, n)
-        if bn_cmp(x, bn_sub(n, bn_one())) == 0 then
+        x = bn.mod_mul(x, x, n)
+        if bn.cmp(x, bn.sub(n, bn.one())) == 0 then
           composite = false
           break
         end
@@ -1676,25 +1350,25 @@ end
 -- Pollard's rho factoring with cycle detection. Returns a non-trivial
 -- factor of `n` (assumed composite, > 1, not prime).
 local function pollard_rho(n)
-  if bn_is_zero(bn_mod(n, bn_from_int(2))) then
-    return bn_from_int(2)
+  if bn.is_zero(bn.mod(n, bn.from_int(2))) then
+    return bn.from_int(2)
   end
-  local one = bn_one()
-  local two = bn_from_int(2)
+  local one = bn.one()
+  local two = bn.from_int(2)
   for c_seed = 1, 100 do
-    local c = bn_from_int(c_seed)
-    local x = bn_from_int(2)
-    local y = bn_from_int(2)
+    local c = bn.from_int(c_seed)
+    local x = bn.from_int(2)
+    local y = bn.from_int(2)
     local d = one
-    while bn_cmp(d, one) == 0 do
-      x = bn_mod(bn_add(bn_mod_mul(x, x, n), c), n)
-      y = bn_mod(bn_add(bn_mod_mul(y, y, n), c), n)
-      y = bn_mod(bn_add(bn_mod_mul(y, y, n), c), n)
-      local diff = bn_sub(x, y)
+    while bn.cmp(d, one) == 0 do
+      x = bn.mod(bn.add(bn.mod_mul(x, x, n), c), n)
+      y = bn.mod(bn.add(bn.mod_mul(y, y, n), c), n)
+      y = bn.mod(bn.add(bn.mod_mul(y, y, n), c), n)
+      local diff = bn.sub(x, y)
       diff.sign = 1
-      d = bn_gcd(diff, n)
+      d = bn.gcd(diff, n)
     end
-    if bn_cmp(d, n) ~= 0 then
+    if bn.cmp(d, n) ~= 0 then
       return d
     end
   end
@@ -1707,30 +1381,30 @@ function M.prime_factors(v)
   if not is_int(v) then
     error("calc.factor: integer required")
   end
-  local n = bn_copy(v.n)
+  local n = bn.copy(v.n)
   n.sign = 1
-  if bn_cmp(n, bn_one()) <= 0 then
+  if bn.cmp(n, bn.one()) <= 0 then
     return {}
   end
   local out = {}
   -- Trial division by small primes for speed.
   for _, p in ipairs(SMALL_PRIMES) do
-    local pp = bn_from_int(p)
-    while bn_cmp(n, pp) >= 0 do
-      local q, r = bn_divmod(n, pp)
-      if not bn_is_zero(r) then
+    local pp = bn.from_int(p)
+    while bn.cmp(n, pp) >= 0 do
+      local q, r = bn.divmod(n, pp)
+      if not bn.is_zero(r) then
         break
       end
       out[#out + 1] = new_int(pp)
       n = q
     end
-    if bn_cmp(n, bn_one()) == 0 then
+    if bn.cmp(n, bn.one()) == 0 then
       return out
     end
   end
   -- Recursive factor via primality test + rho.
   local function recurse(m)
-    if bn_cmp(m, bn_one()) == 0 then
+    if bn.cmp(m, bn.one()) == 0 then
       return
     end
     if miller_rabin(m) then
@@ -1739,7 +1413,7 @@ function M.prime_factors(v)
     end
     local d = pollard_rho(m)
     recurse(d)
-    recurse((bn_divmod(m, d)))
+    recurse((bn.divmod(m, d)))
   end
   recurse(n)
   table.sort(out, function(a, b)
@@ -2746,7 +2420,7 @@ local function _to_int_lua(n)
     return math.floor(n)
   end
   if is_int(n) then
-    return tonumber(bn_to_string(n.n))
+    return tonumber(bn.to_string(n.n))
   end
   if is_rat(n) then
     return math.floor(M.to_number(n))
@@ -2830,17 +2504,17 @@ M.NOT_IMPLEMENTED = {
 
 -- Internal exposure for tests / sister modules.
 M._bn = {
-  zero = bn_zero,
-  from_int = bn_from_int,
-  from_string = bn_from_digits_string,
-  to_string = bn_to_string,
-  cmp = bn_cmp,
-  add = bn_add,
-  sub = bn_sub,
-  mul = bn_mul,
-  divmod = bn_divmod,
-  gcd = bn_gcd,
-  is_zero = bn_is_zero,
+  zero = bn.zero,
+  from_int = bn.from_int,
+  from_string = bn.from_digits_string,
+  to_string = bn.to_string,
+  cmp = bn.cmp,
+  add = bn.add,
+  sub = bn.sub,
+  mul = bn.mul,
+  divmod = bn.divmod,
+  gcd = bn.gcd,
+  is_zero = bn.is_zero,
 }
 
 return M
