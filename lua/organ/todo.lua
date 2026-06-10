@@ -434,51 +434,6 @@ local function now_inactive_ts()
   return string.format("[%04d-%02d-%02d %s %02d:%02d]", t.year, t.month, t.day, dow, t.hour, t.min)
 end
 
--- Returns 1-based line indices: { closed = N | nil, planning_end = N }
--- where planning_end is the line index of the LAST planning line (SCHEDULED/DEADLINE/CLOSED)
--- under the given headline, or hl_line itself if no planning lines exist.
-local function find_planning_block(buf_lines, hl_line)
-  -- Walks the headline's section.  Skips drawer ranges and blank lines so
-  -- the org-habit-style layout (property drawer before SCHEDULED) still
-  -- finds planning lines correctly.
-  local closed_idx = nil
-  local last_planning = hl_line
-  local i = hl_line + 1
-  while i <= #buf_lines do
-    local ln = buf_lines[i]
-    if ln:match("^%*+%s") then
-      break
-    end
-    -- Planning keywords are case-insensitive in Emacs (case-fold-search
-    -- on org-keyword-time-regexp).
-    if
-      ln:match("^%s*[Ss][Cc][Hh][Ee][Dd][Uu][Ll][Ee][Dd]:")
-      or ln:match("^%s*[Dd][Ee][Aa][Dd][Ll][Ii][Nn][Ee]:")
-      or ln:match("^%s*[Cc][Ll][Oo][Ss][Ee][Dd]:")
-    then
-      if ln:match("^%s*[Cc][Ll][Oo][Ss][Ee][Dd]:") then
-        closed_idx = i
-      end
-      last_planning = i
-      i = i + 1
-    elseif ln:match("^%s*:[%w_]+:%s*$") then
-      i = i + 1
-      while i <= #buf_lines and not buf_lines[i]:match("^%s*:END:%s*$") do
-        if buf_lines[i]:match("^%*+%s") then
-          break
-        end
-        i = i + 1
-      end
-      i = i + 1 -- past :END:
-    elseif ln:match("^%s*$") then
-      i = i + 1
-    else
-      break
-    end
-  end
-  return { closed = closed_idx, planning_end = last_planning }
-end
-
 local function set_property(bufnr, hl_line, key, value)
   local element = require("organ.element")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -661,24 +616,11 @@ function M._planning_indent(bufnr, hl_line)
 end
 
 local function insert_closed_line(bufnr, hl_line)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local block = find_planning_block(lines, hl_line)
-  local new = M._planning_indent(bufnr, hl_line) .. "CLOSED: " .. now_inactive_ts()
-  if block.closed then
-    -- Replace existing CLOSED line in place.
-    obuf.set_lines(bufnr, block.closed - 1, block.closed, { new })
-  else
-    -- Insert after the last planning line.
-    obuf.set_lines(bufnr, block.planning_end, block.planning_end, { new })
-  end
+  require("organ.section").set_planning(bufnr, hl_line - 1, "CLOSED", now_inactive_ts())
 end
 
 local function remove_closed_line(bufnr, hl_line)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local block = find_planning_block(lines, hl_line)
-  if block.closed then
-    obuf.set_lines(bufnr, block.closed - 1, block.closed, {})
-  end
+  require("organ.section").set_planning(bufnr, hl_line - 1, "CLOSED", nil)
 end
 
 -- Apply a state change to a buffer at the headline owning `line`. Performs the
