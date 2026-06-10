@@ -17,6 +17,7 @@ local dates = require("organ.agenda.dates")
 local format = require("organ.agenda.format")
 local render = require("organ.agenda.render")
 local collect = require("organ.agenda.collect")
+local vstate = require("organ.agenda.state")
 
 -- Public pure helpers.
 
@@ -308,69 +309,9 @@ end
 
 local NS = vim.api.nvim_create_namespace("organ-agenda")
 
--- vim.b serialises sparse-int-keyed Lua tables by padding gaps with vim.NIL.
--- Re-key block_starts and line_index as strings before storing, then decode
--- back to integers on read. Other state fields are dense or scalar — safe.
-local function encode_state(state)
-  local enc = {}
-  for k, v in pairs(state) do
-    enc[k] = v
-  end
-  if state.block_starts then
-    local s = {}
-    for k, v in pairs(state.block_starts) do
-      s[tostring(k)] = v
-    end
-    enc.block_starts = s
-  end
-  if state.line_index then
-    local s = {}
-    for k, v in pairs(state.line_index) do
-      s[tostring(k)] = v
-    end
-    enc.line_index = s
-  end
-  return enc
-end
-
-local function decode_state(raw)
-  if not raw then
-    return {}
-  end
-  local dec = {}
-  for k, v in pairs(raw) do
-    dec[k] = v
-  end
-  if raw.block_starts then
-    local s = {}
-    for k, v in pairs(raw.block_starts) do
-      s[tonumber(k) or k] = v
-    end
-    dec.block_starts = s
-  end
-  if raw.line_index then
-    local s = {}
-    for k, v in pairs(raw.line_index) do
-      s[tonumber(k) or k] = v
-    end
-    dec.line_index = s
-  end
-  return dec
-end
-
-local function buf_state(bufnr)
-  return decode_state(vim.b[bufnr].organ_agenda)
-end
-
 -- Public accessor so tests and keymaps can read decoded state (with integer
 -- block_starts keys) without accessing vim.b directly.
-function M.buf_state(bufnr)
-  return buf_state(bufnr)
-end
-
-local function set_state(bufnr, state)
-  vim.b[bufnr].organ_agenda = encode_state(state)
-end
+M.buf_state = vstate.get
 
 -- Public bulk-delete / undo / redo primitives.
 --
@@ -412,11 +353,11 @@ function M.bulk_delete_apply(bufnr, marked_rows)
   for _, s in ipairs(snapshot) do
     pcall(clipboard.cut, s.file, s.lnum)
   end
-  local hstate = buf_state(bufnr) or {}
+  local hstate = vstate.get(bufnr) or {}
   hstate.delete_history = hstate.delete_history or {}
   hstate.delete_history[#hstate.delete_history + 1] = snapshot
   hstate.redo_history = {}
-  set_state(bufnr, hstate)
+  vstate.set(bufnr, hstate)
   return snapshot
 end
 
@@ -424,7 +365,7 @@ end
 -- its captured (file, lnum). Pushes onto redo_history. Returns the
 -- snapshot, or nil when the stack is empty.
 function M.undo_last_delete(bufnr)
-  local state = buf_state(bufnr) or {}
+  local state = vstate.get(bufnr) or {}
   local stack = state.delete_history or {}
   if #stack == 0 then
     return nil
@@ -445,14 +386,14 @@ function M.undo_last_delete(bufnr)
   state.delete_history = stack
   state.redo_history = state.redo_history or {}
   state.redo_history[#state.redo_history + 1] = snap
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
   return snap
 end
 
 -- Pop the top of bufnr's redo_history and re-cut. Pushes back onto
 -- delete_history. Returns the snapshot or nil.
 function M.redo_last_delete(bufnr)
-  local state = buf_state(bufnr) or {}
+  local state = vstate.get(bufnr) or {}
   local stack = state.redo_history or {}
   if #stack == 0 then
     return nil
@@ -477,7 +418,7 @@ function M.redo_last_delete(bufnr)
   state.redo_history = stack
   state.delete_history = state.delete_history or {}
   state.delete_history[#state.delete_history + 1] = snap
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
   return snap
 end
 
@@ -528,7 +469,7 @@ function M.refresh(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
-  local state = buf_state(bufnr)
+  local state = vstate.get(bufnr)
   local view = state.view or { blocks = {} }
 
   -- Capture the headline ID under cursor BEFORE refresh so we can restore
@@ -598,7 +539,7 @@ function M.refresh(bufnr)
 
   -- Per-buffer toggle state lifted into the render opts so M.render
   -- doesn't have to reach into vim.b for every entry-text decision.
-  local rstate = buf_state(bufnr)
+  local rstate = vstate.get(bufnr)
   local out = M.render(blocks_with_rows, {
     now = dates.today_iso(),
     entry_text = rstate.entry_text,
@@ -628,7 +569,7 @@ function M.refresh(bufnr)
   -- showing total clocked time per headline within the visible date
   -- window. Mirrors Emacs `R` in agenda buffer.
   do
-    local agenda_state = decode_state(vim.b[bufnr].organ_agenda) or {}
+    local agenda_state = vstate.decode(vim.b[bufnr].organ_agenda) or {}
     -- `agenda.clockreport_mode = true` (Emacs `org-agenda-clockreport-
     -- mode`) starts each agenda buffer with the clock report visible
     -- (default off; `gR` toggles per-buffer).
@@ -741,7 +682,7 @@ function M.refresh(bufnr)
   state.last_refresh_ts = os.time()
   state.line_index = out.line_index
   state.block_starts = out.block_starts
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
 
   -- Cursor follow: locate the previously-focused headline in the new
   -- line_index and move cursor there. Sorting comparators (priority,
@@ -792,7 +733,7 @@ local function install_keymaps(bufnr)
 
   local function current_row()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     return (state.line_index or {})[lnum]
   end
 
@@ -914,9 +855,9 @@ local function install_keymaps(bufnr)
   -- inject up to `agenda.entry_text.max_lines` body lines from each
   -- item's source headline as indented preview rows under the row.
   map("E", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.entry_text = not state.entry_text
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     M.refresh(bufnr)
   end, "toggle_entry_text")
 
@@ -925,9 +866,9 @@ local function install_keymaps(bufnr)
   -- as additional rows on the day each event happened.  Set
   -- `agenda.log_mode.on_start = true` to default it on.
   map("l", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.log_mode = not state.log_mode
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     M.refresh(bufnr)
   end, "toggle_log_mode")
 
@@ -971,7 +912,7 @@ local function install_keymaps(bufnr)
 
   map("j", function()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local total = vim.api.nvim_buf_line_count(bufnr)
     for i = lnum + 1, total do
       if (state.line_index or {})[i] then
@@ -983,7 +924,7 @@ local function install_keymaps(bufnr)
 
   map("k", function()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     for i = lnum - 1, 1, -1 do
       if (state.line_index or {})[i] then
         vim.api.nvim_win_set_cursor(0, { i, 0 })
@@ -994,13 +935,13 @@ local function install_keymaps(bufnr)
 
   map("/", function()
     local input = vim.fn.input("filter title: ")
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local view = state.view or { blocks = {} }
     for _, block in ipairs(view.blocks) do
       block.title_match = input ~= "" and input or nil
     end
     state.view = view
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     M.refresh(bufnr)
   end, "filter")
 
@@ -1010,7 +951,7 @@ local function install_keymaps(bufnr)
 
   map("]]", function()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local starts = state.block_starts or {}
     local target
     for k in pairs(starts) do
@@ -1025,7 +966,7 @@ local function install_keymaps(bufnr)
 
   map("[[", function()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local starts = state.block_starts or {}
     local target
     for k in pairs(starts) do
@@ -1219,7 +1160,7 @@ local function install_keymaps(bufnr)
 
   local function redraw_bulk_signs()
     pcall(vim.fn.sign_unplace, SIGN_GROUP, { buffer = bufnr })
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local marked = state.bulk_marked or {}
     for lnum, r in pairs(state.line_index or {}) do
       local id = row_mark_id(r)
@@ -1230,10 +1171,10 @@ local function install_keymaps(bufnr)
   end
 
   local function set_marked(id, value)
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.bulk_marked = state.bulk_marked or {}
     state.bulk_marked[id] = value or nil
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     redraw_bulk_signs()
   end
 
@@ -1245,17 +1186,17 @@ local function install_keymaps(bufnr)
     local r = current_row()
     local id = row_mark_id(r)
     if id then
-      local state = buf_state(bufnr)
+      local state = vstate.get(bufnr)
       state.bulk_marked = state.bulk_marked or {}
       local on = state.bulk_marked[id]
       state.bulk_marked[id] = (not on) and true or nil
-      set_state(bufnr, state)
+      vstate.set(bufnr, state)
       redraw_bulk_signs()
     end
     -- Advance to the next item row.
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
     local total = vim.api.nvim_buf_line_count(bufnr)
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     for i = lnum + 1, total do
       if (state.line_index or {})[i] then
         vim.api.nvim_win_set_cursor(0, { i, 0 })
@@ -1268,7 +1209,7 @@ local function install_keymaps(bufnr)
   -- default; capital M alone moves to middle of window — useful — and
   -- `*` is search-word — also useful — so we use the g prefix.)
   map("gM", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.bulk_marked = state.bulk_marked or {}
     local any = next(state.bulk_marked) ~= nil
     if any then
@@ -1281,7 +1222,7 @@ local function install_keymaps(bufnr)
         end
       end
     end
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     redraw_bulk_signs()
   end, "bulk_mark_all")
 
@@ -1291,7 +1232,7 @@ local function install_keymaps(bufnr)
   -- Resolves each marked id back to its source via the buffer's
   -- line_index (we look up live so cursor moves don't matter).
   map("gB", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     local marked = state.bulk_marked or {}
     local marked_rows = {}
     for _, r in pairs(state.line_index or {}) do
@@ -1356,7 +1297,7 @@ local function install_keymaps(bufnr)
               end
             end
             state.bulk_marked = {}
-            set_state(bufnr, state)
+            vstate.set(bufnr, state)
             redraw_bulk_signs()
             M.refresh(bufnr)
           end)
@@ -1405,7 +1346,7 @@ local function install_keymaps(bufnr)
           end
           local snapshot = M.bulk_delete_apply(bufnr, resolved)
           state.bulk_marked = {}
-          set_state(bufnr, state)
+          vstate.set(bufnr, state)
           redraw_bulk_signs()
           M.refresh(bufnr)
           require("organ.notify").info(("Deleted %d subtree(s). `u` to undo."):format(#snapshot))
@@ -1419,7 +1360,7 @@ local function install_keymaps(bufnr)
             end
           end
           state.bulk_marked = {}
-          set_state(bufnr, state)
+          vstate.set(bufnr, state)
           redraw_bulk_signs()
           M.refresh(bufnr)
         end
@@ -1462,9 +1403,9 @@ local function install_keymaps(bufnr)
   -- to `gA` so the user's vim `;` (repeat f/F/t/T) stays usable.
   -- Distinct from `A` below, which archives the row at cursor.
   map("gA", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.show_archived = not state.show_archived
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     require("organ.notify").info(
       "agenda: archived rows " .. (state.show_archived and "shown" or "hidden")
     )
@@ -1508,9 +1449,9 @@ local function install_keymaps(bufnr)
   -- clocked time for headlines visible in the current window. Toggle
   -- again to remove.
   map("gR", function()
-    local state = buf_state(bufnr)
+    local state = vstate.get(bufnr)
     state.clock_report_mode = not state.clock_report_mode
-    set_state(bufnr, state)
+    vstate.set(bufnr, state)
     require("organ.notify").info(
       "agenda: clock-report mode " .. (state.clock_report_mode and "ON" or "OFF")
     )
@@ -1670,9 +1611,9 @@ local function install_keymaps(bufnr)
       if input == nil then
         return
       end
-      local s = buf_state(bufnr)
+      local s = vstate.get(bufnr)
       s.effort_filter = input
-      set_state(bufnr, s)
+      vstate.set(bufnr, s)
       M.refresh(bufnr)
     end)
   end, "effort_filter")
@@ -1702,7 +1643,7 @@ end
 
 -- Shift every block's date window by n full periods (period = block span).
 function M._shift_period(bufnr, n)
-  local state = buf_state(bufnr)
+  local state = vstate.get(bufnr)
   local view = state.view or { blocks = {} }
   local query = require("organ.query")
   for _, block in ipairs(view.blocks) do
@@ -1720,12 +1661,12 @@ function M._shift_period(bufnr, n)
     end
   end
   state.view = view
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
 end
 
 -- Reset every block's window to today, preserving its prior span.
 function M._reset_today(bufnr)
-  local state = buf_state(bufnr)
+  local state = vstate.get(bufnr)
   local view = state.view or { blocks = {} }
   local query = require("organ.query")
   local today_iso = query.parse_date("today")
@@ -1741,12 +1682,12 @@ function M._reset_today(bufnr)
     end
   end
   state.view = view
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
 end
 
 -- Replace every block's window with the given (from, to) — relative or ISO.
 function M._set_window(bufnr, from, to)
-  local state = buf_state(bufnr)
+  local state = vstate.get(bufnr)
   local view = state.view or { blocks = {} }
   for _, block in ipairs(view.blocks) do
     if block.from and block.to then
@@ -1755,7 +1696,7 @@ function M._set_window(bufnr, from, to)
     end
   end
   state.view = view
-  set_state(bufnr, state)
+  vstate.set(bufnr, state)
 end
 
 -- Sticky agenda registry: { [view_name] = bufnr }. Opening the same
@@ -1915,14 +1856,14 @@ function M.open(view_opts, view_name)
   if sticky_on and M._sticky[sticky_key] then
     local existing = M._sticky[sticky_key]
     if vim.api.nvim_buf_is_valid(existing) then
-      local state = decode_state(vim.b[existing].organ_agenda) or {}
+      local state = vstate.decode(vim.b[existing].organ_agenda) or {}
       state.view = view
       state.view_name = view_name or "default"
       local first = view.blocks[1] or {}
       if first.from then
         state.window = { from = first.from, to = first.to }
       end
-      vim.b[existing].organ_agenda = encode_state(state)
+      vim.b[existing].organ_agenda = vstate.encode(state)
       -- Refresh the buffer name in case the view's resolved date
       -- changed (e.g. "day" view kept across midnight).
       local desired = format_buf_name(view, view_name)
@@ -1958,7 +1899,7 @@ function M.open(view_opts, view_name)
   -- mode don't have to press the toggle after every open.
   local et_cfg = ((require("organ.buf_config").read(nil, "agenda") or {}).entry_text or {})
   local log_cfg_init = ((require("organ.buf_config").read(nil, "agenda") or {}).log_mode or {})
-  set_state(bufnr, {
+  vstate.set(bufnr, {
     view = view,
     view_name = view_name or "default",
     window = window,
