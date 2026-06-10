@@ -5,6 +5,7 @@
 
 local element = require("organ.element")
 local drawer = require("organ.drawer")
+local obuf = require("organ.buf")
 
 local M = {}
 
@@ -124,9 +125,9 @@ function M.set_planning(bufnr, headline_row, kind, ts)
     for _, r in ipairs(rows) do
       lo, hi = math.min(lo, r), math.max(hi, r)
     end
-    vim.api.nvim_buf_set_lines(bufnr, lo - 1, hi, false, block)
+    obuf.set_lines(bufnr, lo - 1, hi, block)
   else
-    vim.api.nvim_buf_set_lines(bufnr, headline_row + 1, headline_row + 1, false, block)
+    obuf.set_lines(bufnr, headline_row + 1, headline_row + 1, block)
   end
 end
 

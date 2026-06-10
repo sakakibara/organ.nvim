@@ -117,6 +117,31 @@ do
   check("deadline different-date: modified becomes true", vim.bo[b].modified == true)
 end
 
+-- 7. End-to-end: set_deadline on the SAME date on an ALREADY-CANONICAL line
+--    is a true no-op -- the rewrite is byte-identical, so the buffer is NOT
+--    marked modified (organ.buf.set_lines skips identical writes).
+do
+  local b = new_buf()
+  vim.api.nvim_set_current_buf(b)
+  vim.bo[b].filetype = "org"
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+    "* TODO Task",
+    "  DEADLINE:  <2026-05-15 Fri>",
+    "  body",
+  })
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.bo[b].modified = false
+  require("organ.calendar").pick = function(_, cb)
+    cb("2026-05-15")
+  end
+  require("organ.schedule").set_deadline()
+  check(
+    "deadline same-date canonical: modified stays false (true no-op)",
+    vim.bo[b].modified == false,
+    "buffer state: " .. tostring(vim.bo[b].modified)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
