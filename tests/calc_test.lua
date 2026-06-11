@@ -1,4 +1,4 @@
--- Unit tests for lua/organ/calc.lua.
+-- Unit tests for the organ.calc package (lua/organ/calc/).
 -- Run via: nvim --headless -l tests/calc_test.lua
 
 local root = vim.fn.getcwd()
