@@ -5,6 +5,8 @@
 local M = {}
 local bn = require("organ.calc.bn")
 
+local dims_eq, dims_zero, dims_combine, dim_string
+
 -- Public Calc-value API.
 
 local function is_int(v)
@@ -320,27 +322,27 @@ local function unit_op(op, a, b)
   local av = is_unit(a) and a.v or a
   local bv = is_unit(b) and b.v or b
   if op == "add" or op == "sub" then
-    if not (is_unit(a) and is_unit(b)) or not M._dims_eq(a.dim, b.dim) then
+    if not (is_unit(a) and is_unit(b)) or not dims_eq(a.dim, b.dim) then
       error("calc: dimension mismatch in " .. op)
     end
     local r = (op == "add") and M.add(av, bv) or M.sub(av, bv)
     return { kind = "unit", v = r, dim = a.dim, name = a.name }
   end
   if op == "mul" then
-    local dim = M._dims_combine((is_unit(a) and a.dim) or {}, (is_unit(b) and b.dim) or {}, 1)
+    local dim = dims_combine((is_unit(a) and a.dim) or {}, (is_unit(b) and b.dim) or {}, 1)
     local r = M.mul(av, bv)
-    if M._dims_zero(dim) then
+    if dims_zero(dim) then
       return r
     end
-    return { kind = "unit", v = r, dim = dim, name = M._dim_string(dim) }
+    return { kind = "unit", v = r, dim = dim, name = dim_string(dim) }
   end
   if op == "div" then
-    local dim = M._dims_combine((is_unit(a) and a.dim) or {}, (is_unit(b) and b.dim) or {}, -1)
+    local dim = dims_combine((is_unit(a) and a.dim) or {}, (is_unit(b) and b.dim) or {}, -1)
     local r = M.div(av, bv)
-    if M._dims_zero(dim) then
+    if dims_zero(dim) then
       return r
     end
-    return { kind = "unit", v = r, dim = dim, name = M._dim_string(dim) }
+    return { kind = "unit", v = r, dim = dim, name = dim_string(dim) }
   end
   error("calc: unsupported unit op " .. op)
 end
@@ -826,7 +828,7 @@ local function dim_copy(d)
   return out
 end
 
-function M._dims_eq(a, b)
+dims_eq = function(a, b)
   for _, ax in ipairs(DIM_AXES) do
     if (a and a[ax] or 0) ~= (b and b[ax] or 0) then
       return false
@@ -835,7 +837,7 @@ function M._dims_eq(a, b)
   return true
 end
 
-function M._dims_zero(d)
+dims_zero = function(d)
   for _, ax in ipairs(DIM_AXES) do
     if (d and d[ax] or 0) ~= 0 then
       return false
@@ -844,7 +846,7 @@ function M._dims_zero(d)
   return true
 end
 
-function M._dims_combine(a, b, sign_b)
+dims_combine = function(a, b, sign_b)
   local out = dim_copy(a)
   for _, ax in ipairs(DIM_AXES) do
     out[ax] = (out[ax] or 0) + (sign_b * (b[ax] or 0))
@@ -852,7 +854,7 @@ function M._dims_combine(a, b, sign_b)
   return out
 end
 
-function M._dim_string(d)
+dim_string = function(d)
   local parts_pos, parts_neg = {}, {}
   for _, ax in ipairs(DIM_AXES) do
     local p = d[ax] or 0
@@ -1000,12 +1002,9 @@ function M.convert(v, target)
   if not u then
     error("calc.convert: unknown unit " .. target)
   end
-  if not M._dims_eq(v.dim, u.dim) then
+  if not dims_eq(v.dim, u.dim) then
     error(
-      "calc.convert: incompatible dimensions: "
-        .. M._dim_string(v.dim)
-        .. " → "
-        .. M._dim_string(u.dim)
+      "calc.convert: incompatible dimensions: " .. dim_string(v.dim) .. " → " .. dim_string(u.dim)
     )
   end
   -- Internal stays in base SI; just relabel the display unit.

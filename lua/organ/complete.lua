@@ -334,7 +334,7 @@ end
 -- True when a host completion plugin is already loaded; we then skip the
 -- snacks-picker fallback so users don't see two UIs at once. Progressive
 -- enhancement: blink.cmp / nvim-cmp own the popup if present.
-function M._host_completion_active()
+local function host_completion_active()
   if package.loaded["blink.cmp"] then
     return true
   end
@@ -345,7 +345,7 @@ function M._host_completion_active()
 end
 
 function M.maybe_open(bufnr)
-  if M._host_completion_active() then
+  if host_completion_active() then
     return
   end
   local trigger = M.trigger_at_cursor(bufnr)

@@ -196,7 +196,7 @@ function M._render_month(year, month, today_iso, selected_iso, week_start, holid
 end
 
 -- Render either a single month or three months side-by-side.
-function M._render_layout(state, today_iso, week_start, holiday_set_for)
+local function render_layout(state, today_iso, week_start, holiday_set_for)
   if not state.three_months then
     local out = M._render_month(
       state.year,
@@ -592,7 +592,7 @@ local function _refresh(bufnr)
   if not state then
     return
   end
-  local out = M._render_layout(state, _today_iso(), state.week_start, _holiday_set_for_month)
+  local out = render_layout(state, _today_iso(), state.week_start, _holiday_set_for_month)
   local lines = vim.list_extend({}, out.lines)
 
   -- Optional time row (opts.time).

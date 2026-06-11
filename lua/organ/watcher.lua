@@ -2,6 +2,8 @@
 
 local M = {}
 
+local on_event
+
 -- Reset between tests; init.lua re-initialises via M.start.
 M._dirs = {}
 M._tombstones = {}
@@ -51,7 +53,7 @@ local function open_handle(path, recursive)
         return
       end
       vim.schedule(function()
-        M._on_event(path, filename, events)
+        on_event(path, filename, events)
       end)
     end)
   end)
@@ -137,7 +139,7 @@ local function schedule_delete(p)
   M._tombstones[p] = t
 end
 
-function M._on_event(dir, filename, events)
+on_event = function(dir, filename, events)
   if not filename then
     return
   end
@@ -198,7 +200,7 @@ local function start_poll(path)
   M._pollers[path] = p
 end
 
-function M._maybe_start_poll(path)
+local function maybe_start_poll(path)
   start_poll(path)
 end
 
@@ -232,7 +234,7 @@ local function rescan_once()
       -- Phase 3: enqueue any org file for mtime/hash check via should_skip.
       if M.should_handle(file, ignore) then
         require("organ.queue").enqueue_background(file)
-        M._maybe_start_poll(file)
+        maybe_start_poll(file)
       end
     end, nil)
   end

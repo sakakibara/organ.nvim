@@ -12,6 +12,7 @@ local M = {}
 
 local _overrides = {} -- bufnr -> partial config table
 local _reapply_hooks = {} -- list of fn(bufnr)
+local reapply
 
 -- Resolve a dotted path against a (possibly nested) table.  Returns
 -- the value or nil.
@@ -85,7 +86,7 @@ function M.set(bufnr, path, value)
     _overrides[bufnr] = o
   end
   plant(o, path, value)
-  M._reapply(bufnr)
+  reapply(bufnr)
 end
 
 -- Merge a partial table into the buf-local overrides.  Useful for
@@ -99,7 +100,7 @@ function M.set_table(bufnr, partial)
   end
   local o = _overrides[bufnr] or {}
   _overrides[bufnr] = vim.tbl_deep_extend("force", o, partial)
-  M._reapply(bufnr)
+  reapply(bufnr)
 end
 
 -- Toggle a boolean at `path`.  Reads from effective config, writes the
@@ -139,7 +140,7 @@ function M.unset(bufnr, path)
     cur = cur[parts[i]]
   end
   cur[parts[#parts]] = nil
-  M._reapply(bufnr)
+  reapply(bufnr)
 end
 
 -- Wipe all buf overrides for `bufnr`.
@@ -148,7 +149,7 @@ function M.reset(bufnr)
     bufnr = vim.api.nvim_get_current_buf()
   end
   _overrides[bufnr] = nil
-  M._reapply(bufnr)
+  reapply(bufnr)
 end
 
 -- Register a function to be called whenever a buf's config changes.
@@ -158,7 +159,7 @@ function M.on_reapply(fn)
   _reapply_hooks[#_reapply_hooks + 1] = fn
 end
 
-function M._reapply(bufnr)
+reapply = function(bufnr)
   for _, fn in ipairs(_reapply_hooks) do
     pcall(fn, bufnr)
   end

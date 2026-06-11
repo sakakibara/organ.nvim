@@ -297,10 +297,10 @@ local function _git_commit(dir, relpath, message)
   return nil
 end
 
--- Public: commit `filename` in the headline's attachment dir if git mode
--- is enabled. Used by attach / attach_url / attach_screenshot after each
+-- Commit `filename` in the headline's attachment dir if git mode is
+-- enabled. Used by attach / attach_url / attach_screenshot after each
 -- successful attach.
-function M._maybe_git_commit(bufnr, line, filename, action)
+local function maybe_git_commit(bufnr, line, filename, action)
   local cfg = (require("organ.buf_config").read(nil, "attach") or {})
   if cfg.git ~= true then
     return
@@ -326,7 +326,7 @@ local _orig_attach_screenshot = M.attach_screenshot
 function M.attach(bufnr, line, src_path)
   local err = _orig_attach(bufnr, line, src_path)
   if not err then
-    M._maybe_git_commit(bufnr, line, vim.fn.fnamemodify(src_path, ":t"), "attach")
+    maybe_git_commit(bufnr, line, vim.fn.fnamemodify(src_path, ":t"), "attach")
   end
   return err
 end
@@ -334,7 +334,7 @@ end
 function M.attach_url(bufnr, line, url)
   local err, name = _orig_attach_url(bufnr, line, url)
   if not err and name then
-    M._maybe_git_commit(bufnr, line, name, "attach url")
+    maybe_git_commit(bufnr, line, name, "attach url")
   end
   return err, name
 end
@@ -342,7 +342,7 @@ end
 function M.attach_screenshot(bufnr, line, opts)
   local err, name = _orig_attach_screenshot(bufnr, line, opts)
   if not err and name then
-    M._maybe_git_commit(bufnr, line, name, "attach screenshot")
+    maybe_git_commit(bufnr, line, name, "attach screenshot")
   end
   return err, name
 end

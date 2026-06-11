@@ -11,6 +11,8 @@ local A = require("organ.ast")
 
 local M = {}
 
+local emit_section_child
+
 local function get_text(node, src)
   local sr, sc, er, ec = node:range()
   if sr == er then
@@ -415,8 +417,7 @@ local function emit_headline(node, src, todo_kws)
             properties = extract_properties(sc, src)
           end
         else
-          local emit = M._emit_block_for_section_child
-          local block = emit and emit(sc, src) or nil
+          local block = emit_section_child(sc, src)
           if block then
             if type(block) == "table" and block[1] and not block.kind then
               for _, b in ipairs(block) do
@@ -447,7 +448,7 @@ end
 -- don't yet model -- other node types drop silently (drawers,
 -- comments, etc.).  `planning` and `property_drawer` are handled by
 -- emit_headline directly and never reach this function.
-local function emit_section_child(node, src)
+emit_section_child = function(node, src)
   local t = node:type()
   if t == "paragraph" then
     -- Collect raw text; parse_inline interprets emphasis + links.
@@ -609,7 +610,6 @@ local function emit_section_child(node, src)
   end
   return nil
 end
-M._emit_block_for_section_child = emit_section_child
 
 -- Public entry: parse a buffer (passed as a bufnr or as a list of
 -- source lines) and return a `document` AST.
