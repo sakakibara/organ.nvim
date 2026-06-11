@@ -15,6 +15,7 @@ Pinned clock: 2026-05-04 12:00:00 UTC. Clock-out (where used): 2026-05-04 13:30 
 | 05-full.org          | set SCHEDULED 2026-05-06; set DEADLINE 2026-05-07; set property FOO=bar; mark DONE; clock in/out | full canonical stack |
 
 Logging config (the two tools diverge here on purpose; the harness captures it):
+
 - Emacs: `org-log-into-drawer` = t, `org-clock-into-drawer` = t, DONE logs via `!`,
   so BOTH a state-change note and the clock land in the :LOGBOOK: drawer.
 - organ: clocks go into :LOGBOOK:, but a DONE transition writes NO state-change note
