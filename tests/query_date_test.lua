@@ -5,9 +5,10 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
 local query = require("organ.query")
+local query_dates = require("organ.query.dates")
 
 -- Override "now" to make tests deterministic: 2026-04-23 (Thu).
-query._now = function()
+query_dates._now = function()
   return os.time({ year = 2026, month = 4, day = 23, hour = 12 })
 end
 
