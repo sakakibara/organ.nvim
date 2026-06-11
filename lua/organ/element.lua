@@ -268,6 +268,48 @@ end
 
 -- ── headlines ────────────────────────────────────────────────────────
 
+-- Regex fallback for headline parsing when tree-sitter is unavailable
+-- or finds no headline.
+local function headline_info_from_line(line, row0)
+  local stars, rest = line:match("^(%*+)%s+(.*)$")
+  if not stars then
+    return nil
+  end
+  local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
+  local todo = nil
+  for _, kw in ipairs(seq) do
+    if kw ~= "|" and rest:sub(1, #kw + 1) == kw .. " " then
+      todo = kw
+      rest = rest:sub(#kw + 2)
+      break
+    end
+  end
+  local pri = rest:match("^(%[#[A-Z0-9]%])%s+")
+  local priority
+  if pri then
+    priority = pri:sub(3, 3)
+    rest = rest:sub(#pri + 2)
+  end
+  local tags = {}
+  local tag_block = rest:match("%s+:([%w_@#%%:%-]+):%s*$")
+  if tag_block then
+    rest = rest:gsub("%s+:[%w_@#%%:%-]+:%s*$", "")
+    for t in tag_block:gmatch("[^:]+") do
+      tags[#tags + 1] = t
+    end
+  end
+  return {
+    range = { row0, 0, row0, #line },
+    line_start = row0,
+    line_end = row0,
+    level = #stars,
+    todo_state = todo,
+    priority = priority,
+    title = rest,
+    tags = tags,
+  }
+end
+
 -- Walk a TS node and pull out the `headline_line` info — stars, todo,
 -- priority, title, tags. Returns the parsed table or nil if the node
 -- isn't a headline / headline_line.
@@ -333,7 +375,7 @@ function M.headline_at(bufnr, row)
   for r = row, 0, -1 do
     local ln = vim.api.nvim_buf_get_lines(bufnr, r, r + 1, false)[1] or ""
     if ln:match("^%*+%s") then
-      return M._headline_info_from_line(ln, r)
+      return headline_info_from_line(ln, r)
     end
   end
   return nil
@@ -371,7 +413,7 @@ function M.headlines(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   for i, ln in ipairs(lines) do
     if ln:match("^%*+%s") then
-      out[#out + 1] = M._headline_info_from_line(ln, i - 1)
+      out[#out + 1] = headline_info_from_line(ln, i - 1)
     end
   end
   for i, h in ipairs(out) do
@@ -1043,48 +1085,6 @@ function M.on_directive(bufnr, row)
   end
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
   return line:match("^%s*#%+") ~= nil
-end
-
--- ── regex fallback for headline parsing ──────────────────────────────
-
-function M._headline_info_from_line(line, row0)
-  local stars, rest = line:match("^(%*+)%s+(.*)$")
-  if not stars then
-    return nil
-  end
-  local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
-  local todo = nil
-  for _, kw in ipairs(seq) do
-    if kw ~= "|" and rest:sub(1, #kw + 1) == kw .. " " then
-      todo = kw
-      rest = rest:sub(#kw + 2)
-      break
-    end
-  end
-  local pri = rest:match("^(%[#[A-Z0-9]%])%s+")
-  local priority
-  if pri then
-    priority = pri:sub(3, 3)
-    rest = rest:sub(#pri + 2)
-  end
-  local tags = {}
-  local tag_block = rest:match("%s+:([%w_@#%%:%-]+):%s*$")
-  if tag_block then
-    rest = rest:gsub("%s+:[%w_@#%%:%-]+:%s*$", "")
-    for t in tag_block:gmatch("[^:]+") do
-      tags[#tags + 1] = t
-    end
-  end
-  return {
-    range = { row0, 0, row0, #line },
-    line_start = row0,
-    line_end = row0,
-    level = #stars,
-    todo_state = todo,
-    priority = priority,
-    title = rest,
-    tags = tags,
-  }
 end
 
 return M
