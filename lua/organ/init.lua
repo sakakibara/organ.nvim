@@ -52,20 +52,28 @@ local function record_error(err)
   end
 end
 
--- v1 is the initial public-release baseline. Future schema changes ship
--- as `migrate_vN_to_vN+1(h)` functions added below, with the cascade
--- extended in ensure_schema(). For now: empty migration list.
+-- v1 is the initial public-release baseline. A schema change ships as
+-- four edits that tests/db_migration_test.lua holds together:
+--   1. sql/schema.sql        -- the fresh-install shape
+--   2. SCHEMA_VERSION        -- bump by one
+--   3. MIGRATIONS[<new>]     -- upgrade a live index one step
+--   4. tests/fixtures/schema/v<new>.sql -- snapshot of the new schema.sql
 local SCHEMA_VERSION = 1
 
+-- MIGRATIONS[n] upgrades a live DB from user_version n-1 to n. Each step
+-- runs inside a transaction and must leave the schema identical to a
+-- fresh schema.sql install at version n (the migration test asserts
+-- this equivalence).
+local MIGRATIONS = {}
+
 -- Columns that MUST exist on each table for the current build's queries
--- to compile.  When organ ships a schema change pre-release (no
--- migration entry yet), we detect missing columns and rebuild the DB
--- in place — drops headlines/tags/properties/etc. and re-applies
--- `sql/schema.sql`, then sets user_version back to current so the
--- next `:Org scan` re-extracts every file.
+-- to compile. ensure_schema verifies them after the version checks as a
+-- sanity net: a DB that reports the current user_version but lacks one
+-- of these predates the versioned-schema baseline, and ensure_schema
+-- errors with a recovery message instead of touching the data.
 --
 -- Add to this list whenever schema.sql gains a new column the queries
--- depend on.  Removing a column → drop+rebuild handles it for free.
+-- depend on.
 local REQUIRED_COLUMNS = {
   files = { "extractor_version" },
   headlines = { "commented" },
@@ -101,54 +109,55 @@ local function db_columns_match(h)
   return true
 end
 
--- Drop the data tables (preserving the file at db_path so other
--- handles can re-open it) and re-apply schema.sql from scratch.  Used
--- when REQUIRED_COLUMNS detects a stale schema in pre-release.  Files
--- table content is wiped too — `:Org scan` will re-index everything.
-local function rebuild_schema(h)
-  local drops = {
-    "DROP TABLE IF EXISTS clock_entries",
-    "DROP TABLE IF EXISTS habit_completions",
-    "DROP TABLE IF EXISTS aliases",
-    "DROP TABLE IF EXISTS file_tags",
-    "DROP TABLE IF EXISTS file_todo_keywords",
-    "DROP TABLE IF EXISTS state_changes",
-    "DROP TABLE IF EXISTS links",
-    "DROP TABLE IF EXISTS properties",
-    "DROP TABLE IF EXISTS tags",
-    "DROP TABLE IF EXISTS headlines",
-    "DROP TABLE IF EXISTS files",
-  }
-  for _, sql in ipairs(drops) do
-    pcall(function()
-      h:exec(sql)
+-- Cascade a live DB from user_version from_v to to_v, one transactional
+-- step at a time. Each step applies migrations[v] and stamps
+-- PRAGMA user_version = v inside the same transaction, so a failed step
+-- leaves the index byte-for-byte untouched. A missing step is an error:
+-- organ never drops or rebuilds the index to paper over a gap.
+local function run_migrations(h, from_v, to_v, migrations)
+  if from_v < to_v then
+    notify(("organ: upgrading index schema v%d -> v%d"):format(from_v, to_v))
+  end
+  for v = from_v + 1, to_v do
+    if type(migrations[v]) ~= "function" then
+      error(
+        (
+          "organ: no migration from index schema v%d to v%d for db %s. "
+          .. "organ will not touch the index; downgrade organ.nvim or wait "
+          .. "for a build that ships this migration."
+        ):format(v - 1, v, M.config.db_path or "<unknown>")
+      )
+    end
+    local terr = h:transaction(function(th)
+      migrations[v](th)
+      assert(th:exec("PRAGMA user_version = " .. v))
     end)
+    if terr then
+      error(
+        ("organ: migration to schema v%d failed (index unchanged) for db %s: %s"):format(
+          v,
+          M.config.db_path or "<unknown>",
+          terr
+        )
+      )
+    end
   end
-  local schema_sql = table.concat(vim.fn.readfile(M.config.schema_path), "\n")
-  local ok, err = h:exec(schema_sql)
-  if not ok then
-    error("organ: schema rebuild failed: " .. tostring(err))
-  end
-  pcall(function()
-    h:exec("PRAGMA user_version = " .. SCHEMA_VERSION)
-  end)
 end
 
 -- Apply schema idempotently.
---   user_version == 0          → fresh DB, apply schema.sql
---   user_version == VERSION    → already current, no-op (verified by
---                                column-existence check)
---   user_version > VERSION     → DB created by a newer organ; refuse so
+--   user_version == 0         -> fresh DB, apply schema.sql + stamp
+--   user_version == VERSION   -> already current, no-op
+--   user_version >  VERSION   -> DB created by a newer organ; refuse so
 --                                we don't silently downgrade
---   user_version < VERSION     → cascade migrations (none defined yet)
+--   user_version <  VERSION   -> cascade MIGRATIONS, one transactional
+--                                step per version
 --
--- After bootstrap, verifies REQUIRED_COLUMNS exist.  When a column is
--- missing (pre-release schema additions before the version bump
--- lands), drops and re-applies the schema in place; users see one
--- "rebuilding index" notify and the next scan re-extracts every file.
+-- Last, verifies REQUIRED_COLUMNS exist. A missing column means the DB
+-- predates the versioned-schema baseline; ensure_schema errors with the
+-- recovery (delete the db file, re-scan) and never modifies the index.
 --
 -- Exposed as M._ensure_schema(h) so lua/organ/runtime.lua can call it
--- without a circular require (runtime → organ → runtime).
+-- without a circular require (runtime -> organ -> runtime).
 local function ensure_schema(h)
   local s = assert(h:prepare("PRAGMA user_version"))
   assert(s:step() == db.SQLITE_ROW)
@@ -176,30 +185,41 @@ local function ensure_schema(h)
     )
   end
 
-  -- v < SCHEMA_VERSION → run migrations. None defined yet for v1.
+  if v < SCHEMA_VERSION then
+    run_migrations(h, v, SCHEMA_VERSION, MIGRATIONS)
+  end
 
-  -- Pre-release safety net: even when user_version matches, verify
-  -- the columns the current build's queries depend on actually
-  -- exist.  Catches DBs created against an older schema between
-  -- column additions and version bumps.
   local cols_ok, missing_table, missing_col = db_columns_match(h)
   if not cols_ok then
-    notify(
-      ("organ: rebuilding index — schema gained `%s.%s`; will re-extract on next scan"):format(
+    error(
+      (
+        "organ: index schema is missing `%s.%s` -- this db predates the "
+        .. "versioned-schema baseline (pre-release build). Delete the file "
+        .. "at %s and restart; the next `:Org scan` rebuilds the index "
+        .. "from your org files."
+      ):format(
         tostring(missing_table),
-        tostring(missing_col)
-      ),
-      vim.log.levels.WARN
+        tostring(missing_col),
+        M.config.db_path or "<unknown>"
+      )
     )
-    rebuild_schema(h)
   end
 end
 
 -- Expose ensure_schema publicly so runtime.lua can call it without re-opening
 -- the DB. Defined here (after the local) so the upvalue is valid.
+-- _run_migrations and _migrations are test seams: tests/db_migration_test.lua
+-- drives the cascade with injected migration tables and asserts ledger
+-- continuity against the real one.
 function M._ensure_schema(h)
   return ensure_schema(h)
 end
+
+function M._run_migrations(h, from_v, to_v, migrations)
+  return run_migrations(h, from_v, to_v, migrations)
+end
+
+M._migrations = MIGRATIONS
 
 -- Read file contents with a bounded stat (mtime) so the skip path is cheap.
 local function read_file(path)
