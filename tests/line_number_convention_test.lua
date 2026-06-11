@@ -55,7 +55,6 @@ end
 -- Files that legitimately store/manipulate raw 0-based rows (not display).
 local ALLOWLIST = {
   ["lua/organ/indexer.lua"] = true, -- writes raw rows to DB
-  ["lua/organ/query.lua"] = true, -- reads raw rows from DB
   ["lua/organ/walk.lua"] = true, -- iterates tree-sitter ranges
 }
 
