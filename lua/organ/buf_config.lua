@@ -220,8 +220,4 @@ end
 M._overrides = function()
   return _overrides
 end
-M._reapply_hooks = function()
-  return _reapply_hooks
-end
-
 return M

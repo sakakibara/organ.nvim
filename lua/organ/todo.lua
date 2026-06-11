@@ -596,25 +596,6 @@ local function write_logbook(bufnr, hl_line, cfg, from_state, to_state, note)
   end
 end
 
--- Indent string for a brand-new planning line under `hl_line`.
--- Drives SCHEDULED / DEADLINE / CLOSED so all three agree.  Config
--- `todo.planning_indent`:
---   "adapt"  (default)  heading_level + 1 spaces -- matches Emacs
---                       `org-adapt-indentation = 'headline-data'`
---                       default in Org 9.5+ / Emacs 30.x: `* L1` ->
---                       2, `** L2` -> 3, `*** L3` -> 4.
---   <number>            fixed N spaces regardless of heading depth.
---                       Pre-9.5 Emacs convention is usually 2.
---   0  (or false)       flush left, no indent.  Matches Emacs
---                       `org-adapt-indentation = nil`.
---
--- Public so schedule.lua can call into it -- planning_indent is a
--- cross-planning-kind concept and lives here under todo because the
--- TODO state machine owns CLOSED line writing.
-function M._planning_indent(bufnr, hl_line)
-  return require("organ.section").planning_indent(bufnr, hl_line - 1)
-end
-
 local function insert_closed_line(bufnr, hl_line)
   require("organ.section").set_planning(bufnr, hl_line - 1, "CLOSED", now_inactive_ts())
 end
@@ -627,7 +608,7 @@ end
 -- side effects (CLOSED line, LOGBOOK note, repeater bump, LAST_REPEAT property)
 -- per config.todo.log_done. Returns nil on success, error string otherwise.
 --
--- Exposed for tests: side-effect tasks (Tasks 7-9) extend this function.
+-- Exposed for tests: state-change side effects hook in here.
 function M._apply(bufnr, line, new_state)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return "source buffer no longer valid"
@@ -789,9 +770,6 @@ end
 M._is_done = is_done
 M._is_active = is_active
 M._find_headline = find_headline
-M._split_headline = split_headline
-M._rebuild_headline = rebuild_headline
-M._default_sequence = default_sequence
 
 local function complete_states()
   local out = { "none" }

@@ -66,8 +66,12 @@ local function ts_on_line(line, kw)
 end
 
 -- Indent string for planning lines under the headline at 0-based
--- `headline_row`, honoring the `todo.planning_indent` config: a number
--- (fixed spaces), false (none), or "adapt"/default (headline level + 1).
+-- `headline_row`, honoring the `todo.planning_indent` config:
+--   "adapt" (default)  headline level + 1 spaces -- matches Emacs
+--                      `org-adapt-indentation = 'headline-data'`, the
+--                      Org 9.5+ / Emacs 30.x default.
+--   <number>           fixed N spaces (pre-9.5 convention is usually 2).
+--   0 / false          flush left (`org-adapt-indentation = nil`).
 function M.planning_indent(bufnr, headline_row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local cfg = require("organ.buf_config").read(bufnr, "todo") or {}

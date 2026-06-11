@@ -386,7 +386,5 @@ end
 -- Expose internals for tests.
 M._emit_inline = emit_inline
 M._emit_block = emit_block
-M._html_escape = html_escape
-M._DEFAULT_STYLE = DEFAULT_STYLE
 
 return M

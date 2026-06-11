@@ -1339,7 +1339,6 @@ local function build_dispatch_entries()
   }
   return entries
 end
-M._build_dispatch_entries = build_dispatch_entries
 
 -- Show a single-keystroke menu in a centered floating window and
 -- Thin wrapper around `organ.popup_menu.pick` -- the actual

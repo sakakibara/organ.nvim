@@ -335,7 +335,6 @@ end
 
 M._is_done = is_done
 M._is_active = is_active
-M._split_seq = split_seq
 
 M.commands = {
   toggle_ordered = {

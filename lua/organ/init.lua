@@ -250,7 +250,6 @@ local function prune_orphans_from_visited(root, visited)
   end
   return #stale
 end
-M._prune_orphans_from_visited = prune_orphans_from_visited
 
 local function fire_scan_done()
   if not M._scan.in_flight then
@@ -522,9 +521,6 @@ end
 -- Semi-public helpers exposed so cmd.lua can call them without duplicating code.
 -- Prefixed with _ to signal "internal use only".
 
-function M._notify(msg, level)
-  return notify(msg, level)
-end
 function M._start_scan()
   return start_scan()
 end

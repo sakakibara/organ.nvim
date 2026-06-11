@@ -364,6 +364,5 @@ end
 M._emit_inline = emit_inline
 M._split_lines = split_lines
 M._encode_glyphs = encode_glyphs
-M._build_content_stream = build_content_stream
 
 return M

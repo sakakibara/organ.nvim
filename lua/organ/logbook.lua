@@ -109,6 +109,4 @@ function M.write_planning_change(bufnr, hl_line, policy, verb, old_value)
   end)
 end
 
-M._now_inactive_ts = now_inactive_ts
-
 return M

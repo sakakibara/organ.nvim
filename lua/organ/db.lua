@@ -270,9 +270,4 @@ function M.open(path, opts)
   return h, nil, rc
 end
 
--- Exposed for tests to construct Stmt objects from a handle (Task 3 adds
--- handle:prepare). Module export kept minimal until then.
-M._Handle = Handle
-M._Stmt = Stmt
-
 return M

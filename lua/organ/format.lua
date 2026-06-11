@@ -275,7 +275,6 @@ local function normalize_headline(line, opts)
   end
   return M.align_tag_block(left, tags, { tags_column = target })
 end
-M._normalize_headline = normalize_headline
 
 local function normalize_headlines(lines, cfg)
   local hcfg = cfg.headline or {}

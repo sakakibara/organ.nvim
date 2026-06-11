@@ -320,13 +320,6 @@ function M.update_ancestors(bufnr, lnum)
   end
 end
 
--- Exposed for tests.
-M._cookies_in = cookies_in
-M._count_children = count_children
-M._count_checkboxes = count_checkboxes
-M._format_cookie = format_cookie
-M._rewrite_cookies = rewrite_cookies
-
 M.commands = {
   update_statistics = {
     fn = function()

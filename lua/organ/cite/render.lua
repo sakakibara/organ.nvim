@@ -139,7 +139,6 @@ function M.render_text(text, bib_index, style_name, opts)
   return table.concat(out), M.render_bibliography(bib_index, style_name, ctx)
 end
 
-M._STYLES = STYLES
 M._finalize = finalize
 
 return M

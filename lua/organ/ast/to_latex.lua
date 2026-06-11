@@ -431,6 +431,5 @@ end
 M._emit_inline = emit_inline
 M._emit_block = emit_block
 M._escape_text = escape_text
-M._PREAMBLE = PREAMBLE
 
 return M

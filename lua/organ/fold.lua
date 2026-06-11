@@ -599,8 +599,6 @@ end
 -- Public so a test can exercise the level assignment without going
 -- through the full foldexpr eval path.
 M._build_fold_levels = build_fold_levels
-M._headline_level = headline_level
-M._max_heading_depth = max_heading_depth
 
 -- Whether the lines `foldstart+1 .. foldend` contain anything
 -- non-whitespace.  Used by both renderers to drop suffix decoration

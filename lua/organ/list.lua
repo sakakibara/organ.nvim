@@ -261,9 +261,6 @@ function M.promote(bufnr, line)
   return false
 end
 
-M._previous_sibling = previous_sibling
-M._prefix_width = prefix_width
-
 M.commands = {
   ["list repair"] = {
     fn = function()

@@ -107,7 +107,4 @@ function M.render(ast, _opts)
   return table.concat(out, "\n") .. "\n"
 end
 
-M._inline_text = inline_text
-M._escape_attr = escape_attr
-
 return M

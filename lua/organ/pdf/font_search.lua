@@ -305,6 +305,5 @@ end
 
 -- Exposed for tests.
 M._os_font_dirs = os_font_dirs
-M._PREFERRED = PREFERRED
 
 return M

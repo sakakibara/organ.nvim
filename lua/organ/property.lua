@@ -215,8 +215,6 @@ function M.allowed_values(bufnr, hl_line, key)
   return nil
 end
 
-M._split = _split
-
 function M.set_interactive(bufnr, line)
   local hl = find_headline(bufnr, line)
   if not hl then

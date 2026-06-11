@@ -488,8 +488,4 @@ function M.ieee.render_bibliography(bib_index, used_keys, ctx)
   return out
 end
 
-M._year_suffixes = year_suffixes
-M._italic = italic
-M._IT = IT
-
 return M

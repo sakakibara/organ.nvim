@@ -593,12 +593,6 @@ function M.trigger_at_cursor(bufnr)
   }
 end
 
-M._split_refs = split_refs
-M._parse_ref = parse_ref
-M._NCITE_OPEN = NCITE_OPEN
-M._NCITE_CLOSE = NCITE_CLOSE
-M._NBIB = NBIB
-
 -- Resolve `#+bibliography:` paths against the current buffer's directory
 -- so users can write `#+bibliography: refs.bib` and have it just work.
 local function resolve_bib_paths(bufnr, paths)

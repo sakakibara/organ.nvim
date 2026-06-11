@@ -201,6 +201,5 @@ function M.load_jpeg(path)
 end
 
 M.Image = Image
-M._parse_jpeg = parse_jpeg
 
 return M

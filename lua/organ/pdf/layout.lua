@@ -269,9 +269,7 @@ end
 ----------------------------------------------------------------------
 -- Exposed helpers for the test suite.
 
-M._utf8_codepoints = utf8_codepoints
 M._measure = measure
-M._split_words = split_words
 M.Layout = Layout
 M.HEADING_SIZES = HEADING_SIZES
 

@@ -176,10 +176,6 @@ function M.toggle_item(opts)
   return nil, "no list item or headline at cursor"
 end
 
-M._list_block = list_block
-M._parse_item = parse_item
-M._nearest_headline_level = nearest_headline_level
-
 M.commands = {
   ["list to_subtree"] = {
     fn = function()

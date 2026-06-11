@@ -560,9 +560,6 @@ function M.process(text, opts)
   return text, ctx
 end
 
-M._parse_include = parse_include
-M._split_args = split_args
-
 M.commands = {
   expand_preview = {
     fn = function()

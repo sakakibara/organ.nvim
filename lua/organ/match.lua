@@ -343,9 +343,4 @@ function M.predicate(query)
   end
 end
 
-M._tokenize = tokenize
-M._parse_clause = parse_clause
-M._classify_atom = classify_atom
-M._clause_matches = clause_matches
-
 return M

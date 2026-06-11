@@ -210,8 +210,6 @@ function M.deriv_simplify(node, var)
   return ast_simplify(M.deriv(node, var))
 end
 
-M._ast_simplify = ast_simplify
-
 -- Polynomial / algebraic manipulation. A pragmatic computer-algebra
 -- subset:
 --

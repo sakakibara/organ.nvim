@@ -456,6 +456,5 @@ end
 function M._state(tab)
   return (tab_state(tab))
 end
-M._tabs = tabs
 
 return M

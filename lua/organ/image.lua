@@ -261,8 +261,6 @@ end
 -- target type).
 M._is_image_path = is_image_path
 M._link_target_at_cursor = link_target_at_cursor
-M._find_image_links = find_image_links
-M._resolve_target = resolve_target
 
 M.commands = {
   image_reveal = {

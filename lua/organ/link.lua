@@ -361,9 +361,8 @@ function M.dispatch_property_value(action)
     return
   end
 
-  -- ≥2 matches: hand off to the snacks picker (or _test_stub in tests),
-  -- pre-filtered. find.pick honors opts.items for source="headlines"
-  -- (Task 3 enabled this).
+  -- >=2 matches: hand off to the snacks picker (or _test_stub in tests),
+  -- pre-filtered. find.pick honors opts.items for source="headlines".
   local find = require("organ.find")
   find.pick({
     source = "headlines",

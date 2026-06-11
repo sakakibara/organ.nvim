@@ -364,8 +364,6 @@ function M.index(entries)
   return out
 end
 
-M._strip_outer_braces = strip_outer_braces
-M._split_names = split_names
 M._parse_name = parse_name
 
 return M
