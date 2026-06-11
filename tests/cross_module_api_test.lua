@@ -51,7 +51,7 @@ local function lua_files()
   return out
 end
 
--- Collect M.<func> defs in a file
+-- Collect M.<func> defs in a file, following merge(submod) calls into submodules.
 local function funcs_in(path)
   local set = {}
   local body = read(path)
@@ -66,6 +66,37 @@ local function funcs_in(path)
   end
   for fn in body:gmatch("M%.([%w_]+)%s*=") do
     set[fn] = true
+  end
+  -- Follow merge(x) calls: find `local x = require("organ.sub")` then inspect
+  -- the submodule file for its own M.<func> definitions.
+  local raw = read(path) or ""
+  local sub_bindings = {}
+  for name, mod in raw:gmatch('local%s+([%w_]+)%s*=%s*require%("organ%.([%w%.]+)"%)') do
+    sub_bindings[name] = mod
+  end
+  for var in raw:gmatch("merge%(([%w_]+)%)") do
+    local mod = sub_bindings[var]
+    if mod then
+      local sp = "lua/organ/" .. mod:gsub("%.", "/") .. ".lua"
+      if not exists(sp) then
+        sp = "lua/organ/" .. mod:gsub("%.", "/") .. "/init.lua"
+        if not exists(sp) then
+          sp = nil
+        end
+      end
+      if sp then
+        local sub_body = read(sp) or ""
+        for fn in sub_body:gmatch("function%s+M%.([%w_]+)") do
+          set[fn] = true
+        end
+        for fn in sub_body:gmatch("M%.([%w_]+)%s*=%s*function") do
+          set[fn] = true
+        end
+        for fn in sub_body:gmatch("M%.([%w_]+)%s*=") do
+          set[fn] = true
+        end
+      end
+    end
   end
   return set
 end
