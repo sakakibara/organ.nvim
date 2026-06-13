@@ -84,10 +84,12 @@ check(
   string.format("max slice = %.1fms", stats.max_slice_ms)
 )
 
--- Correctness: the file was actually indexed.
+-- Correctness: the file was actually indexed. Query by the canonical
+-- path the indexer stores under -- on macOS /tmp resolves to /private/tmp,
+-- so the raw path would miss the row the symlink-resolved write created.
 local h = require("organ.runtime").db()
 local s = assert(h:prepare("SELECT COUNT(*) FROM headlines WHERE file_path = ?"))
-s:bind_text(1, tmp .. "/big.org")
+s:bind_text(1, require("organ.path").canonical(tmp .. "/big.org") or (tmp .. "/big.org"))
 assert(s:step())
 local n = s:column_int(0)
 s:finalize()
