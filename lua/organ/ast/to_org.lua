@@ -127,6 +127,11 @@ local function emit_table(node, out)
       out[#out + 1] = "|" .. table.concat(cells, "|") .. "|"
     end
   end
+  if node.tblfm then
+    for _, f in ipairs(node.tblfm) do
+      out[#out + 1] = "#+TBLFM: " .. f
+    end
+  end
   out[#out + 1] = ""
 end
 

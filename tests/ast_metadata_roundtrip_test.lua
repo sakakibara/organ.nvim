@@ -323,10 +323,58 @@ do
 end
 
 do
-  -- Dangling: an affiliated keyword with no following element is kept
-  -- (as a directive) rather than dropped.
-  local src = { "* H", "#+NAME: orphan", "", "body" }
+  -- Dangling: an affiliated keyword that is the last thing in its section
+  -- (no following element to attach to) is kept as a directive, not dropped.
+  local src = { "* H", "#+NAME: orphan", "** Sub", "body" }
+  local h = from_org.from_lines(src).children[1]
+  local d
+  for _, c in ipairs(h.children or {}) do
+    if c.kind == "directive" and c.name == "NAME" then
+      d = c
+    end
+  end
+  check(d ~= nil and d.value == "orphan", "affiliated: truly-dangling keyword kept as a directive")
   assert_roundtrip(src, "affiliated: dangling keyword round-trips")
+end
+
+-- table formula -------------------------------------------------------
+do
+  local src = { "| a | b |", "| 1 | 2 |", "#+TBLFM: $3=$1+$2", "", "x" }
+  local doc = from_org.from_lines(src)
+  local tbl
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "table" then
+      tbl = c
+    end
+  end
+  check(tbl and tbl.tblfm and tbl.tblfm[1] == "$3=$1+$2", "tblfm: formula attached to the table")
+  assert_roundtrip(src, "tblfm: round-trips attached to its table")
+end
+
+do
+  -- Standalone #+TBLFM with no preceding table is kept (as a directive).
+  local src = { "#+TBLFM: $1=1", "", "x" }
+  assert_roundtrip(src, "tblfm: standalone formula round-trips")
+end
+
+-- combined + regression -----------------------------------------------
+do
+  local src = {
+    "#+NAME: snippet",
+    "#+begin_src python :exports both",
+    "print(2)",
+    "#+end_src",
+    "",
+    "x",
+  }
+  assert_roundtrip(src, "combined: affiliated + src params round-trips")
+end
+do
+  assert_roundtrip(
+    { "* TODO H", "SCHEDULED: <2026-06-14 Sun>", ":PROPERTIES:", ":ID: i", ":END:", "", "body" },
+    "regression: A headline metadata"
+  )
+  assert_roundtrip({ "Para *bold* [[https://x][l]].", "", "n" }, "regression: A inline")
 end
 
 print("ast_metadata_roundtrip_test: PASS")

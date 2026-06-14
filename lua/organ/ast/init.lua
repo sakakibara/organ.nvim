@@ -32,7 +32,7 @@ M.BLOCK = {
   list_item = true, -- { checkbox = "todo"|"done"|"part"|nil, content = block[] }
   code_block = true, -- { language?, params?, body = "string" }
   block = true, -- { style, body? = "string", content? = block[], backend? = "string" }
-  table = true, -- { alignments = ("l"|"r"|"c")[], rows = ({ cells = inline[][], sep = bool })[] }
+  table = true, -- { alignments = ("l"|"r"|"c")[], rows = (...)[], tblfm? = ("string")[] }
   rule = true, -- horizontal rule (no fields)
   directive = true, -- { name = "TITLE", value = "string" }
   drawer = true, -- { name = "string", body = "string" } (verbatim inner lines)

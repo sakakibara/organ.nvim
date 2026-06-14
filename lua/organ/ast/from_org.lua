@@ -442,6 +442,10 @@ local function emit_section_children(section_node, src)
         name = name_node and get_text(name_node, src):upper() or "",
         value = value_node and get_text(value_node, src) or "",
       }
+    elseif sct == "formula" then
+      local value_node = sc:field("value")[1]
+      items[#items + 1] =
+        { _marker = "formula", value = value_node and get_text(value_node, src) or "" }
     else
       local block = emit_section_child(sc, src)
       if block then
@@ -457,11 +461,21 @@ local function emit_section_children(section_node, src)
   end
   local merged = merge_adjacent_tables(items)
   -- Attach buffered affiliated keywords forward to the next real block.
+  -- formula markers back-attach to the preceding table; a standalone formula
+  -- (no preceding table) falls back to a directive.
   local blocks = {}
   local pending = {}
   for _, it in ipairs(merged) do
     if it._marker == "affiliated" then
       pending[#pending + 1] = { name = it.name, value = it.value }
+    elseif it._marker == "formula" then
+      local last = blocks[#blocks]
+      if last and last.kind == "table" then
+        last.tblfm = last.tblfm or {}
+        last.tblfm[#last.tblfm + 1] = it.value
+      else
+        blocks[#blocks + 1] = A.directive("TBLFM", it.value)
+      end
     else
       if #pending > 0 then
         it.affiliated = pending
