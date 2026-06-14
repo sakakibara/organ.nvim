@@ -293,8 +293,8 @@ do
   check("table: emitted", tbl ~= nil)
   if tbl then
     check(
-      "table: 3 rows (header + 2 data; separator stored as sep=true rows)",
-      #tbl.rows == 3,
+      "table: 4 rows (header + separator + 2 data)",
+      #tbl.rows == 4,
       "got " .. tostring(#tbl.rows)
     )
     check(
@@ -321,7 +321,7 @@ do
       tbl2 = c
     end
   end
-  check("table: survives round-trip", tbl2 ~= nil and #tbl2.rows == 3)
+  check("table: survives round-trip", tbl2 ~= nil and #tbl2.rows == 4)
 end
 
 -- ---------- image (free-standing block) ----------

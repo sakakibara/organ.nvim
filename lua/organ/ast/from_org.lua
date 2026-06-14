@@ -745,7 +745,10 @@ end
 -- Public entry: parse a buffer (passed as a bufnr or as a list of
 -- source lines) and return a `document` AST.
 function M.from_lines(src)
-  local ok, parser = pcall(vim.treesitter.get_string_parser, table.concat(src, "\n"), "org")
+  -- Trailing newline so the grammar terminates the final line; without it
+  -- a construct on the last line (a directive, a #+TBLFM, a table row)
+  -- parses as an ERROR node and is dropped.
+  local ok, parser = pcall(vim.treesitter.get_string_parser, table.concat(src, "\n") .. "\n", "org")
   if not ok or not parser then
     return A.document({})
   end

@@ -377,4 +377,21 @@ do
   assert_roundtrip({ "Para *bold* [[https://x][l]].", "", "n" }, "regression: A inline")
 end
 
+-- EOF: a construct that is the last line with no trailing content -----
+do
+  -- Without a terminating newline the grammar parses the final line as an
+  -- ERROR node and drops it; a directive at EOF must still be captured.
+  local doc = from_org.from_lines({ "#+TITLE: Hi" })
+  check(
+    doc.children[1] ~= nil and doc.children[1].kind == "directive",
+    "eof: trailing directive captured"
+  )
+  check(
+    doc.children[1].name == "TITLE" and doc.children[1].value == "Hi",
+    "eof: directive name + value"
+  )
+  assert_roundtrip({ "#+TITLE: Hi" }, "eof: trailing directive round-trips")
+  assert_roundtrip({ "* H", "body para at EOF" }, "eof: trailing paragraph round-trips")
+end
+
 print("ast_metadata_roundtrip_test: PASS")
