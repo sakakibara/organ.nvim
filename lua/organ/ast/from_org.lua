@@ -450,10 +450,10 @@ local function emit_headline(node, src, todo_kws)
 end
 
 -- Convert a single TS node inside a `section` into an AST block (or
--- a list of blocks for special cases).  Returns nil for nodes we
--- don't yet model -- other node types drop silently (drawers,
--- comments, etc.).  `planning` and `property_drawer` are handled by
--- emit_headline directly and never reach this function.
+-- a list of blocks for special cases).  Returns nil for node types we
+-- don't yet model, which drop silently.  `planning` and
+-- `property_drawer` are handled by emit_headline directly and never
+-- reach this function.
 emit_section_child = function(node, src)
   local t = node:type()
   if t == "paragraph" then
