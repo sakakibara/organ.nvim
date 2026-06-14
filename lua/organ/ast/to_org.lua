@@ -195,7 +195,11 @@ local function emit_block(node, out)
     out[#out + 1] = "#+" .. node.name .. ": " .. (node.value or "")
   elseif node.kind == "block" then
     local style = node.style or "quote"
-    out[#out + 1] = "#+begin_" .. style
+    local begin = "#+begin_" .. style
+    if style == "export" and node.backend and node.backend ~= "" then
+      begin = begin .. " " .. node.backend
+    end
+    out[#out + 1] = begin
     if node.body then
       for line in (node.body or ""):gmatch("([^\n]*)\n?") do
         out[#out + 1] = line

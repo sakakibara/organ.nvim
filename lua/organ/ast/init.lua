@@ -27,7 +27,7 @@ M.BLOCK = {
   list = true, -- { ordered, items = list_item[] }
   list_item = true, -- { checkbox = "todo"|"done"|"part"|nil, content = block[] }
   code_block = true, -- { language?, params?, body = "string" }
-  block = true, -- { style = "quote"|"verse"|"example"|"center"|"export"|"comment", body? = "string", content? = block[] }
+  block = true, -- { style, body? = "string", content? = block[], backend? = "string" }
   table = true, -- { alignments = ("l"|"r"|"c")[], rows = ({ cells = inline[][], sep = bool })[] }
   rule = true, -- horizontal rule (no fields)
   directive = true, -- { name = "TITLE", value = "string" }
@@ -181,7 +181,13 @@ end
 
 function M.block(style, opts)
   opts = opts or {}
-  return { kind = "block", style = style, body = opts.body, content = opts.content }
+  return {
+    kind = "block",
+    style = style,
+    body = opts.body,
+    content = opts.content,
+    backend = opts.backend,
+  }
 end
 
 function M.drawer(name, body)

@@ -598,7 +598,13 @@ emit_section_child = function(node, src)
   elseif t == "verse_block" then
     return A.block("verse", { body = block_body(node, src) })
   elseif t == "export_block" then
-    return A.block("export", { body = block_body(node, src) })
+    local backend
+    for c in node:iter_children() do
+      if c:type() == "src_block_language" then
+        backend = get_text(c, src)
+      end
+    end
+    return A.block("export", { body = block_body(node, src), backend = backend })
   elseif t == "table" then
     return parse_table(node, src)
   elseif t == "footnote_definition" then

@@ -254,4 +254,19 @@ do
   assert_roundtrip(src, "src: header-args round-trip")
 end
 
+-- export backend -----------------------------------------------------
+do
+  local src = { "#+begin_export html", "<b>x</b>", "#+end_export", "", "y" }
+  local doc = from_org.from_lines(src)
+  local ex
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "block" and c.style == "export" then
+      ex = c
+    end
+  end
+  check(ex ~= nil, "export: block style=export captured")
+  check(ex and ex.backend == "html", "export: backend captured")
+  assert_roundtrip(src, "export: backend round-trip")
+end
+
 print("ast_metadata_roundtrip_test: PASS")
