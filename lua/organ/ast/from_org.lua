@@ -103,138 +103,131 @@ local function clean_title(line, todo_keywords)
   return line, todo, priority, tags
 end
 
--- Parse one line of inline org text into AST inline nodes.
--- Recognized inline forms: emphasis (*bold*, /italic/, _und_,
--- +strike+, =verb=, ~code~), links ([[target][desc]] / [[target]]),
--- math ($...$, $$...$$, \(...\), \[...\]), and footnote refs
--- ([fn:LABEL]).  Mixed / nested emphasis falls back to plain text;
--- the emitters can still reproduce it via to_org.
-local function parse_inline(s)
-  if s == "" then
-    return {}
-  end
-  local out = {}
-  local i = 1
-  local cur = ""
-  local function flush()
-    if cur ~= "" then
-      out[#out + 1] = A.text(cur)
-      cur = ""
+-- Parse an inline org text fragment into AST inline nodes by walking
+-- the `org_inline` tree-sitter grammar -- the same grammar conceal,
+-- decoration, and folding already use.  Each grammar node maps to a
+-- typed inline node; any node without a dedicated mapping survives as
+-- a verbatim `raw_inline` so nothing is lost.
+local parse_inline
+do
+  local function latex_to_math(text)
+    if text:sub(1, 2) == "$$" then
+      return A.math({ display = true, body = text:sub(3, -3), style = "dollar" })
+    elseif text:sub(1, 1) == "$" then
+      return A.math({ display = false, body = text:sub(2, -2), style = "dollar" })
+    elseif text:sub(1, 2) == "\\(" then
+      return A.math({ display = false, body = text:sub(3, -3), style = "paren" })
+    elseif text:sub(1, 2) == "\\[" then
+      return A.math({ display = true, body = text:sub(3, -3), style = "bracket" })
     end
+    return A.raw_inline(text)
   end
-  while i <= #s do
-    local c = s:sub(i, i)
-    -- Try footnote ref: [fn:LABEL].  Anonymous [fn::body] form is
-    -- left as plain text.
-    if c == "[" and s:sub(i + 1, i + 3) == "fn:" then
-      local close = s:find("]", i + 4, true)
-      if close then
-        local label = s:sub(i + 4, close - 1)
-        if not label:match(":") then
-          -- Named/numbered ref (not anonymous).
-          flush()
-          out[#out + 1] = { kind = "footnote_ref", label = label }
-          i = close + 1
-          goto continue
+
+  local EMPHASIS = {
+    bold = "bold",
+    italic = "italic",
+    underline = "underline",
+    strike = "strike",
+  }
+  local TIMESTAMP = {
+    timestamp_active = "active",
+    timestamp_inactive = "inactive",
+    timestamp_range_active = "range_active",
+    timestamp_range_inactive = "range_inactive",
+    timestamp_diary = "diary",
+  }
+
+  parse_inline = function(s)
+    if s == "" then
+      return {}
+    end
+    local ok, parser = pcall(vim.treesitter.get_string_parser, s, "org_inline")
+    if not ok or not parser then
+      return { A.text(s) }
+    end
+    local tree = parser:parse()[1]
+    if not tree then
+      return { A.text(s) }
+    end
+
+    local function txt(node)
+      return vim.treesitter.get_node_text(node, s)
+    end
+
+    local node_to_inline
+
+    local function map_children(node)
+      local out = {}
+      for c in node:iter_children() do
+        if c:named() then
+          out[#out + 1] = node_to_inline(c)
         end
       end
+      return out
     end
-    -- Try a link [[target][desc]] or [[target]].
-    if c == "[" and s:sub(i + 1, i + 1) == "[" then
-      local close = s:find("]]", i + 2, true)
-      if close then
-        local body = s:sub(i + 2, close - 1)
-        local sep = body:find("][", 1, true)
-        local target, desc
-        if sep then
-          target = body:sub(1, sep - 1)
-          desc = parse_inline(body:sub(sep + 2))
-        else
-          target = body
+
+    local function child_text(node, field)
+      for c in node:iter_children() do
+        if c:named() and c:type() == field then
+          return txt(c)
         end
-        flush()
-        out[#out + 1] = A.link(target, desc)
-        i = close + 2
-        goto continue
       end
+      return nil
     end
-    -- Try math: $...$ (inline), $$...$$ (display), \(...\) (inline alt),
-    -- \[...\] (display alt).  Order matters: check $$ before $.
-    if c == "$" and s:sub(i + 1, i + 1) == "$" then
-      local close = s:find("$$", i + 2, true)
-      if close then
-        flush()
-        out[#out + 1] = { kind = "math", display = true, body = s:sub(i + 2, close - 1) }
-        i = close + 2
-        goto continue
-      end
-    elseif c == "$" then
-      local close = s:find("%$", i + 1)
-      if close and close > i + 1 then
-        flush()
-        out[#out + 1] = { kind = "math", display = false, body = s:sub(i + 1, close - 1) }
-        i = close + 1
-        goto continue
-      end
-    elseif c == "\\" and s:sub(i + 1, i + 1) == "(" then
-      local close = s:find("\\)", i + 2, true)
-      if close then
-        flush()
-        out[#out + 1] = { kind = "math", display = false, body = s:sub(i + 2, close - 1) }
-        i = close + 2
-        goto continue
-      end
-    elseif c == "\\" and s:sub(i + 1, i + 1) == "[" then
-      local close = s:find("\\]", i + 2, true)
-      if close then
-        flush()
-        out[#out + 1] = { kind = "math", display = true, body = s:sub(i + 2, close - 1) }
-        i = close + 2
-        goto continue
-      end
-    end
-    -- Try emphasis: paired delimiters (*, /, _, +, =, ~).
-    -- For simplicity we accept any delimiter that has a matching
-    -- close on the same line and contains no whitespace at the open
-    -- side.  This is the common case; the org grammar is stricter
-    -- but the diff rarely surfaces in real content.
-    do
-      local open = s:sub(i, i)
-      local style
-      if open == "*" then
-        style = "bold"
-      elseif open == "/" then
-        style = "italic"
-      elseif open == "_" then
-        style = "underline"
-      elseif open == "+" then
-        style = "strike"
-      elseif open == "=" then
-        style = "verbatim"
-      elseif open == "~" then
-        style = "code"
-      end
-      if style and s:sub(i + 1, i + 1) ~= " " and s:sub(i + 1, i + 1) ~= open then
-        local close = s:find(open, i + 1, true)
-        if close and close > i + 1 and s:sub(close - 1, close - 1) ~= " " then
-          local inner = s:sub(i + 1, close - 1)
-          flush()
-          if style == "verbatim" or style == "code" then
-            out[#out + 1] = A.emphasis(style, { A.text(inner) })
-          else
-            out[#out + 1] = A.emphasis(style, parse_inline(inner))
+
+    node_to_inline = function(node)
+      local t = node:type()
+      if t == "plain_text" then
+        return A.text(txt(node))
+      elseif EMPHASIS[t] then
+        return A.emphasis(EMPHASIS[t], map_children(node))
+      elseif t == "verbatim" or t == "code" then
+        local raw = txt(node)
+        return A.emphasis(t, { A.text(raw:sub(2, -2)) })
+      elseif t == "link_regular" then
+        local target = child_text(node, "link_target") or ""
+        local desc_text = child_text(node, "link_description")
+        local desc = desc_text and parse_inline(desc_text) or nil
+        return A.link(target, desc)
+      elseif t == "latex_fragment" then
+        return latex_to_math(txt(node))
+      elseif t == "entity" then
+        return A.entity(txt(node):sub(2))
+      elseif t == "subscript" then
+        local inner = txt(node):match("^_%{(.*)%}$") or txt(node):sub(2)
+        return A.subscript(parse_inline(inner))
+      elseif t == "superscript" then
+        local inner = txt(node):match("^%^%{(.*)%}$") or txt(node):sub(2)
+        return A.superscript(parse_inline(inner))
+      elseif t == "statistics_cookie" then
+        return A.statistics_cookie(txt(node))
+      elseif TIMESTAMP[t] then
+        return A.timestamp(txt(node), TIMESTAMP[t])
+      elseif t == "target" then
+        return A.target(txt(node):match("^<<(.*)>>$") or txt(node))
+      elseif t == "macro" then
+        local name = child_text(node, "macro_name") or ""
+        local args = {}
+        for c in node:iter_children() do
+          if c:named() and c:type() == "macro_argument" then
+            args[#args + 1] = txt(c)
           end
-          i = close + 1
-          goto continue
         end
+        return A.macro(name, args)
+      elseif t == "footnote_ref" then
+        local label = child_text(node, "footnote_label")
+        local body = child_text(node, "footnote_body")
+        local content = body and parse_inline(body) or nil
+        return A.footnote_ref(label, content)
+      elseif t == "line_break" then
+        return A.linebreak()
+      else
+        return A.raw_inline(txt(node))
       end
     end
-    cur = cur .. c
-    i = i + 1
-    ::continue::
+
+    return map_children(tree:root())
   end
-  flush()
-  return out
 end
 
 local function parse_table(node, src)

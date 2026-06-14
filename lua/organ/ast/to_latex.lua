@@ -142,6 +142,8 @@ function emit_inline(nodes)
       end
     elseif n.kind == "linebreak" then
       out[#out + 1] = "\\\\"
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     end
   end
   local s = table.concat(out)

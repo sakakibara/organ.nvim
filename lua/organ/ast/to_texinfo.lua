@@ -74,6 +74,8 @@ function emit_inline(nodes)
       out[#out + 1] = "@math{" .. (n.body or "") .. "}"
     elseif n.kind == "linebreak" then
       out[#out + 1] = "@*"
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     end
   end
   local s = table.concat(out)

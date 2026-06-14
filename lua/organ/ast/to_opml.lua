@@ -36,6 +36,8 @@ local function inline_text(nodes)
       else
         out[#out + 1] = n.target or ""
       end
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     end
     -- math, image, footnote_ref, linebreak: drop entirely
   end

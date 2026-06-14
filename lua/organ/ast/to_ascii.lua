@@ -33,6 +33,8 @@ function emit_inline(nodes)
       out[#out + 1] = n.body or ""
     elseif n.kind == "linebreak" then
       out[#out + 1] = "\n"
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     end
     -- image / footnote_ref intentionally drop (no ascii syntax)
   end
