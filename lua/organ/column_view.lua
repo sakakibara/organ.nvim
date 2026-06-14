@@ -75,7 +75,9 @@ function M.find_spec(bufnr, hl_line)
       if (element.properties_under(bufnr, h.line_start) or {}).COLUMNS == val then
         return val, h.line_start + 1
       end
-      local parent = h.node:parent()
+      -- The ancestor walk needs the tree-sitter node, absent on the regex
+      -- fallback; without it we cannot locate the owning headline's line.
+      local parent = h.node and h.node:parent()
       while parent and parent:type() ~= "headline" do
         parent = parent:parent()
       end

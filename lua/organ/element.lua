@@ -352,7 +352,11 @@ local function parse_headline_node(headline_node, bufnr)
   }
 end
 
--- The headline enclosing `row`, plus parsed metadata.
+-- The headline enclosing `row`, plus parsed metadata: a record with
+-- line_start / line_end / level / todo_state / priority / title / tags.
+-- The `node` field is the live tree-sitter headline node, present only
+-- when the parser is loaded; it is absent on the regex fallback, so
+-- callers that traverse it must guard for nil.
 function M.headline_at(bufnr, row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if M.parser_loaded(bufnr) then
