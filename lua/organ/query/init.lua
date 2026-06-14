@@ -36,7 +36,7 @@ M._build_sql = sql.build
 
 function M.headlines(filters)
   filters = filters or {}
-  local h = (filters and filters.db) or exec.default_db()
+  local h = exec.resolve_db(filters)
   local sql, params = M._build_sql(filters)
   local rows = exec.rows_from_select(h, sql, params)
   exec.hydrate_tags(h, rows)

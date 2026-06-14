@@ -9,6 +9,12 @@ local function default_db()
   return require("organ.runtime").db()
 end
 
+-- The DB handle for a query: the caller's `opts.db` if given, else the
+-- shared runtime handle. `opts` may be nil.
+local function resolve_db(opts)
+  return (opts and opts.db) or default_db()
+end
+
 local function rows_from_select(h, sql, params)
   local stmt, err = h:prepare(sql)
   if not stmt then
@@ -340,6 +346,7 @@ local function hydrate_backlink_counts(h, rows)
 end
 
 M.default_db = default_db
+M.resolve_db = resolve_db
 M.rows_from_select = rows_from_select
 M.hydrate_tags = hydrate_tags
 M.hydrate_inherited_tags = hydrate_inherited_tags

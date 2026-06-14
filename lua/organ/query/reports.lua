@@ -76,7 +76,7 @@ end
 -- Sorted by basename asc.
 function M.files(opts)
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   local sql = [[
     SELECT f.path AS file_path, COUNT(hl.id) AS headline_count, f.indexed AS last_indexed
       FROM files f
@@ -114,7 +114,7 @@ function M.file_todo_keywords(file_paths, opts)
   if not file_paths or #file_paths == 0 then
     return {}
   end
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   -- Build a parameterised IN list (one `?` per path).
   local placeholders = {}
   for i = 1, #file_paths do
@@ -156,7 +156,7 @@ end
 --     map { headline_id -> list of dates }
 function M.habit_completions(opts)
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   if not h then
     return {}
   end
@@ -220,7 +220,7 @@ end
 function M.habits(opts)
   opts = opts or {}
   local days = opts.days or 21
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   if not h then
     return {}
   end

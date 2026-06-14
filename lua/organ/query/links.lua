@@ -7,7 +7,7 @@ local exec = require("organ.query.exec")
 
 function M.get_by_id(id, opts)
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   local stmt = assert(
     h:prepare(
       "SELECT id, file_path, parent_id, level, title, todo_state, priority, "
@@ -47,7 +47,7 @@ end
 
 function M.links_from(headline_id, opts)
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   local stmt = assert(h:prepare([[
     SELECT l.target_type, l.target, l.description, l.line,
            h.id, h.file_path, h.title, h.line_start,
@@ -88,7 +88,7 @@ end
 
 function M.links_to(target, opts)
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   local id
   if type(target) == "string" then
     id = target
@@ -137,7 +137,7 @@ function M.title_refs(title, opts)
   if type(title) ~= "string" or title == "" then
     return {}
   end
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
   local stmt = assert(h:prepare([[
     SELECT l.description, l.line, l.target_type, l.target,
            h.id, h.file_path, h.title, h.line_start,
@@ -177,7 +177,7 @@ end
 function M.links(filter, opts)
   filter = filter or {}
   opts = opts or {}
-  local h = opts.db or exec.default_db()
+  local h = exec.resolve_db(opts)
 
   local where, params = {}, {}
   if filter.target_type then
