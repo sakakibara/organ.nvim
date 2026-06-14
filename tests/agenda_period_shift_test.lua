@@ -1,4 +1,4 @@
--- agenda._shift_period / _reset_today / _set_window mutate the buffer's
+-- agenda.shift_period / reset_today / set_window mutate the buffer's
 -- view in place so refresh re-runs the underlying query against the new
 -- date window.
 -- Run via: nvim --headless -l tests/agenda_period_shift_test.lua
@@ -59,29 +59,29 @@ end
 local today_iso = query.parse_date("today")
 local plus6_iso = query.parse_date("+6d")
 
--- After open, dates are still relative strings ("today" / "+6d"). _shift_period
+-- After open, dates are still relative strings ("today" / "+6d"). shift_period
 -- pins them to ISO and offsets by one full span (7 days).
-agenda._shift_period(bufnr, 1)
+agenda.shift_period(bufnr, 1)
 local from1, to1 = block_dates()
 assert(from1:match("^%d%d%d%d%-%d%d%-%d%d$"), "from1 should be ISO; got " .. tostring(from1))
 assert(to1:match("^%d%d%d%d%-%d%d%-%d%d$"), "to1 should be ISO; got " .. tostring(to1))
 assert(from1 > today_iso, "after +1 period, from should be in the future")
 
--- _shift_period(-1) should bring the window back to where it was.
-agenda._shift_period(bufnr, -1)
+-- shift_period(-1) should bring the window back to where it was.
+agenda.shift_period(bufnr, -1)
 local from0, to0 = block_dates()
 assert(from0 == today_iso, "round-trip: from should equal today; got " .. from0)
 assert(to0 == plus6_iso, "round-trip: to should equal +6d; got " .. to0)
 
--- _reset_today restores today as the start of the period (span preserved).
-agenda._shift_period(bufnr, 5) -- forward 5 weeks
-agenda._reset_today(bufnr)
+-- reset_today restores today as the start of the period (span preserved).
+agenda.shift_period(bufnr, 5) -- forward 5 weeks
+agenda.reset_today(bufnr)
 local from2, to2 = block_dates()
 assert(from2 == today_iso, "reset: from should be today; got " .. from2)
 assert(to2 == plus6_iso, "reset: to should be today+6d; got " .. to2)
 
--- _set_window replaces the window with a new (from, to) — relative inputs OK.
-agenda._set_window(bufnr, "today", "today")
+-- set_window replaces the window with a new (from, to) — relative inputs OK.
+agenda.set_window(bufnr, "today", "today")
 local from3, to3 = block_dates()
 assert(
   from3 == "today" and to3 == "today",

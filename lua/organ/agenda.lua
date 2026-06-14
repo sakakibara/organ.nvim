@@ -488,9 +488,9 @@ end
 
 -- Period navigation; agenda/keymaps dispatches these via the injected
 -- agenda table.
-M._shift_period = navigate.shift_period
-M._reset_today = navigate.reset_today
-M._set_window = navigate.set_window
+M.shift_period = navigate.shift_period
+M.reset_today = navigate.reset_today
+M.set_window = navigate.set_window
 
 -- Sticky agenda registry: { [view_name] = bufnr }. Opening the same
 -- view twice (e.g. user runs :Org agenda day twice) reuses the existing

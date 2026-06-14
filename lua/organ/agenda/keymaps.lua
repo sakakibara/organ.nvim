@@ -425,9 +425,9 @@ local function install(bufnr, agenda)
         end
       end
       -- Fall back to literal pass-through when parse_date isn't available
-      -- or doesn't recognise the input -- _set_window will validate.
+      -- or doesn't recognise the input -- set_window will validate.
       parsed = parsed or input
-      agenda._set_window(bufnr, parsed, parsed)
+      agenda.set_window(bufnr, parsed, parsed)
       agenda.refresh(bufnr)
     end)
   end, "jump_to_date")
@@ -875,15 +875,15 @@ local function install(bufnr, agenda)
   -- Date navigation: shift the visible window forward/back by its own length;
   -- "." resets to today (range length preserved).
   map("f", function()
-    agenda._shift_period(bufnr, 1)
+    agenda.shift_period(bufnr, 1)
     agenda.refresh(bufnr)
   end, "next_period")
   map("b", function()
-    agenda._shift_period(bufnr, -1)
+    agenda.shift_period(bufnr, -1)
     agenda.refresh(bufnr)
   end, "prev_period")
   map(".", function()
-    agenda._reset_today(bufnr)
+    agenda.reset_today(bufnr)
     agenda.refresh(bufnr)
   end, "today")
 
@@ -894,11 +894,11 @@ local function install(bufnr, agenda)
   -- to disambiguate `v` (visual mode) vs `vd`/`vw` (these). With `gd`/`gw`
   -- the `v` key fires visual mode immediately.
   map("gd", function()
-    agenda._set_window(bufnr, "today", "today")
+    agenda.set_window(bufnr, "today", "today")
     agenda.refresh(bufnr)
   end, "view_day")
   map("gw", function()
-    agenda._set_window(bufnr, "today", "+6d")
+    agenda.set_window(bufnr, "today", "+6d")
     agenda.refresh(bufnr)
   end, "view_week")
 
