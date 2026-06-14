@@ -46,9 +46,17 @@ M.INLINE = {
   emphasis = true, -- { style = "bold"|"italic"|"underline"|"strike"|"verbatim"|"code", content = inline[] }
   link = true, -- { target = "string", description = inline[] | nil }
   image = true, -- { target = "string", alt = "string"|nil }
-  footnote_ref = true, -- { label = "string" }
-  math = true, -- { display = bool, body = "string" }
+  footnote_ref = true, -- { label = "string"|nil, content = inline[]|nil }
+  math = true, -- { display = bool, body = "string", style = "dollar"|"paren"|"bracket" }
   linebreak = true, -- explicit hard break (no fields)
+  entity = true, -- { name = "string" } (e.g. "copy" for \copy)
+  subscript = true, -- { content = inline[] }
+  superscript = true, -- { content = inline[] }
+  statistics_cookie = true, -- { value = "string" } (e.g. "[1/3]")
+  timestamp = true, -- { value = "string", variant = "active"|"inactive"|"range_active"|"range_inactive"|"diary" }
+  target = true, -- { name = "string" }
+  macro = true, -- { name = "string", args = string[] }
+  raw_inline = true, -- { text = "string" } verbatim passthrough for untyped grammar nodes
 }
 
 -- Valid? Lightweight invariant check; raises on misuse during dev.
@@ -169,6 +177,47 @@ end
 
 function M.link(target, description)
   return { kind = "link", target = target, description = description }
+end
+
+function M.entity(name)
+  return { kind = "entity", name = name }
+end
+
+function M.subscript(content)
+  return { kind = "subscript", content = content or {} }
+end
+
+function M.superscript(content)
+  return { kind = "superscript", content = content or {} }
+end
+
+function M.statistics_cookie(value)
+  return { kind = "statistics_cookie", value = value }
+end
+
+function M.timestamp(value, variant)
+  return { kind = "timestamp", value = value, variant = variant }
+end
+
+function M.target(name)
+  return { kind = "target", name = name }
+end
+
+function M.macro(name, args)
+  return { kind = "macro", name = name, args = args or {} }
+end
+
+function M.raw_inline(text)
+  return { kind = "raw_inline", text = text }
+end
+
+function M.footnote_ref(label, content)
+  return { kind = "footnote_ref", label = label, content = content }
+end
+
+function M.math(opts)
+  opts = opts or {}
+  return { kind = "math", display = opts.display, body = opts.body, style = opts.style }
 end
 
 function M.code_block(language, body, params)
