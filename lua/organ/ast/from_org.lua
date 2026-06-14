@@ -421,14 +421,35 @@ local function extract_properties(drawer_node, src)
   return out
 end
 
--- Walk an org `headline` (TS node) emitting an AST headline.  Recurses
--- into children for sub-headlines / body content.  Body content is
--- everything between the title line and the next sub-headline.
---
--- `planning` and `property_drawer` section children are extracted into
--- the headline's `planning` / `properties` fields instead of being
--- emitted as standalone block children; they semantically belong to
--- the headline itself.
+-- Process a `section` node's children into a list of AST blocks, plus
+-- hoisted planning / properties. The single place section body is
+-- assembled (shared by emit_headline and from_lines), so affiliated-
+-- keyword and #+TBLFM association can live here.
+local function emit_section_children(section_node, src)
+  local planning, properties
+  local items = {}
+  for sc in section_node:iter_children() do
+    local sct = sc:type()
+    if sct == "planning" then
+      planning = planning or extract_planning(sc, src)
+    elseif sct == "property_drawer" then
+      properties = properties or extract_properties(sc, src)
+    else
+      local block = emit_section_child(sc, src)
+      if block then
+        if type(block) == "table" and block[1] and not block.kind then
+          for _, b in ipairs(block) do
+            items[#items + 1] = b
+          end
+        else
+          items[#items + 1] = block
+        end
+      end
+    end
+  end
+  return merge_adjacent_tables(items), planning, properties
+end
+
 local function emit_headline(node, src, todo_kws)
   local level = heading_level(node, src)
   local sr = node:start()
@@ -439,28 +460,11 @@ local function emit_headline(node, src, todo_kws)
     if c:type() == "headline" then
       children_blocks[#children_blocks + 1] = emit_headline(c, src, todo_kws)
     elseif c:type() == "section" then
-      for sc in c:iter_children() do
-        local sct = sc:type()
-        if sct == "planning" then
-          if not planning then
-            planning = extract_planning(sc, src)
-          end
-        elseif sct == "property_drawer" then
-          if not properties then
-            properties = extract_properties(sc, src)
-          end
-        else
-          local block = emit_section_child(sc, src)
-          if block then
-            if type(block) == "table" and block[1] and not block.kind then
-              for _, b in ipairs(block) do
-                children_blocks[#children_blocks + 1] = b
-              end
-            else
-              children_blocks[#children_blocks + 1] = block
-            end
-          end
-        end
+      local body, pl, pr = emit_section_children(c, src)
+      planning = planning or pl
+      properties = properties or pr
+      for _, b in ipairs(body) do
+        children_blocks[#children_blocks + 1] = b
       end
     end
   end
@@ -472,7 +476,7 @@ local function emit_headline(node, src, todo_kws)
     planning = planning,
     properties = properties,
     title = parse_inline(title_str),
-    children = merge_adjacent_tables(children_blocks),
+    children = children_blocks,
   })
 end
 
@@ -714,15 +718,13 @@ function M.from_lines(src)
     if c:type() == "headline" then
       doc_children[#doc_children + 1] = emit_headline(c, src, todo_kws)
     elseif c:type() == "section" or c:type() == "zeroth_section" then
-      for sc in c:iter_children() do
-        local b = emit_section_child(sc, src)
-        if b then
-          doc_children[#doc_children + 1] = b
-        end
+      local body = emit_section_children(c, src)
+      for _, b in ipairs(body) do
+        doc_children[#doc_children + 1] = b
       end
     end
   end
-  return A.document(merge_adjacent_tables(doc_children))
+  return A.document(doc_children)
 end
 
 function M.from_buffer(bufnr)
