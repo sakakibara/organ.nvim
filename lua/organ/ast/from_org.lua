@@ -607,6 +607,28 @@ emit_section_child = function(node, src)
     end
     -- Body may span multiple lines; treat as one paragraph for now.
     return A.footnote_definition(label, { A.paragraph(parse_inline(body)) })
+  elseif t == "drawer" then
+    -- A generic drawer (:LOGBOOK:, custom). Its `drawer_name` child is
+    -- the bare name; the LAST `:` child sits on the :END: line. Body is
+    -- the verbatim lines strictly between the opener and :END:.
+    local name, end_row
+    for c in node:iter_children() do
+      local ct = c:type()
+      if ct == "drawer_name" then
+        name = get_text(c, src)
+      elseif ct == ":" then
+        end_row = c:start()
+      end
+    end
+    if not name or not end_row then
+      return nil
+    end
+    local open_row = node:start()
+    local body_lines = {}
+    for r = open_row + 1, end_row - 1 do
+      body_lines[#body_lines + 1] = src[r + 1] or ""
+    end
+    return A.drawer(name, table.concat(body_lines, "\n"))
   end
   return nil
 end

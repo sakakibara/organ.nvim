@@ -231,6 +231,15 @@ local function emit_block(node, out)
       end
     end
     out[#out + 1] = ""
+  elseif node.kind == "drawer" then
+    out[#out + 1] = ":" .. (node.name or "") .. ":"
+    if node.body and node.body ~= "" then
+      for _, line in ipairs(vim.split(node.body, "\n", { plain = true })) do
+        out[#out + 1] = line
+      end
+    end
+    out[#out + 1] = ":END:"
+    out[#out + 1] = ""
   end
   -- Other kinds drop silently (unimplemented in this renderer).
 end

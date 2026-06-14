@@ -99,4 +99,34 @@ do
   assert_roundtrip(src, "properties: round-trips")
 end
 
+-- generic drawers -----------------------------------------------------
+do
+  local src = {
+    "* H",
+    ":LOGBOOK:",
+    "CLOCK: [2026-06-14 Sun 09:00]--[2026-06-14 Sun 10:00] => 1:00",
+    "- a note",
+    ":END:",
+    "",
+    "Body.",
+  }
+  local h = head(src)
+  local dr
+  for _, c in ipairs(h.children or {}) do
+    if c.kind == "drawer" then
+      dr = c
+    end
+  end
+  check(dr ~= nil, "drawer: LOGBOOK captured as a drawer node")
+  check(dr and dr.name == "LOGBOOK", "drawer: name is LOGBOOK")
+  check(dr and dr.body:find("CLOCK:", 1, true) ~= nil, "drawer: body preserves CLOCK line")
+  check(dr and dr.body:find("- a note", 1, true) ~= nil, "drawer: body preserves note line")
+  assert_roundtrip(src, "drawer: LOGBOOK round-trips")
+end
+
+do
+  local src = { "* H", ":NOTES:", "free text", "more text", ":END:", "", "Body." }
+  assert_roundtrip(src, "drawer: custom :NOTES: round-trips")
+end
+
 print("ast_metadata_roundtrip_test: PASS")

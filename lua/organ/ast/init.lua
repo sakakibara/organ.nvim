@@ -31,7 +31,7 @@ M.BLOCK = {
   table = true, -- { alignments = ("l"|"r"|"c")[], rows = ({ cells = inline[][], sep = bool })[] }
   rule = true, -- horizontal rule (no fields)
   directive = true, -- { name = "TITLE", value = "string" }
-  drawer = true, -- { name = "PROPERTIES", entries = { {key, value}, ... } }
+  drawer = true, -- { name = "string", body = "string" } (verbatim inner lines)
   footnote_definition = true, -- { label = "string", content = block[] }
   comment = true, -- { body = "string" } (line / multi-line org `# ` comment)
 }
@@ -182,6 +182,10 @@ end
 function M.block(style, opts)
   opts = opts or {}
   return { kind = "block", style = style, body = opts.body, content = opts.content }
+end
+
+function M.drawer(name, body)
+  return { kind = "drawer", name = name, body = body }
 end
 
 function M.directive(name, value)
