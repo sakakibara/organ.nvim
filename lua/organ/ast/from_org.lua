@@ -688,7 +688,7 @@ emit_section_child = function(node, src)
     if not label then
       return nil
     end
-    -- Body may span multiple lines; treat as one paragraph for now.
+    body = body:gsub("%s+$", "")
     return A.footnote_definition(label, { A.paragraph(parse_inline(body)) })
   elseif t == "drawer" then
     -- A generic drawer (:LOGBOOK:, custom). Its `drawer_name` child is
