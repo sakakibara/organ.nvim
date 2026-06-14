@@ -1,5 +1,5 @@
 -- Citation rendering driver. Combines parsed cite blocks (from
--- lua/organ/cite.lua), a bibliography index (from cite/bibtex or
+-- cite/init.lua), a bibliography index (from cite/bibtex or
 -- cite/csl_json), and a style implementation (from cite/styles) to
 -- produce in-text citations and a bibliography list.
 --

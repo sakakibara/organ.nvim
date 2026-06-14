@@ -32,7 +32,7 @@ local TIMEOUT_PREFIXES = { "v", "V", "g", "z", "[", "]", "<C-w>" }
 -- keymaps and operate under different conventions (LocalLeader-based,
 -- explicit user opt-in).
 local FILES_TO_SCAN = {
-  "lua/organ/agenda.lua",
+  "lua/organ/agenda/keymaps.lua",
   "lua/organ/backlinks.lua",
   "lua/organ/column_view.lua",
   "lua/organ/roam/sidebar.lua",
