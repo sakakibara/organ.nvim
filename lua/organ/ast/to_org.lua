@@ -196,6 +196,11 @@ local function emit_block(node, out)
       for line in (node.body or ""):gmatch("([^\n]*)\n?") do
         out[#out + 1] = line
       end
+      -- gmatch appends a trailing empty after the final newline-less body;
+      -- drop it so #+end_<style> lands immediately after the last body line.
+      if out[#out] == "" then
+        out[#out] = nil
+      end
     elseif node.content then
       for _, c in ipairs(node.content) do
         emit_block(c, out)
@@ -239,6 +244,13 @@ local function emit_block(node, out)
       end
     end
     out[#out + 1] = ":END:"
+    out[#out + 1] = ""
+  elseif node.kind == "comment" then
+    -- Each body line becomes `#<line>`; the captured body already
+    -- includes the leading space after `#`.
+    for _, line in ipairs(vim.split(node.body or "", "\n", { plain = true })) do
+      out[#out + 1] = "#" .. line
+    end
     out[#out + 1] = ""
   end
   -- Other kinds drop silently (unimplemented in this renderer).

@@ -629,6 +629,25 @@ emit_section_child = function(node, src)
       body_lines[#body_lines + 1] = src[r + 1] or ""
     end
     return A.drawer(name, table.concat(body_lines, "\n"))
+  elseif t == "comment" then
+    -- One or more `# ...` lines grouped under a `comment` node. Each
+    -- comment_line's comment_body is the text after `#` (leading space
+    -- included); preserve it verbatim, joined with newlines.
+    local bodies = {}
+    for c in node:iter_children() do
+      if c:type() == "comment_line" then
+        local cb
+        for cc in c:iter_children() do
+          if cc:type() == "comment_body" then
+            cb = get_text(cc, src)
+          end
+        end
+        bodies[#bodies + 1] = cb or ""
+      end
+    end
+    return A.comment(table.concat(bodies, "\n"))
+  elseif t == "comment_block" then
+    return A.block("comment", { body = block_body(node, src) })
   end
   return nil
 end

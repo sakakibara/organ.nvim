@@ -129,4 +129,35 @@ do
   assert_roundtrip(src, "drawer: custom :NOTES: round-trips")
 end
 
+-- comments ------------------------------------------------------------
+do
+  -- Line comments at top level (before any headline) flow through the
+  -- same emit_section_child path.
+  local src = { "# a comment", "# second line", "", "Body." }
+  local doc = from_org.from_lines(src)
+  local cm
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "comment" then
+      cm = c
+    end
+  end
+  check(cm ~= nil, "comment: # line captured as a comment node")
+  check(cm and cm.body:find("a comment", 1, true) ~= nil, "comment: body preserved")
+  assert_roundtrip(src, "comment: # lines round-trip")
+end
+
+do
+  local src = { "#+begin_comment", "block body 1", "block body 2", "#+end_comment", "", "Body." }
+  local doc = from_org.from_lines(src)
+  local cb
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "block" and c.style == "comment" then
+      cb = c
+    end
+  end
+  check(cb ~= nil, "comment: #+begin_comment captured as block style=comment")
+  check(cb and cb.body:find("block body 1", 1, true) ~= nil, "comment: block body preserved")
+  assert_roundtrip(src, "comment: comment block round-trips")
+end
+
 print("ast_metadata_roundtrip_test: PASS")
