@@ -64,17 +64,36 @@ function M.find(buf_lines, hl_line, drawer_name, bufnr)
     i = i + 1
   end
   if buf_lines[i] and buf_lines[i]:match("^%s*:PROPERTIES:") then
-    while i <= #buf_lines and not buf_lines[i]:match("^%s*:END:") do
+    i = i + 1
+    -- Stop at the next headline: an unterminated drawer must not consume
+    -- the following section.
+    while
+      i <= #buf_lines
+      and not buf_lines[i]:match("^%s*:END:")
+      and not buf_lines[i]:match("^%*+%s")
+    do
       i = i + 1
     end
-    i = i + 1
+    if buf_lines[i] and buf_lines[i]:match("^%s*:END:") then
+      i = i + 1
+    end
   end
   if buf_lines[i] and buf_lines[i]:match("^%s*:" .. drawer_name .. ":") then
     local start = i
-    while i <= #buf_lines and not buf_lines[i]:match("^%s*:END:") do
+    i = i + 1
+    while
+      i <= #buf_lines
+      and not buf_lines[i]:match("^%s*:END:")
+      and not buf_lines[i]:match("^%*+%s")
+    do
       i = i + 1
     end
-    return start, i
+    -- A drawer with no :END: before the next headline is malformed; not a
+    -- range we can safely report.
+    if buf_lines[i] and buf_lines[i]:match("^%s*:END:") then
+      return start, i
+    end
+    return nil, nil
   end
   return nil, nil
 end
@@ -108,10 +127,19 @@ function M.insert_position(buf_lines, hl_line, bufnr)
     i = i + 1
   end
   if buf_lines[i] and buf_lines[i]:match("^%s*:PROPERTIES:") then
-    while i <= #buf_lines and not buf_lines[i]:match("^%s*:END:") do
+    i = i + 1
+    -- Stop at the next headline so an unterminated property drawer puts
+    -- the insert position at the end of this section, not past the buffer.
+    while
+      i <= #buf_lines
+      and not buf_lines[i]:match("^%s*:END:")
+      and not buf_lines[i]:match("^%*+%s")
+    do
       i = i + 1
     end
-    i = i + 1
+    if buf_lines[i] and buf_lines[i]:match("^%s*:END:") then
+      i = i + 1
+    end
   end
   return i
 end
