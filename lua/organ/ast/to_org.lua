@@ -35,10 +35,43 @@ local function emit_inline(nodes)
       out[#out + 1] = "\n"
     elseif n.kind == "image" then
       out[#out + 1] = "[[" .. (n.target or "") .. "]]"
+    elseif n.kind == "entity" then
+      out[#out + 1] = "\\" .. (n.name or "")
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "_{" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "^{" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "statistics_cookie" then
+      out[#out + 1] = n.value or ""
+    elseif n.kind == "timestamp" then
+      out[#out + 1] = n.value or ""
+    elseif n.kind == "target" then
+      out[#out + 1] = "<<" .. (n.name or "") .. ">>"
+    elseif n.kind == "macro" then
+      if n.args and #n.args > 0 then
+        out[#out + 1] = "{{{" .. (n.name or "") .. "(" .. table.concat(n.args, ",") .. ")}}}"
+      else
+        out[#out + 1] = "{{{" .. (n.name or "") .. "}}}"
+      end
     elseif n.kind == "footnote_ref" then
-      out[#out + 1] = "[fn:" .. (n.label or "") .. "]"
+      if n.content and #n.content > 0 then
+        if n.label then
+          out[#out + 1] = "[fn:" .. n.label .. ":" .. emit_inline(n.content) .. "]"
+        else
+          out[#out + 1] = "[fn::" .. emit_inline(n.content) .. "]"
+        end
+      else
+        out[#out + 1] = "[fn:" .. (n.label or "") .. "]"
+      end
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     elseif n.kind == "math" then
-      if n.display then
+      local style = n.style or "dollar"
+      if style == "paren" then
+        out[#out + 1] = "\\(" .. (n.body or "") .. "\\)"
+      elseif style == "bracket" then
+        out[#out + 1] = "\\[" .. (n.body or "") .. "\\]"
+      elseif n.display then
         out[#out + 1] = "$$" .. (n.body or "") .. "$$"
       else
         out[#out + 1] = "$" .. (n.body or "") .. "$"
