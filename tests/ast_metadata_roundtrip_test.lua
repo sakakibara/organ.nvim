@@ -1,0 +1,102 @@
+-- Round-trip fidelity for headline & section metadata: org -> from_org ->
+-- AST -> to_org -> org must lose nothing. assert_roundtrip checks the
+-- second-pass AST equals the first; presence checks confirm from_org
+-- actually captured the construct (round-trip equality alone cannot --
+-- a construct dropped on BOTH passes would compare equal).
+-- Run via: nvim --headless -l tests/ast_metadata_roundtrip_test.lua
+
+local root = vim.fn.getcwd()
+dofile(root .. "/tests/_bootstrap.lua")
+
+local from_org = require("organ.ast.from_org")
+local to_org = require("organ.ast.to_org")
+
+local function check(cond, label)
+  if cond then
+    print("PASS  " .. label)
+  else
+    print("FAIL  " .. label)
+    os.exit(1)
+  end
+end
+
+local function lines_of(s)
+  return vim.split(s, "\n", { plain = true })
+end
+
+-- Structural deep equality, key-order independent. Returns (true) or
+-- (false, divergence-path-and-values) for debuggable failures.
+local function deep_eq(a, b, path)
+  if type(a) ~= type(b) then
+    return false, path .. ": type " .. type(a) .. " vs " .. type(b)
+  end
+  if type(a) ~= "table" then
+    if a ~= b then
+      return false, path .. ": " .. tostring(a) .. " vs " .. tostring(b)
+    end
+    return true
+  end
+  for k, v in pairs(a) do
+    local ok, why = deep_eq(v, b[k], path .. "." .. tostring(k))
+    if not ok then
+      return false, why
+    end
+  end
+  for k in pairs(b) do
+    if a[k] == nil then
+      return false, path .. "." .. tostring(k) .. ": missing in first"
+    end
+  end
+  return true
+end
+
+-- Parse -> render -> re-parse; the two ASTs must match.
+local function assert_roundtrip(lines, label)
+  local ast1 = from_org.from_lines(lines)
+  local rendered = to_org.render(ast1)
+  local ast2 = from_org.from_lines(lines_of(rendered))
+  local ok, why = deep_eq(ast1, ast2, "ast")
+  if not ok then
+    print("---- rendered ----\n" .. rendered .. "---- divergence: " .. tostring(why))
+  end
+  check(ok, label)
+end
+
+-- The first headline of a parsed snippet.
+local function head(lines)
+  return from_org.from_lines(lines).children[1]
+end
+
+-- planning ------------------------------------------------------------
+do
+  local src = {
+    "* TODO Task",
+    "SCHEDULED: <2026-06-14 Sun> DEADLINE: <2026-06-15 Mon> CLOSED: [2026-06-13 Sat 10:00]",
+    "",
+    "Body.",
+  }
+  local h = head(src)
+  check(h.planning and h.planning.scheduled == "<2026-06-14 Sun>", "planning: scheduled captured")
+  check(h.planning.deadline == "<2026-06-15 Mon>", "planning: deadline captured")
+  check(h.planning.closed == "[2026-06-13 Sat 10:00]", "planning: closed captured")
+  assert_roundtrip(src, "planning: round-trips")
+end
+
+-- properties ----------------------------------------------------------
+do
+  local src = {
+    "* H",
+    ":PROPERTIES:",
+    ":ID: abc-1",
+    ":Effort: 2:00",
+    ":END:",
+    "",
+    "Body.",
+  }
+  local h = head(src)
+  check(h.properties and h.properties.ID == "abc-1", "properties: ID captured")
+  check(h.properties.EFFORT == "2:00", "properties: Effort captured (key upper-cased)")
+  assert_roundtrip(src, "properties: round-trips")
+end
+
+print("ast_metadata_roundtrip_test: PASS")

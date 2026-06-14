@@ -143,6 +143,33 @@ local function emit_headline(node, out)
   end
   local format = require("organ.format")
   out[#out + 1] = format.align_tag_block(left, block)
+  -- Planning, one keyword per line in canonical order; timestamp strings
+  -- already carry their <...> / [...] brackets.
+  if node.planning then
+    if node.planning.scheduled then
+      out[#out + 1] = "SCHEDULED: " .. node.planning.scheduled
+    end
+    if node.planning.deadline then
+      out[#out + 1] = "DEADLINE: " .. node.planning.deadline
+    end
+    if node.planning.closed then
+      out[#out + 1] = "CLOSED: " .. node.planning.closed
+    end
+  end
+  -- Properties drawer; keys sorted for deterministic output (the AST
+  -- models properties as an unordered map).
+  if node.properties and next(node.properties) then
+    out[#out + 1] = ":PROPERTIES:"
+    local keys = {}
+    for k in pairs(node.properties) do
+      keys[#keys + 1] = k
+    end
+    table.sort(keys)
+    for _, k in ipairs(keys) do
+      out[#out + 1] = ":" .. k .. ": " .. node.properties[k]
+    end
+    out[#out + 1] = ":END:"
+  end
   for _, c in ipairs(node.children or {}) do
     M._emit_block(c, out)
   end
