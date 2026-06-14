@@ -241,6 +241,7 @@ local function parse_table(node, src)
   local sr, _, er = node:range()
   local rows = {}
   local ncols = 0
+  local cookie_aligns
   for r = sr, er - 1 do
     local line = src[r + 1] or ""
     if line:match("^%s*|%-") then
@@ -258,6 +259,30 @@ local function parse_table(node, src)
       if #cells > ncols then
         ncols = #cells
       end
+      -- A row whose every non-empty cell is an alignment cookie (<l>/<r>/<c>)
+      -- sets column alignment. The row stays in `rows` as data, so it
+      -- round-trips; we only populate the semantic alignments field.
+      if not cookie_aligns then
+        local all_cookies, any = true, false
+        local cand = {}
+        for i, c in ipairs(cells) do
+          if c == "" then
+            cand[i] = "l"
+          else
+            local a = c:match("^<([lrc])>$")
+            if a then
+              cand[i] = a
+              any = true
+            else
+              all_cookies = false
+              break
+            end
+          end
+        end
+        if all_cookies and any then
+          cookie_aligns = cand
+        end
+      end
       -- Parse each cell as inline.
       local parsed = {}
       for _, c in ipairs(cells) do
@@ -266,9 +291,11 @@ local function parse_table(node, src)
       rows[#rows + 1] = { cells = parsed, sep = false }
     end
   end
-  local alignments = {}
-  for _ = 1, ncols do
-    alignments[#alignments + 1] = "l"
+  local alignments = cookie_aligns or {}
+  if not cookie_aligns then
+    for _ = 1, ncols do
+      alignments[#alignments + 1] = "l"
+    end
   end
   return { kind = "table", alignments = alignments, rows = rows }
 end

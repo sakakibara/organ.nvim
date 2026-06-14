@@ -269,4 +269,22 @@ do
   assert_roundtrip(src, "export: backend round-trip")
 end
 
+-- table alignment cookies ---------------------------------------------
+do
+  local src = { "| <l> | <r> |", "| a | 1 |", "", "x" }
+  local doc = from_org.from_lines(src)
+  local tbl
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "table" then
+      tbl = c
+    end
+  end
+  check(tbl ~= nil, "table: captured")
+  check(
+    tbl and tbl.alignments[1] == "l" and tbl.alignments[2] == "r",
+    "table: alignment cookies parsed"
+  )
+  assert_roundtrip(src, "table: alignment cookie row round-trips")
+end
+
 print("ast_metadata_roundtrip_test: PASS")
