@@ -160,4 +160,15 @@ do
   assert_roundtrip(src, "comment: comment block round-trips")
 end
 
+-- table separators ----------------------------------------------------
+do
+  -- Tree-sitter splits a table into one grammar node per separator line;
+  -- merging the segments must not duplicate the separator (which would
+  -- compound a new row on every render pass).
+  assert_roundtrip(
+    { "| a | b |", "|---+---|", "| 1 | 2 |", "", "x" },
+    "table: interior separator is not duplicated on round-trip"
+  )
+end
+
 print("ast_metadata_roundtrip_test: PASS")

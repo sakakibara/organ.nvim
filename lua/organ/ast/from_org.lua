@@ -314,7 +314,13 @@ local function merge_adjacent_tables(blocks)
   for _, b in ipairs(blocks) do
     local prev = out[#out]
     if b.kind == "table" and prev and prev.kind == "table" then
-      prev.rows[#prev.rows + 1] = { sep = true, cells = {} }
+      -- Only insert the bridging separator when the previous segment does
+      -- not already end on one (tree-sitter terminates a table grammar node
+      -- on table_rule, so prev.rows already ends with sep=true in that case).
+      local last = prev.rows[#prev.rows]
+      if not (last and last.sep) then
+        prev.rows[#prev.rows + 1] = { sep = true, cells = {} }
+      end
       for _, r in ipairs(b.rows or {}) do
         prev.rows[#prev.rows + 1] = r
       end
