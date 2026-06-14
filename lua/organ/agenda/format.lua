@@ -60,14 +60,17 @@ end
 --   2. Otherwise, the file's basename without `.org`.
 --   3. Falls back to "?" for synthetic rows with no file.
 -- Per-render cache of file_path -> CATEGORY (via `#+CATEGORY:` directive
--- read from the file's leading comment block). Cleared on each render
--- so a category change becomes visible without a restart.
-local _category_cache = setmetatable({}, { __mode = "k" })
-local _category_cache_token
+-- read from the file's leading comment block). reset_caches() drops it at
+-- the start of each render, so rows that share a file read it once per
+-- pass while a live directive edit shows on the next refresh.
+local _category_cache = {}
+
+local function reset_caches()
+  _category_cache = {}
+end
 
 -- Read the first ~30 lines of `path` and return the `#+CATEGORY:` value
--- if present (case-insensitive directive name). Cheap; cached per
--- render via _category_cache.
+-- if present (case-insensitive directive name).
 local function file_category(path)
   if _category_cache[path] ~= nil then
     return _category_cache[path]
@@ -847,5 +850,6 @@ M.category_for = category_for
 M.render_opts = render_opts
 M.resolve_prefix_format = resolve_prefix_format
 M.content_width = content_width
+M.reset_caches = reset_caches
 
 return M

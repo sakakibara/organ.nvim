@@ -996,6 +996,8 @@ end
 -- and returns a block_starts map for navigation keymaps.
 local function render(blocks_with_rows, opts)
   opts = opts or {}
+  -- Drop per-pass caches so a live `#+CATEGORY:` edit shows on this render.
+  format.reset_caches()
   local lines, extmarks, line_index, block_starts = {}, {}, {}, {}
 
   -- Top-of-buffer header: "Week-agenda (W18):" / "Day-agenda (W18):" /
