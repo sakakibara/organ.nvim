@@ -156,6 +156,18 @@ local function days_diff(from_iso, to_iso)
   return math.floor((b - a) / 86400 + 0.5)
 end
 
+-- Add `n` whole days to an ISO date, returning a new "YYYY-MM-DD". Anchors
+-- at noon so a DST transition between the two dates cannot land the result
+-- on the wrong calendar day. Returns `iso` unchanged when it does not parse.
+local function add_days(iso, n)
+  local ts = iso_to_ts(iso)
+  if not ts then
+    return iso
+  end
+  local t = os.date("*t", ts + n * 86400)
+  return string.format("%04d-%02d-%02d", t.year, t.month, t.day)
+end
+
 M.now_iso = now_iso
 M.today_iso = today_iso
 M.now_ts = now_ts
@@ -165,5 +177,6 @@ M.date_only = date_only
 M.time_only = time_only
 M.iso_to_ts = iso_to_ts
 M.days_diff = days_diff
+M.add_days = add_days
 
 return M
