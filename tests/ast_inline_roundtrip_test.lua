@@ -186,4 +186,37 @@ do
   assert_roundtrip({ "value x^2 here" }, "superscript non-braced: round-trips")
 end
 
+-- regression: the six parse_inline call sites still round-trip --------
+do
+  -- paragraph body with link + math
+  assert_roundtrip(
+    { "See [[https://x][a link]] and $e=mc^2$ now." },
+    "regression: paragraph link+math"
+  )
+  -- headline title inline
+  assert_roundtrip(
+    { "* Title with *bold* and [[t][d]]", "body" },
+    "regression: headline title inline"
+  )
+  -- table cell inline
+  assert_roundtrip({ "| *a* | /b/ |", "| c | d |" }, "regression: table cell inline")
+  -- free-standing image paragraph (single image-target link)
+  assert_roundtrip({ "[[file:pic.png]]" }, "regression: free-standing image")
+  -- named footnote reference in a paragraph
+  assert_roundtrip({ "Body with a ref [fn:note] inline." }, "regression: named footnote ref")
+  -- footnote definition body
+  assert_roundtrip(
+    { "[fn:note] the definition body with *bold*." },
+    "regression: footnote definition body"
+  )
+  -- bare links keep their exact surface form (not re-bracketed)
+  local plain = first_kind(inline_of({ "Visit https://example.com today" }), "text")
+  check(
+    plain ~= nil,
+    "regression: bare URL preserved as text (scanner does not produce link_plain)"
+  )
+  assert_roundtrip({ "Visit https://example.com today" }, "regression: bare URL round-trips")
+  assert_roundtrip({ "Angle <https://example.com> link" }, "regression: angle link round-trips")
+end
+
 print("ALL PASS: ast_inline_roundtrip")
