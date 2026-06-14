@@ -177,12 +177,12 @@ end
 
 --- Open the agenda dispatcher menu (Emacs `C-c a`).  Style is controlled
 --- by `config.agenda.dispatcher_style`:
----   "popup"  — single-keystroke menu in a floating window (default;
+---   "popup"  -- single-keystroke menu in a floating window (default;
 ---              works under noice / snacks / native cmdline alike)
----   "echo"   — single-keystroke menu via nvim_echo + getchar
+---   "echo"   -- single-keystroke menu via nvim_echo + getchar
 ---              (terminal-classic; gets intercepted by some UI plugins)
----   "select" — `vim.ui.select` (telescope / dressing / snacks-pickers)
----   custom   — `config.agenda.dispatcher_handler({title, entries})`
+---   "select" -- `vim.ui.select` (telescope / dressing / snacks-pickers)
+---   custom   -- `config.agenda.dispatcher_handler({title, entries})`
 function M.dispatch()
   local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local entries = build_dispatch_entries()

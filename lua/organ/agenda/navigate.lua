@@ -46,7 +46,7 @@ function M.reset_today(bufnr)
   vstate.set(bufnr, state)
 end
 
--- Replace every block's window with the given (from, to) — relative or ISO.
+-- Replace every block's window with the given (from, to) -- relative or ISO.
 function M.set_window(bufnr, from, to)
   local state = vstate.get(bufnr)
   local view = state.view or { blocks = {} }

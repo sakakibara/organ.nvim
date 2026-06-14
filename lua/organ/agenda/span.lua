@@ -188,7 +188,7 @@ function M.normalize_view(v, view_name)
       end
       blocks[i] = copy
     end
-    -- Resolve span → from/to for each block that asked for it.
+    -- Resolve span -> from/to for each block that asked for it.
     local agenda_cfg_n = (require("organ.buf_config").read(nil, "agenda") or {})
     for _, b in ipairs(blocks) do
       local rfrom, rto = M.resolve_span(b, agenda_cfg_n)
