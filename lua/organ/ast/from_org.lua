@@ -434,6 +434,14 @@ local function emit_section_children(section_node, src)
       planning = planning or extract_planning(sc, src)
     elseif sct == "property_drawer" then
       properties = properties or extract_properties(sc, src)
+    elseif sct == "affiliated_keyword" then
+      local name_node = sc:field("name")[1]
+      local value_node = sc:field("value")[1]
+      items[#items + 1] = {
+        _marker = "affiliated",
+        name = name_node and get_text(name_node, src):upper() or "",
+        value = value_node and get_text(value_node, src) or "",
+      }
     else
       local block = emit_section_child(sc, src)
       if block then
@@ -447,7 +455,26 @@ local function emit_section_children(section_node, src)
       end
     end
   end
-  return merge_adjacent_tables(items), planning, properties
+  local merged = merge_adjacent_tables(items)
+  -- Attach buffered affiliated keywords forward to the next real block.
+  local blocks = {}
+  local pending = {}
+  for _, it in ipairs(merged) do
+    if it._marker == "affiliated" then
+      pending[#pending + 1] = { name = it.name, value = it.value }
+    else
+      if #pending > 0 then
+        it.affiliated = pending
+        pending = {}
+      end
+      blocks[#blocks + 1] = it
+    end
+  end
+  -- Dangling affiliated keywords (no following element) stay as directives.
+  for _, a in ipairs(pending) do
+    blocks[#blocks + 1] = A.directive(a.name, a.value)
+  end
+  return blocks, planning, properties
 end
 
 local function emit_headline(node, src, todo_kws)

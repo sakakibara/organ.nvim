@@ -287,4 +287,46 @@ do
   assert_roundtrip(src, "table: alignment cookie row round-trips")
 end
 
+-- affiliated keywords -------------------------------------------------
+do
+  local src = {
+    "#+NAME: fig1",
+    "#+CAPTION: A cap",
+    "#+ATTR_HTML: :width 100",
+    "#+ATTR_LATEX: :w 5cm",
+    "#+begin_src lua",
+    "print(1)",
+    "#+end_src",
+    "",
+    "x",
+  }
+  local doc = from_org.from_lines(src)
+  local cb
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "code_block" then
+      cb = c
+    end
+  end
+  check(
+    cb and cb.affiliated and #cb.affiliated == 4,
+    "affiliated: four keywords attached to the block"
+  )
+  check(
+    cb.affiliated[1].name == "NAME" and cb.affiliated[1].value == "fig1",
+    "affiliated: NAME first"
+  )
+  check(
+    cb.affiliated[3].name == "ATTR_HTML" and cb.affiliated[4].name == "ATTR_LATEX",
+    "affiliated: order + repeats preserved"
+  )
+  assert_roundtrip(src, "affiliated: round-trips attached to its block")
+end
+
+do
+  -- Dangling: an affiliated keyword with no following element is kept
+  -- (as a directive) rather than dropped.
+  local src = { "* H", "#+NAME: orphan", "", "body" }
+  assert_roundtrip(src, "affiliated: dangling keyword round-trips")
+end
+
 print("ast_metadata_roundtrip_test: PASS")

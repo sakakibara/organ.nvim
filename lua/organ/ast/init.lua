@@ -19,6 +19,10 @@
 
 local M = {}
 
+-- Any block node may also carry an optional `affiliated` field: an ordered
+-- list of { name = "NAME"|"CAPTION"|"ATTR_*"|..., value = "string" } drawn
+-- from the `#+KEYWORD:` lines that immediately precede it.
+
 -- Block kinds: appear in `children` of `document` or another block.
 M.BLOCK = {
   document = true, -- root: { children = {...} }

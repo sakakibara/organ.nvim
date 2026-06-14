@@ -180,6 +180,11 @@ local function emit_headline(node, out)
 end
 
 local function emit_block(node, out)
+  if node.affiliated then
+    for _, kw in ipairs(node.affiliated) do
+      out[#out + 1] = "#+" .. kw.name .. ": " .. (kw.value or "")
+    end
+  end
   if node.kind == "headline" then
     emit_headline(node, out)
   elseif node.kind == "paragraph" then
