@@ -26,7 +26,7 @@ M.BLOCK = {
   paragraph = true, -- { inline = inline[] }
   list = true, -- { ordered, items = list_item[] }
   list_item = true, -- { checkbox = "todo"|"done"|"part"|nil, content = block[] }
-  code_block = true, -- { language?, body = "string" }
+  code_block = true, -- { language?, params?, body = "string" }
   block = true, -- { style = "quote"|"verse"|"example"|"center"|"export"|"comment", body? = "string", content? = block[] }
   table = true, -- { alignments = ("l"|"r"|"c")[], rows = ({ cells = inline[][], sep = bool })[] }
   rule = true, -- horizontal rule (no fields)
@@ -167,8 +167,8 @@ function M.link(target, description)
   return { kind = "link", target = target, description = description }
 end
 
-function M.code_block(language, body)
-  return { kind = "code_block", language = language, body = body or "" }
+function M.code_block(language, body, params)
+  return { kind = "code_block", language = language, params = params, body = body or "" }
 end
 
 function M.list(ordered, items)

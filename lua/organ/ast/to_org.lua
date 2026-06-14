@@ -54,7 +54,11 @@ local function emit_paragraph(node, out)
 end
 
 local function emit_code_block(node, out)
-  out[#out + 1] = "#+begin_src " .. (node.language or "")
+  local header = "#+begin_src " .. (node.language or "")
+  if node.params and node.params ~= "" then
+    header = header .. " " .. node.params
+  end
+  out[#out + 1] = header
   for line in (node.body or ""):gmatch("([^\n]*)\n?") do
     out[#out + 1] = line
   end

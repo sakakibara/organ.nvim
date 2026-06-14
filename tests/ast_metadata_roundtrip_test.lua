@@ -239,4 +239,19 @@ do
   )
 end
 
+-- src header-args -----------------------------------------------------
+do
+  local src = { "#+begin_src python :exports code :tangle no", "print(1)", "#+end_src", "", "x" }
+  local doc = from_org.from_lines(src)
+  local cb
+  for _, c in ipairs(doc.children or {}) do
+    if c.kind == "code_block" then
+      cb = c
+    end
+  end
+  check(cb ~= nil, "src: code_block captured")
+  check(cb and cb.params == ":exports code :tangle no", "src: header-args captured in params")
+  assert_roundtrip(src, "src: header-args round-trip")
+end
+
 print("ast_metadata_roundtrip_test: PASS")

@@ -505,6 +505,12 @@ emit_section_child = function(node, src)
     if lang_node then
       lang = get_text(lang_node, src)
     end
+    local params
+    for c in node:iter_children() do
+      if c:type() == "block_header_args" then
+        params = get_text(c, src)
+      end
+    end
     -- Collect body lines: everything between `#+begin_src ...` and
     -- `#+end_src` (exclusive).
     local sr, _, er = node:range()
@@ -512,7 +518,7 @@ emit_section_child = function(node, src)
     for r = sr + 1, er - 1 do
       body_lines[#body_lines + 1] = src[r + 1] or ""
     end
-    return A.code_block(lang, table.concat(body_lines, "\n"))
+    return A.code_block(lang, table.concat(body_lines, "\n"), params)
   elseif t == "list" or t == "plain_list" then
     local items = {}
     local ordered = false
