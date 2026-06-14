@@ -160,6 +160,74 @@ do
   assert_roundtrip(src, "comment: comment block round-trips")
 end
 
+-- combined + ordering -------------------------------------------------
+do
+  local src = {
+    "* TODO Project :work:",
+    "SCHEDULED: <2026-06-14 Sun>",
+    ":PROPERTIES:",
+    ":ID: p-1",
+    ":END:",
+    ":LOGBOOK:",
+    "CLOCK: [2026-06-14 Sun 09:00]--[2026-06-14 Sun 10:00] => 1:00",
+    ":END:",
+    "",
+    "Body paragraph.",
+  }
+  assert_roundtrip(src, "combined: planning + properties + logbook + body round-trips")
+end
+
+do
+  -- Non-canonical source order (logbook before properties). from_org
+  -- hoists properties to the headline regardless of position, so the AST
+  -- is stable even though to_org re-emits in canonical order.
+  local src = {
+    "* H",
+    ":LOGBOOK:",
+    "CLOCK: [2026-06-14 Sun 09:00]",
+    ":END:",
+    ":PROPERTIES:",
+    ":ID: x",
+    ":END:",
+    "",
+    "Body.",
+  }
+  assert_roundtrip(src, "combined: non-canonical section order is AST-stable")
+end
+
+-- drawer edge shapes --------------------------------------------------
+do
+  -- Empty drawer (no inner lines) round-trips with an empty body.
+  local src = { "* H", ":LOGBOOK:", ":END:", "", "Body." }
+  local h = head(src)
+  local dr
+  for _, c in ipairs(h.children or {}) do
+    if c.kind == "drawer" then
+      dr = c
+    end
+  end
+  check(dr ~= nil and dr.body == "", "drawer: empty drawer has empty body")
+  assert_roundtrip(src, "drawer: empty drawer round-trips")
+end
+
+do
+  -- Interior blank line inside a drawer body is preserved.
+  local src = { "* H", ":NOTES:", "line one", "", "line three", ":END:", "", "Body." }
+  assert_roundtrip(src, "drawer: interior blank line preserved")
+end
+
+-- regression: pre-existing constructs still round-trip ----------------
+do
+  assert_roundtrip(
+    { "Para with *bold* and [[https://x][a link]].", "", "Next." },
+    "regression: paragraph inline"
+  )
+  assert_roundtrip(
+    { "#+begin_src lua", "print(1)", "#+end_src", "", "x" },
+    "regression: code block"
+  )
+end
+
 -- table separators ----------------------------------------------------
 do
   -- Tree-sitter splits a table into one grammar node per separator line;
