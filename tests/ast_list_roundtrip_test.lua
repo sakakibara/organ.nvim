@@ -170,4 +170,11 @@ do
   assert_roundtrip({ "- dash", "+ plus" }, "regression: mixed bullets round-trip")
 end
 
+-- regression: a content-less item is not dropped --------------------
+do
+  local l = first_list({ "- a", "- term ::", "- b" })
+  check(l ~= nil and #l.items == 3, "content-less middle item survives in AST")
+  assert_roundtrip({ "- a", "- term ::", "- b" }, "content-less description item round-trips")
+end
+
 print("ALL PASS: ast_list_roundtrip")

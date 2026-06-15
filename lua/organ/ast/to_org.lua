@@ -133,8 +133,15 @@ local function emit_list(node, out, depth)
           out[#out + 1] = indent .. "  " .. txt
         end
       elseif b.kind == "list" then
+        if first then
+          out[#out + 1] = (indent .. prefix):gsub("%s+$", "")
+          first = false
+        end
         emit_list(b, out, depth + 1)
       end
+    end
+    if first then
+      out[#out + 1] = (indent .. prefix):gsub("%s+$", "")
     end
     n = n + 1
   end
