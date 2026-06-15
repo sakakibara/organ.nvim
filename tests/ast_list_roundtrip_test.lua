@@ -155,4 +155,19 @@ do
   assert_roundtrip({ "1. one", "2. two" }, "flat ordered round-trips")
 end
 
+-- regression: combined + list under a headline ---------------------
+do
+  -- counter + checkbox on one ordered item
+  assert_roundtrip({ "1. [@3] [X] done with counter" }, "regression: counter + checkbox")
+  -- list nested under a headline section
+  assert_roundtrip({ "* Heading", "- a", "  - nested", "- b" }, "regression: list under headline")
+  -- mixed bullets keep their own marker per item
+  local l = first_list({ "- dash", "+ plus" })
+  check(
+    l.items[1].marker == "-" and l.items[2].marker == "+",
+    "regression: per-item markers preserved"
+  )
+  assert_roundtrip({ "- dash", "+ plus" }, "regression: mixed bullets round-trip")
+end
+
 print("ALL PASS: ast_list_roundtrip")
