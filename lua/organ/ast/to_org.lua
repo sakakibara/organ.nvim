@@ -110,7 +110,8 @@ local function emit_list(node, out, depth)
   local indent = string.rep("  ", depth)
   local n = 1
   for _, item in ipairs(node.items or {}) do
-    local marker = node.ordered and (n .. ".") or "-"
+    local marker = item.marker or (node.ordered and (n .. ".") or "-")
+    local counter = item.counter and ("[@" .. item.counter .. "] ") or ""
     local checkbox = ""
     if item.checkbox == "todo" then
       checkbox = "[ ] "
@@ -119,14 +120,14 @@ local function emit_list(node, out, depth)
     elseif item.checkbox == "part" then
       checkbox = "[-] "
     end
-    -- A list_item.content is a list of blocks; render them, prefixing
-    -- the first paragraph's first line with the marker.
+    local tag = (item.tag and #item.tag > 0) and (emit_inline(item.tag) .. " :: ") or ""
+    local prefix = marker .. " " .. counter .. checkbox .. tag
     local first = true
     for _, b in ipairs(item.content or {}) do
       if b.kind == "paragraph" then
         local txt = emit_inline(b.inline)
         if first then
-          out[#out + 1] = indent .. marker .. " " .. checkbox .. txt
+          out[#out + 1] = indent .. prefix .. txt
           first = false
         else
           out[#out + 1] = indent .. "  " .. txt
