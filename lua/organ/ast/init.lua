@@ -44,7 +44,8 @@ M.BLOCK = {
 M.INLINE = {
   text = true, -- { text = "string" }
   emphasis = true, -- { style = "bold"|"italic"|"underline"|"strike"|"verbatim"|"code", content = inline[] }
-  link = true, -- { target = "string", description = inline[] | nil, form? = "plain"|"angle" }
+  link = true, -- { target = "string", description = inline[] | nil, form? = "plain"|"angle"|"radio" }
+  radio_target = true, -- { phrase = "string" } (a <<<...>>> radio-target definition)
   image = true, -- { target = "string", alt = "string"|nil }
   footnote_ref = true, -- { label = "string"|nil, content = inline[]|nil }
   math = true, -- { display = bool, body = "string", style = "dollar"|"paren"|"bracket" }
@@ -193,6 +194,10 @@ end
 
 function M.link(target, description, form)
   return { kind = "link", target = target, description = description, form = form }
+end
+
+function M.radio_target(phrase)
+  return { kind = "radio_target", phrase = phrase }
 end
 
 function M.entity(name)
