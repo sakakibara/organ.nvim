@@ -29,7 +29,7 @@ M.BLOCK = {
   headline = true, -- { level, todo?, priority?, tags?, planning?, properties?, title=inline[], children }
   paragraph = true, -- { inline = inline[] }
   list = true, -- { ordered, items = list_item[] }
-  list_item = true, -- { checkbox = "todo"|"done"|"part"|nil, content = block[] }
+  list_item = true, -- { marker?, counter?, checkbox = "todo"|"done"|"part"|nil, tag? = inline[], content = block[] }
   code_block = true, -- { language?, params?, body = "string" }
   block = true, -- { style, body? = "string", content? = block[], backend? = "string" }
   table = true, -- { alignments = ("l"|"r"|"c")[], rows = (...)[], tblfm? = ("string")[] }
@@ -118,6 +118,14 @@ function M.validate(root)
       end
       for i, c in ipairs(n.inline) do
         stack[#stack + 1] = { node = c, where = frame.where .. ".inline[" .. i .. "]" }
+      end
+    end
+    if n.tag then
+      if not is_array(n.tag) then
+        return false, frame.where .. ".tag: not an array"
+      end
+      for i, c in ipairs(n.tag) do
+        stack[#stack + 1] = { node = c, where = frame.where .. ".tag[" .. i .. "]" }
       end
     end
     if n.title then
@@ -229,7 +237,14 @@ function M.list(ordered, items)
 end
 
 function M.list_item(opts)
-  return { kind = "list_item", checkbox = opts.checkbox, content = opts.content or {} }
+  return {
+    kind = "list_item",
+    marker = opts.marker,
+    counter = opts.counter,
+    checkbox = opts.checkbox,
+    tag = opts.tag,
+    content = opts.content or {},
+  }
 end
 
 function M.block(style, opts)
