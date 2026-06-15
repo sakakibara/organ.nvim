@@ -44,7 +44,7 @@ M.BLOCK = {
 M.INLINE = {
   text = true, -- { text = "string" }
   emphasis = true, -- { style = "bold"|"italic"|"underline"|"strike"|"verbatim"|"code", content = inline[] }
-  link = true, -- { target = "string", description = inline[] | nil }
+  link = true, -- { target = "string", description = inline[] | nil, form? = "plain"|"angle" }
   image = true, -- { target = "string", alt = "string"|nil }
   footnote_ref = true, -- { label = "string"|nil, content = inline[]|nil }
   math = true, -- { display = bool, body = "string", style = "dollar"|"paren"|"bracket" }
@@ -191,8 +191,8 @@ function M.emphasis(style, content)
   return { kind = "emphasis", style = style, content = content or {} }
 end
 
-function M.link(target, description)
-  return { kind = "link", target = target, description = description }
+function M.link(target, description, form)
+  return { kind = "link", target = target, description = description, form = form }
 end
 
 function M.entity(name)

@@ -209,14 +209,25 @@ do
     { "[fn:note] the definition body with *bold*." },
     "regression: footnote definition body"
   )
-  -- bare links keep their exact surface form (raw_inline, not re-bracketed)
-  local plain = first_kind(inline_of({ "Visit https://example.com today" }), "raw_inline")
+  -- bare links are typed link nodes carrying their surface form, and emit
+  -- back bare (not re-bracketed as [[...]]).
+  local plain = first_kind(inline_of({ "Visit https://example.com today" }), "link")
   check(
-    plain ~= nil and plain.text == "https://example.com",
-    "regression: bare URL captured as raw_inline via link_plain"
+    plain ~= nil and plain.form == "plain" and plain.target == "https://example.com",
+    "regression: bare URL captured as a plain-form link"
   )
   assert_roundtrip({ "Visit https://example.com today" }, "regression: bare URL round-trips")
+  local angle = first_kind(inline_of({ "Angle <https://example.com> link" }), "link")
+  check(
+    angle ~= nil and angle.form == "angle" and angle.target == "https://example.com",
+    "regression: angle URL captured as an angle-form link (brackets stripped)"
+  )
   assert_roundtrip({ "Angle <https://example.com> link" }, "regression: angle link round-trips")
+  -- a bare image URL stays a plain link (not rewritten to a block image)
+  assert_roundtrip(
+    { "Pic https://example.com/a.png here" },
+    "regression: bare image URL stays a plain link"
+  )
 end
 
 print("ALL PASS: ast_inline_roundtrip")

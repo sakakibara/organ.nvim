@@ -189,6 +189,11 @@ do
         local desc_text = child_text(node, "link_description")
         local desc = desc_text and parse_inline(desc_text) or nil
         return A.link(target, desc)
+      elseif t == "link_plain" then
+        return A.link(child_text(node, "link_target") or "", nil, "plain")
+      elseif t == "link_angle" then
+        local target = (child_text(node, "link_target") or ""):gsub("^<", ""):gsub(">$", "")
+        return A.link(target, nil, "angle")
       elseif t == "latex_fragment" then
         return latex_to_math(txt(node))
       elseif t == "entity" then
@@ -546,7 +551,12 @@ emit_section_child = function(node, src)
         non_ws_count = non_ws_count + 2 -- force the heuristic to fail
       end
     end
-    if non_ws_count == 1 and the_link and is_image_target(the_link.target) then
+    if
+      non_ws_count == 1
+      and the_link
+      and (the_link.form == nil or the_link.form == "regular")
+      and is_image_target(the_link.target)
+    then
       return {
         kind = "image",
         target = the_link.target,

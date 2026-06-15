@@ -26,7 +26,11 @@ local function emit_inline(nodes)
       })[n.style] or "*"
       out[#out + 1] = delim .. emit_inline(n.content) .. delim
     elseif n.kind == "link" then
-      if n.description and #n.description > 0 then
+      if n.form == "plain" then
+        out[#out + 1] = n.target or ""
+      elseif n.form == "angle" then
+        out[#out + 1] = "<" .. (n.target or "") .. ">"
+      elseif n.description and #n.description > 0 then
         out[#out + 1] = "[[" .. (n.target or "") .. "][" .. emit_inline(n.description) .. "]]"
       else
         out[#out + 1] = "[[" .. (n.target or "") .. "]]"
