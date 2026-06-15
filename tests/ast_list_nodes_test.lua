@@ -44,4 +44,11 @@ local doc = A.document({
 local ok, err = A.validate(doc)
 check(ok, "validate: list_item with tag is valid (" .. tostring(err) .. ")")
 
+-- validate now descends into list items and rejects a bogus child.
+local bad = A.document({
+  A.list(false, { A.list_item({ content = { { kind = "NOT_A_REAL_KIND" } } }) }),
+})
+local bad_ok = A.validate(bad)
+check(not bad_ok, "validate: rejects a bogus node inside a list item")
+
 print("ALL PASS: ast_list_nodes")

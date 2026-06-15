@@ -136,6 +136,14 @@ function M.validate(root)
         stack[#stack + 1] = { node = c, where = frame.where .. ".title[" .. i .. "]" }
       end
     end
+    if n.items then
+      if not is_array(n.items) then
+        return false, frame.where .. ".items: not an array"
+      end
+      for i, c in ipairs(n.items) do
+        stack[#stack + 1] = { node = c, where = frame.where .. ".items[" .. i .. "]" }
+      end
+    end
   end
   return true
 end
