@@ -138,7 +138,9 @@ local function emit_list(node, out, depth)
     end
     n = n + 1
   end
-  out[#out + 1] = ""
+  if depth == 0 then
+    out[#out + 1] = ""
+  end
 end
 
 local function emit_table(node, out)

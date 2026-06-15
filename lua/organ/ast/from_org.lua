@@ -589,25 +589,49 @@ emit_section_child = function(node, src)
     local ordered = false
     for c in node:iter_children() do
       if c:type() == "list_item" then
-        local item_text = get_text(c, src)
-        local first = item_text:match("^([^\n]*)") or ""
-        local prefix = first:match("^%s*([-+*]?[%w]*[%.])") or first:match("^%s*([-+*])")
-        if prefix and prefix:match("^%d") then
-          ordered = true
+        local marker, counter, checkbox, tag
+        local content = {}
+        for ic in c:iter_children() do
+          local it = ic:type()
+          if it == "bullet" then
+            marker = get_text(ic, src):gsub("^%s+", ""):gsub("%s+$", "")
+            if marker:match("^%d") then
+              ordered = true
+            end
+          elseif it == "counter" then
+            counter = get_text(ic, src):match("%[@(.-)%]")
+          elseif it == "checkbox" then
+            local cb = get_text(ic, src)
+            if cb:match("%[ %]") then
+              checkbox = "todo"
+            elseif cb:match("%[[xX]%]") then
+              checkbox = "done"
+            elseif cb:match("%[%-%]") then
+              checkbox = "part"
+            end
+          elseif it == "item_tag" then
+            tag = parse_inline(get_text(ic, src):gsub("%s+$", ""))
+          elseif it == "paragraph" then
+            content[#content + 1] = A.paragraph(parse_inline(get_text(ic, src):gsub("\n+$", "")))
+          else
+            local block = emit_section_child(ic, src)
+            if block then
+              if type(block) == "table" and block[1] and not block.kind then
+                for _, b in ipairs(block) do
+                  content[#content + 1] = b
+                end
+              else
+                content[#content + 1] = block
+              end
+            end
+          end
         end
-        local checkbox
-        if first:match("%[ %]") then
-          checkbox = "todo"
-        elseif first:match("%[[xX]%]") then
-          checkbox = "done"
-        elseif first:match("%[%-%]") then
-          checkbox = "part"
-        end
-        local body = first:gsub("^%s*[-+*0-9.]+%s+", "")
-        body = body:gsub("^%[[ xX%-]%]%s*", "")
         items[#items + 1] = A.list_item({
+          marker = marker,
+          counter = counter,
           checkbox = checkbox,
-          content = { A.paragraph(parse_inline(body)) },
+          tag = tag,
+          content = content,
         })
       end
     end
