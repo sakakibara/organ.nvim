@@ -230,4 +230,14 @@ do
   )
 end
 
+-- radio-target definition is a typed node and round-trips ------------
+do
+  local n = first_kind(inline_of({ "Define <<<my phrase>>> here." }), "radio_target")
+  check(
+    n ~= nil and n.phrase == "my phrase",
+    "radio_target: definition captured (brackets stripped)"
+  )
+  assert_roundtrip({ "Define <<<my phrase>>> here." }, "radio_target: definition round-trips")
+end
+
 print("ALL PASS: ast_inline_roundtrip")

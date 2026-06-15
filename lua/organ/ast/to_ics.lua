@@ -81,6 +81,8 @@ local function inline_text(nodes)
       out[#out + 1] = n.text or ""
     elseif n.kind == "emphasis" then
       out[#out + 1] = inline_text(n.content)
+    elseif n.kind == "radio_target" then
+      out[#out + 1] = n.phrase or ""
     elseif n.kind == "link" then
       if n.description and #n.description > 0 then
         out[#out + 1] = inline_text(n.description)

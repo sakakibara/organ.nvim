@@ -22,6 +22,8 @@ function emit_inline(nodes)
       out[#out + 1] = n.text or ""
     elseif n.kind == "emphasis" then
       out[#out + 1] = emit_inline(n.content)
+    elseif n.kind == "radio_target" then
+      out[#out + 1] = n.phrase or ""
     elseif n.kind == "link" then
       local target = n.target or ""
       if n.description and #n.description > 0 then

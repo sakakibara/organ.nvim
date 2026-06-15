@@ -25,8 +25,12 @@ local function emit_inline(nodes)
         code = "~",
       })[n.style] or "*"
       out[#out + 1] = delim .. emit_inline(n.content) .. delim
+    elseif n.kind == "radio_target" then
+      out[#out + 1] = "<<<" .. (n.phrase or "") .. ">>>"
     elseif n.kind == "link" then
-      if n.form == "plain" then
+      if n.form == "radio" then
+        out[#out + 1] = emit_inline(n.description)
+      elseif n.form == "plain" then
         out[#out + 1] = n.target or ""
       elseif n.form == "angle" then
         out[#out + 1] = "<" .. (n.target or "") .. ">"

@@ -63,6 +63,8 @@ function emit_inline(nodes)
       else
         out[#out + 1] = inner
       end
+    elseif n.kind == "radio_target" then
+      out[#out + 1] = html_escape(n.phrase or "")
     elseif n.kind == "link" then
       local target = html_escape(n.target or "")
       if n.description and #n.description > 0 then

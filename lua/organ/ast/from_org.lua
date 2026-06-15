@@ -194,6 +194,9 @@ do
       elseif t == "link_angle" then
         local target = (child_text(node, "link_target") or ""):gsub("^<", ""):gsub(">$", "")
         return A.link(target, nil, "angle")
+      elseif t == "link_radio" then
+        local phrase = (child_text(node, "link_target") or ""):gsub("^<<<", ""):gsub(">>>$", "")
+        return A.radio_target(phrase)
       elseif t == "latex_fragment" then
         return latex_to_math(txt(node))
       elseif t == "entity" then
