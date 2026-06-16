@@ -33,19 +33,20 @@ local function visit(n, fn)
   end
 end
 
--- Unique radio-target phrases in document order, deduped case-insensitively,
--- sorted by length descending (longest-match preference).
-function M.collect_targets(ast)
+-- Dedupe (case-insensitive, first wins), drop blank, sort length-desc
+-- (alphabetical tiebreak). Shared by collect_targets and the editor cache
+-- so highlight/follow and resolve agree on what matches.
+function M.normalize_targets(phrases)
   local seen, order = {}, {}
-  visit(ast, function(n)
-    if n.kind == "radio_target" and n.phrase and n.phrase:match("%S") then
-      local key = n.phrase:lower()
+  for _, p in ipairs(phrases or {}) do
+    if type(p) == "string" and p:match("%S") then
+      local key = p:lower()
       if not seen[key] then
         seen[key] = true
-        order[#order + 1] = n.phrase
+        order[#order + 1] = p
       end
     end
-  end)
+  end
   table.sort(order, function(a, b)
     if #a ~= #b then
       return #a > #b
@@ -53,6 +54,18 @@ function M.collect_targets(ast)
     return a < b
   end)
   return order
+end
+
+-- Unique radio-target phrases in document order, deduped case-insensitively,
+-- sorted by length descending (longest-match preference).
+function M.collect_targets(ast)
+  local raw = {}
+  visit(ast, function(n)
+    if n.kind == "radio_target" and n.phrase then
+      raw[#raw + 1] = n.phrase
+    end
+  end)
+  return M.normalize_targets(raw)
 end
 
 -- A Lua pattern matching the phrase case-insensitively (caller lowercases

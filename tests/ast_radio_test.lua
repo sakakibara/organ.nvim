@@ -158,4 +158,11 @@ do
   check(deep_eq(twice, once), "resolve: idempotent")
 end
 
+-- normalize_targets: dedupe (case-insensitive), drop blank, longest-first.
+do
+  local got = radio.normalize_targets({ "lead", "Lead", "  ", "", "lead developer" })
+  check(#got == 2, "normalize: blanks dropped + deduped to 2")
+  check(got[1] == "lead developer" and got[2] == "lead", "normalize: longest-first")
+end
+
 print("ALL PASS: ast_radio (core)")
