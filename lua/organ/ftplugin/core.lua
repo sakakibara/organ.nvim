@@ -362,6 +362,9 @@ function M.attach(bufnr)
   pcall(function()
     require("organ.description_list").attach(bufnr)
   end)
+  pcall(function()
+    require("organ.radio").attach(bufnr)
+  end)
 
   -- Formatter: hook `gq` to organ.format (paragraph rewrap that
   -- preserves headlines / lists / drawers / blocks / tables).

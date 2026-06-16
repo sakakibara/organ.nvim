@@ -42,4 +42,35 @@ do
   check(#radio.targets(b).phrases == 1, "cache: rebuilt after edit (changedtick)")
 end
 
+-- highlight: occurrences get an extmark; defs / code / links do not.
+do
+  local b = mkbuf({
+    "Define <<<my phrase>>> here.",
+    "Use my phrase plainly.",
+    "In code ~my phrase~ stays.",
+    "In a link [[x][my phrase]] stays.",
+  })
+  radio._apply(b)
+  local NS = vim.api.nvim_create_namespace("organ_radio")
+  local marks = vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, { details = true })
+  local rows = {}
+  for _, m in ipairs(marks) do
+    rows[m[2]] = true
+  end
+  check(rows[1] == true, "highlight: plain occurrence (row 1) marked")
+  check(rows[0] ~= true, "highlight: definition (row 0) NOT marked")
+  check(rows[2] ~= true, "highlight: occurrence inside ~code~ NOT marked")
+  check(rows[3] ~= true, "highlight: occurrence inside a link NOT marked")
+end
+
+-- disabled: no marks.
+do
+  local b = mkbuf({ "Define <<<foo>>> then foo again." })
+  require("organ.buf_config").set(b, "radio.enabled", false)
+  radio._apply(b)
+  local NS = vim.api.nvim_create_namespace("organ_radio")
+  local marks = vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, {})
+  check(#marks == 0, "highlight: radio.enabled=false places no marks")
+end
+
 print("ALL PASS: radio_editor (cache)")

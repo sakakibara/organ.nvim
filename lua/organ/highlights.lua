@@ -159,6 +159,7 @@ local STATIC_LINKS = {
   ["@organ.find.title"] = "Normal",
   ["@organ.find.path"] = "Comment",
   ["@organ.find.backlinks"] = "Special",
+  ["@organ.radio"] = "Underlined",
 }
 
 -- Default per-keyword links for the common TODO keywords. Without these,
