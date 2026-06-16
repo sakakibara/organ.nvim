@@ -127,6 +127,12 @@ function M.attach(bufnr)
   for key, path in pairs(cmd_map) do
     local lhs = cfg[key]
     if lhs and lhs ~= "" and lhs ~= false then
+      -- A bare `<<`/`>>` chord falls through to Vim's native indent when
+      -- the cursor is not on a headline, so `>>` on a DEADLINE / body /
+      -- list line just changes its indent (matching the visual-mode
+      -- binding). Alt / LocalLeader chords have no native meaning and
+      -- always run the structure op.
+      local native = (lhs:match("^<+$") or lhs:match("^>+$")) and lhs or nil
       -- Normal-mode binding for every action.
       vim.api.nvim_buf_set_keymap(bufnr, "n", lhs, "", {
         noremap = true,
@@ -136,6 +142,13 @@ function M.attach(bufnr)
           -- Honor `vim.v.count` so `2>>` demotes twice, `3<<` promotes
           -- thrice, etc. Default count is 0 which we map to 1.
           local n = math.max(1, vim.v.count1)
+          if native then
+            local cur = vim.fn.line(".")
+            if not require("organ.structure")._range_has_headline(0, cur, cur) then
+              pcall(vim.cmd, "normal! " .. (n > 1 and tostring(n) or "") .. native)
+              return
+            end
+          end
           for _ = 1, n do
             dispatch(path)
           end
