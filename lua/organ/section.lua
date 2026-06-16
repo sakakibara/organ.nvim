@@ -189,15 +189,16 @@ function M.canonicalize(bufnr, headline_row)
       entries[kw:lower()] = ts_on_line(line, kw)
     end
   end
-  local block = M.render_planning(entries, M.planning_indent(bufnr, headline_row))
+  local indent = M.planning_indent(bufnr, headline_row)
+  local block = M.render_planning(entries, indent)
   if pd then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, pd.start_line - 1, pd.end_line, false)) do
-      block[#block + 1] = l
+      block[#block + 1] = indent .. l:gsub("^%s*", "")
     end
   end
   if lb then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, lb.start_line - 1, lb.end_line, false)) do
-      block[#block + 1] = l
+      block[#block + 1] = indent .. l:gsub("^%s*", "")
     end
   end
 
