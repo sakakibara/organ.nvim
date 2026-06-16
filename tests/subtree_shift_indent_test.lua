@@ -72,4 +72,27 @@ do
   )
 end
 
+-- Insert mode: `>>` is literal text, NOT a demote.
+do
+  local b = mkbuf({ "* Head", "note " })
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  feed("A>>")
+  feed("<Esc>")
+  check(line1(b) == "* Head", "insert: >> does NOT demote the headline")
+  check(
+    vim.api.nvim_buf_get_lines(b, 1, 2, false)[1] == "note >>",
+    "insert: >> is inserted literally"
+  )
+end
+
+-- Insert mode: an Alt chord still promotes/demotes (drafting convenience).
+do
+  local b = mkbuf({ "* Head" })
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  feed("A")
+  feed("<M-l>")
+  feed("<Esc>")
+  check(line1(b) == "** Head", "insert: <M-l> still demotes while drafting")
+end
+
 print("ALL PASS: subtree_shift_indent")

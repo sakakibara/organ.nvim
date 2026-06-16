@@ -166,16 +166,11 @@ function M.attach(bufnr)
       -- moved the cursor onto the new `* ` line; user autocmds that
       -- "strip trailing whitespace on InsertLeave" (a common config)
       -- then ate the trailing space, producing `*` instead of `* `.
-      if key == "meta_return" then
-        vim.api.nvim_buf_set_keymap(bufnr, "i", lhs, "", {
-          noremap = true,
-          silent = true,
-          desc = descs[key] or key,
-          callback = function()
-            dispatch(path)
-          end,
-        })
-      else
+      -- Insert-mode binding for every chord EXCEPT a bare `<<`/`>>`: those
+      -- must stay literal text in insert mode (you type `a >> b`, not a
+      -- demote). Alt chords / <M-CR> have no literal meaning, so a headline
+      -- can still be promoted / demoted / split from insert while drafting.
+      if not native then
         vim.api.nvim_buf_set_keymap(bufnr, "i", lhs, "", {
           noremap = true,
           silent = true,
