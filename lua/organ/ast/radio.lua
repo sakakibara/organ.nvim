@@ -224,7 +224,7 @@ local function resolve_block(n, match)
     end
     copy.rows = rows
     return copy
-  elseif k == "block" and type(n.content) == "table" then
+  elseif (k == "block" or k == "footnote_definition") and type(n.content) == "table" then
     local copy = {}
     for key, v in pairs(n) do
       copy[key] = v

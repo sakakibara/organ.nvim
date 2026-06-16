@@ -133,6 +133,22 @@ do
 end
 
 do
+  -- a phrase inside a footnote-definition body is linkified too.
+  local doc = A.document({
+    A.paragraph({ A.radio_target("foo") }),
+    A.footnote_definition("1", { A.paragraph({ A.text("see foo here") }) }),
+  })
+  local fn = radio.resolve(doc).children[2]
+  local linked = false
+  for _, b in ipairs(fn.content[1].inline) do
+    if b.kind == "link" and b.form == "radio" then
+      linked = true
+    end
+  end
+  check(linked, "resolve: phrase inside a footnote definition is linked")
+end
+
+do
   -- no targets -> unchanged; idempotent.
   local plain = A.document({ A.paragraph({ A.text("no targets here") }) })
   check(deep_eq(radio.resolve(plain), plain), "resolve: no targets is a no-op")
