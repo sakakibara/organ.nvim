@@ -980,6 +980,22 @@ Fold                                                       *organ-config-fold*
     (`white` / `whitestart`) gate on leading-whitespace indentation
     context, which has no normal-mode analog.
 
+                                     *organ-config-fold-cycle_separator_lines*
+    `fold.cycle_separator_lines` (int | false, default: `2`)
+    Mirrors Emacs `org-cycle-separator-lines`.  Number of trailing
+    blank lines to keep visible after a folded section.  The last
+    `min(blanks, max(N, 1))` blank lines before the next heading stay
+    outside the section's fold; the rest fold with the section.  `0`
+    reduces to "always 1 visible" (matches Emacs).  `false` disables
+    the feature and folds every trailing blank with the section above.
+
+                                     *organ-config-fold-close_drawers_on_open*
+    `fold.close_drawers_on_open` (bool, default: `true`)
+    Mirrors Emacs `org-cycle-hide-drawer-startup`.  When `true`,
+    drawers (LOGBOOK, NOTES, PROPERTIES, custom `:NAME:`...`:END:`)
+    start collapsed when an org buffer opens.  Set `false` to keep
+    them expanded.
+
                                                   *organ-config-fold-foldtext*
     `fold.foldtext` (string | function | false, default: `"emacs"`)
     Selects what `organ.fold.foldtext()` RETURNS when your
