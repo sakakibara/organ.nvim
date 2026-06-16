@@ -167,11 +167,28 @@ function M.set_heading_state(bufnr, line, state)
   M._state[bufnr][headline_line] = state
 end
 
+local function cycle_heading(bufnr, heading, headline_line)
+  M._state[bufnr] = M._state[bufnr] or {}
+  local cur = detect_heading_state(heading, headline_line)
+  local nxt = next_state(cur)
+  apply_state(bufnr, heading, headline_line, nxt)
+  M._state[bufnr][headline_line] = nxt
+end
+
+-- <Tab>: 3-state cycle when on a headline, toggle when on a drawer line.
+-- Returns true when an org visibility action was taken, false when the key
+-- should fall through to its native <Tab>/<C-i> meaning.
+--
+-- On a NON-headline line the behavior follows Emacs `org-cycle-emulate-tab`
+-- (`fold.cycle_emulate_tab`):
+--   true  (default): emulate <Tab> -- take no fold action and return false
+--                    so the keymap passes the key through.  Emacs emulates
+--                    TAB as indentation; the normal-mode analog is <C-i>.
+--   false:           cycle the ENCLOSING heading's subtree (Emacs `nil`).
 function M.cycle(bufnr, line)
   bufnr = nbuf(bufnr)
   -- Cursor on a (property_)drawer line: toggle that drawer's fold
-  -- (Emacs `org-cycle` behavior on drawer headers).  Falls through
-  -- to the headline cycle below for any other line.
+  -- (Emacs `org-cycle` behavior on drawer headers).
   local drawer = find_drawer_at(bufnr, line)
   if drawer then
     local sr = drawer:start() + 1
@@ -179,20 +196,27 @@ function M.cycle(bufnr, line)
     vim.api.nvim_win_set_cursor(0, { sr, 0 })
     pcall(vim.cmd, "silent! normal! za")
     pcall(vim.api.nvim_win_set_cursor, 0, saved)
-    return
+    return true
   end
 
+  -- `find_heading_at` returns the nearest enclosing headline; on a body
+  -- line that headline starts ABOVE the cursor (headline_line < line), so
+  -- `headline_line == line` is exactly "cursor sits on the headline".
   local heading, headline_line = find_heading_at(bufnr, line)
-  if not heading then
-    pcall(vim.cmd, "silent! normal! za")
-    return
+  if heading and headline_line == line then
+    cycle_heading(bufnr, heading, headline_line)
+    return true
   end
 
-  M._state[bufnr] = M._state[bufnr] or {}
-  local cur = detect_heading_state(heading, headline_line)
-  local nxt = next_state(cur)
-  apply_state(bufnr, heading, headline_line, nxt)
-  M._state[bufnr][headline_line] = nxt
+  local emulate = require("organ.buf_config").read(bufnr, "fold.cycle_emulate_tab")
+  if emulate == nil then
+    emulate = true
+  end
+  if emulate or not heading then
+    return false
+  end
+  cycle_heading(bufnr, heading, headline_line)
+  return true
 end
 
 -- Global fold states, in Emacs `org-cycle` terms:

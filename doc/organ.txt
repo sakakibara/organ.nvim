@@ -964,6 +964,22 @@ Fold                                                       *organ-config-fold*
     Note: `<Tab>` is shared with table navigation. When the cursor is
     on a table row it navigates cells; on a headline it folds.
 
+                                         *organ-config-fold-cycle_emulate_tab*
+    `fold.cycle_emulate_tab` (bool, default: `true`)
+    Mirrors Emacs `org-cycle-emulate-tab`.  Governs `<Tab>` on a
+    NON-headline line:
+
+        true  -- (default) take no fold action and let the key fall
+                 through to its native meaning (normal-mode `<Tab>` is
+                 `<C-i>`, jumplist-forward).  Matches the Emacs default,
+                 which emulates TAB rather than folding.
+        false -- cycle the enclosing heading's subtree (Emacs
+                 `org-cycle-emulate-tab = nil`).
+
+    Only the boolean is supported.  Emacs's positional variants
+    (`white` / `whitestart`) gate on leading-whitespace indentation
+    context, which has no normal-mode analog.
+
                                                   *organ-config-fold-foldtext*
     `fold.foldtext` (string | function | false, default: `"emacs"`)
     Selects what `organ.fold.foldtext()` RETURNS when your

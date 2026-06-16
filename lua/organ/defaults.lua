@@ -617,6 +617,18 @@ return {
     -- Emacs).  Set to false to disable and fold every trailing blank
     -- with the section above (the pre-0.x organ.nvim behavior).
     cycle_separator_lines = 2,
+    -- Mirrors Emacs `org-cycle-emulate-tab`.  Governs <Tab> on a
+    -- NON-headline line:
+    --   true  (default) -- emulate <Tab>: take no fold action and let
+    --                      the key do its native job (normal-mode <C-i>,
+    --                      i.e. jumplist-forward).  Matches the Emacs
+    --                      default, which indents rather than folding.
+    --   false           -- cycle the enclosing heading's subtree (Emacs
+    --                      `org-cycle-emulate-tab = nil`).
+    -- Emacs's positional variants (`white` / `whitestart`) describe
+    -- leading-whitespace indentation context, which has no normal-mode
+    -- analog, so only the boolean is supported.
+    cycle_emulate_tab = true,
     -- Renderer that `organ.fold.foldtext()` returns when your
     -- 'foldtext' option calls into it.  By default organ does NOT
     -- set 'foldtext' itself -- you wire it via your config (see

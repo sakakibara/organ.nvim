@@ -284,7 +284,12 @@ function M.attach(bufnr)
   local km_fold = cfg_fold.keymaps ~= false and (cfg_fold.keymaps or {}) or {}
   map(km_fold.cycle, function()
     local line = vim.api.nvim_win_get_cursor(0)[1]
-    require("organ.fold").cycle(bufnr, line)
+    if not require("organ.fold").cycle(bufnr, line) then
+      -- Not a headline/drawer and `cycle_emulate_tab` is on: emulate the
+      -- key's native meaning (normal-mode <Tab> == <C-i>, jumplist-forward)
+      -- instead of folding (Emacs `org-cycle-emulate-tab`).
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<C-i>", true, false, true), "n", false)
+    end
   end, "Cycle fold (heading 3-state)")
   map(km_fold.cycle_global, function()
     require("organ.fold").cycle_global(bufnr)
