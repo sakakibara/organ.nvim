@@ -84,10 +84,14 @@ local function inline_text(nodes)
     elseif n.kind == "radio_target" then
       out[#out + 1] = n.phrase or ""
     elseif n.kind == "link" then
-      if n.description and #n.description > 0 then
+      if n.form == "radio" then
         out[#out + 1] = inline_text(n.description)
       else
-        out[#out + 1] = n.target or ""
+        if n.description and #n.description > 0 then
+          out[#out + 1] = inline_text(n.description)
+        else
+          out[#out + 1] = n.target or ""
+        end
       end
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""

@@ -32,6 +32,7 @@ function M.export(src, opts)
   if not ok then
     error("export.opml: AST validation failed: " .. err)
   end
+  ast = require("organ.ast.radio").resolve(ast)
   return require("organ.ast.to_opml").render(ast, opts)
 end
 

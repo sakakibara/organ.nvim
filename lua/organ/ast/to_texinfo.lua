@@ -59,11 +59,15 @@ function emit_inline(nodes)
     elseif n.kind == "radio_target" then
       out[#out + 1] = escape_text(n.phrase or "")
     elseif n.kind == "link" then
-      local target = n.target or ""
-      if n.description and #n.description > 0 then
-        out[#out + 1] = "@uref{" .. target .. ", " .. emit_inline(n.description) .. "}"
+      if n.form == "radio" then
+        out[#out + 1] = emit_inline(n.description)
       else
-        out[#out + 1] = "@uref{" .. target .. "}"
+        local target = n.target or ""
+        if n.description and #n.description > 0 then
+          out[#out + 1] = "@uref{" .. target .. ", " .. emit_inline(n.description) .. "}"
+        else
+          out[#out + 1] = "@uref{" .. target .. "}"
+        end
       end
     elseif n.kind == "image" then
       -- Texinfo's @image is block-level only; drop inline images.

@@ -40,6 +40,7 @@ function M.export(src, opts)
   if not ok then
     error("export.markdown: AST validation failed: " .. err)
   end
+  ast = require("organ.ast.radio").resolve(ast)
   local result = require("organ.ast.to_md").render(ast, opts)
 
   if native_ctx then

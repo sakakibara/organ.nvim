@@ -101,6 +101,7 @@ function M.export(src, opts)
   if not ok then
     error("export.beamer: AST validation failed: " .. err)
   end
+  ast = require("organ.ast.radio").resolve(ast)
 
   local kw = collect_keywords(ast)
 

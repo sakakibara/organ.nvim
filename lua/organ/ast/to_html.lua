@@ -31,6 +31,19 @@ local function html_escape(s)
   return s
 end
 
+-- Keep non-ASCII bytes (so a Japanese/accented phrase yields a distinct,
+-- non-empty id instead of collapsing to ""); hex-fallback if still empty.
+local function slug(phrase)
+  local s = (phrase or ""):lower():gsub("[%s%p]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
+  if s == "" then
+    s = "r-"
+      .. (phrase or ""):gsub(".", function(c)
+        return string.format("%02x", string.byte(c))
+      end)
+  end
+  return s
+end
+
 -- Module-local flag flipped on whenever a math region is encountered.
 -- M.render checks this when assembling the document head so MathJax
 -- loads only when needed. Reset at the start of every render call.
@@ -64,13 +77,25 @@ function emit_inline(nodes)
         out[#out + 1] = inner
       end
     elseif n.kind == "radio_target" then
-      out[#out + 1] = html_escape(n.phrase or "")
+      out[#out + 1] = '<span id="'
+        .. slug(n.phrase)
+        .. '">'
+        .. html_escape(n.phrase or "")
+        .. "</span>"
     elseif n.kind == "link" then
-      local target = html_escape(n.target or "")
-      if n.description and #n.description > 0 then
-        out[#out + 1] = '<a href="' .. target .. '">' .. emit_inline(n.description) .. "</a>"
+      if n.form == "radio" then
+        out[#out + 1] = '<a href="#'
+          .. slug(n.target)
+          .. '">'
+          .. emit_inline(n.description)
+          .. "</a>"
       else
-        out[#out + 1] = '<a href="' .. target .. '">' .. target .. "</a>"
+        local target = html_escape(n.target or "")
+        if n.description and #n.description > 0 then
+          out[#out + 1] = '<a href="' .. target .. '">' .. emit_inline(n.description) .. "</a>"
+        else
+          out[#out + 1] = '<a href="' .. target .. '">' .. target .. "</a>"
+        end
       end
     elseif n.kind == "image" then
       local target = html_escape(n.target or "")

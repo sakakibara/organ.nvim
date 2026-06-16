@@ -25,11 +25,15 @@ function emit_inline(nodes)
     elseif n.kind == "radio_target" then
       out[#out + 1] = n.phrase or ""
     elseif n.kind == "link" then
-      local target = n.target or ""
-      if n.description and #n.description > 0 then
-        out[#out + 1] = emit_inline(n.description) .. " (" .. target .. ")"
+      if n.form == "radio" then
+        out[#out + 1] = emit_inline(n.description)
       else
-        out[#out + 1] = target
+        local target = n.target or ""
+        if n.description and #n.description > 0 then
+          out[#out + 1] = emit_inline(n.description) .. " (" .. target .. ")"
+        else
+          out[#out + 1] = target
+        end
       end
     elseif n.kind == "math" then
       out[#out + 1] = n.body or ""

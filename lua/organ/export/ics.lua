@@ -29,6 +29,7 @@ function M.export(src, opts)
   if not ok then
     error("export.ics: AST validation failed: " .. err)
   end
+  ast = require("organ.ast.radio").resolve(ast)
   return to_ics.render(ast, opts)
 end
 

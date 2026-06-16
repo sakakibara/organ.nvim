@@ -110,6 +110,7 @@ local function lua_engine_bytes(bufnr, opts)
   if not ok then
     return nil, "export.pdf: AST validation failed: " .. err
   end
+  ast = require("organ.ast.radio").resolve(ast)
   local bytes, rerr = require("organ.pdf").render(ast, opts)
   if not bytes then
     return nil, "export.pdf (lua engine): " .. tostring(rerr)

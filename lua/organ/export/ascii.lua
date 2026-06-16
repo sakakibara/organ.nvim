@@ -40,6 +40,7 @@ function M.export(src, opts)
   if not ok then
     error("export.ascii: AST validation failed: " .. err)
   end
+  ast = require("organ.ast.radio").resolve(ast)
   local result = require("organ.ast.to_ascii").render(ast, opts)
 
   if native_ctx then
