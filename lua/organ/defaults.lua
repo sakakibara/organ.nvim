@@ -681,6 +681,13 @@ return {
     hide = false,
   },
 
+  -- Radio links (Emacs `<<<radio target>>>`). Highlights plain
+  -- occurrences of a defined phrase and makes them follow-able (jump to
+  -- the definition). Set `enabled = false` to turn off both.
+  radio = {
+    enabled = true,
+  },
+
   -- Countdown timer (Emacs `org-timer-set-timer`). Used for pomodoro-
   -- style focus sessions. Wired through :Org timer start / :Org timer stop
   -- / :Org timer pause; statusline component at organ.timer.statusline().
