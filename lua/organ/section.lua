@@ -40,20 +40,19 @@ function M.where(bufnr, headline_row, kind)
   error("section.where: unknown kind " .. tostring(kind))
 end
 
--- Canonical planning order. Values align under the SCHEDULED keyword,
--- whose "SCHEDULED:" is the widest at 10 columns.
+-- Canonical planning order.
 local PLANNING_ORDER = { "SCHEDULED", "DEADLINE", "CLOSED" }
-local PLANNING_PAD = 10
 
 -- Render the canonical planning block: one keyword per line, in fixed
--- order, values column-aligned, prefixed with `indent`. `entries` maps
--- lower-case keyword -> timestamp string (e.g. "<...>" or "[...]").
+-- order, exactly one space after the colon (Emacs form, matching the
+-- to_org exporter), prefixed with `indent`. `entries` maps lower-case
+-- keyword -> timestamp string (e.g. "<...>" or "[...]").
 function M.render_planning(entries, indent)
   local out = {}
   for _, kw in ipairs(PLANNING_ORDER) do
     local ts = entries[kw:lower()]
     if ts then
-      out[#out + 1] = indent .. string.format("%-" .. PLANNING_PAD .. "s %s", kw .. ":", ts)
+      out[#out + 1] = indent .. kw .. ": " .. ts
     end
   end
   return out

@@ -89,7 +89,7 @@ do
     cb("2026-05-15")
   end
   require("organ.schedule").set_deadline()
-  -- The canonical rewrite normalizes "DEADLINE: " -> "  DEADLINE:  " even for
+  -- The canonical rewrite indents "DEADLINE: " -> "  DEADLINE: " even for
   -- a same-date set, so the buffer is marked modified.
   check(
     "deadline same-date non-canonical: modified becomes true",
@@ -126,7 +126,7 @@ do
   vim.bo[b].filetype = "org"
   vim.api.nvim_buf_set_lines(b, 0, -1, false, {
     "* TODO Task",
-    "  DEADLINE:  <2026-05-15 Fri>",
+    "  DEADLINE: <2026-05-15 Fri>",
     "  body",
   })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })

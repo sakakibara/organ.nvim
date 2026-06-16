@@ -57,7 +57,7 @@ do
   local lines = get_lines(b)
   -- Each keyword now occupies its own line.
   assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
-  assert_eq(lines[3], "  DEADLINE:  <2026-05-01 Fri>")
+  assert_eq(lines[3], "  DEADLINE: <2026-05-01 Fri>")
   assert_eq(lines[4], "  body")
   assert_eq(#lines, 4, "one extra line from canonical separate-line format")
 end

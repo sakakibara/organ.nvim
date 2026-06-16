@@ -136,8 +136,8 @@ do
     "render: three aligned lines in order",
     vim.deep_equal(lines, {
       "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE:  <2026-05-07 Thu>",
-      "  CLOSED:    [2026-05-04 Mon 12:00]",
+      "  DEADLINE: <2026-05-07 Thu>",
+      "  CLOSED: [2026-05-04 Mon 12:00]",
     }),
     vim.inspect(lines)
   )
@@ -147,7 +147,7 @@ do
   check(
     "render: single keyword still aligned to SCHEDULED width",
     vim.deep_equal(lines, {
-      "  DEADLINE:  <2026-05-07 Thu>",
+      "  DEADLINE: <2026-05-07 Thu>",
     }),
     vim.inspect(lines)
   )
@@ -170,7 +170,7 @@ do
     vim.deep_equal(got, {
       "* TODO Combined",
       "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE:  <2026-05-08 Fri>",
+      "  DEADLINE: <2026-05-08 Fri>",
       "  body",
     }),
     vim.inspect(got)
@@ -199,7 +199,7 @@ do
     vim.deep_equal(got, {
       "* DONE Keep",
       "  SCHEDULED: <2026-05-06 Wed>",
-      "  CLOSED:    [2026-05-04 Mon 12:00]",
+      "  CLOSED: [2026-05-04 Mon 12:00]",
       "  body",
     }),
     vim.inspect(got)
@@ -221,8 +221,8 @@ do
   local b = buf_with({
     "* DONE Task",
     "  SCHEDULED: <2026-05-06 Wed>",
-    "  DEADLINE:  <2026-05-07 Thu>",
-    "  CLOSED:    [2026-05-04 Mon 12:00]",
+    "  DEADLINE: <2026-05-07 Thu>",
+    "  CLOSED: [2026-05-04 Mon 12:00]",
     "  :PROPERTIES:",
     "  :FOO: bar",
     "  :END:",
@@ -279,7 +279,7 @@ do
     vim.deep_equal(got, {
       "* TODO Task",
       "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE:  <2026-05-07 Thu>",
+      "  DEADLINE: <2026-05-07 Thu>",
       "  body",
     }),
     vim.inspect(got)
