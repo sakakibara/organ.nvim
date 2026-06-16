@@ -261,4 +261,29 @@ function M._apply(bufnr)
   end
 end
 
+-- Definition position { line, col } for the radio occurrence under
+-- (line 1-based, col 1-based), or nil. The definition is a link_radio
+-- node, so the tree-aware scope already excludes it.
+function M.def_at(bufnr, line, col)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not enabled(bufnr) then
+    return nil
+  end
+  local t = M.targets(bufnr)
+  if #t.phrases == 0 then
+    return nil
+  end
+  require("organ.decoration").get_tree(bufnr)
+  local row = line - 1
+  local text = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
+  local col0 = col - 1
+  local spans = skip_spans(bufnr, row)
+  for _, occ in ipairs(occurrences(text, t.matcher, spans)) do
+    if col0 >= occ[1] and col0 < occ[2] then
+      return t.defs[occ[3]:lower()]
+    end
+  end
+  return nil
+end
+
 return M

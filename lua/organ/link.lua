@@ -439,6 +439,12 @@ function M.follow(opts)
     end
   end
   if not target_text then
+    local def = require("organ.radio").def_at(bufnr, line, col)
+    if def then
+      vim.api.nvim_win_set_cursor(0, { def.line, def.col })
+      pcall(vim.cmd, "normal! zv")
+      return
+    end
     require("organ.notify").warn("no link at cursor")
     return
   end

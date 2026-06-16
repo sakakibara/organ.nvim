@@ -73,4 +73,17 @@ do
   check(#marks == 0, "highlight: radio.enabled=false places no marks")
 end
 
+-- follow: def_at returns the definition position for an occurrence.
+do
+  local b = mkbuf({
+    "Define <<<my phrase>>> here.",
+    "Jump from my phrase now.",
+    "Plain text, no target.",
+  })
+  local pos = radio.def_at(b, 2, 12)
+  check(pos ~= nil and pos.line == 1, "follow: def_at returns the definition line")
+  check(radio.def_at(b, 3, 3) == nil, "follow: def_at nil off any occurrence")
+  check(radio.def_at(b, 1, 12) == nil, "follow: def_at nil on the definition itself")
+end
+
 print("ALL PASS: radio_editor (cache)")
