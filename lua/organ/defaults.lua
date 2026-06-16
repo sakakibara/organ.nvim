@@ -759,6 +759,10 @@ return {
     --                       shift_per_level spaces.
     --   false (default)  -> never modify indentation.
     adapt_indentation = false,
+
+    -- `==` / `o` / auto-indent follow the formatter's indent rules via an
+    -- org indentexpr. Set false to fall back to Vim's generic autoindent.
+    indentexpr = true,
   },
 
   inline_edit = {

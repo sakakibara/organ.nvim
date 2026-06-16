@@ -379,6 +379,16 @@ function M.attach(bufnr)
       )
     end)
   end
+  if (cfg.indent or {}).indentexpr ~= false then
+    pcall(function()
+      vim.api.nvim_set_option_value(
+        "indentexpr",
+        "v:lua.require'organ.indentexpr'.expr()",
+        { buf = bufnr }
+      )
+      vim.api.nvim_set_option_value("indentkeys", "o,O,!^F", { buf = bufnr })
+    end)
+  end
   if (cfg.emphasis or {}).enabled then
     pcall(function()
       setlocal("conceallevel", 2)
