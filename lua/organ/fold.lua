@@ -151,6 +151,14 @@ local function find_drawer_at(bufnr, line)
   return nil
 end
 
+-- Lazily create this buffer's fold-state table.  Teardown on wipeout is
+-- registered by ftplugin/core's attach (organ.buf_state), so it covers
+-- every org buffer regardless of whether this table was ever created.
+local function ensure_state(bufnr)
+  M._state[bufnr] = M._state[bufnr] or {}
+  return M._state[bufnr]
+end
+
 -- Set a heading's local visibility state directly: "folded",
 -- "children", or "subtree".  Used by external callers (e.g. CONTENTS
 -- view's `zc` / `zo` overrides) that want a specific outcome rather
@@ -163,16 +171,15 @@ function M.set_heading_state(bufnr, line, state)
     return
   end
   apply_state(bufnr, heading, headline_line, state)
-  M._state[bufnr] = M._state[bufnr] or {}
-  M._state[bufnr][headline_line] = state
+  ensure_state(bufnr)[headline_line] = state
 end
 
 local function cycle_heading(bufnr, heading, headline_line)
-  M._state[bufnr] = M._state[bufnr] or {}
+  local state = ensure_state(bufnr)
   local cur = detect_heading_state(heading, headline_line)
   local nxt = next_state(cur)
   apply_state(bufnr, heading, headline_line, nxt)
-  M._state[bufnr][headline_line] = nxt
+  state[headline_line] = nxt
 end
 
 -- <Tab>: 3-state cycle when on a headline, toggle when on a drawer line.

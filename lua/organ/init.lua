@@ -769,24 +769,14 @@ local function setup_autocmds(group)
     end,
   })
 
-  -- Per-buffer state cleanup: fold._state[bufnr], complete._open_for[bufnr],
-  -- and the organ_complete_<bufnr> augroup (created by ftplugin/core.lua) are
-  -- all leaked unless explicitly cleared on wipeout.
+  -- Per-buffer state is leaked unless cleared on wipeout.  Each stateful
+  -- module registers its own teardown via organ.buf_state when it creates
+  -- the state; this drains the registry for the wiped buffer.
   require("organ.errors").autocmd("BufWipeout", {
     group = group,
     pattern = { "*.org", "*.org_archive" },
     callback = function(ev)
-      local bnum = ev.buf
-      pcall(function()
-        require("organ.fold").forget(bnum)
-      end)
-      pcall(function()
-        require("organ.complete")._open_for[bnum] = nil
-      end)
-      pcall(function()
-        local id = vim.api.nvim_create_augroup("organ_complete_" .. bnum, { clear = false })
-        vim.api.nvim_del_augroup_by_id(id)
-      end)
+      require("organ.buf_state").cleanup(ev.buf)
     end,
   })
 

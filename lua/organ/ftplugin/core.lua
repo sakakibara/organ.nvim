@@ -8,6 +8,20 @@ function M.attach(bufnr)
   local organ = require("organ")
   local cfg = organ.config
 
+  -- Clear this buffer's per-module state when it is wiped.  Registered here
+  -- (not lazily) so every org buffer is covered regardless of whether the
+  -- state was ever created.  The complete augroup teardown is registered in
+  -- the completion block below, where the augroup is created.
+  do
+    local buf_state = require("organ.buf_state")
+    buf_state.on_cleanup(bufnr, "fold", function(b)
+      require("organ.fold").forget(b)
+    end)
+    buf_state.on_cleanup(bufnr, "complete_open_for", function(b)
+      require("organ.complete")._open_for[b] = nil
+    end)
+  end
+
   -- Pick up any buffer-local `#+TODO:` directives so keywords
   -- introduced inline (e.g. `WAIT`, `SOMEDAY`) get the active/done
   -- highlight coloring without a config change.  Re-runs on
@@ -310,6 +324,9 @@ function M.attach(bufnr)
         require("organ.complete").schedule_open(bufnr)
       end,
     })
+    require("organ.buf_state").on_cleanup(bufnr, "complete_augroup", function()
+      vim.api.nvim_del_augroup_by_id(group)
+    end)
   end
 
   -- Clock keymaps (opt-in; gated by enabled flag).
