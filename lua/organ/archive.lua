@@ -406,6 +406,79 @@ local function inject_properties(lines, pairs_list)
   end
 end
 
+-- Resolve which archive context properties to write.  Defaults match Emacs
+-- `org-archive-save-context-info`; `cfg.save_context_info` overrides.
+local function resolve_context_set(cfg)
+  if cfg.save_context_info ~= nil then
+    local set = {}
+    for _, k in ipairs(cfg.save_context_info) do
+      set[k] = true
+    end
+    return set
+  end
+  return { time = true, file = true, olpath = true, category = true, todo = true, itags = true }
+end
+
+-- Build the ARCHIVE_* property pairs to inject into the moved subtree's top
+-- headline, honoring `context_set`.  `info` carries the resolved values
+-- (archive_time, src_path, olpath, todo_kw, bufnr, hl).
+local function build_archive_props(context_set, info)
+  local props = {}
+  if context_set.time then
+    props[#props + 1] = { "ARCHIVE_TIME", info.archive_time }
+  end
+  if context_set.file then
+    props[#props + 1] = { "ARCHIVE_FILE", abbreviate_path(info.src_path) }
+  end
+  if context_set.olpath and info.olpath ~= "" then
+    props[#props + 1] = { "ARCHIVE_OLPATH", info.olpath }
+  end
+  if context_set.todo and info.todo_kw then
+    props[#props + 1] = { "ARCHIVE_TODO", info.todo_kw }
+  end
+  if context_set.category then
+    local base = info.src_path:match("([^/]+)%.org$") or info.src_path:match("([^/]+)$") or ""
+    if base ~= "" then
+      props[#props + 1] = { "ARCHIVE_CATEGORY", base }
+    end
+  end
+  if context_set.itags then
+    -- Inherited tags = ancestor headlines' tags + `#+FILETAGS`.  Direct
+    -- tags travel with the title and are not part of ARCHIVE_ITAGS (Emacs
+    -- inherit-only behavior).  Emacs writes them space-joined.
+    local itags = inherited_tags(info.bufnr, info.hl)
+    if #itags > 0 then
+      props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(itags, " ") }
+    end
+  end
+  return props
+end
+
+-- Splice `releveled` into `arc_lines` right after the archive headline's
+-- section: before the next headline at the wrapper level (1), else at EOF.
+local function splice_subtree(arc_lines, arc_hl_line, releveled)
+  local insert_at = #arc_lines + 1
+  local arc_lvl = 1 -- "* Archive" is level 1
+  for i = arc_hl_line + 1, #arc_lines do
+    local stars = arc_lines[i]:match("^(%*+)%s")
+    if stars and #stars <= arc_lvl then
+      insert_at = i
+      break
+    end
+  end
+  local out = {}
+  for i = 1, insert_at - 1 do
+    out[#out + 1] = arc_lines[i]
+  end
+  for _, l in ipairs(releveled) do
+    out[#out + 1] = l
+  end
+  for i = insert_at, #arc_lines do
+    out[#out + 1] = arc_lines[i]
+  end
+  return out
+end
+
 -- Public API
 
 --- Archive the subtree containing `line` in `bufnr` to the configured archive
@@ -506,65 +579,17 @@ function M.archive_subtree(opts)
   if add_meta == nil then
     add_meta = true
   end
-  local context_set
-  if cfg.save_context_info ~= nil then
-    context_set = {}
-    for _, k in ipairs(cfg.save_context_info) do
-      context_set[k] = true
-    end
-  else
-    context_set = {
-      time = true,
-      file = true,
-      olpath = true,
-      category = true,
-      todo = true,
-      itags = true,
-    }
-  end
+  local context_set = resolve_context_set(cfg)
 
   if add_meta then
-    local props = {}
-    if context_set.time then
-      props[#props + 1] = { "ARCHIVE_TIME", archive_time }
-    end
-    if context_set.file then
-      -- Emacs writes ARCHIVE_FILE through `abbreviate-file-name`, so
-      -- `/Users/sho/...` becomes `~/...`.  Plain absolute would also
-      -- work but breaks portability across machines with different
-      -- home dirs.
-      props[#props + 1] = { "ARCHIVE_FILE", abbreviate_path(src_path) }
-    end
-    if context_set.olpath and olpath ~= "" then
-      props[#props + 1] = { "ARCHIVE_OLPATH", olpath }
-    end
-    if context_set.todo and todo_kw then
-      props[#props + 1] = { "ARCHIVE_TODO", todo_kw }
-    end
-    if context_set.category then
-      local cat = require("organ.agenda")
-      -- File category resolution is private to agenda; do a cheap
-      -- file-basename fallback so we always emit ARCHIVE_CATEGORY
-      -- when `category` is in the set.
-      local base = src_path:match("([^/]+)%.org$") or src_path:match("([^/]+)$") or ""
-      local _ = cat
-      if base ~= "" then
-        props[#props + 1] = { "ARCHIVE_CATEGORY", base }
-      end
-    end
-    if context_set.itags then
-      -- Inherited tags = ancestor headlines' tags + `#+FILETAGS`.
-      -- Direct tags on the moved headline travel with its title and
-      -- aren't part of ARCHIVE_ITAGS (Emacs `org-get-tags` with
-      -- inherit-only behavior).
-      local itags = inherited_tags(bufnr, hl)
-      if #itags > 0 then
-        -- Emacs `org-archive-subtree` writes ARCHIVE_ITAGS as a
-        -- space-joined list (`mapconcat 'identity ... " "`), not
-        -- the colon-wrapped tag-block syntax.
-        props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(itags, " ") }
-      end
-    end
+    local props = build_archive_props(context_set, {
+      archive_time = archive_time,
+      src_path = src_path,
+      olpath = olpath,
+      todo_kw = todo_kw,
+      bufnr = bufnr,
+      hl = hl,
+    })
     releveled = inject_properties(releveled, props)
   end
 
@@ -579,34 +604,8 @@ function M.archive_subtree(opts)
     end
   end
 
-  -- 10. Insert the releveled subtree right after the archive headline (append
-  --     to its section, i.e. at the end of the file if Archive is the last hl).
-  -- Find the end of the archive headline's section (where to insert).
-  -- We walk forward from arc_hl_line+1 looking for a sibling or parent headline.
-  local insert_at = #arc_lines + 1 -- default: append at end
-  do
-    local arc_lvl = 1 -- "* Archive" is level 1
-    for i = arc_hl_line + 1, #arc_lines do
-      local l = arc_lines[i]
-      local stars = l:match("^(%*+)%s")
-      if stars and #stars <= arc_lvl then
-        insert_at = i
-        break
-      end
-    end
-  end
-
-  -- Build new archive file content.
-  local new_arc = {}
-  for i = 1, insert_at - 1 do
-    new_arc[#new_arc + 1] = arc_lines[i]
-  end
-  for _, l in ipairs(releveled) do
-    new_arc[#new_arc + 1] = l
-  end
-  for i = insert_at, #arc_lines do
-    new_arc[#new_arc + 1] = arc_lines[i]
-  end
+  -- 10. Insert the releveled subtree after the archive headline's section.
+  local new_arc = splice_subtree(arc_lines, arc_hl_line, releveled)
 
   -- 11. Write archive file (atomic — a crash mid-write would otherwise
   -- corrupt the user's archive).
