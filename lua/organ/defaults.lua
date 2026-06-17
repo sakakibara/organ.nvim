@@ -761,15 +761,16 @@ return {
     -- keystroke, so manual edits are preserved between reformat
     -- passes.
     --
-    -- Values mirror Emacs:
-    --   "headline-data"  -> only planning + drawer + property
-    --                       lines indent under their headline.
-    --                       Body prose stays at column 0.  This
-    --                       matches Emacs's default behavior.
-    --   true             -> all body lines (planning, drawers,
-    --                       prose) indent (level - 1) *
-    --                       shift_per_level spaces.
+    -- Mirrors Emacs `org-adapt-indentation`.  Indents to the section
+    -- column (`todo.planning_indent`, default level+1 = Emacs stars+1):
+    --   "headline-data"  -> only planning / drawer / property lines
+    --                       indent under their headline; body prose
+    --                       stays at column 0.
+    --   true             -> every body line (planning, drawers, prose)
+    --                       indents to the section column too.
     --   false (default)  -> never modify indentation.
+    -- Emacs's own default is `nil` (everything flush); organ still keeps
+    -- drawers indented via `todo.planning_indent` regardless of this.
     adapt_indentation = false,
 
     -- `==` / `o` / auto-indent follow the formatter's indent rules via an

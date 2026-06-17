@@ -416,11 +416,11 @@ local function wrap_prose(lines, cfg)
   return out
 end
 
-local function adapt_indentation(lines, mode, shift_per_level)
+local function adapt_indentation(lines, mode, planning_indent_cfg)
   if not mode or mode == false then
     return lines
   end
-  shift_per_level = shift_per_level or 2
+  local section = require("organ.section")
   local indent_all = mode == true
   local out = {}
   local current_level = 0
@@ -445,7 +445,7 @@ local function adapt_indentation(lines, mode, shift_per_level)
     elseif line == "" then
       out[#out + 1] = line
     else
-      local pad = string.rep(" ", (current_level - 1) * shift_per_level + 1)
+      local pad = section.section_indent_for(current_level, planning_indent_cfg)
       local stripped = line:gsub("^%s*", "")
       local was_in_drawer = in_drawer
       -- Flip drawer state BEFORE the indent decision so the `:END:` line
@@ -673,7 +673,8 @@ function M.format_lines(lines, cfg, bufnr)
   do
     local icfg = require("organ.buf_config").read(nil, "indent") or {}
     if icfg.adapt_indentation then
-      lines = adapt_indentation(lines, icfg.adapt_indentation, icfg.shift_per_level or 2)
+      local pi = (require("organ.buf_config").read(nil, "todo") or {}).planning_indent
+      lines = adapt_indentation(lines, icfg.adapt_indentation, pi)
     end
   end
   lines = align_drawer_values(lines, cfg)

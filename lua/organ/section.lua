@@ -64,34 +64,40 @@ local function ts_on_line(line, kw)
   return line:match(kw .. ":%s*(<[^>]*>)") or line:match(kw .. ":%s*(%b[])")
 end
 
--- Indent string for planning lines under the headline at 0-based
--- `headline_row`, honoring the `todo.planning_indent` config:
---   "adapt" (default)  headline level + 1 spaces -- matches Emacs
---                      `org-adapt-indentation = 'headline-data'`, the
---                      Org 9.5+ / Emacs 30.x default.
---   <number>           fixed N spaces (pre-9.5 convention is usually 2).
---   0 / false          flush left (`org-adapt-indentation = nil`).
-function M.planning_indent(bufnr, headline_row)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local cfg = require("organ.buf_config").read(bufnr, "todo") or {}
-  local mode = cfg.planning_indent
+-- Section-indent string for a headline of the given `level`, honoring the
+-- `todo.planning_indent` config.  This is the one indent every real-indent
+-- writer uses (planning, property/logbook drawers, and -- when
+-- `indent.adapt_indentation` is on -- body prose), so they all agree.
+--   "adapt" (default)  level + 1 spaces (= Emacs `stars + 1`, the column
+--                      where the headline title begins).
+--   <number>           fixed N spaces.
+--   false              flush left.
+function M.section_indent_for(level, mode)
   if mode == nil then
     mode = "adapt"
   end
   if type(mode) == "number" then
     return string.rep(" ", math.max(0, mode))
   end
-  if mode == false then
-    return ""
-  end
   if mode == "adapt" then
-    local line = (vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false) or {})[1]
-      or ""
-    local stars = line:match("^(%*+)%s")
-    local level = stars and #stars or 1
-    return string.rep(" ", level + 1)
+    return string.rep(" ", (level or 1) + 1)
   end
   return ""
+end
+
+-- Indent string for planning lines under the headline at 0-based
+-- `headline_row` (reads the level from the buffer, then defers to
+-- `section_indent_for`).
+function M.planning_indent(bufnr, headline_row)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local mode = (require("organ.buf_config").read(bufnr, "todo") or {}).planning_indent
+  local level = 1
+  if mode == "adapt" or mode == nil then
+    local line = (vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false) or {})[1]
+      or ""
+    level = #(line:match("^(%*+)%s") or "*")
+  end
+  return M.section_indent_for(level, mode)
 end
 
 -- Set/update/clear one planning keyword under the headline at 0-based

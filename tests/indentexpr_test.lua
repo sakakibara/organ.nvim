@@ -57,11 +57,12 @@ do
   check(ix.compute(b, 2) == -1, "line before first headline -> -1")
 end
 
--- body adapt on -> (level-1)*shift+1; block content stays -1.
+-- body adapt on -> section indent (level+1, = Emacs stars+1); block
+-- content stays -1.
 do
   local b = mkbuf({ "* H", "body", "", "#+begin_src lua", "print(1)", "#+end_src" })
   require("organ.buf_config").set(b, "indent.adapt_indentation", true)
-  check(ix.compute(b, 2) == 1, "body adapt on, level1 -> 1")
+  check(ix.compute(b, 2) == 2, "body adapt on, level1 -> 2 (level+1)")
   check(ix.compute(b, 3) == -1, "blank line adapt on -> -1 (formatter leaves blanks)")
   check(ix.compute(b, 5) == -1, "block content -> -1 even with adapt on")
 end

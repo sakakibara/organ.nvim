@@ -1,9 +1,9 @@
 -- Org indentexpr. Returns, for a line, the same indent the formatter
 -- produces: 0 for a headline, the section indent (planning_indent,
 -- default level+1) for a headline-data line (planning / property drawer /
--- logbook), and -1 (keep current) for body text -- or the adapt pad when
--- indent.adapt_indentation is on. So == / o / auto-indent agree with
--- :Org format by construction.
+-- logbook), and -1 (keep current) for body text -- or that same section
+-- indent for body when indent.adapt_indentation is on. So == / o /
+-- auto-indent agree with :Org format by construction.
 
 local M = {}
 
@@ -43,7 +43,6 @@ function M.compute(bufnr, lnum)
   if not hl then
     return -1
   end
-  local level = hl.level or 1
   local in_drawer, in_block = false, false
   for r = hl.line + 1, lnum - 1 do
     local t = line_at(bufnr, r)
@@ -70,7 +69,9 @@ function M.compute(bufnr, lnum)
   end
   local icfg = require("organ.buf_config").read(bufnr, "indent") or {}
   if icfg.adapt_indentation == true then
-    return (level - 1) * (icfg.shift_per_level or 2) + 1
+    -- Body prose indents to the same section column as the drawers above
+    -- it (Emacs `org-adapt-indentation = t`: everything to `stars + 1`).
+    return #require("organ.section").planning_indent(bufnr, hl.line - 1)
   end
   return -1
 end

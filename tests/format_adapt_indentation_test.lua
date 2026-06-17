@@ -1,12 +1,18 @@
 -- format.adapt_indentation: real (on-disk) body indent that mirrors
--- Emacs's `org-adapt-indentation`.  Pins the matrix:
+-- Emacs's `org-adapt-indentation`.  Indent column is the section indent
+-- (`todo.planning_indent`, default "adapt" = level+1 = Emacs `stars + 1`),
+-- so it agrees with planning / drawer canonicalization and indentexpr.
+-- Pins the matrix:
 --   * disabled (default) -- file passes through unchanged
---   * "headline-data"    -- planning/drawer/property indented;
+--   * "headline-data"    -- planning/drawer/property indented to level+1;
 --                           body prose stays at column 0
---   * true               -- every body line indented
+--   * true               -- every body line indented to level+1
 --   * src block bodies   -- NEVER reindented (verbatim contract)
 --   * pre-first-headline -- never indented (no parent level)
---   * shift_per_level    -- honors custom values
+--   * planning_indent    -- a fixed-number config is honored
+--
+-- Ground-truthed against GNU Emacs 30.1 / org 9.7.11 (org-adapt-indentation
+-- t / headline-data both indent to stars+1).
 --
 -- Run via: nvim --headless -l tests/format_adapt_indentation_test.lua
 
@@ -43,51 +49,45 @@ local INPUT = {
   "#+end_src",
 }
 
--- ---------------------------------------------------------------------------
 -- 1. disabled: pass-through.
--- ---------------------------------------------------------------------------
 do
-  local out = format._apply_adapt_indentation(INPUT, false, 2)
+  local out = format._apply_adapt_indentation(INPUT, false, "adapt")
   check("disabled: identical output", table.concat(out, "\n") == table.concat(INPUT, "\n"))
 end
 
--- ---------------------------------------------------------------------------
--- 2. "headline-data": planning + drawer + property indented;
+-- 2. "headline-data": planning + drawer + property indented to level+1;
 --    prose stays at column 0.
--- ---------------------------------------------------------------------------
 do
-  local out = format._apply_adapt_indentation(INPUT, "headline-data", 2)
-  -- Top-level (level 1) -> 1 space (= (1-1)*2 + 1 = 1).
-  check("headline-data: SCHEDULED indented to 1 space", out[4] == " SCHEDULED: <2026-05-06 Wed>")
-  check("headline-data: PROPERTIES drawer open indented", out[5] == " :PROPERTIES:")
-  check("headline-data: property line indented", out[6] == " :Effort:   1h")
-  check("headline-data: drawer close indented", out[7] == " :END:")
-  check("headline-data: body prose stays at col 0", out[8] == "Body prose under top.")
-  -- Level 2 -> 3 spaces (= (2-1)*2 + 1 = 3).
+  local out = format._apply_adapt_indentation(INPUT, "headline-data", "adapt")
   check(
-    "headline-data: child DEADLINE indented to 3 spaces",
-    out[10] == "   DEADLINE: <2026-05-08 Fri>"
+    "headline-data: SCHEDULED -> level+1 (2)",
+    out[4] == "  SCHEDULED: <2026-05-06 Wed>",
+    out[4]
   )
-  check("headline-data: child body prose stays at col 0", out[11] == "More prose under child.")
+  check("headline-data: PROPERTIES open -> 2", out[5] == "  :PROPERTIES:", out[5])
+  check("headline-data: property line -> 2", out[6] == "  :Effort:   1h", out[6])
+  check("headline-data: drawer close -> 2", out[7] == "  :END:", out[7])
+  check("headline-data: body prose stays at col 0", out[8] == "Body prose under top.", out[8])
+  check(
+    "headline-data: child DEADLINE -> level+1 (3)",
+    out[10] == "   DEADLINE: <2026-05-08 Fri>",
+    out[10]
+  )
+  check("headline-data: child body stays at col 0", out[11] == "More prose under child.", out[11])
 end
 
--- ---------------------------------------------------------------------------
--- 3. true: every body line under a headline indents (planning,
---    drawer, prose, etc.).
--- ---------------------------------------------------------------------------
+-- 3. true: every body line under a headline indents to level+1.
 do
-  local out = format._apply_adapt_indentation(INPUT, true, 2)
-  check("true: SCHEDULED indented", out[4] == " SCHEDULED: <2026-05-06 Wed>")
-  check("true: body prose indented to 1 space (level 1)", out[8] == " Body prose under top.")
-  check("true: child body indented to 3 spaces (level 2)", out[11] == "   More prose under child.")
+  local out = format._apply_adapt_indentation(INPUT, true, "adapt")
+  check("true: SCHEDULED -> 2", out[4] == "  SCHEDULED: <2026-05-06 Wed>", out[4])
+  check("true: body prose -> level+1 (2)", out[8] == "  Body prose under top.", out[8])
+  check("true: child body -> level+1 (3)", out[11] == "   More prose under child.", out[11])
 end
 
--- ---------------------------------------------------------------------------
 -- 4. Source block bodies stay verbatim under both modes.
--- ---------------------------------------------------------------------------
 do
-  local out_h = format._apply_adapt_indentation(INPUT, "headline-data", 2)
-  local out_t = format._apply_adapt_indentation(INPUT, true, 2)
+  local out_h = format._apply_adapt_indentation(INPUT, "headline-data", "adapt")
+  local out_t = format._apply_adapt_indentation(INPUT, true, "adapt")
   check(
     "src body unchanged (headline-data)",
     out_h[14] == "  print('verbatim -- never reindented')"
@@ -95,58 +95,46 @@ do
   check("src body unchanged (true)", out_t[14] == "  print('verbatim -- never reindented')")
 end
 
--- ---------------------------------------------------------------------------
 -- 5. Pre-first-headline content (the #+TITLE) never indents.
--- ---------------------------------------------------------------------------
 do
-  local out = format._apply_adapt_indentation(INPUT, true, 2)
+  local out = format._apply_adapt_indentation(INPUT, true, "adapt")
   check("pre-headline #+TITLE untouched", out[1] == "#+TITLE: Adapt indent demo")
 end
 
--- ---------------------------------------------------------------------------
--- 6. shift_per_level honored: shift=4 doubles the indent.
--- ---------------------------------------------------------------------------
+-- 6. A fixed-number planning_indent is honored (all levels -> N spaces).
 do
   local out = format._apply_adapt_indentation(INPUT, true, 4)
-  -- Level 1 -> (1-1)*4 + 1 = 1 space.
-  check("shift=4: level 1 still 1 space", out[4] == " SCHEDULED: <2026-05-06 Wed>")
-  -- Level 2 -> (2-1)*4 + 1 = 5 spaces.
-  check("shift=4: level 2 = 5 spaces", out[10] == "     DEADLINE: <2026-05-08 Fri>")
+  check(
+    "planning_indent=4: L1 SCHEDULED -> 4 spaces",
+    out[4] == "    SCHEDULED: <2026-05-06 Wed>",
+    out[4]
+  )
+  check(
+    "planning_indent=4: L2 DEADLINE -> 4 spaces",
+    out[10] == "    DEADLINE: <2026-05-08 Fri>",
+    out[10]
+  )
 end
 
--- ---------------------------------------------------------------------------
--- 7. End-to-end: format_lines threads the option through.
--- ---------------------------------------------------------------------------
+-- 7. End-to-end: format_lines threads the option through (default
+--    planning_indent = "adapt" -> level+1).
 do
-  -- adapt_indentation lives in `indent.*` config; format_lines reads
-  -- the live organ.config.indent inside its body, so set it via setup
-  -- before calling.
   local prev = require("organ").config.indent
-  require("organ").config.indent = vim.tbl_deep_extend("force", prev or {}, {
-    adapt_indentation = "headline-data",
-    shift_per_level = 2,
-  })
+  require("organ").config.indent =
+    vim.tbl_deep_extend("force", prev or {}, { adapt_indentation = "headline-data" })
   local out = format.format_lines(INPUT, {
     headline = { normalize_whitespace = true },
     blanks = { trim_trailing = false, ensure_final_newline = false },
   })
   require("organ").config.indent = prev
-  check("format_lines: SCHEDULED indented", out[4] == " SCHEDULED: <2026-05-06 Wed>")
+  check("format_lines: SCHEDULED -> 2", out[4] == "  SCHEDULED: <2026-05-06 Wed>", out[4])
   check("format_lines: src body untouched", out[14] == "  print('verbatim -- never reindented')")
 end
 
--- ---------------------------------------------------------------------------
--- 8. Empty drawer marker does NOT trip body-indent into the wrong
---    state (regression: was leaking in_drawer past :END:).
--- ---------------------------------------------------------------------------
+-- 8. Empty drawer marker does NOT trip body-indent into the wrong state.
 do
-  local input = {
-    "* H",
-    ":PROPERTIES:",
-    ":END:",
-    "Prose.",
-  }
-  local out = format._apply_adapt_indentation(input, "headline-data", 2)
+  local input = { "* H", ":PROPERTIES:", ":END:", "Prose." }
+  local out = format._apply_adapt_indentation(input, "headline-data", "adapt")
   check("post-:END: prose stays at col 0", out[4] == "Prose.")
 end
 
