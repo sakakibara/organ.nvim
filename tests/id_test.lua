@@ -40,7 +40,7 @@ do
   local lines = get_lines(b)
   -- :PROPERTIES: drawer should have been created.
   assert_eq(lines[2], "  :PROPERTIES:")
-  assert_eq(lines[3], "  :ID: " .. result)
+  assert_eq(lines[3], "  :ID:       " .. result)
   assert_eq(lines[4], "  :END:")
   assert_eq(lines[5], "  body")
 end
@@ -77,7 +77,7 @@ do
   local lines = get_lines(b)
   -- Drawer inserted at line 2.
   assert_eq(lines[2], "  :PROPERTIES:")
-  assert_eq(lines[3], "  :ID: " .. result)
+  assert_eq(lines[3], "  :ID:       " .. result)
   assert_eq(lines[4], "  :END:")
 end
 

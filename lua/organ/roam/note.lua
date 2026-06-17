@@ -5,13 +5,12 @@
 local M = {}
 
 -- File-level node header: the :ID: property drawer followed by #+title.
--- The 7 spaces after `:ID:` reproduce Emacs `org-property-format`
--- ("%-10s %s") applied to the `:ID:` key (4 cols padded to 10, then one
--- space).
+-- The :ID: line is formatted through the shared property formatter so its
+-- org-property-format alignment matches every other :ID: organ writes.
 function M.header(id, title)
   return {
     ":PROPERTIES:",
-    ":ID:       " .. id,
+    require("organ.property").format_line("ID", id),
     ":END:",
     "#+title: " .. title,
   }

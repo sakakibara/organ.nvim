@@ -31,7 +31,7 @@ do
   assert_eq(err, nil)
   local lines = get_lines(b)
   assert_eq(lines[2], "  :PROPERTIES:")
-  assert_eq(lines[3], "  :ID: abc")
+  assert_eq(lines[3], "  :ID:       abc")
   assert_eq(lines[4], "  :END:")
   assert_eq(lines[5], "  body")
 end
@@ -43,7 +43,7 @@ do
   local err = prop.set(b, 1, "ID", "new")
   assert_eq(err, nil)
   local lines = get_lines(b)
-  assert_eq(lines[3], ":ID: new")
+  assert_eq(lines[3], ":ID:       new")
   assert_eq(#lines, 4)
 end
 
@@ -75,7 +75,7 @@ do
   assert_eq(lines[1], "* TODO X")
   assert_eq(lines[2], "SCHEDULED: <2026-04-27 Mon>")
   assert_eq(lines[3], "  :PROPERTIES:")
-  assert_eq(lines[4], "  :ID: abc")
+  assert_eq(lines[4], "  :ID:       abc")
   assert_eq(lines[5], "  :END:")
   assert_eq(lines[6], ":LOGBOOK:")
 end
@@ -91,12 +91,13 @@ do
 end
 
 ----------------------------------------------------------------------
--- Empty value stored as ':KEY: '.
+-- Empty value stored as a bare ':KEY:' (Emacs `org-property-format` writes
+-- no padding or trailing space when the value is empty).
 do
   local b = mk_buf({ "* A" })
   prop.set(b, 1, "FOO", "")
   local lines = get_lines(b)
-  assert_eq(lines[3], "  :FOO: ")
+  assert_eq(lines[3], "  :FOO:")
 end
 
 ----------------------------------------------------------------------

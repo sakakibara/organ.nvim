@@ -46,8 +46,8 @@ prop.set_interactive(b2, 1)
 vim.ui.input = saved_input
 local lines = vim.api.nvim_buf_get_lines(b2, 0, -1, false)
 assert(
-  lines[3] == "  :ID: abc-123",
-  "set_interactive wrote   :ID: abc-123, got: " .. tostring(lines[3])
+  lines[3] == "  :ID:       abc-123",
+  "set_interactive wrote   :ID:       abc-123, got: " .. tostring(lines[3])
 )
 
 io.write("property keymaps ok\n")

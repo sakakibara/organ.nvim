@@ -53,6 +53,19 @@ function M.list(bufnr, line)
   return entries
 end
 
+-- Format a single property-drawer line, matching Emacs `org-property-format`
+-- (default "%-10s %s"): the bracketed key is padded to 10 columns then one
+-- space then the value.  An empty value is written as the bare key, with no
+-- padding or trailing whitespace (Emacs does the same).  Callers prepend any
+-- drawer indentation.
+function M.format_line(key, value)
+  value = value or ""
+  if value == "" then
+    return ":" .. key .. ":"
+  end
+  return string.format("%-10s %s", ":" .. key .. ":", value)
+end
+
 function M.set(bufnr, line, key, value)
   if type(key) ~= "string" or key == "" or key:find(":") then
     return ("invalid property key '%s'"):format(tostring(key))
@@ -75,7 +88,7 @@ function M.set(bufnr, line, key, value)
       if k == key then
         local cur = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
         local lead = cur:match("^(%s*)") or ""
-        local new = lead .. ":" .. key .. ": " .. value
+        local new = lead .. M.format_line(key, value)
         obuf.set_lines(bufnr, i - 1, i, { new })
         return nil
       end
@@ -84,7 +97,7 @@ function M.set(bufnr, line, key, value)
     local open = vim.api.nvim_buf_get_lines(bufnr, drawer.start_line - 1, drawer.start_line, false)[1]
       or ""
     local lead = open:match("^(%s*)") or ""
-    local new = lead .. ":" .. key .. ": " .. value
+    local new = lead .. M.format_line(key, value)
     obuf.set_lines(bufnr, drawer.end_line - 1, drawer.end_line - 1, { new })
     return nil
   end
@@ -93,7 +106,7 @@ function M.set(bufnr, line, key, value)
   local indent = require("organ.section").planning_indent(bufnr, hl - 1)
   local new_drawer = {
     indent .. ":PROPERTIES:",
-    indent .. ":" .. key .. ": " .. value,
+    indent .. M.format_line(key, value),
     indent .. ":END:",
   }
   obuf.set_lines(bufnr, insert_at - 1, insert_at - 1, new_drawer)
