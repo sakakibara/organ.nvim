@@ -598,7 +598,9 @@ local function dispatch(opts)
     smods = opts.smods,
     reg = opts.reg,
   }
-  entry.fn(sub_opts)
+  -- Boundary: a subcommand error is reported with context via on_error /
+  -- notify rather than escaping to the user as a raw command traceback.
+  require("organ.errors").guard("organ.cmd " .. sub_opts.name, entry.fn)(sub_opts)
 end
 
 local function complete(arg_lead, cmdline, cursor_pos)
