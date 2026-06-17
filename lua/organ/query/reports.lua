@@ -51,7 +51,7 @@ function M.stuck_projects(opts)
   ]],
     table.concat(placeholders, ",")
   )
-  local s = assert(h:prepare(sql))
+  local s = exec.prepare(h, sql)
   for i, st in ipairs(next_states) do
     s:bind_text(i, st)
   end
@@ -84,7 +84,7 @@ function M.files(opts)
      GROUP BY f.path
      ORDER BY f.path
   ]]
-  local s = assert(h:prepare(sql))
+  local s = exec.prepare(h, sql)
   local db = require("organ.db")
   local rows = {}
   while s:step() == db.SQLITE_ROW do
@@ -124,7 +124,7 @@ function M.file_todo_keywords(file_paths, opts)
     .. " WHERE file_path IN ("
     .. table.concat(placeholders, ",")
     .. ")"
-  local s = assert(h:prepare(sql))
+  local s = exec.prepare(h, sql)
   for i, path in ipairs(file_paths) do
     s:bind_text(i, path)
   end
@@ -231,7 +231,7 @@ function M.habits(opts)
      WHERE upper(p.key)   = 'STYLE'
        AND lower(p.value) = 'habit'
   ]]
-  local s = assert(h:prepare(sql))
+  local s = exec.prepare(h, sql)
   local db = require("organ.db")
   local ids = {}
   while s:step() == db.SQLITE_ROW do
@@ -355,7 +355,7 @@ function M.clock_entries(opts)
     .. " "
     .. order_sql
 
-  local stmt = assert(h:prepare(sql))
+  local stmt = exec.prepare(h, sql)
   for i, p in ipairs(params) do
     if type(p) == "number" then
       stmt:bind_int(i, p)
@@ -439,7 +439,7 @@ function M.state_changes(opts)
     .. table.concat(where, " AND ")
     .. " ORDER BY sc.ts ASC"
 
-  local stmt = assert(h:prepare(sql))
+  local stmt = exec.prepare(h, sql)
   for i, p in ipairs(params) do
     if type(p) == "number" then
       stmt:bind_int(i, p)

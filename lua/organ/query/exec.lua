@@ -15,11 +15,19 @@ local function resolve_db(opts)
   return (opts and opts.db) or default_db()
 end
 
-local function rows_from_select(h, sql, params)
+-- Prepare a statement, raising a contextual error blamed at the caller if
+-- the handle rejects the SQL.  A hardcoded query that fails to prepare is a
+-- bug (bad SQL or a closed handle), not a recoverable condition.
+local function prepare(h, sql)
   local stmt, err = h:prepare(sql)
   if not stmt then
-    error("query prepare failed: " .. tostring(err))
+    error("organ.query: prepare failed: " .. tostring(err), 2)
   end
+  return stmt
+end
+
+local function rows_from_select(h, sql, params)
+  local stmt = prepare(h, sql)
   for i, p in ipairs(params) do
     if type(p) == "number" then
       stmt:bind_int(i, p)
@@ -85,7 +93,7 @@ local function hydrate_tags(h, rows)
   local sql = "SELECT headline_id, tag FROM tags WHERE headline_id IN ("
     .. table.concat(placeholders, ",")
     .. ") ORDER BY rowid"
-  local stmt = assert(h:prepare(sql))
+  local stmt = prepare(h, sql)
   for i, p in ipairs(params) do
     stmt:bind_text(i, p)
   end
@@ -134,7 +142,7 @@ local function hydrate_inherited_tags(h, rows)
     )
     SELECT id, file_path FROM chain ORDER BY depth
   ]]
-  local stmt = assert(h:prepare(chain_sql))
+  local stmt = prepare(h, chain_sql)
   for _, r in ipairs(rows) do
     stmt:reset()
     stmt:bind_text(1, r.id)
@@ -168,7 +176,7 @@ local function hydrate_inherited_tags(h, rows)
     local sql = "SELECT headline_id, tag FROM tags WHERE headline_id IN ("
       .. table.concat(placeholders, ",")
       .. ")"
-    local s2 = assert(h:prepare(sql))
+    local s2 = prepare(h, sql)
     for i, hid in ipairs(id_list) do
       s2:bind_text(i, hid)
     end
@@ -200,7 +208,7 @@ local function hydrate_inherited_tags(h, rows)
     local sql = "SELECT file_path, tag FROM file_tags WHERE file_path IN ("
       .. table.concat(placeholders, ",")
       .. ")"
-    local s3 = assert(h:prepare(sql))
+    local s3 = prepare(h, sql)
     for i, fp in ipairs(fp_list) do
       s3:bind_text(i, fp)
     end
@@ -286,7 +294,7 @@ local function hydrate_properties(h, rows)
   local sql = "SELECT headline_id, key, value FROM properties WHERE headline_id IN ("
     .. table.concat(placeholders, ",")
     .. ")"
-  local stmt = assert(h:prepare(sql))
+  local stmt = prepare(h, sql)
   for i, p in ipairs(params) do
     stmt:bind_text(i, p)
   end
@@ -328,7 +336,7 @@ local function hydrate_backlink_counts(h, rows)
   local sql = "SELECT target, COUNT(*) FROM links WHERE target_type = 'id' AND target IN ("
     .. table.concat(placeholders, ",")
     .. ") GROUP BY target"
-  local stmt = assert(h:prepare(sql))
+  local stmt = prepare(h, sql)
   for i, id in ipairs(real_ids) do
     stmt:bind_text(i, id)
   end
@@ -347,6 +355,7 @@ end
 
 M.default_db = default_db
 M.resolve_db = resolve_db
+M.prepare = prepare
 M.rows_from_select = rows_from_select
 M.hydrate_tags = hydrate_tags
 M.hydrate_inherited_tags = hydrate_inherited_tags

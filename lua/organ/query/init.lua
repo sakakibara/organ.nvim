@@ -19,10 +19,10 @@ local reports = require("organ.query.reports")
 local sql = require("organ.query.sql")
 
 -- organ.query's public surface is assembled from the query submodules.
--- The assert keeps two submodules from silently claiming the same name.
+-- The check keeps two submodules from silently claiming the same name.
 local function merge(src)
   for k, v in pairs(src) do
-    assert(M[k] == nil, "organ.query: duplicate member " .. k)
+    require("organ.errors").check(M[k] == nil, "organ.query", "duplicate member " .. k)
     M[k] = v
   end
 end

@@ -8,12 +8,11 @@ local exec = require("organ.query.exec")
 function M.get_by_id(id, opts)
   opts = opts or {}
   local h = exec.resolve_db(opts)
-  local stmt = assert(
-    h:prepare(
-      "SELECT id, file_path, parent_id, level, title, todo_state, priority, "
-        .. "scheduled, deadline, closed, scheduled_date, deadline_date, closed_date, "
-        .. "line_start, line_end, commented FROM headlines WHERE id = ?"
-    )
+  local stmt = exec.prepare(
+    h,
+    "SELECT id, file_path, parent_id, level, title, todo_state, priority, "
+      .. "scheduled, deadline, closed, scheduled_date, deadline_date, closed_date, "
+      .. "line_start, line_end, commented FROM headlines WHERE id = ?"
   )
   stmt:bind_text(1, id)
   local db = require("organ.db")
@@ -48,7 +47,9 @@ end
 function M.links_from(headline_id, opts)
   opts = opts or {}
   local h = exec.resolve_db(opts)
-  local stmt = assert(h:prepare([[
+  local stmt = exec.prepare(
+    h,
+    [[
     SELECT l.target_type, l.target, l.description, l.line,
            h.id, h.file_path, h.title, h.line_start,
            h.todo_state, h.priority
@@ -57,7 +58,8 @@ function M.links_from(headline_id, opts)
         ON l.target_type = 'id' AND l.target = h.id
      WHERE l.source_headline_id = ?
      ORDER BY l.line
-  ]]))
+  ]]
+  )
   stmt:bind_text(1, headline_id)
   local db = require("organ.db")
   local rows = {}
@@ -97,7 +99,9 @@ function M.links_to(target, opts)
   else
     error("query.links_to: target must be id string or headline record")
   end
-  local stmt = assert(h:prepare([[
+  local stmt = exec.prepare(
+    h,
+    [[
     SELECT l.description, l.line, l.target_type, l.target,
            h.id, h.file_path, h.title, h.line_start,
            h.todo_state, h.priority
@@ -105,7 +109,8 @@ function M.links_to(target, opts)
       INNER JOIN headlines h ON h.id = l.source_headline_id
      WHERE l.target_type = 'id' AND l.target = ?
      ORDER BY h.file_path, h.line_start
-  ]]))
+  ]]
+  )
   stmt:bind_text(1, id)
   local db = require("organ.db")
   local rows = {}
@@ -138,7 +143,9 @@ function M.title_refs(title, opts)
     return {}
   end
   local h = exec.resolve_db(opts)
-  local stmt = assert(h:prepare([[
+  local stmt = exec.prepare(
+    h,
+    [[
     SELECT l.description, l.line, l.target_type, l.target,
            h.id, h.file_path, h.title, h.line_start,
            h.todo_state, h.priority
@@ -146,7 +153,8 @@ function M.title_refs(title, opts)
       INNER JOIN headlines h ON h.id = l.source_headline_id
      WHERE l.target_type = 'headline' AND l.target = ?
      ORDER BY h.file_path, h.line_start
-  ]]))
+  ]]
+  )
   stmt:bind_text(1, title)
   local db = require("organ.db")
   local rows = {}
@@ -220,7 +228,7 @@ function M.links(filter, opts)
   ]] .. where_sql .. "\nORDER BY sh.file_path, sh.line_start, l.line"
 
   local rows = {}
-  local stmt = assert(h:prepare(sql))
+  local stmt = exec.prepare(h, sql)
   for i, p in ipairs(params) do
     stmt:bind_text(i, p)
   end
