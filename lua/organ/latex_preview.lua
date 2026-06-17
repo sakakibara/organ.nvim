@@ -158,7 +158,7 @@ local function open_popup(lines, title)
     require("organ.ui").set_winbar(win, { { "q", "close" } }, { title = "LaTeX preview" })
   end)
   -- Auto-close on cursor moved out of the source position.
-  vim.api.nvim_create_autocmd("CursorMoved", {
+  require("organ.errors").autocmd("CursorMoved", {
     once = true,
     callback = function()
       pcall(vim.api.nvim_win_close, win, true)

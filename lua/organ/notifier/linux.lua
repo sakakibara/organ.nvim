@@ -181,7 +181,7 @@ local function run_async(cmd, opts, cb)
   local ok, _ =
     pcall(vim.system, cmd, opts or { text = true }, cb and vim.schedule_wrap(cb) or function() end)
   if not ok and cb then
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.notifier.linux", function()
       cb({ code = -1, stderr = "spawn failed", stdout = "" })
     end)
   end

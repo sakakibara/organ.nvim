@@ -112,13 +112,13 @@ function M.open(src_bufnr, src_line)
   })
 
   -- :w writes via BufWriteCmd → commit; :q!/:bd close.
-  vim.api.nvim_create_autocmd("BufWriteCmd", {
+  require("organ.errors").autocmd("BufWriteCmd", {
     buffer = pop_bufnr,
     callback = function()
       do_commit()
     end,
   })
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     buffer = pop_bufnr,
     once = true,
     callback = function() end,

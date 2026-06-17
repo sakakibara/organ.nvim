@@ -242,7 +242,7 @@ local function ensure_augroup(state, tab)
   end
   state.augroup =
     vim.api.nvim_create_augroup("organ_roam_sidebar_tab_" .. tostring(tab), { clear = true })
-  vim.api.nvim_create_autocmd({ "CursorMoved", "BufEnter" }, {
+  require("organ.errors").autocmd({ "CursorMoved", "BufEnter" }, {
     group = state.augroup,
     callback = function(ev)
       -- Tab-local: only react when the event fires in the SAME tab
@@ -265,7 +265,7 @@ local function ensure_augroup(state, tab)
     end,
   })
   -- Persist user-driven width changes so close + reopen restores them.
-  vim.api.nvim_create_autocmd({ "WinResized", "VimResized" }, {
+  require("organ.errors").autocmd({ "WinResized", "VimResized" }, {
     group = state.augroup,
     callback = function()
       if not is_open(state) then
@@ -278,19 +278,19 @@ local function ensure_augroup(state, tab)
     end,
   })
   -- Tear down when the sidebar window closes by any means.
-  vim.api.nvim_create_autocmd("WinClosed", {
+  require("organ.errors").autocmd("WinClosed", {
     group = state.augroup,
     callback = function(ev)
       local closed = tonumber(ev.match)
       if closed and closed == state.winid then
-        vim.schedule(function()
+        require("organ.errors").schedule("organ.roam.sidebar", function()
           M.close(tab)
         end)
       end
     end,
   })
   -- Drop per-tab state when the tab itself goes away.
-  vim.api.nvim_create_autocmd("TabClosed", {
+  require("organ.errors").autocmd("TabClosed", {
     group = state.augroup,
     callback = function(ev)
       local tabnr = tonumber(ev.file)
@@ -391,7 +391,7 @@ function M.open()
       )
     end
     events.on("indexed", listener)
-    vim.api.nvim_create_autocmd("BufWipeout", {
+    require("organ.errors").autocmd("BufWipeout", {
       buffer = state.bufnr,
       once = true,
       callback = function()

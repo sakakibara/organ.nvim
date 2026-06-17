@@ -58,7 +58,7 @@ end
 -- previews ftplugin fires per item and N modules' applies stack into
 -- a freeze on every cycle.
 function M.apply_initial(bufnr, fn)
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.debounce", function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       fn(bufnr)
     end

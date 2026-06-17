@@ -16,7 +16,7 @@ function M.attach(bufnr)
     require("organ.highlights").register_buffer_todo_keywords(bufnr)
   end)
   local hl_group = vim.api.nvim_create_augroup("organ_buftodo_" .. bufnr, { clear = true })
-  vim.api.nvim_create_autocmd({ "BufWritePost", "TextChanged" }, {
+  require("organ.errors").autocmd({ "BufWritePost", "TextChanged" }, {
     group = hl_group,
     buffer = bufnr,
     callback = function()
@@ -174,7 +174,7 @@ function M.attach(bufnr)
   -- (would override <S-Tab> state).
   setlocal("foldlevel", 99)
   local fold_win_group = vim.api.nvim_create_augroup("organ_foldwin_" .. bufnr, { clear = true })
-  vim.api.nvim_create_autocmd("BufWinEnter", {
+  require("organ.errors").autocmd("BufWinEnter", {
     group = fold_win_group,
     buffer = bufnr,
     callback = apply_fold_window_opts,
@@ -190,7 +190,7 @@ function M.attach(bufnr)
   -- losing per-token syntax highlights that a treesitter-aware default
   -- would have shown).  `:setlocal opt<` reverts the win-local override
   -- to inherit from global.
-  vim.api.nvim_create_autocmd("BufWinLeave", {
+  require("organ.errors").autocmd("BufWinLeave", {
     group = fold_win_group,
     buffer = bufnr,
     callback = function()
@@ -201,7 +201,7 @@ function M.attach(bufnr)
       )
     end,
   })
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     group = fold_win_group,
     buffer = bufnr,
     callback = function()
@@ -265,7 +265,7 @@ function M.attach(bufnr)
       -- find ranges to act on.  Resolve the winid at fire time so
       -- nvim_buf_call's "current window" doesn't land on a capture
       -- float that happens to be focused.
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.ftplugin.core", function()
         if not vim.api.nvim_buf_is_valid(bufnr) then
           return
         end
@@ -303,7 +303,7 @@ function M.attach(bufnr)
   -- Insert-mode link completion auto-trigger.
   if (cfg.complete or {}).enabled then
     local group = vim.api.nvim_create_augroup("organ_complete_" .. bufnr, { clear = true })
-    vim.api.nvim_create_autocmd("TextChangedI", {
+    require("organ.errors").autocmd("TextChangedI", {
       group = group,
       buffer = bufnr,
       callback = function()

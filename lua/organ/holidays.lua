@@ -92,7 +92,7 @@ function M.is_holiday(country, date_yyyy_mm_dd)
     local key = "miss:" .. country .. ":" .. tostring(year)
     if not M._notified[key] then
       M._notified[key] = true
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.holidays", function()
         require("organ.notify").warn(
           string.format(
             "holidays for cal:%s aren't cached (run :Org fetch_holidays %s)",
@@ -114,7 +114,7 @@ function M.fetch(country, year, cb)
     -- curl exit 22 is HTTP 4xx (with -f). We treat this as "country not
     -- supported" and write an empty cache so we don't retry every setup.
     if res.code == 22 then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.holidays", function()
         local fh = io.open(cache_path(country, year), "w")
         if fh then
           fh:write("[]")
@@ -127,7 +127,7 @@ function M.fetch(country, year, cb)
       return
     end
     if res.code ~= 0 then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.holidays", function()
         if cb then
           cb(false, res.stderr)
         end
@@ -137,14 +137,14 @@ function M.fetch(country, year, cb)
     -- Validate it's at least JSON-array-shaped before writing.
     local ok, parsed = pcall(vim.json.decode, res.stdout)
     if not ok or type(parsed) ~= "table" then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.holidays", function()
         if cb then
           cb(false, "invalid json from nager.date")
         end
       end)
       return
     end
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.holidays", function()
       local fh = io.open(cache_path(country, year), "w")
       if not fh then
         if cb then
@@ -212,11 +212,11 @@ M.commands = {
       end
       M.warm(country, years_ahead, function(ok, errs)
         if ok then
-          vim.schedule(function()
+          require("organ.errors").schedule("organ.holidays", function()
             require("organ.notify").info("organ: warmed holidays for " .. country)
           end)
         else
-          vim.schedule(function()
+          require("organ.errors").schedule("organ.holidays", function()
             require("organ.notify").warn(
               "warm failed for " .. country .. " (" .. tostring(#errs) .. " errors)"
             )

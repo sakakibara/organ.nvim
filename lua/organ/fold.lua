@@ -269,7 +269,7 @@ local function _schedule_drawer_close(bufnr)
   end
   local tok = {}
   M._drawer_close_tok[bufnr] = tok
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.fold", function()
     if M._drawer_close_tok[bufnr] ~= tok then
       return
     end

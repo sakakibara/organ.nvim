@@ -779,7 +779,7 @@ local function make_server()
     end
     local h = handlers[method]
     if h then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.lsp", function()
         local ok, res = pcall(h, params)
         if ok then
           callback(nil, res)

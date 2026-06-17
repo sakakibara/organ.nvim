@@ -38,4 +38,23 @@ function M.guard(ctx, fn)
   end
 end
 
+-- Schedule fn on the main loop wrapped in guard(ctx).  A throw on the
+-- (fresh) scheduled stack is then reported via on_error / notify with
+-- context instead of nvim's generic callback-error traceback.
+function M.schedule(ctx, fn)
+  return vim.schedule(M.guard(ctx, fn))
+end
+
+-- nvim_create_autocmd with the callback guarded.  An error in the callback
+-- is reported with context rather than as a raw autocmd traceback; the
+-- autocmd's own return value (e.g. true to self-delete) is preserved on
+-- success, and a caught error yields nil so the autocmd is not deleted.
+function M.autocmd(event, opts)
+  if type(opts.callback) == "function" then
+    local ev = type(event) == "table" and table.concat(event, ",") or tostring(event)
+    opts.callback = M.guard("organ.autocmd " .. (opts.desc or ev), opts.callback)
+  end
+  return vim.api.nvim_create_autocmd(event, opts)
+end
+
 return M

@@ -36,7 +36,7 @@ function M.walk_async(root_dir, batch_size, on_dir, on_file, on_done)
         end
         entries[#entries + 1] = { name = name, t = t }
       end
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.walk", function()
         local i = 0
         local function step_chunk()
           local stop = math.min(i + batch_size, #entries)
@@ -55,7 +55,7 @@ function M.walk_async(root_dir, batch_size, on_dir, on_file, on_done)
                     -- context, and count the bounce in `pending` so on_done
                     -- only fires after every callback has completed.
                     pending = pending + 1
-                    vim.schedule(function()
+                    require("organ.errors").schedule("organ.walk", function()
                       if on_dir then
                         on_dir(full)
                       end
@@ -66,7 +66,7 @@ function M.walk_async(root_dir, batch_size, on_dir, on_file, on_done)
                   end
                 elseif st.type == "file" and on_file then
                   pending = pending + 1
-                  vim.schedule(function()
+                  require("organ.errors").schedule("organ.walk", function()
                     on_file(full, st)
                     pending = pending - 1
                     maybe_done()
@@ -78,7 +78,7 @@ function M.walk_async(root_dir, batch_size, on_dir, on_file, on_done)
             end)
           end
           if i < #entries then
-            vim.schedule(step_chunk)
+            require("organ.errors").schedule("organ.walk", step_chunk)
           else
             pending = pending - 1
             maybe_done()

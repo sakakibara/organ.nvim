@@ -612,7 +612,7 @@ function M.fold_action(key)
     end
   end
   M.leave(bufnr)
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.fold.contents", function()
     vim.api.nvim_feedkeys(key, "m", false)
   end)
 end
@@ -699,14 +699,14 @@ function M.enter(target)
   --   BufWipeout -> tear down state on buffer wipe; nothing to
   --     restore on a dead buffer, so just forget.
   local group = vim.api.nvim_create_augroup("organ_fold_contents_" .. bufnr, { clear = true })
-  vim.api.nvim_create_autocmd({ "CursorMoved", "BufWinEnter" }, {
+  require("organ.errors").autocmd({ "CursorMoved", "BufWinEnter" }, {
     group = group,
     buffer = bufnr,
     callback = function()
       on_cursor_moved(bufnr)
     end,
   })
-  vim.api.nvim_create_autocmd("FileType", {
+  require("organ.errors").autocmd("FileType", {
     group = group,
     buffer = bufnr,
     callback = function()
@@ -723,7 +723,7 @@ function M.enter(target)
   -- (winid) returns true long after the window switched to a
   -- different buffer, and the buffer-level extmarks placed by our
   -- decoration provider's on_win keep being placed for that winid.
-  vim.api.nvim_create_autocmd("BufWinLeave", {
+  require("organ.errors").autocmd("BufWinLeave", {
     group = group,
     buffer = bufnr,
     callback = function()
@@ -733,7 +733,7 @@ function M.enter(target)
       end
     end,
   })
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     group = group,
     buffer = bufnr,
     callback = function()
@@ -942,7 +942,7 @@ require("organ.decoration").register({
       return
     end
     _refresh_pending[bufnr] = true
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.fold.contents", function()
       _refresh_pending[bufnr] = nil
       if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
         invalidate_buf_cache(bufnr)
@@ -955,7 +955,7 @@ require("organ.decoration").register({
 -- Cleanup on WinClosed: drop the closed winid from _win_active so we
 -- don't keep stale entries around (and so leave() refcount logic for
 -- "any winids still active" stays honest).
-vim.api.nvim_create_autocmd("WinClosed", {
+require("organ.errors").autocmd("WinClosed", {
   group = vim.api.nvim_create_augroup("organ_fold_contents_winclosed", { clear = true }),
   callback = function(args)
     local winid = tonumber(args.match)

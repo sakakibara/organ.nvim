@@ -187,7 +187,7 @@ function M.attach(bufnr)
         attached[b] = nil
         return true
       end
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.entities", function()
         if not vim.api.nvim_buf_is_valid(b) then
           return
         end

@@ -238,7 +238,7 @@ function M._install_autocmd()
     return
   end
   _autocmd_installed = true
-  vim.api.nvim_create_autocmd("VimLeavePre", {
+  require("organ.errors").autocmd("VimLeavePre", {
     callback = function()
       M.stop_all()
     end,

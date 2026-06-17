@@ -189,14 +189,14 @@ function M.open(bufnr, line)
   end)
 
   -- BufWriteCmd: write the edit buffer's contents back to the source.
-  vim.api.nvim_create_autocmd("BufWriteCmd", {
+  require("organ.errors").autocmd("BufWriteCmd", {
     buffer = edit,
     callback = function()
       M.commit(edit)
     end,
   })
   -- BufWipeout: clean up state.
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     buffer = edit,
     once = true,
     callback = function()

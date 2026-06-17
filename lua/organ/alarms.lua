@@ -327,7 +327,7 @@ function M.start()
     events.off("indexed", state.indexed_listener)
   end
   state.indexed_listener = function()
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.alarms", function()
       M.scan()
     end)
   end

@@ -172,7 +172,7 @@ M.commands = {
     fn = function()
       local organ = require("organ")
       if require("organ.buf_config").read(nil, "notify") then
-        vim.schedule(function()
+        require("organ.errors").schedule("organ.id", function()
           require("organ.notify").info(
             "rescanning " .. require("organ.buf_config").read(nil, "org_dir")
           )
@@ -181,7 +181,7 @@ M.commands = {
       organ._start_scan()
       organ._scan_walk(require("organ.buf_config").read(nil, "org_dir"), function()
         if require("organ.buf_config").read(nil, "notify") then
-          vim.schedule(function()
+          require("organ.errors").schedule("organ.id", function()
             require("organ.notify").info("ID locations refreshed")
           end)
         end

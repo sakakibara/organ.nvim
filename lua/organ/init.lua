@@ -28,7 +28,7 @@ local function notify(msg, level)
   if not M.config.notify then
     return
   end
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.init", function()
     require("organ.notify").notify(level or vim.log.levels.INFO, msg)
   end)
 end
@@ -37,7 +37,7 @@ local function notify_debug(msg)
   if not M.config.notify then
     return
   end
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.init", function()
     require("organ.notify").debug(msg)
   end)
 end
@@ -479,7 +479,7 @@ local function index_async(item, tier, done)
     if type(signal) == "function" then
       signal(pump) -- off-thread step resumes us via the passed callback
     else
-      vim.schedule(pump) -- "slice": let the UI breathe, continue next tick
+      require("organ.errors").schedule("organ.init", pump) -- "slice": let the UI breathe, continue next tick
     end
   end
   pump()
@@ -588,7 +588,7 @@ local function setup_validate_config()
       missing[#missing + 1] = 1
     end
     if #missing > 0 then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.init", function()
         require("organ.notify").warn(
           "organ.todo sequence #"
             .. table.concat(missing, ", #")
@@ -621,7 +621,7 @@ local function setup_validate_config()
   if type(org_dir) == "string" and org_dir ~= "" then
     local stat = vim.uv.fs_stat(vim.fn.expand(org_dir))
     if not stat then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.init", function()
         require("organ.notify").warn(
           ("organ.org_dir does not exist: %s — `:Org scan` will be a no-op until you create it."):format(
             org_dir
@@ -629,7 +629,7 @@ local function setup_validate_config()
         )
       end)
     elseif stat.type ~= "directory" then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.init", function()
         require("organ.notify").warn(("organ.org_dir is not a directory: %s"):format(org_dir))
       end)
     end
@@ -721,7 +721,7 @@ local function setup_watcher(group)
     watcher.start(M.config.watcher, M.config.org_dir)
   end
   if M.config.watcher.enabled and M.config.watcher.auto_watch_buffers then
-    vim.api.nvim_create_autocmd("BufReadPost", {
+    require("organ.errors").autocmd("BufReadPost", {
       group = vim.api.nvim_create_augroup("organ_watcher_buf", { clear = true }),
       pattern = { "*.org", "*.org_archive" },
       callback = function(args)
@@ -739,7 +739,7 @@ local function setup_watcher(group)
 end
 
 local function setup_autocmds(group)
-  vim.api.nvim_create_autocmd("BufWritePost", {
+  require("organ.errors").autocmd("BufWritePost", {
     group = group,
     pattern = "*.org",
     callback = function(ev)
@@ -751,7 +751,7 @@ local function setup_autocmds(group)
     end,
   })
 
-  vim.api.nvim_create_autocmd("VimLeavePre", {
+  require("organ.errors").autocmd("VimLeavePre", {
     group = group,
     callback = function()
       pcall(function()
@@ -772,7 +772,7 @@ local function setup_autocmds(group)
   -- Per-buffer state cleanup: fold._state[bufnr], complete._open_for[bufnr],
   -- and the organ_complete_<bufnr> augroup (created by ftplugin/core.lua) are
   -- all leaked unless explicitly cleared on wipeout.
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     group = group,
     pattern = { "*.org", "*.org_archive" },
     callback = function(ev)
@@ -796,7 +796,7 @@ local function setup_autocmds(group)
   -- in environments where filetype plugins are disabled (e.g. headless test
   -- runners that pass --noplugin).  In a normal Neovim session both paths fire;
   -- nvim_buf_set_keymap with noremap=true is idempotent, so double-attach is safe.
-  vim.api.nvim_create_autocmd("FileType", {
+  require("organ.errors").autocmd("FileType", {
     group = group,
     pattern = "org",
     callback = function(ev)
@@ -821,7 +821,7 @@ end
 
 local function setup_scan_startup(group)
   if M.config.scan_on_startup then
-    vim.api.nvim_create_autocmd("VimEnter", {
+    require("organ.errors").autocmd("VimEnter", {
       group = group,
       once = true,
       callback = function()
@@ -894,7 +894,7 @@ local function setup_timezone()
   if M.config.todo and M.config.todo.default_country then
     local ok_h, hol = pcall(require, "organ.holidays")
     if ok_h then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.init", function()
         hol.warm(M.config.todo.default_country, 4)
       end)
     end
@@ -955,7 +955,7 @@ function M.setup(opts)
   setup_global_keymaps()
   -- Defer non-essential work: completion registration, timezone detect, and
   -- clock state reload are all safe to run one event-loop tick later.
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.init", function()
     setup_completion()
     setup_timezone()
     pcall(function()

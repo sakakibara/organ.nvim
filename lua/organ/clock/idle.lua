@@ -80,7 +80,7 @@ function M.start(threshold_minutes)
   end
   last_activity_ts = os.time()
   autocmd_group = vim.api.nvim_create_augroup("organ_clock_idle", { clear = true })
-  vim.api.nvim_create_autocmd(
+  require("organ.errors").autocmd(
     { "CursorMoved", "CursorMovedI", "InsertEnter", "TextChanged", "TextChangedI" },
     {
       group = autocmd_group,

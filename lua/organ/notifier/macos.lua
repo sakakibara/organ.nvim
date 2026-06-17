@@ -146,7 +146,7 @@ local function run_async(cmd, cb)
   local ok, _ =
     pcall(vim.system, cmd, { text = true }, cb and vim.schedule_wrap(cb) or function() end)
   if not ok and cb then
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.notifier.macos", function()
       cb({ code = -1, stderr = "spawn failed", stdout = "" })
     end)
   end
@@ -393,7 +393,7 @@ local function ensure_bundle()
     "-f",
     bundle_dir(),
   }, function(_)
-    vim.schedule(prime_app_session)
+    require("organ.errors").schedule("organ.notifier.macos", prime_app_session)
   end)
 
   return true
@@ -705,7 +705,7 @@ function M.fire_now(entry)
   --   * Bundle unsigned / quarantined (Gatekeeper blocks delivery)
   --   * Helper crashed (Swift binary mismatch with macOS version)
   vim.system({ bundle_exec(), tmp }, { text = true }, function(res)
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.notifier.macos", function()
       if res.code == 0 then
         return -- success path; user saw the notification
       end

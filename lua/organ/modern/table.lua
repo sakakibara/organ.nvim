@@ -415,14 +415,14 @@ function M.attach(bufnr)
       M.refresh(b)
     end
   end)
-  vim.api.nvim_create_autocmd(events, {
+  require("organ.errors").autocmd(events, {
     group = group,
     buffer = bufnr,
     callback = function()
       trigger(bufnr)
     end,
   })
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     group = group,
     buffer = bufnr,
     callback = function()

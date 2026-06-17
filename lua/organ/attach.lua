@@ -349,7 +349,7 @@ end
 
 local function notify_info(msg)
   if require("organ.buf_config").read(nil, "notify") then
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.attach", function()
       require("organ.notify").info(msg)
     end)
   end

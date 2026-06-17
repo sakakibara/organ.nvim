@@ -209,7 +209,7 @@ end
 
 -- Auto-cleanup when buffers are deleted.  Wire once at module load.
 do
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     group = vim.api.nvim_create_augroup("organ_buf_config", { clear = true }),
     callback = function(ev)
       _overrides[ev.buf] = nil

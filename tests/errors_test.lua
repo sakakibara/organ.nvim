@@ -57,4 +57,49 @@ assert(E.guard("x", function()
   return 42
 end)() == 42, "guard forwards success result")
 
+-- autocmd wraps the callback in guard
+local ag = vim.api.nvim_create_augroup("organ_errors_test", { clear = true })
+local acmd_err
+organ.config = {
+  on_error = function(e)
+    acmd_err = e
+  end,
+}
+notify.error = function() end
+E.autocmd("User", {
+  group = ag,
+  pattern = "OrganErrTest",
+  callback = function()
+    error("acmd boom")
+  end,
+})
+vim.api.nvim_exec_autocmds("User", { pattern = "OrganErrTest" })
+notify.error = orig
+organ.config = saved_cfg
+assert(
+  acmd_err and tostring(acmd_err):find("acmd boom", 1, true),
+  "autocmd error routed to on_error"
+)
+
+-- schedule routes a scheduled error to on_error
+local sched_err
+organ.config = {
+  on_error = function(e)
+    sched_err = e
+  end,
+}
+notify.error = function() end
+E.schedule("organ.test.sched", function()
+  error("sched boom")
+end)
+vim.wait(300, function()
+  return sched_err ~= nil
+end)
+notify.error = orig
+organ.config = saved_cfg
+assert(
+  sched_err and tostring(sched_err):find("sched boom", 1, true),
+  "schedule routed error to on_error"
+)
+
 print("errors_test: PASS")

@@ -740,7 +740,7 @@ function M.open(view_opts, view_name)
   local events = require("organ.events")
   events.on("indexed", listener)
 
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     buffer = bufnr,
     once = true,
     callback = function()
@@ -773,7 +773,7 @@ function M.open(view_opts, view_name)
   local resize_group =
     vim.api.nvim_create_augroup("organ_agenda_resize_" .. bufnr, { clear = true })
   local resize_timer
-  vim.api.nvim_create_autocmd("WinResized", {
+  require("organ.errors").autocmd("WinResized", {
     group = resize_group,
     callback = function()
       if not vim.api.nvim_buf_is_valid(bufnr) then

@@ -464,7 +464,7 @@ function M.store_link()
   local structure = require("organ.structure")
   local notify_msg = function(msg)
     if require("organ.buf_config").read(nil, "notify") then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.link", function()
         require("organ.notify").info(msg)
       end)
     end
@@ -530,7 +530,7 @@ function M.insert_link()
   local entries = store.list()
   if #entries == 0 then
     if require("organ.buf_config").read(nil, "notify") then
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.link", function()
         require("organ.notify").info("no stored links")
       end)
     end

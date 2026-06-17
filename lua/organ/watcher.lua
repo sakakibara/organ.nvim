@@ -52,7 +52,7 @@ local function open_handle(path, recursive)
       if err2 then
         return
       end
-      vim.schedule(function()
+      require("organ.errors").schedule("organ.watcher", function()
         on_event(path, filename, events)
       end)
     end)
@@ -153,7 +153,7 @@ on_event = function(dir, filename, events)
   -- fs_stat tells us it's a dir and we add a watcher; should_handle then
   -- rejects it as not-an-org-file and we exit.
   vim.loop.fs_stat(full, function(_serr, st)
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.watcher", function()
       if st and st.type == "directory" then
         if not is_macos() then
           M.add_dir(full)
@@ -248,7 +248,7 @@ local function start_rescan_timer()
   end
   -- Always do at least one immediate Phase-2 discovery tick.
   -- This is needed for polling discovery even when the periodic timer is off.
-  vim.schedule(rescan_once)
+  require("organ.errors").schedule("organ.watcher", rescan_once)
 end
 
 function M.start(opts, org_dir)

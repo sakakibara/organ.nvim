@@ -194,7 +194,7 @@ end
 
 -- Drop cache when buffer is wiped.
 local _aug = vim.api.nvim_create_augroup("organ.element_cache", { clear = true })
-vim.api.nvim_create_autocmd("BufWipeout", {
+require("organ.errors").autocmd("BufWipeout", {
   group = _aug,
   callback = function(ev)
     _cache[ev.buf] = nil

@@ -343,7 +343,7 @@ function M.open(headline_id)
   local events = require("organ.events")
   events.on("indexed", listener)
 
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  require("organ.errors").autocmd("BufWipeout", {
     buffer = bufnr,
     once = true,
     callback = function()

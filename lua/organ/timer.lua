@@ -98,7 +98,7 @@ local function arm_expiry(seconds)
   clear_timer()
   if not seconds or seconds <= 0 then
     -- Already expired — fire on the next loop tick.
-    vim.schedule(fire_expiry)
+    require("organ.errors").schedule("organ.timer", fire_expiry)
     return
   end
   local t = vim.uv.new_timer()

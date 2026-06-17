@@ -477,7 +477,7 @@ local function notify_msg(msg, level)
   if not require("organ.buf_config").read(nil, "notify") then
     return
   end
-  vim.schedule(function()
+  require("organ.errors").schedule("organ.indexer.init", function()
     require("organ.notify").notify(level or vim.log.levels.INFO, msg)
   end)
 end

@@ -44,7 +44,7 @@ end
 
 local function notify_info(msg)
   if require("organ.buf_config").read(nil, "notify") then
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.directive", function()
       require("organ.notify").info(msg)
     end)
   end

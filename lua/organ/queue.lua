@@ -73,7 +73,7 @@ local function step()
   local function advance()
     state.running = false
     if #state.interactive.q > 0 or #state.background.q > 0 then
-      vim.schedule(step)
+      require("organ.errors").schedule("organ.queue", step)
     end
   end
 
@@ -97,7 +97,7 @@ local function step()
   if not ok then
     -- Worker raised before scheduling its own completion; surface it and
     -- release the lock so the queue doesn't wedge.
-    vim.schedule(function()
+    require("organ.errors").schedule("organ.queue", function()
       require("organ.notify").error("queue: worker error: " .. tostring(err))
     end)
     advance()
@@ -133,7 +133,7 @@ local function push_now(tier_name, path)
   end
   tier.q[#tier.q + 1] = path
   tier.seen[seen_key] = true
-  vim.schedule(step)
+  require("organ.errors").schedule("organ.queue", step)
   return true
 end
 
@@ -213,7 +213,7 @@ function M.enqueue_background_op(op)
   end
   tier.q[#tier.q + 1] = op
   tier.seen[key] = true
-  vim.schedule(step)
+  require("organ.errors").schedule("organ.queue", step)
   return true
 end
 

@@ -66,7 +66,7 @@ function M.invalidate(bufnr)
   _cache[bufnr or vim.api.nvim_get_current_buf()] = nil
 end
 
-vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
+require("organ.errors").autocmd({ "BufDelete", "BufWipeout" }, {
   group = vim.api.nvim_create_augroup("organ_radio_cache", { clear = true }),
   callback = function(ev)
     _cache[ev.buf] = nil

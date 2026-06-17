@@ -95,7 +95,7 @@ function M.maybe_register()
     do_register(blink)
   end
   -- Primary trigger: lazy.nvim emits `User LazyLoad <plugin>`.
-  vim.api.nvim_create_autocmd("User", {
+  require("organ.errors").autocmd("User", {
     pattern = "LazyLoad",
     callback = function(args)
       if args.data == "blink.cmp" then
@@ -106,7 +106,7 @@ function M.maybe_register()
   -- Fallback: on first org buffer open. If blink loads at FileType=org
   -- (rare) or earlier, we catch it; if blink loads later (e.g. on
   -- InsertEnter), the User-LazyLoad autocmd handles it.
-  vim.api.nvim_create_autocmd("FileType", {
+  require("organ.errors").autocmd("FileType", {
     pattern = "org",
     once = true,
     callback = attempt,
