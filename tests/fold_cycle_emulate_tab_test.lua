@@ -43,11 +43,16 @@ do
   local b = make({ "* Top", "Body of top.", "** Sub", "sub body" })
   vim.api.nvim_win_set_cursor(0, { 2, 0 })
   local handled = fold.cycle(b, 2)
-  assert(handled == false, "default: body-line cycle should report not-handled; got " .. tostring(handled))
+  assert(
+    handled == false,
+    "default: body-line cycle should report not-handled; got " .. tostring(handled)
+  )
   assert(
     vim.fn.foldclosed(2) == -1 and vim.fn.foldclosed(1) == -1,
     "default: <Tab> on a body line must not fold anything; foldclosed(1)="
-      .. vim.fn.foldclosed(1) .. " foldclosed(2)=" .. vim.fn.foldclosed(2)
+      .. vim.fn.foldclosed(1)
+      .. " foldclosed(2)="
+      .. vim.fn.foldclosed(2)
   )
 end
 
@@ -60,7 +65,10 @@ do
   buf_config.set(b, "fold.cycle_emulate_tab", false)
   vim.api.nvim_win_set_cursor(0, { 2, 0 })
   local handled = fold.cycle(b, 2)
-  assert(handled == true, "emulate=false: body-line cycle should report handled; got " .. tostring(handled))
+  assert(
+    handled == true,
+    "emulate=false: body-line cycle should report handled; got " .. tostring(handled)
+  )
   assert(
     vim.fn.foldclosed(2) == 1,
     "emulate=false: body line must fold under enclosing Top (fold starts line 1); foldclosed(2)="
@@ -77,7 +85,10 @@ do
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   local handled = fold.cycle(b, 1)
   assert(handled == true, "headline cycle should report handled; got " .. tostring(handled))
-  assert(vim.fn.foldclosed(2) == 1, "headline cycle (subtree->folded) should fold body; foldclosed(2)=" .. vim.fn.foldclosed(2))
+  assert(
+    vim.fn.foldclosed(2) == 1,
+    "headline cycle (subtree->folded) should fold body; foldclosed(2)=" .. vim.fn.foldclosed(2)
+  )
 end
 
 -- ---------------------------------------------------------------------------
@@ -93,7 +104,10 @@ do
   fold.cycle(b, 1)
   assert(vim.fn.foldclosed(2) == -1, "leaf #2: should show; foldclosed(2)=" .. vim.fn.foldclosed(2))
   fold.cycle(b, 1)
-  assert(vim.fn.foldclosed(2) == 1, "leaf #3: should fold again; foldclosed(2)=" .. vim.fn.foldclosed(2))
+  assert(
+    vim.fn.foldclosed(2) == 1,
+    "leaf #3: should fold again; foldclosed(2)=" .. vim.fn.foldclosed(2)
+  )
 end
 
 -- ---------------------------------------------------------------------------
@@ -106,7 +120,10 @@ do
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   local ok = pcall(fold.cycle, b, 1)
   assert(ok, "empty entry: cycle must not error")
-  assert(vim.fn.foldclosed(2) == -1, "empty entry: following heading must stay visible; foldclosed(2)=" .. vim.fn.foldclosed(2))
+  assert(
+    vim.fn.foldclosed(2) == -1,
+    "empty entry: following heading must stay visible; foldclosed(2)=" .. vim.fn.foldclosed(2)
+  )
 end
 
 -- ---------------------------------------------------------------------------
@@ -118,8 +135,15 @@ do
   vim.api.nvim_win_set_cursor(0, { 2, 0 })
   local handled = fold.cycle(b, 2)
   assert(handled == true, "drawer cycle should report handled; got " .. tostring(handled))
-  assert(vim.fn.foldclosed(3) == 2, "drawer line: drawer body must fold (fold starts line 2); foldclosed(3)=" .. vim.fn.foldclosed(3))
-  assert(vim.fn.foldclosed(1) == -1, "drawer line: enclosing heading must stay open; foldclosed(1)=" .. vim.fn.foldclosed(1))
+  assert(
+    vim.fn.foldclosed(3) == 2,
+    "drawer line: drawer body must fold (fold starts line 2); foldclosed(3)="
+      .. vim.fn.foldclosed(3)
+  )
+  assert(
+    vim.fn.foldclosed(1) == -1,
+    "drawer line: enclosing heading must stay open; foldclosed(1)=" .. vim.fn.foldclosed(1)
+  )
 end
 
 io.write("fold cycle emulate-tab ok\n")
