@@ -3,16 +3,16 @@ local M = {}
 local obuf = require("organ.buf")
 -- Parse a headline line. Returns { level = N, title_text = "..." } or nil.
 local function parse_headline_line(text)
-  local stars, rest = text:match("^(%*+)%s+(.*)$")
-  if not stars then
-    -- Could also be a bare "*+\n" with no title; tolerate but ignore.
-    stars = text:match("^(%*+)$")
-    if stars then
-      return { level = #stars, title_text = "" }
-    end
-    return nil
+  local level, rest = require("organ.headline").split(text)
+  if level then
+    return { level = level, title_text = rest }
   end
-  return { level = #stars, title_text = rest }
+  -- Bare "*+" with no title: tolerate but ignore the (empty) title.
+  local stars = text:match("^(%*+)$")
+  if stars then
+    return { level = #stars, title_text = "" }
+  end
+  return nil
 end
 
 -- Find the headline that contains the given 1-based line number.

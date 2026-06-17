@@ -77,12 +77,12 @@ local DEFAULT_TODO_KEYWORDS = {
 
 local function parse_heading_line(line, todo_keywords)
   todo_keywords = todo_keywords or DEFAULT_TODO_KEYWORDS
-  local stars, rest = line:match("^(%*+)%s+(.*)$")
-  if not stars then
+  local level, rest = require("organ.headline").split(line)
+  if not level then
     return nil
   end
   local result =
-    { level = #stars, todo = nil, priority = nil, title = "", tags = {}, commented = false }
+    { level = level, todo = nil, priority = nil, title = "", tags = {}, commented = false }
   local body, tag_run = rest:match("^(.-)%s*(:[%w_@#%%]+:.*)$")
   if body and tag_run and tag_run:match("^:[%w_@#%%]+:[%w_@#%%:]*$") then
     local valid = true

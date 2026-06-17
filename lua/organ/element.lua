@@ -271,8 +271,8 @@ end
 -- Regex fallback for headline parsing when tree-sitter is unavailable
 -- or finds no headline.
 local function headline_info_from_line(line, row0)
-  local stars, rest = line:match("^(%*+)%s+(.*)$")
-  if not stars then
+  local level, rest = require("organ.headline").split(line)
+  if not level then
     return nil
   end
   local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
@@ -302,7 +302,7 @@ local function headline_info_from_line(line, row0)
     range = { row0, 0, row0, #line },
     line_start = row0,
     line_end = row0,
-    level = #stars,
+    level = level,
     todo_state = todo,
     priority = priority,
     title = rest,
