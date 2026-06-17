@@ -359,7 +359,7 @@ parity-check: parity-emacs parity-organ
 parity-section-emacs:
 	@command -v emacs >/dev/null 2>&1 || { \
 	  echo "emacs not on PATH; install GNU Emacs first" >&2; exit 1; }
-	@emacs --batch -Q -l scripts/emacs-section-snapshot.el \
+	@TZ=UTC emacs --batch -Q -l scripts/emacs-section-snapshot.el \
 	  --eval '(organ-section-snapshot "$(PWD)/$(PARITY_SECTION_SEED)")' \
 	  2>/dev/null > $(PARITY_SECTION_EMACS)
 	@echo "wrote $(PARITY_SECTION_EMACS) ($$(wc -l < $(PARITY_SECTION_EMACS)) lines)"
