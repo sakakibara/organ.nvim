@@ -35,6 +35,60 @@ local function sort_records(records, order_spec)
   end)
 end
 
+-- Auto-fit the TODO column to the widest keyword actually present, mirroring
+-- Emacs (the column shrinks when e.g. no DONE state is in view).  Returns 0
+-- when no row has a TODO state -- i.e. no TODO column at all.
+local function fit_todo_width(rows)
+  local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format or "%s"
+  local max = 0
+  for _, r in ipairs(rows) do
+    if r.todo_state then
+      local disp = r.todo_state
+      if kw_fmt ~= "%s" then
+        local ok, formatted = pcall(string.format, kw_fmt, r.todo_state)
+        if ok then
+          disp = formatted
+        end
+      end
+      if #disp > max then
+        max = #disp
+      end
+    end
+  end
+  return max
+end
+
+-- Auto-fit the category column to the widest category in the block so the
+-- column reads as a true column row-to-row.  cfg.category_width is the lower
+-- bound; +2 covers the trailing colon and a single-space separator.
+local function fit_category_width(rows)
+  local declared = (require("organ.buf_config").read(nil, "agenda") or {}).category_width or 12
+  local max = declared
+  for _, r in ipairs(rows) do
+    local cat = format.category_for(r) or ""
+    local w = vim.fn.strdisplaywidth(cat) + 2
+    if w > max then
+      max = w
+    end
+  end
+  return max
+end
+
+-- Hide undated rows in the daily-agenda view (Emacs default).  Returns rows
+-- unchanged unless the block is an agenda view without show_no_date.
+local function filter_undated(rows, kind, show_no_date)
+  if kind ~= "agenda" or show_no_date then
+    return rows
+  end
+  local filtered = {}
+  for _, r in ipairs(rows) do
+    if r.scheduled_date or r.deadline_date or r.closed_date or r._bucket_date then
+      filtered[#filtered + 1] = r
+    end
+  end
+  return filtered
+end
+
 -- Per-block primitive: overdue bucket, group_by day/none, sort, format_line.
 local function render_block(rows, block, now_override)
   block = block or {}
@@ -50,24 +104,7 @@ local function render_block(rows, block, now_override)
     today = today,
   }
   if not block_opts.todo_width then
-    local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format
-      or "%s"
-    local max = 0
-    for _, r in ipairs(rows) do
-      if r.todo_state then
-        local disp = r.todo_state
-        if kw_fmt ~= "%s" then
-          local ok, formatted = pcall(string.format, kw_fmt, r.todo_state)
-          if ok then
-            disp = formatted
-          end
-        end
-        if #disp > max then
-          max = #disp
-        end
-      end
-    end
-    block_opts.todo_width = max -- 0 -> no TODO column at all (clean view)
+    block_opts.todo_width = fit_todo_width(rows) -- 0 -> no TODO column (clean view)
   end
 
   -- Auto-fit category column.  format_line's `%-N:c` only pads to N;
@@ -78,37 +115,13 @@ local function render_block(rows, block, now_override)
   -- this block once and have format_line use that as the effective
   -- minimum width for every row, so the column reads as a true
   -- column.  cfg.category_width still acts as the lower bound.
-  do
-    local declared = (require("organ.buf_config").read(nil, "agenda") or {}).category_width or 12
-    local max = declared
-    for _, r in ipairs(rows) do
-      local cat = format.category_for(r) or ""
-      -- +1 for the trailing colon, +1 more so the longest category
-      -- still gets a single-space separator before the next column
-      -- (otherwise `refile_source:Scheduled:` runs together while
-      -- shorter categories like `agenda_demo:  Scheduled:` get a
-      -- visible gap from the auto-pad).
-      local w = vim.fn.strdisplaywidth(cat) + 2
-      if w > max then
-        max = w
-      end
-    end
-    block_opts.category_width = max
-  end
+  block_opts.category_width = fit_category_width(rows)
 
   -- Hide undated rows in the daily-agenda view (mirrors Emacs default).
   -- Activated when block.kind explicitly says "agenda" OR when block has
   -- a date window (block.from set). Override with agenda.show_no_date=true.
   local kind = block.kind or (block.from and "agenda" or "todo")
-  if kind == "agenda" and not opts.show_no_date then
-    local filtered = {}
-    for _, r in ipairs(rows) do
-      if r.scheduled_date or r.deadline_date or r.closed_date or r._bucket_date then
-        filtered[#filtered + 1] = r
-      end
-    end
-    rows = filtered
-  end
+  rows = filter_undated(rows, kind, opts.show_no_date)
 
   local fmt = function(r)
     return format.format_line(r, block_opts)
