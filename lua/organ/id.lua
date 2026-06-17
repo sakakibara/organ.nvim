@@ -1,8 +1,30 @@
 -- lua/organ/id.lua
--- :Org id get_create — assign UUID v7 to current headline's :PROPERTIES: drawer.
--- Matches Emacs M-x org-id-get-create.
+-- :Org id get_create -- assign an :ID: (per `links.id_method`) to the
+-- current headline's :PROPERTIES: drawer.  Matches Emacs M-x org-id-get-create.
 
 local M = {}
+
+-- Generate a fresh org id per the configured `links.id_method` (Emacs
+-- `org-id-method`).  This is the single id source for every :ID: organ
+-- creates -- headline ids and roam node / daily ids alike:
+--   "uuid"   (default) -> RFC 9562 v7 (time-ordered)
+--   "uuidv4"           -> RFC 4122 v4 random (Emacs org-id's default shape)
+--   "ts"               -> "YYYYMMDDTHHMMSS-NNN"
+--   function           -> user generator returning a non-empty string
+function M.generate(bufnr)
+  local method = (require("organ.buf_config").read(bufnr, "links") or {}).id_method or "uuid"
+  if type(method) == "function" then
+    local ok, v = pcall(method)
+    if ok and type(v) == "string" and v ~= "" then
+      return v
+    end
+  elseif method == "ts" then
+    return os.date("%Y%m%dT%H%M%S") .. "-" .. string.format("%03d", math.random(0, 999))
+  elseif method == "uuidv4" then
+    return require("organ.uuid").v4()
+  end
+  return require("organ.uuid").v7()
+end
 
 -- Read the existing :ID: from the properties drawer of the headline at `line`.
 -- Returns the ID string or nil if absent.
@@ -45,24 +67,7 @@ function M.get_or_create(bufnr, line)
     return existing
   end
 
-  -- ID generation method (Emacs `org-id-method`).  uuid → RFC 4122
-  -- v7; ts → "YYYYMMDDTHHMMSS-NNN" timestamp + random tail; function
-  -- → user-supplied generator returning a string.
-  local method = (require("organ.buf_config").read(nil, "links") or {}).id_method or "uuid"
-  local new_id
-  if type(method) == "function" then
-    local ok, v = pcall(method)
-    if ok and type(v) == "string" and v ~= "" then
-      new_id = v
-    end
-  elseif method == "ts" then
-    local ts = os.date("%Y%m%dT%H%M%S")
-    local tail = string.format("%03d", math.random(0, 999))
-    new_id = ts .. "-" .. tail
-  end
-  if not new_id then
-    new_id = require("organ.uuid").v7()
-  end
+  local new_id = M.generate(bufnr)
   local err = require("organ.property").set(bufnr, hl.line, "ID", new_id)
   if err then
     require("organ.notify").error(err)

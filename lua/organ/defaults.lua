@@ -1281,8 +1281,13 @@ return {
     --   false / nil              — never store as `id:`; always emit
     --                              a `file::*Headline` link
     id_link_policy = "use-existing",
-    -- ID generation method (Emacs `org-id-method`):
-    --   "uuid" (default) — RFC 4122 v7 UUID (organ implementation)
+    -- ID generation method (Emacs `org-id-method`).  Governs every new
+    -- :ID: organ creates -- headline ids AND roam node / daily ids
+    -- (Emacs's org-id-method is likewise global, including org-roam):
+    --   "uuid" (default) — RFC 9562 v7 UUID, time-ordered (organ default)
+    --   "uuidv4"         — RFC 4122 v4 random UUID; the shape Emacs org-id
+    --                      emits under its own default, for byte-identical
+    --                      interop with Emacs org-roam
     --   "ts"             — timestamp-based ("YYYYMMDDTHHMMSS-NNN")
     --   <function>       — custom generator returning a string
     id_method = "uuid",

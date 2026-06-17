@@ -52,15 +52,9 @@ function M.create_node(title)
   end
   local full = dir .. "/" .. fname
 
-  local id = require("organ.uuid").v7()
-  local default_body = {
-    ":PROPERTIES:",
-    ":ID:       " .. id,
-    ":END:",
-    "#+title: " .. title,
-    "",
-    "",
-  }
+  local note = require("organ.roam.note")
+  local id = require("organ.id").generate()
+  local default_body = note.header(id, title)
   local body
   if type(cfg.body_template) == "function" then
     local ok, result = pcall(cfg.body_template, title, id)
@@ -83,7 +77,10 @@ function M.create_node(title)
   end
 
   vim.cmd("edit " .. vim.fn.fnameescape(full))
-  vim.api.nvim_win_set_cursor(0, { #body, 0 })
+  -- Land at the end of the last header line (the title for the default
+  -- node, mirroring where org-roam leaves point after the capture head).
+  local last = #body
+  vim.api.nvim_win_set_cursor(0, { last, #(body[last] or "") })
 end
 
 local function capture_ctx()

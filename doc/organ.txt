@@ -471,20 +471,25 @@ Roam                                                       *organ-config-roam*
     Directory for roam node files.
 
                                              *organ-config-roam-file_template*
-    `roam.file_template` (string or nil)
-    Template for new roam node file names.
+    `roam.file_template` (function(title) -> string, or nil)
+    Names a new roam node's file.  Default (nil) uses
+    `<YYYYMMDDHHMMSS>-<slug>.org`, matching org-roam's default capture.
 
                                              *organ-config-roam-body_template*
-    `roam.body_template` (string or nil)
-    Template for new roam node body.
+    `roam.body_template` (function(title, id) -> list, or nil)
+    Builds a new roam node's lines (one string per line).  Default
+    (nil) writes the file-level `:ID:` drawer + `#+title:` header --
+    the same top-of-file org-roam produces.
 
                                                    *organ-config-roam-dailies*
     `roam.dailies.subdir` (string, default: `"daily"`)
     Subdirectory under `roam.dir` for daily notes.
 
                                           *organ-config-roam-dailies-template*
-    `roam.dailies.template` (string or nil)
-    Template body for new daily notes.
+    `roam.dailies.template` (function(iso) -> list, or nil)
+    Builds a new daily note's lines.  Default (nil) writes the
+    `:ID:` / `#+title:` header plus a `* ` heading -- matching
+    org-roam's default daily capture (`entry "* %?"`).
 
 ------------------------------------------------------------------------------
 Clock                                                     *organ-config-clock*
@@ -2510,16 +2515,14 @@ UUID format ~
     `:ID:` values are opaque to org-mode — both formats interoperate
     freely.  Switching tools means new headlines pick up the new
     tool's format; old headlines keep their original IDs intact.
-    To force v4 generation in organ:
+    To generate v4 instead (byte-identical to Emacs org-id's default):
 >lua
-        require("organ").setup({
-          links = {
-            id_method = function() return require("your-v4-lib").v4() end,
-          },
-        })
+        require("organ").setup({ links = { id_method = "uuidv4" } })
 <
     Or set `id_method = "ts"` for the timestamp-string form
-    (`YYYYMMDDTHHMMSS-NNN`) instead of either UUID flavor.
+    (`YYYYMMDDTHHMMSS-NNN`) instead of either UUID flavor.  `id_method`
+    governs every `:ID:` organ writes -- headline ids and roam node /
+    daily ids alike (Emacs's `org-id-method` is likewise global).
 
 ID locations file ~
     Emacs's org-id resolves cross-file `[[id:...]]` links via
