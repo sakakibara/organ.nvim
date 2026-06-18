@@ -167,24 +167,6 @@ handlers["textDocument/documentSymbol"] = function(params)
       children = {},
     }
     -- Find the deepest headline whose range contains this inlinetask.
-    local function attach(node_list)
-      for _, sym in ipairs(node_list) do
-        local h = sym._h_info
-        if
-          h
-          and it.line_start >= h.line_start
-          and it.line_start <= (h.line_end or h.line_start)
-        then
-          attach(sym.children)
-          if not attach_done then
-            table.insert(sym.children, it_sym)
-            attach_done = true
-          end
-          return
-        end
-      end
-    end
-    -- Simple linear scan: find deepest enclosing in flat list.
     local target = nil
     for _, h in ipairs(hs) do
       if it.line_start >= h.line_start and it.line_start <= (h.line_end or h.line_start) then
