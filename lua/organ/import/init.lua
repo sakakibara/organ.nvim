@@ -3,8 +3,7 @@
 -- each format converts source text -> organ AST -> org and opens the result.
 local M = {}
 
--- Open `org_text` in a fresh org buffer (or, with bang + path, this could
--- later write to a file; Stage 0 opens a scratch org buffer).
+-- Open `org_text` in a fresh scratch org buffer.
 local function open_org(org_text)
   local lines = vim.split(org_text, "\n", { plain = true })
   -- Drop a single trailing empty line from the converter's trailing newline.
@@ -34,7 +33,7 @@ end
 
 M.commands = {
   ["import markdown"] = {
-    fn = require("organ.errors").guard("organ.cmd import markdown", import_markdown),
+    fn = import_markdown,
     nargs = "1",
     complete = "file",
     bang = true,
