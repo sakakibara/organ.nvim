@@ -89,6 +89,29 @@ shows the WHAT.
 - For UI-touching changes, exercise the feature in a real Neovim
   session before declaring done.  The test suite verifies code
   correctness, not feature correctness.
+- `make lint` runs stylua and luacheck (`luarocks install luacheck`);
+  both must be clean before a PR.
+
+### Error handling
+
+organ follows the standard Lua model, split by whether a failure is part
+of normal control flow:
+
+- **Expected / recoverable** (not found, no match, a user-supplied path
+  that does not exist): return `nil` (or `nil, msg` when the reason is not
+  self-evident).  The caller handles it inline.
+- **Exceptional / invariant** (a hardcoded query fails to prepare, a
+  handle is missing where it must exist, an impossible node kind): call
+  `error(msg, 2)` with a `module.context:` prefix, or use
+  `organ.errors.check(cond, ctx, msg)`.
+
+Catch only at the outermost user-facing boundary -- command handlers,
+keymap callbacks, autocmds, and scheduled callbacks -- via
+`organ.errors.guard(ctx, fn)` (or `errors.schedule` / `errors.autocmd`,
+which wrap the callback for you).  `pcall` cannot catch a throw on a
+later `vim.schedule` stack, so scheduled callbacks must be guarded at the
+point they are scheduled.  Do **not** add `pcall` mid-chain in internal
+code -- it only swallows context and hides bugs.
 
 ## Where to look
 
