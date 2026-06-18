@@ -26,14 +26,6 @@ local function get_text(node, src)
   return table.concat(out, "\n")
 end
 
-local function children(node)
-  local out = {}
-  for c in node:iter_children() do
-    out[#out + 1] = c
-  end
-  return out
-end
-
 local function heading_level(node, src)
   local sr = node:start()
   local line = src[sr + 1] or ""

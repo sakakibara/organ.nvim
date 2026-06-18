@@ -55,9 +55,7 @@ local function find_ts_at(line_text, col)
     -- Find matching close bracket
     local open = line_text:sub(s, s)
     local close = open == "<" and ">" or "]"
-    local e = line_text:find("[" .. close .. "]", s + 1, false)
-    -- Lua plain find doesn't accept char class; use plain string find.
-    e = line_text:find(close, s + 1, true)
+    local e = line_text:find(close, s + 1, true)
     if not e then
       return nil
     end
@@ -93,9 +91,7 @@ local function sub_unit_at(line_text, range, col)
   if rel >= 9 and rel <= 10 then
     return "day"
   end
-  -- Past the date portion: check weekday / time
-  local rest_offset = rel - 11 -- 0-based offset into the post-date text (rest starts after "DD")
-  -- Easiest: re-scan the actual text for hour/minute positions.
+  -- Past the date portion: re-scan the actual text for hour/minute positions.
   local text = line_text:sub(s, range.end_col)
   -- Find weekday
   local wd_s, wd_e = text:find("%s%a%a%a%f[%A]", 11)
@@ -103,7 +99,7 @@ local function sub_unit_at(line_text, range, col)
     return "day"
   end
   -- Find time HH:MM
-  local h_s, h_e = text:find("%s%d%d:", 11)
+  local h_s = text:find("%s%d%d:", 11)
   if h_s then
     local hour_start = h_s -- skip leading space
     if rel >= hour_start and rel <= hour_start + 1 then
@@ -410,30 +406,6 @@ local function _cycle_priority(bufnr, lnum, range, direction)
       { "[#" .. letter .. "] " }
     )
   end
-end
-
-local function detect_todo_at(line_text, col)
-  local stars, todo = line_text:match("^(%*+)%s+(%S+)")
-  if not stars or not todo then
-    return nil
-  end
-  local todo_seq = (require("organ.buf_config").read(nil, "todo") or {}).sequence or {}
-  local found = false
-  for _, k in ipairs(todo_seq) do
-    if k == todo then
-      found = true
-      break
-    end
-  end
-  if not found then
-    return nil
-  end
-  local todo_start = #stars + 1 -- 0-based col where TODO keyword begins (after "* ")
-  local todo_end = todo_start + #todo -- exclusive
-  if col >= todo_start and col < todo_end then
-    return true
-  end
-  return false
 end
 
 function M.dispatch(direction)

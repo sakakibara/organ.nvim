@@ -25,11 +25,7 @@ local M = {}
 local obuf = require("organ.buf")
 -- Pattern building blocks
 
--- Footnote-reference regex.  Captures the label (which may be empty for
--- `[fn::text]`).  Use string.find to also get start/end positions.
-local REF_PATTERN = "%[fn:([%w_%-]*):?[^%]]*%]"
 local DEF_LINE_PATTERN = "^%[fn:([%w_%-]+)%]%s"
-local DEF_LINE_TRIM = "^%[fn:([%w_%-]+)%]%s*(.*)$"
 
 local function get_line(bufnr, lnum)
   return vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
@@ -43,7 +39,7 @@ end
 function M.ref_at(text, col)
   local i = 1
   while i <= #text do
-    local s, e, label = text:find("(%[fn:[%w_%-]*[:%]])", i)
+    local s, e, _ = text:find("(%[fn:[%w_%-]*[:%]])", i)
     if not s then
       return nil
     end
@@ -277,7 +273,6 @@ end
 -- Returns the number of conversions performed.
 function M.normalize_inline(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  opts = opts or {}
   local total = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, total, false)
   local definitions = {} -- list of "[fn:LABEL] body" lines to append.

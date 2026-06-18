@@ -84,15 +84,6 @@ end
 
 -- An `atom` token may be a bare tag, a LEVEL=N clause, a PROP="v" clause,
 -- a TODO=N comparison, or (after `/`) a TODO state name. Resolve here.
-local CMP_OPS = {
-  ["="] = true,
-  ["!="] = true,
-  ["<>"] = true,
-  [">"] = true,
-  ["<"] = true,
-  [">="] = true,
-  ["<="] = true,
-}
 
 local function strip_quotes(s)
   if s and s:sub(1, 1) == '"' and s:sub(-1) == '"' then

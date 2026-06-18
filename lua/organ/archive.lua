@@ -350,7 +350,6 @@ local function inject_properties(lines, pairs_list)
   -- Find whether there's an existing :PROPERTIES: drawer already.
   -- It must start right after the headline (line index 2 = lines[2]).
   local insert_before_end = nil -- 1-based index of :END: line
-  local drawer_start = nil
 
   -- Skip planning lines (SCHEDULED/DEADLINE/CLOSED) before looking for drawer.
   local scan = 2
@@ -364,7 +363,6 @@ local function inject_properties(lines, pairs_list)
   end
 
   if scan <= #lines and lines[scan]:match("^%s*:PROPERTIES:%s*$") then
-    drawer_start = scan
     for i = scan + 1, #lines do
       if lines[i]:match("^%s*:END:%s*$") then
         insert_before_end = i
@@ -676,7 +674,6 @@ function M.archive_to_sibling(opts)
 
   -- Locate or create the top-level Archive headline.
   local arc_hl_line = find_top_headline(all, archive_hl_title)
-  local appended = false
   if not arc_hl_line then
     -- Append at end with a leading blank-line separator.
     if all[#all] and all[#all] ~= "" then
@@ -684,7 +681,6 @@ function M.archive_to_sibling(opts)
     end
     all[#all + 1] = "* " .. archive_hl_title
     arc_hl_line = #all
-    appended = true
   end
 
   -- Re-level the subtree: top becomes level 2 under "* Archive".

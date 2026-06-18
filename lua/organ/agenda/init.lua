@@ -18,7 +18,6 @@ local M = {}
 local obuf = require("organ.buf")
 local highlights = require("organ.agenda.highlights")
 local dates = require("organ.agenda.dates")
-local format = require("organ.agenda.format")
 local render = require("organ.agenda.render")
 local collect = require("organ.agenda.collect")
 local vstate = require("organ.agenda.state")
@@ -425,7 +424,7 @@ function M.refresh(bufnr)
   local old_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local n_old, n_new = #old_lines, #out.lines
   local extmark_range_start, extmark_range_end
-  local content_changed = false
+  local content_changed
   if n_old == n_new then
     local prefix = 0
     while prefix < n_old and old_lines[prefix + 1] == out.lines[prefix + 1] do
@@ -701,7 +700,6 @@ function M.open(view_opts, view_name)
     log_mode = log_cfg_init.on_start == true,
   })
 
-  local organ = require("organ")
   local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local debounce_ms = (view.refresh_debounce_ms or cfg.refresh_debounce_ms or 300)
   local timer

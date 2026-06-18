@@ -34,7 +34,6 @@ function M.dir(bufnr, line)
     return nil, "could not get or create headline ID"
   end
 
-  local organ = require("organ")
   local base = (require("organ.buf_config").read(nil, "attach") or {}).dir
     or (vim.fn.expand("~/org/data"))
   local d = M.dir_for_id(base, id)
@@ -79,7 +78,6 @@ end
 -- If `auto_insert_link` is true, inserts [[attachment:<filename>]] at cursor.
 -- Returns err or nil.
 function M.attach(bufnr, line, src_path)
-  local organ = require("organ")
   local attach_cfg = require("organ.buf_config").read(nil, "attach") or {}
 
   local d, err = M.dir(bufnr, line)
@@ -196,15 +194,14 @@ function M.attach_screenshot(bufnr, line, opts)
   local dest = d .. "/" .. filename
 
   local sysname = (vim.uv.os_uname() or {}).sysname or ""
-  local rc
   if sysname == "Darwin" and vim.fn.executable("screencapture") == 1 then
     -- -i = interactive (user selects region).
-    rc = vim.fn.system({ "screencapture", "-i", dest })
+    vim.fn.system({ "screencapture", "-i", dest })
   elseif vim.fn.executable("flameshot") == 1 then
     -- flameshot gui --raw writes PNG to stdout; redirect via shell.
-    rc = vim.fn.system("flameshot gui --raw > " .. vim.fn.shellescape(dest))
+    vim.fn.system("flameshot gui --raw > " .. vim.fn.shellescape(dest))
   elseif vim.fn.executable("maim") == 1 then
-    rc = vim.fn.system({ "maim", "-s", dest })
+    vim.fn.system({ "maim", "-s", dest })
   else
     return "no screenshot tool on PATH (tried: screencapture, flameshot, maim)"
   end
@@ -265,13 +262,11 @@ local function _ensure_git_repo(dir)
   end
   -- Set a basic identity if not already configured globally; otherwise
   -- `git commit` errors on a fresh repo with `unable to auto-detect email`.
-  local rc_email = vim.v.shell_error -- preserved across calls
-  rc, out = _git_run(dir, "config", "--get", "user.email")
+  _git_run(dir, "config", "--get", "user.email")
   if vim.v.shell_error ~= 0 then
     _git_run(dir, "config", "user.email", "organ-attach@local")
     _git_run(dir, "config", "user.name", "organ.nvim")
   end
-  _ = rc_email
   return true
 end
 

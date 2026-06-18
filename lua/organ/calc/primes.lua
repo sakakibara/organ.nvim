@@ -100,7 +100,6 @@ local function pollard_rho(n)
     return bn.from_int(2)
   end
   local one = bn.one()
-  local two = bn.from_int(2)
   for c_seed = 1, 100 do
     local c = bn.from_int(c_seed)
     local x = bn.from_int(2)

@@ -52,7 +52,7 @@ local function is_last_dow_in_month(iso)
   -- Find the last day of this month.
   local next_first = os.time({ year = y, month = m + 1, day = 1, hour = 12 })
   local last_day_iso = os.date("%Y-%m-%d", next_first - 86400)
-  local last_y, last_m, last_d = iso_to_components(last_day_iso)
+  local _, _, last_d = iso_to_components(last_day_iso)
   return (last_d - d) < 7
 end
 

@@ -223,7 +223,7 @@ local function on_win(bufnr, _winid, topline, botline)
   -- [topline, botline+1) are yielded.  Subtrees that don't overlap are
   -- skipped at the C level, so cost is O(visible_blocks).
   for _, node in q:iter_captures(tree:root(), bufnr, topline, botline + 1) do
-    local sr, _sc, er, ec = node:range()
+    local sr, _, er, ec = node:range()
     -- end_col == 0 means the node ends at the START of er, so the last
     -- actual row is er - 1.  end_col > 0 means er itself is the last
     -- row (the `#+end_*` line).

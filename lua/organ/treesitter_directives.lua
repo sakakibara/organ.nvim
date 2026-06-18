@@ -71,7 +71,7 @@ end
 -- end line.  Returns start_row, start_col, end_row, end_col, start_byte,
 -- end_byte — the range tuple tree-sitter injection metadata expects.
 local function src_block_body_range(node, source)
-  local sr, sc, er, ec, sb, eb = node:range(true)
+  local _, _, _, _, sb = node:range(true)
   local ok, text = pcall(vim.treesitter.get_node_text, node, source)
   if not ok or not text then
     return nil
@@ -114,7 +114,6 @@ end
 
 -- Count leading `*` characters of a headline node's first line.
 local function headline_stars(node, source)
-  local sr, sc = node:start()
   -- Quick path: pull the first line directly.
   local ok, text = pcall(vim.treesitter.get_node_text, node, source)
   if not ok or not text then
@@ -389,14 +388,12 @@ function M.register()
       return
     end
     local first = text:match("^[^\n]*") or ""
-    local stars, kw_start_off, kw, kw_end_off = first:find("^(%*+)%s+(%S+)()")
+    local stars, _, _, _ = first:find("^(%*+)%s+(%S+)()")
     -- Pattern groups: stars (1), kw (2). `()` captures positions.
     if not stars then
       return
     end
-    local kw_start, kw_end = first:find("^%*+%s+(%S+)")
-    -- The above isn't ideal; use a cleaner re-extract:
-    local s_idx, e_idx, captured = first:find("^%*+%s+(%S+)")
+    local _, _, captured = first:find("^%*+%s+(%S+)")
     if not captured then
       return
     end

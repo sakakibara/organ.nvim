@@ -68,7 +68,7 @@ function M.append(bufnr, hl_line, entry_lines)
     return
   end
 
-  local s, e = drawer.find(lines, hl_line, drawer_name, bufnr)
+  local s, _ = drawer.find(lines, hl_line, drawer_name, bufnr)
   if s then
     -- Newest first: insert just after the :DRAWER: line.
     obuf.set_lines(bufnr, s, s, entry_lines)

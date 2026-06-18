@@ -51,28 +51,6 @@ local function enclosing_headline(bufnr, line)
   return nil
 end
 
--- A list item line: returns indent + bullet representation, OR nil if
--- not on a list item.  Mirrors organ.checkbox.parse_item_line but only
--- needs to identify the bullet style for replication.
-local function item_bullet(text)
-  -- `- ` or `+ `
-  local m = text:match("^(%s*)([-+])%s")
-  if m then
-    return text:match("^(%s*)"), text:match("^%s*(%S)"), "literal"
-  end
-  -- `* ` at indent > 0
-  local indent = text:match("^(%s+)") or ""
-  if indent ~= "" and text:match("^%s+%*%s") then
-    return indent, "*", "literal"
-  end
-  -- `N. ` or `N) `
-  local n, sep = text:match("^(%s*)(%d+)([%.%)])%s")
-  if n then
-    return text:match("^(%s*)"), nil, "numeric", text:match("^%s*(%d+)([%.%)])"):sub(-1)
-  end
-  return nil
-end
-
 -- Find the bullet style of `line` if it's a list item.  Returns
 --   { indent = "  ", style = "literal"|"numeric", char = "-"|"+"|"*", sep = "."|")", n = N }
 -- or nil.
@@ -231,7 +209,7 @@ function M.dispatch(opts)
   -- content = t` (the common user config): from anywhere inside a
   -- subtree, M-RET produces a new heading at the same level appended
   -- below, never splitting the body line at point.
-  local _hl_line, hl_lvl = enclosing_headline(bufnr, cur_line)
+  local _, hl_lvl = enclosing_headline(bufnr, cur_line)
   if hl_lvl then
     local total = vim.api.nvim_buf_line_count(bufnr)
     local end_line = cur_line

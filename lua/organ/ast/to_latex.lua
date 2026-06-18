@@ -74,11 +74,6 @@ local function verb_delim(body)
   return "|"
 end
 
--- Set whenever a math region is encountered.  Reserved for future use
--- (e.g. preamble decisions); currently unused but reset per-render so
--- a stale value from a previous render can never leak in.
-local _math_used = false
-
 local emit_inline
 local emit_block
 
@@ -140,7 +135,6 @@ function emit_inline(nodes)
     elseif n.kind == "footnote_ref" then
       out[#out + 1] = "\\footnotemark[" .. (n.label or "") .. "]"
     elseif n.kind == "math" then
-      _math_used = true
       if n.display then
         out[#out + 1] = "\\[" .. (n.body or "") .. "\\]"
       else
@@ -378,7 +372,6 @@ local PREAMBLE = [[\documentclass{article}
 
 function M.render(doc, opts)
   opts = opts or {}
-  _math_used = false
 
   local body = {}
   for _, c in ipairs(doc.children or {}) do

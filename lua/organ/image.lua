@@ -37,7 +37,6 @@ end
 --   [[~/path]]
 -- Returns the (resolved) path or nil.
 local function link_target_at_cursor(bufnr)
-  bufnr = bufnr or 0
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local s = 1

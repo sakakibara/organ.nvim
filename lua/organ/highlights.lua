@@ -282,11 +282,10 @@ function M.register_buffer_todo_keywords(bufnr)
   for _, l in ipairs(lines) do
     local val = l:match("^%s*#%+[Tt][Oo][Dd][Oo]:%s*(.*)$")
     if val then
-      local seq, in_done = {}, false
+      local seq = {}
       for tok in val:gmatch("%S+") do
         if tok == "|" then
           seq[#seq + 1] = "|"
-          in_done = true
         else
           local kw = tok:match("^([%w_%-]+)") or tok
           if kw ~= "" then

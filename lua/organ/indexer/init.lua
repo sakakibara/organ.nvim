@@ -423,7 +423,6 @@ function M.should_skip(h, file_path, mtime, hash)
 end
 
 function M.index_file_sync(path)
-  local organ = require("organ")
   local h = require("organ.runtime").db()
   assert(h, "organ.runtime.db() returned nil — call organ.setup() before index_file_sync")
   local parser_path = require("organ.buf_config").read(nil, "parser_path")

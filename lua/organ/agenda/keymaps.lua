@@ -468,14 +468,6 @@ local function install(bufnr, agenda)
     end
   end
 
-  local function set_marked(id, value)
-    local state = vstate.get(bufnr)
-    state.bulk_marked = state.bulk_marked or {}
-    state.bulk_marked[id] = value or nil
-    vstate.set(bufnr, state)
-    redraw_bulk_signs()
-  end
-
   -- <Space> toggles bulk mark on the cursor row + advances to next
   -- item. Space is unmapped in vim-default normal mode (it's <Right>
   -- as motion), so this is the cleanest single-key for bulk select

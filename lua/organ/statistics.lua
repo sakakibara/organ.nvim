@@ -44,21 +44,6 @@ local function done_set(input)
   return set
 end
 
-local function active_set(input)
-  local set = {}
-  for _, seq in ipairs(require("organ.todo")._normalise_sequences(input)) do
-    local in_done = false
-    for _, k in ipairs(seq) do
-      if k == "|" then
-        in_done = true
-      elseif not in_done then
-        set[k] = true
-      end
-    end
-  end
-  return set
-end
-
 local function any_todo_kw(input)
   local set = {}
   for _, k in ipairs(require("organ.todo").all_keywords(input)) do
@@ -75,7 +60,7 @@ local function cookies_in(line)
   local out = {}
   local pos = 1
   while true do
-    local s, e, n, d = line:find("(%[(%d*)/(%d*)%])", pos)
+    local s, e = line:find("(%[(%d*)/(%d*)%])", pos)
     if s then
       out[#out + 1] = { kind = "fraction", s = s, e = e }
       pos = e + 1
@@ -85,7 +70,7 @@ local function cookies_in(line)
   end
   pos = 1
   while true do
-    local s, e, p = line:find("(%[(%d*)%%%])", pos)
+    local s, e = line:find("(%[(%d*)%%%])", pos)
     if s then
       out[#out + 1] = { kind = "percent", s = s, e = e }
       pos = e + 1

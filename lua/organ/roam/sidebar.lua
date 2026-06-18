@@ -47,7 +47,7 @@ local function tab_state(tab)
 end
 
 local function get_cfg()
-  local ok, organ = pcall(require, "organ")
+  local ok, _ = pcall(require, "organ")
   if not ok then
     return {}
   end

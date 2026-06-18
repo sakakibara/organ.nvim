@@ -503,7 +503,7 @@ local function resolve_calendar(name, date)
 end
 
 function M.bump(timestamp_text, now_yyyy_mm_dd)
-  local open_b, ymd, _dow, suffix, close_b = match_ts(timestamp_text)
+  local open_b, ymd, _, suffix, close_b = match_ts(timestamp_text)
   if not open_b then
     return nil, "not a recognised timestamp"
   end

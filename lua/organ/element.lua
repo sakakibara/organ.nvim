@@ -459,7 +459,8 @@ end
 
 local function link_info_from_node(node, bufnr, ttype)
   local sr, sc, er, ec = node:range()
-  local target, desc = "", ""
+  local target
+  local desc = ""
   if ttype == "link_regular" then
     local tgt = field_first(node, "target")
     local dsc = field_first(node, "description")

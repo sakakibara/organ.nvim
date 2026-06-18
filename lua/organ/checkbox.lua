@@ -27,11 +27,10 @@ local CYCLE = { [" "] = "X", X = "-", ["-"] = " " }
 --   cookie_end   end   byte offset of cookie text, or nil
 function M.parse_item_line(line)
   -- Match leading indent + bullet + space.
-  local indent_chars, bullet_chars, after_bullet_pos
+  local indent_chars, after_bullet_pos
   local p = line:match("^(%s*)([-+]%s+)()")
   if p then
     indent_chars = #(line:match("^(%s*)"))
-    bullet_chars = (line:match("^%s*([-+]%s+)"))
     after_bullet_pos = #(line:match("^(%s*[-+]%s+)"))
   else
     -- `*` bullet (only at indent > 0)
@@ -40,7 +39,6 @@ function M.parse_item_line(line)
       local m = line:match("^%s+(%*%s+)")
       if m then
         indent_chars = #indent
-        bullet_chars = m
         after_bullet_pos = #indent + #m
       end
     end
@@ -51,7 +49,6 @@ function M.parse_item_line(line)
     local n = line:match("^%s*(%d+[%.%)]%s+)")
     if n then
       indent_chars = #(line:match("^(%s*)"))
-      bullet_chars = n
       after_bullet_pos = #(line:match("^%s*%d+[%.%)]%s+"))
     end
   end
@@ -64,7 +61,7 @@ function M.parse_item_line(line)
   local rest_offset = after_bullet_pos
 
   -- Optional counter `[@N] `
-  local counter_len = 0
+  local counter_len
   local cm = rest:match("^(%[@%d+%]%s+)")
   if cm then
     counter_len = #cm

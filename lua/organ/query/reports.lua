@@ -189,7 +189,7 @@ function M.habit_completions(opts)
   end
   sql = sql .. " ORDER BY headline_id, date"
 
-  local s, err = h:prepare(sql)
+  local s, _ = h:prepare(sql)
   if not s then
     return {}
   end

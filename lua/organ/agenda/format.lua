@@ -839,7 +839,7 @@ local function format_line(r, block_opts)
   local show_graphs = (require("organ.buf_config").read(nil, "agenda") or {}).show_habit_graphs
     == true
   if show_graphs then
-    col = append_habit_glyphs(parts, marks, col, r)
+    append_habit_glyphs(parts, marks, col, r)
   end
 
   return table.concat(parts), marks

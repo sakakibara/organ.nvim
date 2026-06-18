@@ -472,10 +472,6 @@ local function tick_plist_body(entries)
   )
 end
 
-local function bootstrap(path)
-  return run({ "launchctl", "bootstrap", "gui/" .. uid(), path })
-end
-
 local function bootout(path)
   return run({ "launchctl", "bootout", "gui/" .. uid(), path })
 end

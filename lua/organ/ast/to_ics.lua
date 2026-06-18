@@ -17,9 +17,9 @@ local function fold_line(line)
   if #line <= 75 then
     return line
   end
-  local parts, i = {}, 1
+  local parts = {}
   parts[#parts + 1] = line:sub(1, 75)
-  i = 76
+  local i = 76
   while i <= #line do
     parts[#parts + 1] = " " .. line:sub(i, i + 73)
     i = i + 74

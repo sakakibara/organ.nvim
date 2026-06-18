@@ -94,7 +94,6 @@ function M.paste(bufnr, line)
 
   -- Determine where to insert: find the containing headline to get its level.
   local cursor_level
-  local total = vim.api.nvim_buf_line_count(bufnr)
 
   local line_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
   local direct_level = headline_level(line_text)

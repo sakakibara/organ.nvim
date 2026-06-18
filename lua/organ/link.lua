@@ -61,7 +61,6 @@ local function apply_abbrev(template, tag)
     -- gsub uses Lua pattern syntax: `%%` matches a literal `%`.
     -- Wrap `tag` so any `%` inside gets escaped against the replacement
     -- shorthand (`%0`, `%1`, …).
-    local escaped = (tag or ""):gsub("%%", "%%%%")
     return (template:gsub("%%h", (vim.uri_encode(tag)):gsub("%%", "%%%%")))
   end
   if template:find("%s", 1, true) then

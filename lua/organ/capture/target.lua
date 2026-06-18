@@ -142,7 +142,6 @@ local function find_olp(hls, olp)
       end
     elseif hl.level <= depth then
       depth = math.min(depth, hl.level - 1)
-      last_idx = nil
     end
   end
   return nil

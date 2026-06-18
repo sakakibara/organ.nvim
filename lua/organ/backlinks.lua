@@ -208,7 +208,6 @@ function M.refresh(bufnr)
 end
 
 local function install_keymaps(bufnr)
-  local organ = require("organ")
   local backlinks_cfg = require("organ.buf_config").read(nil, "backlinks") or {}
   -- Rule 2: keymaps = false disables all backlinks bindings.
   if backlinks_cfg.keymaps == false then
@@ -303,7 +302,6 @@ function M.open(headline_id)
 
   set_state(bufnr, { id = headline_id })
 
-  local organ = require("organ")
   local cfg = (require("organ.buf_config").read(nil, "backlinks") or {})
   local debounce_ms = cfg.refresh_debounce_ms or 300
 

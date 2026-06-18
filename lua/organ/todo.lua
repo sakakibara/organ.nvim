@@ -378,11 +378,6 @@ local function get_config()
   return require("organ.buf_config").read(nil, "todo") or {}
 end
 
-local function default_sequence()
-  return get_config().sequence
-    or { "TODO", "NEXT", "WAITING", "HOLD", "PROJ", "|", "DONE", "CANCELLED" }
-end
-
 -- Multi-sequence aware: union of actives across every configured
 -- sub-sequence.  An entry's classification is its position relative
 -- to its OWN sequence's `|` marker.
@@ -511,7 +506,7 @@ end
 local function add_logbook_entry(bufnr, hl_line, drawer_name, from_state, to_state, note)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local entry = build_logbook_entry(from_state, to_state, note)
-  local start_idx, end_idx = drawer.find(lines, hl_line, drawer_name, bufnr)
+  local start_idx = drawer.find(lines, hl_line, drawer_name, bufnr)
   if start_idx then
     -- Insert entry just after the :DRAWER: line (newest first).
     obuf.set_lines(bufnr, start_idx, start_idx, entry)

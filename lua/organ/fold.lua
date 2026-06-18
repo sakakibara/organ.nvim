@@ -437,33 +437,6 @@ function M.close_all_drawers(bufnr)
   end)
 end
 
--- Headline depth (count of leading `*` chars) for line `lnum` in
--- the given buffer.  Returns 0 for non-headline lines.
-local function headline_level(bufnr, lnum)
-  local line = (vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false) or {})[1]
-  if not line then
-    return 0
-  end
-  local stars = line:match("^(%*+)%s")
-  return stars and #stars or 0
-end
-
--- Deepest headline depth in the buffer.  Used by cycle_global to
--- pick the foldlevel for Emacs's CONTENTS state (foldlevel = max
--- heading depth keeps every heading visible while folding bodies).
-local function max_heading_depth(bufnr)
-  local n = vim.api.nvim_buf_line_count(bufnr)
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, n, false)
-  local deepest = 0
-  for _, l in ipairs(lines) do
-    local stars = l:match("^(%*+)%s")
-    if stars and #stars > deepest then
-      deepest = #stars
-    end
-  end
-  return deepest
-end
-
 -- Lua foldexpr for org buffers.  Two-pass:
 --   1. Headline depth (counted from leading `*`) drives the outline
 --      fold tree.  This is the right metric for the outline — the

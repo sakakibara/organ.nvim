@@ -270,14 +270,13 @@ function M.render(ast_root, opts)
   if not regular then
     return nil, err
   end
-  local mono, merr = load_font(opts.mono_font_path, "mono")
+  local mono = load_font(opts.mono_font_path, "mono")
   if not mono then
     -- A document with no code blocks works fine with only the regular
     -- font, but we always allocate a mono slot in /Resources for
     -- determinism (callers can predict resource keys). Fall back to the
     -- regular face if mono can't be found -- still produces valid PDF.
     mono = regular
-    _ = merr
   end
 
   -- 2. Layout.

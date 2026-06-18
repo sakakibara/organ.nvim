@@ -46,25 +46,6 @@ function M.db()
   return h
 end
 
-local function platform_triple()
-  if jit and jit.os and jit.arch then
-    local os_name = jit.os:lower()
-    local arch = jit.arch:lower()
-    if os_name == "osx" then
-      os_name = "darwin"
-    end
-    if arch == "x64" then
-      arch = "x86_64"
-    end
-    if arch == "arm64" and os_name == "linux" then
-      arch = "aarch64"
-    end
-    return os_name .. "-" .. arch
-  end
-  local u = vim.uv and vim.uv.os_uname() or vim.loop.os_uname()
-  return (u.sysname or "?"):lower() .. "-" .. (u.machine or "?")
-end
-
 -- Resolve the path to a built parser binary by probing, in order:
 --   1. an explicit override (user-set `cfg.parser_path` for the block
 --      grammar; for the inline grammar we derive a sibling path)

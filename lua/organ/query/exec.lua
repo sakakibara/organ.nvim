@@ -120,16 +120,6 @@ local function hydrate_inherited_tags(h, rows)
   end
   local db = require("organ.db")
 
-  -- Collect every ancestor id we'll need.
-  local needed = {}
-  for _, r in ipairs(rows) do
-    local pid = r.parent_id
-    while pid and pid ~= "" do
-      needed[pid] = true
-      pid = nil -- resolved below
-    end
-  end
-
   -- Walk the parent chain in SQL: gather a mapping ancestor_id -> tags{}.
   -- This is a single recursive CTE per row to keep latency bounded.
   local id_to_chain = {} -- headline_id -> { ancestor_id_1, ..., file_path }

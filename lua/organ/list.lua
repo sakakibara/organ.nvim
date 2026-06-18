@@ -89,7 +89,6 @@ function M.repair(bufnr, cursor_line)
     if p and #p.indent == indent and p.counter then
       local override = p.content:match("^%[@(%d+)%]")
       counter = tonumber(override) or 1
-      _ = i
       break
     end
   end

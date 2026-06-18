@@ -565,7 +565,6 @@ end
 
 function Font:embed(w)
   local ps = self.postscript_name
-  local upem = self.head.units_per_em
 
   -- Convert font-unit metrics to 1/1000-of-em PDF user space.
   local function pdf(v)

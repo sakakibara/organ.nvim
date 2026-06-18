@@ -288,7 +288,6 @@ local function collapse_blank_runs(lines)
 end
 
 function M.render(doc, opts)
-  opts = opts or {}
   local out = {}
   for _, c in ipairs(doc.children or {}) do
     emit_block(c, out)

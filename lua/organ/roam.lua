@@ -34,10 +34,7 @@ function M.create_node(title)
       existing = dir .. "/" .. fname
     end
   else
-    for _, p in ipairs(vim.fn.glob(dir .. "/*-" .. slug .. ".org", false, true)) do
-      existing = p
-      break
-    end
+    existing = vim.fn.glob(dir .. "/*-" .. slug .. ".org", false, true)[1]
   end
 
   if existing then
