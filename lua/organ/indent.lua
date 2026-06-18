@@ -67,6 +67,29 @@ local function stars_visually_hidden(bufnr)
   return false
 end
 
+-- Line predicates mirroring organ.indentexpr: these classify the rows that
+-- the indentexpr gives a real `planning_indent` to (planning lines and
+-- drawers), so the virtual pad can absorb that real indent instead of
+-- stacking on top of it.  Block bodies are deliberately excluded -- their
+-- indentation is literal content, not adaptive.
+local function is_planning(l)
+  return l:match("^%s*[Ss][Cc][Hh][Ee][Dd][Uu][Ll][Ee][Dd]:") ~= nil
+    or l:match("^%s*[Dd][Ee][Aa][Dd][Ll][Ii][Nn][Ee]:") ~= nil
+    or l:match("^%s*[Cc][Ll][Oo][Ss][Ee][Dd]:") ~= nil
+end
+local function is_drawer_open(l)
+  return l:match("^%s*:[%w_-]+:%s*$") ~= nil
+end
+local function is_drawer_close(l)
+  return l:match("^%s*:[Ee][Nn][Dd]:%s*$") ~= nil
+end
+local function is_block_open(l)
+  return l:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_") ~= nil
+end
+local function is_block_close(l)
+  return l:match("^%s*#%+[Ee][Nn][Dd]_") ~= nil
+end
+
 -- Frame-local row map: frame_map[row] = pad_string.  Reset at the
 -- start of every on_win call; read by on_line for the same frame.
 -- Rows at level 1 (no indent) are absent.
@@ -105,12 +128,14 @@ local function on_win(bufnr, _winid, topline, botline)
   local n = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, n, false)
   local current_level = 0
+  local in_drawer, in_block = false, false
   for i, txt in ipairs(lines) do
     local row = i - 1
     local stars = txt:match("^(%*+)%s") or txt:match("^(%*+)$")
     if stars then
       local level = #stars
       current_level = level
+      in_drawer, in_block = false, false -- drawers/blocks never span a heading
       if row >= topline and row <= botline then
         local pad_size = hide_stars and 0 or ((level - 1) * shift)
         if pad_size > 0 then
@@ -118,11 +143,37 @@ local function on_win(bufnr, _winid, topline, botline)
         end
       end
     elseif current_level > 0 then
+      -- Absorb real leading whitespace only for the lines the indentexpr
+      -- gives an adaptive `planning_indent` to (planning + drawer edges +
+      -- drawer interior), never inside a block.  Otherwise the inline pad
+      -- stacks on top of that real indent and the line overshoots the title.
+      -- List items and paragraphs keep their (structural) real indent on top
+      -- of the uniform pad, matching Emacs org-indent.
+      local absorb = not in_block
+        and (is_planning(txt) or is_drawer_open(txt) or is_drawer_close(txt) or in_drawer)
       if row >= topline and row <= botline then
-        local pad_size = hide_stars and (current_level + 1)
+        -- Title-text column: where the first byte must render to sit under
+        -- the heading title.
+        local target = hide_stars and (current_level + 1)
           or ((current_level - 1) * shift + current_level + 1)
+        local pad_size = target
+        if absorb then
+          pad_size = target - #(txt:match("^%s*") or "")
+        end
         if pad_size > 0 then
           frame_map[row] = string.rep(" ", pad_size)
+        end
+      end
+      -- Update block/drawer state AFTER classifying this row.
+      if is_block_open(txt) then
+        in_block = true
+      elseif is_block_close(txt) then
+        in_block = false
+      elseif not in_block then
+        if is_drawer_close(txt) then
+          in_drawer = false
+        elseif is_drawer_open(txt) then
+          in_drawer = true
         end
       end
     end
