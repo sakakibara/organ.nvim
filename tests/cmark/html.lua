@@ -32,6 +32,8 @@ local function block(node, out)
   elseif node.kind == "headline" then
     local lvl = node.level
     out[#out + 1] = "<h" .. lvl .. ">" .. inline(node.title) .. "</h" .. lvl .. ">\n"
+  elseif node.kind == "rule" then
+    out[#out + 1] = "<hr />\n"
   end
   -- later stages: list, code_block, block, rule, table, ...
 end

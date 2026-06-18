@@ -19,4 +19,11 @@ assert(only("##  Padded  ##\n").title[1].text == "Padded", "closing #s and space
 assert(only("   # Indented\n").level == 1, "<=3 leading spaces ok")
 assert(only("#No space\n").kind == "paragraph", "hash without space is a paragraph")
 
+assert(only("***\n").kind == "rule", "*** is a thematic break")
+assert(only("---\n").kind == "rule", "--- alone is a thematic break")
+assert(only("___\n").kind == "rule", "___ is a thematic break")
+assert(only("- - -\n").kind == "rule", "spaced dashes are a thematic break")
+assert(only("--\n").kind == "paragraph", "only two dashes is not a break")
+assert(only("*-*\n").kind == "paragraph", "mixed chars are not a break")
+
 print("from_md_blocks_test: PASS")

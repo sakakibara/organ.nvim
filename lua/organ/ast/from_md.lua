@@ -42,6 +42,25 @@ local function atx_heading(p, line)
 end
 M._block_starters[#M._block_starters + 1] = atx_heading
 
+local function thematic_break(p, line)
+  local body = line:match("^ ? ? ?([%-%*_].*)$")
+  if not body then
+    return false
+  end
+  local stripped = body:gsub("%s", "")
+  local ch = stripped:sub(1, 1)
+  if #stripped < 3 or stripped:match("[^" .. "%" .. ch .. "]") then
+    return false
+  end
+  -- Defer the "--- under a paragraph = setext h2" case to the setext task.
+  if ch == "-" and #p.open_para > 0 then
+    return false
+  end
+  p:add_block(ast.rule())
+  return true
+end
+M._block_starters[#M._block_starters + 1] = thematic_break
+
 local Parser = {}
 Parser.__index = Parser
 
