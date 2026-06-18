@@ -48,4 +48,11 @@ assert(ic.kind == "code_block" and ic.body == "indented code\n", "4-space indent
 local doc = from_md.parse("text\n    not code\n")
 assert(doc.children[1].kind == "paragraph", "indent after paragraph stays paragraph")
 
+-- ATX heading whose entire content is a closing '#' run must yield an empty title.
+local empty_atx = only("### ###\n")
+assert(
+  empty_atx.kind == "headline" and (#empty_atx.title == 0 or empty_atx.title[1].text == ""),
+  "empty ATX heading from all-closing content"
+)
+
 print("from_md_blocks_test: PASS")

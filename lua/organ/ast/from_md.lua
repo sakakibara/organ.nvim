@@ -17,10 +17,9 @@ local function is_blank(line)
   return line:match("^%s*$") ~= nil
 end
 
--- Ordered block starters. Each is fn(parser, line) and returns true if it
--- consumed the line (opening/continuing its own block). Tasks 2-5 append to
--- this list in CommonMark precedence order. The paragraph fallback runs only
--- when no starter claims the line.
+-- Ordered block starters, in CommonMark precedence order. Each is
+-- fn(parser, line) and returns true if it consumed the line. The paragraph
+-- fallback runs only when no starter claims the line.
 M._block_starters = {}
 
 -- ATX heading: up to 3 leading spaces, 1-6 '#', then a space or EOL.
@@ -37,6 +36,11 @@ local function atx_heading(p, line)
   end
   -- Strip an optional closing run of '#' (preceded by space) and trim.
   local content = (rest or ""):gsub("%s+#+%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+  -- A content that is entirely '#' characters (no preceding space, e.g. "### ###")
+  -- is itself a closing run per CommonMark; treat it as empty.
+  if content:match("^#+%s*$") then
+    content = ""
+  end
   p:add_block(ast.headline({ level = #hashes, title = { ast.text(content) }, children = {} }))
   return true
 end
