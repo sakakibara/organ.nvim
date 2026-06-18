@@ -1,6 +1,13 @@
 -- Markdown importer: md text -> organ AST.  Hand-written CommonMark + GFM
 -- parser (no third-party dependency).  Never throws on content -- unrecognised
 -- input degrades to literal paragraph text.
+--
+-- Architecture: CommonMark's open-blocks stack.  The document is parsed one
+-- line at a time against a stack of currently-open blocks (a path from the root
+-- `document` container down to the deepest open block, the `tip`).  Each line
+-- runs three phases: continuation (which open containers still match), new
+-- block starts (which leaves/containers begin here), and lazy/text addition.
+-- Closing a block finalises it to the same `ast.*` node the renderer expects.
 local ast = require("organ.ast")
 
 local M = {}
@@ -17,13 +24,19 @@ local function is_blank(line)
   return line:match("^%s*$") ~= nil
 end
 
--- Ordered block starters, in CommonMark precedence order. Each is
--- fn(parser, line) and returns true if it consumed the line. The paragraph
--- fallback runs only when no starter claims the line.
-M._block_starters = {}
+local function strip(s)
+  return (s:gsub("^%s+", ""):gsub("%s+$", ""))
+end
 
--- ATX heading: up to 3 leading spaces, 1-6 '#', then a space or EOL.
-local function atx_heading(p, line)
+-- Leaf recognisers.  Each inspects the marker-stripped line and, when it begins
+-- a block, returns a fresh open-block table (see Block types below); otherwise
+-- nil.  The regexes and edge cases are the proven CommonMark behaviour; only the
+-- delivery (per-line, returning an open block instead of mutating a parser)
+-- differs.
+
+-- ATX heading: up to 3 leading spaces, 1-6 '#', then a space or EOL.  Closed
+-- immediately (single-line leaf).
+local function atx_heading(line)
   local hashes, rest = line:match("^ ? ? ?(#+)%s+(.*)$")
   if not hashes then
     hashes = line:match("^ ? ? ?(#+)%s*$") -- empty heading
@@ -32,132 +45,99 @@ local function atx_heading(p, line)
     end
   end
   if not hashes or #hashes > 6 then
-    return false
+    return nil
   end
   -- Strip an optional closing run of '#' (preceded by space) and trim.
-  local content = (rest or ""):gsub("%s+#+%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
-  -- A content that is entirely '#' characters (no preceding space, e.g. "### ###")
-  -- is itself a closing run per CommonMark; treat it as empty.
+  local content = strip((rest or ""):gsub("%s+#+%s*$", ""))
+  -- A content that is entirely '#' characters (no preceding space, e.g.
+  -- "### ###") is itself a closing run per CommonMark; treat it as empty.
   if content:match("^#+%s*$") then
     content = ""
   end
-  p:add_block(ast.headline({ level = #hashes, title = { ast.text(content) }, children = {} }))
-  return true
+  return {
+    type = "heading",
+    level = #hashes,
+    content = content,
+    children = {},
+    closed_immediately = true,
+  }
 end
-M._block_starters[#M._block_starters + 1] = atx_heading
 
-local function thematic_break(p, line)
+-- Thematic break: <=3 spaces, then >=3 of a single '-', '*' or '_' (spaces
+-- allowed between).  A '-' run under an open paragraph is deferred to setext.
+local function thematic_break(line, tip_is_paragraph)
   local body = line:match("^ ? ? ?([%-%*_].*)$")
   if not body then
-    return false
+    return nil
   end
   local stripped = body:gsub("%s", "")
   local ch = stripped:sub(1, 1)
   if #stripped < 3 or stripped:match("[^" .. "%" .. ch .. "]") then
-    return false
+    return nil
   end
-  -- Defer the "--- under a paragraph = setext h2" case to the setext task.
-  if ch == "-" and #p.open_para > 0 then
-    return false
+  if ch == "-" and tip_is_paragraph then
+    return nil -- "---" under a paragraph is a setext underline, not a break
   end
-  p:add_block(ast.rule())
-  return true
+  return { type = "thematic_break", children = {}, closed_immediately = true }
 end
-M._block_starters[#M._block_starters + 1] = thematic_break
 
-local function fenced_code(p, line)
+-- Fenced code: <=3 space indent, then >=3 backticks or tildes, then an info
+-- string.  Opens a leaf that accumulates body lines until its closing fence.
+local function fenced_code(line)
   local indent, fence, info = line:match("^( ? ? ?)([`~][`~][`~]+)%s*(.*)$")
   if not fence then
-    return false
+    return nil
   end
   local fence_char = fence:sub(1, 1)
   -- Backtick info strings cannot contain a backtick.
   if fence_char == "`" and info:find("`", 1, true) then
-    return false
+    return nil
   end
   local lang = info:match("^(%S+)")
-  local body_lines = {}
-  local j = p.i + 1
-  while j <= #p.lines do
-    local l = p.lines[j]
-    local close = l:match("^ ? ? ?([`~]+)%s*$")
-    if close and close:sub(1, 1) == fence_char and #close >= #fence then
-      break
-    end
-    -- Strip up to `#indent` leading spaces from each body line.
-    body_lines[#body_lines + 1] = l:gsub("^" .. string.rep(" ", #indent), "")
-    j = j + 1
-  end
-  -- When unclosed, split_lines appends a trailing "" artifact; remove it.
-  if j > #p.lines then
-    while #body_lines > 0 and body_lines[#body_lines] == "" do
-      body_lines[#body_lines] = nil
-    end
-  end
-  local body = #body_lines > 0 and (table.concat(body_lines, "\n") .. "\n") or ""
-  p:add_block(ast.code_block(lang, body))
-  p.i = (j <= #p.lines) and j or #p.lines -- land on the closing fence (or last line)
-  return true
+  return {
+    type = "code_block",
+    variant = "fenced",
+    fence_char = fence_char,
+    fence_len = #fence,
+    indent = #indent,
+    lang = lang,
+    body = {},
+    closed = false,
+    children = {},
+  }
 end
-M._block_starters[#M._block_starters + 1] = fenced_code
 
-local function indented_code(p, line)
-  if #p.open_para > 0 then
-    return false -- paragraph continuation, not code
-  end
+-- A fenced code block's closing fence: same char, length >= the opener, <=3
+-- space indent, nothing else but trailing whitespace.
+local function is_closing_fence(block, line)
+  local close = line:match("^ ? ? ?([`~]+)%s*$")
+  return close and close:sub(1, 1) == block.fence_char and #close >= block.fence_len
+end
+
+-- Indented code: a line indented >=4 spaces that does not continue a paragraph.
+-- Opens a leaf that accumulates indented and interior-blank lines.
+local function indented_code(line)
   if not line:match("^    ") then
-    return false
+    return nil
   end
-  local body_lines = {}
-  local j = p.i
-  while j <= #p.lines do
-    local l = p.lines[j]
-    if l:match("^    ") then
-      body_lines[#body_lines + 1] = l:gsub("^    ", "")
-    elseif is_blank(l) then
-      body_lines[#body_lines + 1] = "" -- interior blank kept for now; trimmed below
-    else
-      break
-    end
-    j = j + 1
-  end
-  -- Trim trailing blank lines.
-  while #body_lines > 0 and body_lines[#body_lines] == "" do
-    body_lines[#body_lines] = nil
-  end
-  p:add_block(ast.code_block(nil, table.concat(body_lines, "\n") .. "\n"))
-  p.i = j - 1 -- loop will +1 to the first non-code line
-  return true
+  return { type = "code_block", variant = "indented", body = {}, children = {} }
 end
-M._block_starters[#M._block_starters + 1] = indented_code
 
--- Setext heading: a paragraph underlined by =+ (level 1) or -+ (level 2).
-local function setext_heading(p, line)
-  if #p.open_para == 0 then
-    return false
-  end
-  local level
+-- Setext underline: '=' (level 1) or '-' (level 2) run under an open paragraph.
+-- Returns the heading level, or nil.
+local function setext_level(line)
   if line:match("^ ? ? ?=+%s*$") then
-    level = 1
+    return 1
   elseif line:match("^ ? ? ?%-+%s*$") then
-    level = 2
-  else
-    return false
+    return 2
   end
-  local title = table.concat(p.open_para, "\n"):gsub("^%s+", ""):gsub("%s+$", "")
-  p.open_para = {}
-  p.blocks[#p.blocks + 1] =
-    ast.headline({ level = level, title = { ast.text(title) }, children = {} })
-  return true
+  return nil
 end
-M._block_starters[#M._block_starters + 1] = setext_heading
 
--- Link reference definition: [label]: destination optional-title, at block
--- start. Consumed with no output; recorded in p.refmap for later inline use.
-local function link_ref_def(p, line)
-  if #p.open_para > 0 then
-    return false -- a definition cannot interrupt a paragraph
-  end
+-- Link reference definition: [label]: destination optional-title, at a fresh
+-- block position (cannot interrupt a paragraph).  Records into `refmap` and
+-- emits no block.  Returns true when consumed.
+local function link_ref_def(line, refmap)
   local label, after = line:match("^ ? ? ?%[(.-)%]:%s*(.*)$")
   if not label or label:match("^%s*$") or label:match("[%[%]]") then
     return false
@@ -173,14 +153,12 @@ local function link_ref_def(p, line)
   if rest ~= "" and not title then
     return false -- trailing junk -> not a definition (treat as paragraph)
   end
-  p.refmap = p.refmap or {}
   local key = label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower()
-  if p.refmap[key] == nil then -- first definition wins
-    p.refmap[key] = { destination = dest, title = title }
+  if refmap[key] == nil then -- first definition wins
+    refmap[key] = { destination = dest, title = title }
   end
   return true
 end
-M._block_starters[#M._block_starters + 1] = link_ref_def
 
 local HTML_BLOCK_TAGS = {}
 for _, t in ipairs({
@@ -376,93 +354,260 @@ local function html_block_start(s)
   return nil
 end
 
-local function html_block(p, line)
+-- HTML block opener.  Kinds 1-6 may interrupt a paragraph; kind 7 may not.
+-- Opens a leaf that accumulates lines until the kind's end condition.
+local function html_block(line, tip_is_paragraph)
   local s = line:match("^ ? ? ?(<.*)$")
   if not s then
-    return false
+    return nil
   end
   local kind, ends, inclusive = html_block_start(s)
   if not kind then
-    return false
+    return nil
   end
-  -- Kind 7 cannot interrupt a paragraph; kinds 1-6 can.
-  if kind == 7 and #p.open_para > 0 then
-    return false
+  if kind == 7 and tip_is_paragraph then
+    return nil
   end
-  local body_lines = {}
-  local j = p.i
-  while j <= #p.lines do
-    local l = p.lines[j]
-    if ends(l) then
-      if inclusive then
-        body_lines[#body_lines + 1] = l
-        j = j + 1
-      end
-      break
-    end
-    body_lines[#body_lines + 1] = l
-    j = j + 1
-  end
-  -- Unclosed kinds 1-5 run to EOF; split_lines appends a trailing "" artifact.
-  if inclusive and j > #p.lines then
-    while #body_lines > 0 and body_lines[#body_lines] == "" do
-      body_lines[#body_lines] = nil
-    end
-  end
-  p:add_block(
-    ast.block("export", { body = table.concat(body_lines, "\n") .. "\n", backend = "html" })
-  )
-  p.i = j - 1 -- loop will +1 to the first line after the block
-  return true
+  return {
+    type = "html_block",
+    kind = kind,
+    ends = ends,
+    inclusive = inclusive,
+    body = {},
+    closed = false,
+    children = {},
+  }
 end
-M._block_starters[#M._block_starters + 1] = html_block
 
+-- Finalising an open block to the AST node the renderer consumes.  These mirror
+-- the previous leaf-by-leaf output exactly so the renderer and roundtrip are
+-- unchanged.
+
+local function trim_trailing_blank(lines)
+  while #lines > 0 and lines[#lines] == "" do
+    lines[#lines] = nil
+  end
+end
+
+local function finalize(block)
+  local t = block.type
+  if t == "paragraph" then
+    return ast.paragraph({ ast.text(table.concat(block.lines, "\n")) })
+  elseif t == "heading" then
+    return ast.headline({
+      level = block.level,
+      title = { ast.text(block.content) },
+      children = {},
+    })
+  elseif t == "thematic_break" then
+    return ast.rule()
+  elseif t == "code_block" then
+    local body_lines = block.body
+    if block.variant == "fenced" then
+      -- Unclosed fence ran to EOF; the doubled-newline split artifact leaves a
+      -- trailing blank line that is not part of the body.
+      if not block.closed then
+        trim_trailing_blank(body_lines)
+      end
+      local body = #body_lines > 0 and (table.concat(body_lines, "\n") .. "\n") or ""
+      return ast.code_block(block.lang, body)
+    else
+      trim_trailing_blank(body_lines)
+      return ast.code_block(nil, table.concat(body_lines, "\n") .. "\n")
+    end
+  elseif t == "html_block" then
+    local body_lines = block.body
+    -- Unclosed inclusive kinds (1-5) run to EOF; drop the split artifact blank.
+    if block.inclusive and not block.closed then
+      trim_trailing_blank(body_lines)
+    end
+    return ast.block("export", { body = table.concat(body_lines, "\n") .. "\n", backend = "html" })
+  end
+  return nil
+end
+
+-- Parser state: an open-blocks stack rooted at `document`.  `stack[1]` is the
+-- document container; the last element is the `tip`.  Containers hold `children`
+-- (already-finalised child blocks); the tip leaf accumulates raw text.
 local Parser = {}
-
 Parser.__index = Parser
 
 function Parser.new()
-  return setmetatable({ blocks = {}, open_para = {}, lines = {}, i = 0 }, Parser)
+  local doc = { type = "document", children = {} }
+  return setmetatable({ stack = { doc }, refmap = {} }, Parser)
 end
 
-function Parser:close_para()
-  if #self.open_para > 0 then
-    self.blocks[#self.blocks + 1] = ast.paragraph({ ast.text(table.concat(self.open_para, "\n")) })
-    self.open_para = {}
+function Parser:tip()
+  return self.stack[#self.stack]
+end
+
+-- Finalise and pop the tip leaf, attaching its node to its parent container.
+function Parser:close_tip()
+  local n = #self.stack
+  if n <= 1 then
+    return
+  end
+  local block = self.stack[n]
+  self.stack[n] = nil
+  local node = finalize(block)
+  if node then
+    local parent = self.stack[#self.stack]
+    parent.children[#parent.children + 1] = node
   end
 end
 
-function Parser:add_block(node)
-  self:close_para()
-  self.blocks[#self.blocks + 1] = node
+-- Close every open block above the document, deepest first.
+function Parser:close_to_document()
+  while #self.stack > 1 do
+    self:close_tip()
+  end
+end
+
+function Parser:push(block)
+  self.stack[#self.stack + 1] = block
+end
+
+-- Try the leaf starters, in proven CommonMark precedence, against the
+-- marker-stripped `line`.  Returns true if the line opened (and possibly closed)
+-- a block or was consumed as a reference definition.
+function Parser:try_starts(line)
+  local tip = self:tip()
+  local tip_para = tip.type == "paragraph"
+
+  -- Setext underline converts an open paragraph in place; check before other
+  -- starts so "---" under a paragraph becomes an h2 rather than a break.
+  if tip_para then
+    local level = setext_level(line)
+    if level then
+      local n = #self.stack
+      local para = self.stack[n]
+      self.stack[n] = nil
+      local parent = self.stack[#self.stack]
+      parent.children[#parent.children + 1] = ast.headline({
+        level = level,
+        title = { ast.text(strip(table.concat(para.lines, "\n"))) },
+        children = {},
+      })
+      return true
+    end
+  end
+
+  local block = atx_heading(line)
+    or thematic_break(line, tip_para)
+    or fenced_code(line)
+    or (not tip_para and indented_code(line))
+    or html_block(line, tip_para)
+  if block then
+    if tip_para then
+      self:close_tip()
+    end
+    self:push(block)
+    if block.closed_immediately then
+      self:close_tip()
+    elseif block.type == "code_block" and block.variant == "indented" then
+      -- The opening line is itself the first body line.
+      block.body[#block.body + 1] = line:gsub("^    ", "")
+    elseif block.type == "html_block" then
+      -- The opening line is part of the verbatim body; it may also already
+      -- satisfy the end condition (a one-line comment, a closed pre, etc.).
+      self:feed_open_leaf(line)
+    end
+    return true
+  end
+
+  -- Link reference definitions only at a fresh block position.
+  if not tip_para and link_ref_def(line, self.refmap) then
+    return true
+  end
+
+  return false
+end
+
+-- Feed one line to the tip when it is an open leaf still accumulating across
+-- lines (fenced code or an html block).  Returns true if the line was consumed.
+function Parser:feed_open_leaf(line)
+  local tip = self:tip()
+  if tip.type == "code_block" and tip.variant == "fenced" then
+    if is_closing_fence(tip, line) then
+      tip.closed = true
+      self:close_tip()
+    else
+      tip.body[#tip.body + 1] = line:gsub("^" .. string.rep(" ", tip.indent), "")
+    end
+    return true
+  elseif tip.type == "html_block" then
+    if tip.ends(line) then
+      if tip.inclusive then
+        tip.body[#tip.body + 1] = line
+        tip.closed = true
+        self:close_tip()
+      else
+        -- Kinds 6/7 end at a blank line which is not part of the block.
+        tip.closed = true
+        self:close_tip()
+      end
+    else
+      tip.body[#tip.body + 1] = line
+    end
+    return true
+  end
+  return false
+end
+
+function Parser:add_line(line)
+  -- Phase 2: an open accumulating leaf (fenced code / html block) swallows the
+  -- line directly.
+  if self:feed_open_leaf(line) then
+    return
+  end
+
+  local tip = self:tip()
+
+  -- An open indented-code leaf keeps absorbing indented and interior-blank
+  -- lines; any other non-blank line ends it and is reprocessed as a start.
+  if tip.type == "code_block" and tip.variant == "indented" then
+    if line:match("^    ") then
+      tip.body[#tip.body + 1] = line:gsub("^    ", "")
+      return
+    elseif is_blank(line) then
+      tip.body[#tip.body + 1] = ""
+      return
+    else
+      self:close_tip()
+      tip = self:tip()
+    end
+  end
+
+  if is_blank(line) then
+    -- A blank line closes an open paragraph; otherwise it is just consumed.
+    if tip.type == "paragraph" then
+      self:close_tip()
+    end
+    return
+  end
+
+  -- Phase 3: new block starts.
+  if self:try_starts(line) then
+    return
+  end
+
+  -- Phase 4: lazy continuation / paragraph text.
+  tip = self:tip()
+  if tip.type == "paragraph" then
+    tip.lines[#tip.lines + 1] = line
+  else
+    self:push({ type = "paragraph", lines = { line }, children = {} })
+  end
 end
 
 function M.parse(text)
   local p = Parser.new()
-  p.lines = split_lines(text or "")
-  p.i = 1
-  while p.i <= #p.lines do
-    local line = p.lines[p.i]
-    local consumed = false
-    if is_blank(line) then
-      p:close_para()
-      consumed = true
-    else
-      for _, starter in ipairs(M._block_starters) do
-        if starter(p, line) then
-          consumed = true
-          break
-        end
-      end
-    end
-    if not consumed then
-      p.open_para[#p.open_para + 1] = line
-    end
-    p.i = p.i + 1
+  for _, line in ipairs(split_lines(text or "")) do
+    p:add_line(line)
   end
-  p:close_para()
-  local doc = ast.document(p.blocks)
-  doc.reference_map = p.refmap or {}
+  p:close_to_document()
+  local doc = ast.document(p.stack[1].children)
+  doc.reference_map = p.refmap
   return doc
 end
 
