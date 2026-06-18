@@ -34,8 +34,13 @@ local function block(node, out)
     out[#out + 1] = "<h" .. lvl .. ">" .. inline(node.title) .. "</h" .. lvl .. ">\n"
   elseif node.kind == "rule" then
     out[#out + 1] = "<hr />\n"
+  elseif node.kind == "code_block" then
+    local attr = (node.language and node.language ~= "")
+        and (' class="language-' .. node.language .. '"')
+      or ""
+    out[#out + 1] = "<pre><code" .. attr .. ">" .. escape(node.body or "") .. "</code></pre>\n"
   end
-  -- later stages: list, code_block, block, rule, table, ...
+  -- later stages: list, block, table, ...
 end
 
 function M.render(doc)

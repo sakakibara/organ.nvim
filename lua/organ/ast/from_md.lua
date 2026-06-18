@@ -61,6 +61,42 @@ local function thematic_break(p, line)
 end
 M._block_starters[#M._block_starters + 1] = thematic_break
 
+local function fenced_code(p, line)
+  local indent, fence, info = line:match("^( ? ? ?)([`~][`~][`~]+)%s*(.*)$")
+  if not fence then
+    return false
+  end
+  local fence_char = fence:sub(1, 1)
+  -- Backtick info strings cannot contain a backtick.
+  if fence_char == "`" and info:find("`", 1, true) then
+    return false
+  end
+  local lang = info:match("^(%S+)")
+  local body_lines = {}
+  local j = p.i + 1
+  while j <= #p.lines do
+    local l = p.lines[j]
+    local close = l:match("^ ? ? ?([`~]+)%s*$")
+    if close and close:sub(1, 1) == fence_char and #close >= #fence then
+      break
+    end
+    -- Strip up to `#indent` leading spaces from each body line.
+    body_lines[#body_lines + 1] = l:gsub("^" .. string.rep(" ", #indent), "")
+    j = j + 1
+  end
+  -- When unclosed, split_lines appends a trailing "" artifact; remove it.
+  if j > #p.lines then
+    while #body_lines > 0 and body_lines[#body_lines] == "" do
+      body_lines[#body_lines] = nil
+    end
+  end
+  local body = #body_lines > 0 and (table.concat(body_lines, "\n") .. "\n") or ""
+  p:add_block(ast.code_block(lang, body))
+  p.i = (j <= #p.lines) and j or #p.lines -- land on the closing fence (or last line)
+  return true
+end
+M._block_starters[#M._block_starters + 1] = fenced_code
+
 local Parser = {}
 Parser.__index = Parser
 

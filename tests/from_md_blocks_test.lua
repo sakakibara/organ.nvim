@@ -26,4 +26,19 @@ assert(only("- - -\n").kind == "rule", "spaced dashes are a thematic break")
 assert(only("--\n").kind == "paragraph", "only two dashes is not a break")
 assert(only("*-*\n").kind == "paragraph", "mixed chars are not a break")
 
+local cb = only("```lua\nx = 1\n```\n")
+assert(cb.kind == "code_block", "fenced code block")
+assert(cb.language == "lua", "info string language")
+assert(cb.body == "x = 1\n", "code body keeps trailing newline")
+local plain = only("```\nraw\n```\n")
+assert(
+  plain.kind == "code_block" and (plain.language == nil or plain.language == ""),
+  "no language"
+)
+-- Unclosed fence runs to EOF.
+local unclosed = only("```\nstill code\n")
+assert(unclosed.kind == "code_block" and unclosed.body == "still code\n", "unclosed fence to EOF")
+-- Tildes work too.
+assert(only("~~~\ntc\n~~~\n").kind == "code_block", "tilde fence")
+
 print("from_md_blocks_test: PASS")
