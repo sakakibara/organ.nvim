@@ -864,10 +864,29 @@ local function setup_global_keymaps()
     paste_subtree = { "Org paste_subtree", "Paste subtree" },
   }
 
+  local prefixes = {}
   for name, lhs in pairs(cfg) do
     local entry = CMD[name]
-    if entry and lhs and lhs ~= "" and lhs ~= false then
+    if entry and type(lhs) == "string" and lhs ~= "" then
       vim.keymap.set("n", lhs, "<Cmd>" .. entry[1] .. "<CR>", { silent = true, desc = entry[2] })
+      local p = lhs:match("^(<[Ll]eader>.)") -- the shared prefix, e.g. <Leader>o
+      if p then
+        prefixes[p] = true
+      end
+    end
+  end
+
+  -- Label the global prefix(es) as a which-key group so e.g. <Leader>o shows
+  -- an "org" heading instead of an unlabeled menu.  No-op without which-key;
+  -- the user can relabel by registering their own group for the prefix.
+  local ok_wk, wk = pcall(require, "which-key")
+  if ok_wk and wk and wk.add then
+    local groups = {}
+    for p in pairs(prefixes) do
+      groups[#groups + 1] = { p, group = "org" }
+    end
+    if #groups > 0 then
+      pcall(wk.add, groups)
     end
   end
 end
