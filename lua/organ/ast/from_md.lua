@@ -3,11 +3,13 @@
 -- input degrades to literal paragraph text.
 --
 -- Architecture: CommonMark's open-blocks stack.  The document is parsed one
--- line at a time against a stack of currently-open blocks (a path from the root
--- `document` container down to the deepest open block, the `tip`).  Each line
--- runs three phases: continuation (which open containers still match), new
--- block starts (which leaves/containers begin here), and lazy/text addition.
--- Closing a block finalises it to the same `ast.*` node the renderer expects.
+-- line at a time against a stack of currently-open blocks.  Currently the
+-- stack contains the root `document` container plus at most one open leaf
+-- block (the `tip`).  Per-container continuation and marker-stripping for
+-- block quotes and lists are not yet handled; only the document container
+-- is present.  Each line tries block starts against the current tip, then
+-- feeds text to an open paragraph (lazy continuation).  Closing a block
+-- finalises it to the same `ast.*` node the renderer expects.
 local ast = require("organ.ast")
 
 local M = {}
@@ -538,14 +540,11 @@ function Parser:feed_open_leaf(line)
   elseif tip.type == "html_block" then
     if tip.ends(line) then
       if tip.inclusive then
-        tip.body[#tip.body + 1] = line
-        tip.closed = true
-        self:close_tip()
-      else
-        -- Kinds 6/7 end at a blank line which is not part of the block.
-        tip.closed = true
-        self:close_tip()
+        tip.body[#tip.body + 1] = line -- kinds 1-5: end line is part of the block
       end
+      -- Kinds 6/7: end condition is a blank line, not included in the block.
+      tip.closed = true
+      self:close_tip()
     else
       tip.body[#tip.body + 1] = line
     end
@@ -555,7 +554,7 @@ function Parser:feed_open_leaf(line)
 end
 
 function Parser:add_line(line)
-  -- Phase 2: an open accumulating leaf (fenced code / html block) swallows the
+  -- Step 1: an open accumulating leaf (fenced code / html block) swallows the
   -- line directly.
   if self:feed_open_leaf(line) then
     return
@@ -586,12 +585,12 @@ function Parser:add_line(line)
     return
   end
 
-  -- Phase 3: new block starts.
+  -- Step 2: new block starts.
   if self:try_starts(line) then
     return
   end
 
-  -- Phase 4: lazy continuation / paragraph text.
+  -- Step 3: lazy continuation / paragraph text.
   tip = self:tip()
   if tip.type == "paragraph" then
     tip.lines[#tip.lines + 1] = line
