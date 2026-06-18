@@ -33,19 +33,19 @@ function M.attach(bufnr)
     meta_return = "meta_return",
   }
   local descs = {
-    promote_subtree = "promote subtree",
-    demote_subtree = "demote subtree",
-    promote_subtree_alt = "promote subtree (alt)",
-    demote_subtree_alt = "demote subtree (alt)",
-    promote_headline = "promote headline",
-    demote_headline = "demote headline",
-    promote_headline_alt = "promote headline (alt)",
-    demote_headline_alt = "demote headline (alt)",
-    move_subtree_up = "move subtree up",
-    move_subtree_down = "move subtree down",
-    move_subtree_up_alt = "move subtree up (alt)",
-    move_subtree_down_alt = "move subtree down (alt)",
-    meta_return = "insert element below (M-RET)",
+    promote_subtree = "Promote subtree",
+    demote_subtree = "Demote subtree",
+    promote_subtree_alt = "Promote subtree (alt)",
+    demote_subtree_alt = "Demote subtree (alt)",
+    promote_headline = "Promote headline",
+    demote_headline = "Demote headline",
+    promote_headline_alt = "Promote headline (alt)",
+    demote_headline_alt = "Demote headline (alt)",
+    move_subtree_up = "Move subtree up",
+    move_subtree_down = "Move subtree down",
+    move_subtree_up_alt = "Move subtree up (alt)",
+    move_subtree_down_alt = "Move subtree down (alt)",
+    meta_return = "Insert element below (M-RET)",
   }
   local function dispatch(path)
     local entry = require("organ").cmd(path)
