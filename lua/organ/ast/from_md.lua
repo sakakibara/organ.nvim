@@ -152,6 +152,36 @@ local function setext_heading(p, line)
 end
 M._block_starters[#M._block_starters + 1] = setext_heading
 
+-- Link reference definition: [label]: destination optional-title, at block
+-- start. Consumed with no output; recorded in p.refmap for later inline use.
+local function link_ref_def(p, line)
+  if #p.open_para > 0 then
+    return false -- a definition cannot interrupt a paragraph
+  end
+  local label, after = line:match("^ ? ? ?%[(.-)%]:%s*(.*)$")
+  if not label or label:match("^%s*$") or label:match("[%[%]]") then
+    return false
+  end
+  local dest, rest = after:match("^(%S+)%s*(.*)$")
+  if not dest then
+    return false
+  end
+  dest = dest:gsub("^<(.*)>$", "%1") -- strip optional angle brackets
+  local title = rest:match('^"(.-)"%s*$')
+    or rest:match("^'(.-)'%s*$")
+    or rest:match("^%((.-)%)%s*$")
+  if rest ~= "" and not title then
+    return false -- trailing junk -> not a definition (treat as paragraph)
+  end
+  p.refmap = p.refmap or {}
+  local key = label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower()
+  if p.refmap[key] == nil then -- first definition wins
+    p.refmap[key] = { destination = dest, title = title }
+  end
+  return true
+end
+M._block_starters[#M._block_starters + 1] = link_ref_def
+
 local Parser = {}
 
 Parser.__index = Parser
@@ -196,7 +226,9 @@ function M.parse(text)
     p.i = p.i + 1
   end
   p:close_para()
-  return ast.document(p.blocks)
+  local doc = ast.document(p.blocks)
+  doc.reference_map = p.refmap or {}
+  return doc
 end
 
 return M

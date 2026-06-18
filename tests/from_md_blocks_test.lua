@@ -69,4 +69,20 @@ assert(only("=====\n").kind == "paragraph", "=== with no paragraph is a paragrap
 -- A dash line with no paragraph is still a thematic break.
 assert(only("---\n").kind == "rule", "--- with no paragraph stays a thematic break")
 
+-- Link reference definitions: consumed, emit no block, recorded in the map.
+local d = from_md.parse('[foo]: /url "title"\n')
+assert(#d.children == 0, "a lone reference definition emits no block")
+assert(d.reference_map ~= nil, "parse attaches a reference_map")
+assert(d.reference_map["foo"].destination == "/url", "destination recorded")
+assert(d.reference_map["foo"].title == "title", "title recorded")
+-- Label normalization: case-fold + whitespace-collapse.
+local d2 = from_md.parse("[  Foo  Bar ]: /u\n")
+assert(d2.reference_map["foo bar"].destination == "/u", "label normalized (case-fold, collapse)")
+-- A definition followed by a paragraph: def consumed, paragraph kept.
+local d3 = from_md.parse("[a]: /x\n\ntext\n")
+assert(#d3.children == 1 and d3.children[1].kind == "paragraph", "paragraph after def survives")
+-- A bracketed line that is NOT a definition stays a paragraph.
+local d4 = from_md.parse("[not a def] just text\n")
+assert(d4.children[1].kind == "paragraph", "non-definition bracket line is a paragraph")
+
 print("from_md_blocks_test: PASS")
