@@ -89,6 +89,693 @@ local function filter_undated(rows, kind, show_no_date)
   return filtered
 end
 
+-- Repeater expansion: a row scheduled with `+Nd` / `++Nw` / `.+Nm` (and so
+-- on) effectively occurs every N units. Without expansion, only the original
+-- date appears in the agenda; users who track daily habits / weekly chores
+-- see nothing on the days between. Toggle with `agenda.show_future_repeats`
+-- (default true; matches Emacs `org-agenda-show-future-repeats`). Returns
+-- `rows` unchanged when expansion does not apply.
+local function expand_repeaters(rows, block)
+  local show_repeats = (
+    (require("organ.buf_config").read(nil, "agenda") or {}).show_future_repeats ~= false
+  )
+  local repeater_mod_ok, repeater_mod = pcall(require, "organ.todo.repeater")
+  if not (show_repeats and repeater_mod_ok and block.from and block.to) then
+    return rows
+  end
+  local q = require("organ.query")
+  local from_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.from) or block.from)
+  local to_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.to) or block.to)
+  if not (from_ts and to_ts) then
+    return rows
+  end
+  local function period_seconds(rep)
+    local n = rep.value or 1
+    if rep.unit == "d" then
+      return n * 86400
+    end
+    if rep.unit == "w" then
+      return n * 7 * 86400
+    end
+    return nil -- m/y handled separately (calendar math)
+  end
+  local function bump_calendar(ts, n, unit)
+    local d = os.date("*t", ts)
+    if unit == "m" then
+      d.month = d.month + n
+    elseif unit == "y" then
+      d.year = d.year + n
+    end
+    return os.time(d)
+  end
+  local expanded = {}
+  for _, r in ipairs(rows) do
+    local rep = r.scheduled and r.scheduled ~= "" and repeater_mod.parse(r.scheduled) or nil
+    local origin_ts = r.scheduled_date
+        and r.scheduled_date ~= ""
+        and dates.iso_to_ts(r.scheduled_date)
+      or nil
+    local emit_clones = false
+    if rep and rep.value and rep.unit and origin_ts then
+      local time_part = (r.scheduled_date and #r.scheduled_date >= 11 and r.scheduled_date:sub(11))
+        or ""
+      local cursor = origin_ts
+      local sec_period = period_seconds(rep)
+      -- Walk forward to first occurrence >= from_ts.
+      while cursor < from_ts do
+        if sec_period then
+          cursor = cursor + sec_period
+        else
+          cursor = bump_calendar(cursor, rep.value, rep.unit)
+        end
+      end
+      -- If origin is BEFORE the window, the first in-window clone
+      -- represents an overdue carryover.  Emit it with the
+      -- ORIGINAL scheduled_date so `sched_label_for` shows
+      -- `Sched. Nx:` (for habits the cycle count, otherwise
+      -- days late) -- matching Emacs.  The bucket-day is set via
+      -- `_bucket_date` so the row lands on `from_ts` regardless.
+      local origin_pre_window = origin_ts < from_ts
+      local first = true
+      while cursor <= to_ts do
+        emit_clones = true
+        local clone = vim.deepcopy(r)
+        if first and origin_pre_window then
+          -- Carryover row: keep original scheduled_date, but
+          -- bucket on the today (cursor) day.
+          clone._bucket_date = os.date("%Y-%m-%d", cursor)
+        else
+          clone.scheduled_date = os.date("%Y-%m-%d", cursor) .. time_part
+          clone._synthetic_repeater = (cursor ~= origin_ts)
+        end
+        expanded[#expanded + 1] = clone
+        first = false
+        if sec_period then
+          cursor = cursor + sec_period
+        else
+          cursor = bump_calendar(cursor, rep.value, rep.unit)
+        end
+      end
+    end
+    if not emit_clones then
+      -- No expansion (no repeater, or m/y origin already-future): keep
+      -- the row unchanged.
+      expanded[#expanded + 1] = r
+    end
+  end
+  return expanded
+end
+
+-- Overdue bucket: rows whose deadline is strictly before `today` and not yet
+-- closed. Emits a "Overdue" header followed by the sorted rows. Mutates
+-- nothing; emits via the supplied `emit_line` / `fmt` closures.
+local function emit_overdue(rows, block, today, fmt, emit_line)
+  if not block.include_overdue then
+    return
+  end
+  local overdue = {}
+  for _, r in ipairs(rows) do
+    local dd = dates.date_only(r.deadline_date)
+    if dd and dd < today and not r.closed_date then
+      overdue[#overdue + 1] = r
+    end
+  end
+  if #overdue > 0 then
+    sort_records(overdue, block.order_within_group)
+    emit_line("Overdue", { { "@organ.agenda.date_overdue", 0, 7 } }, nil)
+    for _, r in ipairs(overdue) do
+      local text, marks = fmt(r)
+      emit_line(text, marks, r)
+    end
+    emit_line("", nil, nil)
+  end
+end
+
+-- Build the per-bucket row comparator from the block's (or config's) Emacs-
+-- style `sorting_strategy` token list. Each token returns -1 / 0 / +1; the
+-- first non-zero wins, then a stable file+line tiebreak. Defaults to
+-- time-up,priority-down,category-keep. Returns a function(rows) that sorts
+-- in place.
+local function make_sort_by_time(block)
+  -- Time-only string is "9:00" / "23:45" -- no leading zero. Compare as
+  -- minutes-of-day (integer) so "9:00" < "10:00" sorts correctly.
+  local function tominutes(hhmm)
+    if not hhmm then
+      return nil
+    end
+    local h, m = hhmm:match("^(%d?%d):(%d%d)$")
+    if not h then
+      return nil
+    end
+    return tonumber(h) * 60 + tonumber(m)
+  end
+  -- Supported tokens (Emacs parity):
+  --   time-up / time-down                untimed always after timed
+  --   priority-up / priority-down        A < B < ... (up = ascending)
+  --   category-up / category-down        category alphabetical
+  --   category-keep                      preserve file + line order
+  --   alpha-up / alpha-down              by title
+  --   todo-state-up / todo-state-down    by todo_state alphabetical
+  --   tag-up / tag-down                  by first tag
+  --   effort-up / effort-down            by effort minutes
+  --   scheduled-up / scheduled-down      by scheduled_date
+  --   deadline-up / deadline-down        by deadline_date
+  local TOKEN_FNS = {
+    ["time-up"] = function(a, b)
+      local ta, tb =
+        tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
+      if ta and not tb then
+        return -1
+      end
+      if tb and not ta then
+        return 1
+      end
+      if ta and tb and ta ~= tb then
+        return ta < tb and -1 or 1
+      end
+      return 0
+    end,
+    ["time-down"] = function(a, b)
+      local ta, tb =
+        tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
+      if ta and not tb then
+        return -1
+      end
+      if tb and not ta then
+        return 1
+      end
+      if ta and tb and ta ~= tb then
+        return ta > tb and -1 or 1
+      end
+      return 0
+    end,
+    -- Emacs naming convention: "priority-up" = lowest-importance first
+    -- (none, C, B, A); "priority-down" = highest-importance first
+    -- (A, B, C, none). Naming is "from top of list, descending in
+    -- importance" -- confusing but standard.
+    ["priority-up"] = function(a, b)
+      if a.priority == b.priority then
+        return 0
+      end
+      if not a.priority then
+        return -1
+      end -- none = lowest = first
+      if not b.priority then
+        return 1
+      end
+      -- Lower-byte letter = higher importance (A=highest). For "up"
+      -- (low-importance first), the higher-byte-value comes first.
+      return a.priority > b.priority and -1 or 1
+    end,
+    ["priority-down"] = function(a, b)
+      if a.priority == b.priority then
+        return 0
+      end
+      if not a.priority then
+        return 1
+      end -- none = lowest = last
+      if not b.priority then
+        return -1
+      end
+      return a.priority < b.priority and -1 or 1 -- A < B -> A first
+    end,
+    ["category-up"] = function(a, b)
+      local ca, cb = format.category_for(a), format.category_for(b)
+      if ca == cb then
+        return 0
+      end
+      return ca < cb and -1 or 1
+    end,
+    ["category-down"] = function(a, b)
+      local ca, cb = format.category_for(a), format.category_for(b)
+      if ca == cb then
+        return 0
+      end
+      return ca > cb and -1 or 1
+    end,
+    ["category-keep"] = function(a, b)
+      if a.file_path ~= b.file_path then
+        return (a.file_path or "") < (b.file_path or "") and -1 or 1
+      end
+      local la, lb = a.line_start or 0, b.line_start or 0
+      if la == lb then
+        return 0
+      end
+      return la < lb and -1 or 1
+    end,
+    ["alpha-up"] = function(a, b)
+      local ta, tb = a.title or "", b.title or ""
+      if ta == tb then
+        return 0
+      end
+      return ta < tb and -1 or 1
+    end,
+    ["alpha-down"] = function(a, b)
+      local ta, tb = a.title or "", b.title or ""
+      if ta == tb then
+        return 0
+      end
+      return ta > tb and -1 or 1
+    end,
+    ["todo-state-up"] = function(a, b)
+      local ta, tb = a.todo_state or "", b.todo_state or ""
+      if ta == tb then
+        return 0
+      end
+      return ta < tb and -1 or 1
+    end,
+    ["todo-state-down"] = function(a, b)
+      local ta, tb = a.todo_state or "", b.todo_state or ""
+      if ta == tb then
+        return 0
+      end
+      return ta > tb and -1 or 1
+    end,
+  }
+  local DEFAULT_STRATEGY = { "time-up", "priority-down", "category-keep" }
+  local strategy = block.sorting_strategy
+    or (require("organ.buf_config").read(nil, "agenda") or {}).sorting_strategy
+    or DEFAULT_STRATEGY
+  return function(rows)
+    table.sort(rows, function(a, b)
+      for _, tok in ipairs(strategy) do
+        local fn = TOKEN_FNS[tok]
+        if fn then
+          local cmp = fn(a, b)
+          if cmp ~= 0 then
+            return cmp < 0
+          end
+        end
+      end
+      -- Final stable tiebreak so tests are deterministic.
+      if a.file_path ~= b.file_path then
+        return (a.file_path or "") < (b.file_path or "")
+      end
+      return (a.line_start or 0) < (b.line_start or 0)
+    end)
+  end
+end
+
+-- Partition `effective` rows into per-day buckets keyed by ISO date, plus a
+-- no-date list. Handles the scheduled-vs-deadline double-bucketing, the
+-- early-warning deadline fanout, optional overdue roll-forward, and backfill
+-- of empty days across the [block.from, block.to] window. Returns
+-- `buckets, order, no_date` with `order` sorted ascending. Pure: emits
+-- nothing, mutates only the row clones it creates.
+local function build_day_buckets(effective, block, today)
+  -- Optional: items whose scheduled date is BEFORE the visible
+  -- window collapse into the today bucket. Emacs default does NOT
+  -- do this for non-repeating SCHEDULED items (they just disappear
+  -- from the window -- users see "Sched. Nx:" only for repeating
+  -- ones). Toggle via `agenda.show_overdue_scheduled = true` for
+  -- the more user-friendly "stale items keep showing" behavior.
+  local roll_overdue = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
+    == true
+  local window_from = block.from
+    and dates.date_only(
+      (require("organ.query").parse_date and require("organ.query").parse_date(block.from))
+        or block.from
+    )
+  local buckets, order, no_date = {}, {}, {}
+  local function add_to_bucket(r, key)
+    if roll_overdue and key and window_from and key < window_from then
+      key = window_from
+    end
+    if key then
+      if not buckets[key] then
+        buckets[key] = {}
+        order[#order + 1] = key
+      end
+      table.insert(buckets[key], r)
+    else
+      no_date[#no_date + 1] = r
+    end
+  end
+  -- Deadline-warning fanout: a row whose deadline is N days from
+  -- today (1 <= N <= deadline_warning_days, default 14) gets an
+  -- extra entry in today's bucket with an "In   N d.:" label.  The
+  -- row's natural deadline-day bucket entry stays.  Mirrors Emacs's
+  -- `org-deadline-warning-days` early-warning behavior -- without
+  -- this, deadlines drop off the user's radar until they're due.
+  local agenda_cfg_b = (require("organ.buf_config").read(nil, "agenda") or {})
+  local warning_days = agenda_cfg_b.deadline_warning_days or 14
+  -- Skip pair rules.  Both default to true (matches Emacs's
+  -- typical org-agenda behavior) and may be turned off to surface
+  -- both events.
+  local skip_sched_if_dl_shown
+  if block.skip_scheduled_if_deadline_shown ~= nil then
+    skip_sched_if_dl_shown = block.skip_scheduled_if_deadline_shown
+  else
+    skip_sched_if_dl_shown = agenda_cfg_b.skip_scheduled_if_deadline_shown
+  end
+  if skip_sched_if_dl_shown == nil then
+    skip_sched_if_dl_shown = false
+  end
+  local skip_dl_prewarn_if_sched
+  if block.skip_deadline_prewarning_if_scheduled ~= nil then
+    skip_dl_prewarn_if_sched = block.skip_deadline_prewarning_if_scheduled
+  else
+    skip_dl_prewarn_if_sched = agenda_cfg_b.skip_deadline_prewarning_if_scheduled
+  end
+  if skip_dl_prewarn_if_sched == nil then
+    skip_dl_prewarn_if_sched = true
+  end
+  for _, r in ipairs(effective) do
+    local sched_key = dates.date_only(r.scheduled_date)
+    local dead_key = dates.date_only(r.deadline_date)
+    if r._bucket_date then
+      -- `_bucket_date` is set by the repeater-overdue carryover path
+      -- to force the row onto today's bucket while preserving the
+      -- original scheduled_date for the `Sched. Nx:` label.
+      add_to_bucket(r, r._bucket_date)
+    elseif sched_key and dead_key and sched_key ~= dead_key then
+      -- Mirrors Emacs: a row with BOTH scheduled and deadline
+      -- appears in BOTH buckets (different prefixes per bucket via
+      -- bucket-relative sched_label_for).  The two events are
+      -- distinct calendar entries -- start day and must-finish day --
+      -- and the user wants to see both in the agenda.
+      --
+      -- `skip_scheduled_if_deadline_shown` (Emacs `org-agenda-skip-
+      -- scheduled-if-deadline-is-shown`) suppresses the scheduled-
+      -- day occurrence for rows that ALSO render on the deadline
+      -- day, eliminating the duplicate when the deadline is the
+      -- "real" event the user cares about.
+      if not skip_sched_if_dl_shown then
+        add_to_bucket(r, sched_key)
+      end
+      add_to_bucket(r, dead_key)
+    else
+      add_to_bucket(r, sched_key or dead_key)
+    end
+    -- Early-warning: deadline within the warning window AND the row
+    -- has no scheduled_date (so it wouldn't otherwise appear before
+    -- the deadline day) -> add a copy to today's bucket with an
+    -- `In N d.:` label.  Mirrors Emacs `org-agenda-skip-deadline-
+    -- prewarning-if-scheduled` (default true): if the row is already
+    -- scheduled within the visible window, the user sees it on the
+    -- scheduled day and the deadline-warning is redundant -- set
+    -- `skip_deadline_prewarning_if_scheduled = false` to opt back in.
+    if dead_key and warning_days > 0 and (not r.scheduled_date or not skip_dl_prewarn_if_sched) then
+      local d = dates.days_diff(today, dead_key)
+      if d and d > 0 and d <= warning_days and dead_key ~= today then
+        local clone = vim.tbl_extend("force", {}, r)
+        clone._deadline_warning = true
+        add_to_bucket(clone, today)
+      end
+    end
+  end
+  -- Backfill empty days in the [block.from, block.to] window so the
+  -- agenda renders a header for every day (matches Emacs's
+  -- `org-agenda-show-all-dates = t` default -- Fri / Sat without
+  -- items still get a `Friday    8 May 2026` header).
+  if block.from and block.to then
+    local q = require("organ.query")
+    local from_iso = (q.parse_date and q.parse_date(block.from)) or block.from
+    local to_iso = (q.parse_date and q.parse_date(block.to)) or block.to
+    if from_iso and to_iso and #from_iso >= 10 and #to_iso >= 10 then
+      local function iso_to_t(iso)
+        local y, mo, da = iso:sub(1, 4), iso:sub(6, 7), iso:sub(9, 10)
+        return os.time({
+          year = tonumber(y),
+          month = tonumber(mo),
+          day = tonumber(da),
+          hour = 12,
+        })
+      end
+      local seen = {}
+      for _, k in ipairs(order) do
+        seen[k] = true
+      end
+      local cur, stop = iso_to_t(from_iso:sub(1, 10)), iso_to_t(to_iso:sub(1, 10))
+      while cur <= stop do
+        local iso = os.date("%Y-%m-%d", cur)
+        if not seen[iso] then
+          buckets[iso] = buckets[iso] or {}
+          order[#order + 1] = iso
+          seen[iso] = true
+        end
+        cur = cur + 86400
+      end
+    end
+  end
+  table.sort(order)
+  return buckets, order, no_date
+end
+
+-- Render one day-bucket: sort it, emit its date header, the optional "<- now"
+-- marker, and the bucket's rows via the groups / time-grid / plain path. All
+-- per-block state is threaded through `ctx`; lines are emitted via the
+-- captured `emit_line` closure. The trailing blank line after each bucket is
+-- emitted here too.
+local function emit_day_bucket(key, ctx, emit_line)
+  local block = ctx.block
+  local block_opts = ctx.block_opts
+  local today = ctx.today
+  local buckets = ctx.buckets
+  local now_hhmm = ctx.now_hhmm
+  local show_now = ctx.show_now
+  local agenda_cfg_local = ctx.agenda_cfg
+
+  ctx.sort_by_time(buckets[key])
+  -- Per-bucket fmt: relative-time prefix is computed against the
+  -- BUCKET's date, not the renderer's global today. So a row
+  -- shown under Tuesday's header gets "Scheduled:" (its scheduled
+  -- date matches its bucket), not "In 1 d.:" (which would apply
+  -- in a flat / non-grouped view).
+  local bucket_block_opts = vim.tbl_extend("force", {}, block_opts, { today = key })
+  local bucket_fmt = function(r)
+    return format.format_line(r, bucket_block_opts)
+  end
+  if type(block.line_format) == "function" then
+    local user_fmt = block.line_format
+    bucket_fmt = function(r)
+      local ok, line = pcall(user_fmt, r)
+      if ok then
+        return line, nil
+      end
+      return format.format_line(r, bucket_block_opts)
+    end
+  end
+  local hl = key == today and "@organ.agenda.date_today" or "@organ.agenda.header"
+  local hdr = dates.date_header(key)
+  emit_line(hdr, { { hl, 0, #hdr } }, nil)
+
+  -- "<- now" marker: insert in the today-bucket between rows
+  -- whose times bracket the current wall-clock time. Renders as
+  -- a single dim line so it doesn't visually compete with item
+  -- rows.
+  -- Decide whether this day-bucket gets the time grid.
+  local emit_grid_for_day = ctx.time_grid_on and (ctx.time_grid_scope == "all" or key == today)
+
+  -- Configurable now-marker text. agenda.current_time_string is
+  -- expanded with `%s` -> the wall-clock HH:MM. Default mirrors
+  -- Emacs's `org-agenda-current-time-string` shape. Users can
+  -- pass any string with optional `%s` placeholder.
+  --
+  -- The default has NO leading whitespace; we prepend the proper
+  -- indent at emit time so the marker's time column lines up with
+  -- the grid hours (or with item time columns when there's no
+  -- grid). That keeps the user's override interpretable: they
+  -- write the *content*, we handle the alignment.
+  local now_template = agenda_cfg_local.current_time_string
+    or "%5s ┄┄┄┄┄ ← now ─────────────────────────────"
+  -- Time column starts at 2 (leading) + category_width + 1 (sep).
+  -- Use block_opts.category_width (auto-fit value computed above)
+  -- so the time grid aligns with the actually-rendered category
+  -- column, not the config default that may have been widened.
+  local time_col_indent = string.rep(" ", 2 + (block_opts.category_width or 12))
+  local inserted_now = false
+  -- Convert "H:MM" / "HH:MM" -> minutes-since-midnight, so we can
+  -- do real ordering instead of lexical (which gets `"11:53" <
+  -- "8:00"` wrong because '1' sorts before '8').
+  local function hhmm_to_min(s)
+    if not s then
+      return nil
+    end
+    local h, m = s:match("^(%d?%d):(%d%d)$")
+    if not h then
+      return nil
+    end
+    return tonumber(h) * 60 + tonumber(m)
+  end
+  local now_min = hhmm_to_min(now_hhmm)
+  local function maybe_emit_now(before_time)
+    if inserted_now or not show_now or key ~= today then
+      return
+    end
+    local before_min = hhmm_to_min(before_time)
+    if not before_min or (now_min and now_min < before_min) then
+      local body = now_template:find("%%s") and string.format(now_template, now_hhmm)
+        or now_template
+      -- Strip any leading whitespace the template carries so we
+      -- can re-impose the alignment indent: existing user configs
+      -- (and our previous default) carry a 2-space prefix that
+      -- would compound with the new indent into a misalignment.
+      body = body:gsub("^%s+", "")
+      -- In grid mode, indent so `<time> ┄┄...` aligns with the
+      -- grid hour rows. Outside grid mode, the default 2-space
+      -- prefix is retained for backwards compatibility.
+      local prefix = emit_grid_for_day and time_col_indent or "  "
+      local text = prefix .. body
+      local pos_now = text:find("← now", 1, true) or text:find("now", 1, true)
+      local marks = {}
+      if pos_now then
+        local marker_word = text:sub(pos_now):match("^(%S+%s*%S*)") or "now"
+        marks[#marks + 1] = {
+          "@organ.agenda.now_marker",
+          pos_now - 1,
+          pos_now - 1 + #marker_word,
+        }
+      end
+      emit_line(text, marks, nil)
+      inserted_now = true
+    end
+  end
+
+  -- Grouping path: when the user configured agenda.groups (or the
+  -- block has its own groups list), partition the bucket's rows
+  -- into named groups and emit each with its own sub-header.
+  -- Skips the time-grid path (groups + grid would visually fight
+  -- for vertical space).
+  if ctx.groups_mod and not emit_grid_for_day then
+    local agenda_cfg_g = (require("organ.buf_config").read(nil, "agenda") or {})
+    local partitions = ctx.groups_mod.partition(buckets[key], ctx.groups_spec, {
+      category_for = format.category_for,
+      catch_all_title = agenda_cfg_g.groups_catch_all_title,
+    })
+    for _, p in ipairs(partitions) do
+      if #p.rows > 0 then
+        if p.title then
+          local sub_hdr = string.format("  %s (%d)", p.title, #p.rows)
+          emit_line(sub_hdr, { { "@organ.agenda.block_header", 0, #sub_hdr } }, nil)
+        end
+        for _, r in ipairs(p.rows) do
+          local row_time = dates.time_only(r.scheduled_date)
+          if row_time then
+            maybe_emit_now(row_time)
+          end
+          local text, marks = bucket_fmt(r)
+          emit_line(text, marks, r)
+        end
+      end
+    end
+  elseif emit_grid_for_day then
+    -- Build a sorted list of (HH:MM, kind, payload) events and
+    -- emit them in time order. kind in "grid" | "row". Rows with
+    -- the same HH:MM as a grid hour replace that grid line.
+    local events = {}
+    for _, h in ipairs(ctx.time_grid_hours) do
+      -- `sortkey` is zero-padded so "08:00" < "10:00" lexically;
+      -- `display` is the stripped form Emacs prints ("8:00").
+      events[#events + 1] = {
+        sortkey = string.format("%02d:00", h),
+        display = string.format("%d:00", h),
+        kind = "grid",
+      }
+    end
+    local untimed = {}
+    for _, r in ipairs(buckets[key]) do
+      local rt = dates.time_only(r.scheduled_date)
+      if rt then
+        local hh, mm = rt:match("^(%d?%d):(%d%d)$")
+        if hh and mm then
+          events[#events + 1] = {
+            sortkey = string.format("%02d:%s", tonumber(hh), mm),
+            display = rt,
+            kind = "row",
+            row = r,
+            raw_time = rt,
+          }
+        else
+          untimed[#untimed + 1] = r
+        end
+      else
+        untimed[#untimed + 1] = r
+      end
+    end
+    table.sort(events, function(a, b)
+      if a.sortkey ~= b.sortkey then
+        return a.sortkey < b.sortkey
+      end
+      -- Row beats grid at the same time (so the row's content shows).
+      return a.kind == "row" and b.kind == "grid"
+    end)
+    -- De-dupe grid lines that collide with rows at the same HH:MM.
+    local seen_at_time = {}
+    for _, e in ipairs(events) do
+      if e.kind == "row" then
+        seen_at_time[e.sortkey] = true
+      end
+    end
+    -- The now-marker also occupies its time slot; suppress any
+    -- grid line at that same HH:MM so we don't render both
+    -- "12:00 ┄ ← now ─" and "12:00 ┄ ┄┄" back-to-back.
+    if show_now and key == today and now_hhmm then
+      local hh, mm = now_hhmm:match("^(%d%d):(%d%d)$")
+      if hh and mm == "00" then
+        seen_at_time[hh .. ":00"] = true
+      end
+    end
+    for _, e in ipairs(events) do
+      if e.kind == "row" then
+        local rt = e.raw_time
+        if rt then
+          maybe_emit_now(rt)
+        end
+        local text, marks = bucket_fmt(e.row)
+        emit_line(text, marks, e.row)
+      else
+        if not seen_at_time[e.sortkey] then
+          maybe_emit_now(e.display)
+          -- Empty grid lines indent to the time column AND
+          -- right-align the hour to 5 chars so single-digit
+          -- hours (` 8:00`) and double-digit (`10:00`) end at
+          -- the same column.  Indent = `2 (leading) + cat_width`
+          -- (NO separator between cat and time -- Emacs's `:c`
+          -- modifier produces "Tasks:      " filling the cat
+          -- field, then time directly follows).
+          -- Use block_opts.category_width (auto-fit) so empty
+          -- grid lines align with the actually-rendered category
+          -- column, not the un-widened config default.
+          local indent = string.rep(" ", 2 + (block_opts.category_width or 12))
+          local text = string.format(
+            "%s%5s ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
+            indent,
+            e.display
+          )
+          local pad = 5 - #e.display
+          local marks = { { "@organ.agenda.now_marker", #indent + pad, #indent + 5 } }
+          emit_line(text, marks, nil)
+        end
+      end
+    end
+    -- Now marker: when wall-clock is past the last grid hour but
+    -- the bucket still has untimed rows below the grid, place the
+    -- marker BETWEEN them -- matches Emacs's `20:00 ┄┄┄ / 22:49 <-
+    -- now / <untimed rows>` layout instead of letting `untimed`
+    -- emit first and the marker fall at end-of-bucket.
+    maybe_emit_now(nil)
+    -- Untimed rows after the grid.
+    for _, r in ipairs(untimed) do
+      local text, marks = bucket_fmt(r)
+      emit_line(text, marks, r)
+    end
+  else
+    for _, r in ipairs(buckets[key]) do
+      local row_time = dates.time_only(r.scheduled_date)
+      if row_time then
+        maybe_emit_now(row_time)
+      end
+      local text, marks = bucket_fmt(r)
+      emit_line(text, marks, r)
+    end
+  end
+  -- If "now" hasn't been emitted yet (every row was earlier than
+  -- now, or no timed rows at all), emit at the end of the day's bucket.
+  maybe_emit_now(nil)
+  emit_line("", nil, nil)
+end
+
 -- Per-block primitive: overdue bucket, group_by day/none, sort, format_line.
 local function render_block(rows, block, now_override)
   block = block or {}
@@ -161,123 +848,10 @@ local function render_block(rows, block, now_override)
     return { lines = lines, extmarks = extmarks, line_index = line_index }
   end
 
-  -- Repeater expansion: a row scheduled with `+Nd` / `++Nw` / `.+Nm`
-  -- (and so on) effectively occurs every N units. Without expansion,
-  -- only the original date appears in the agenda; users who track
-  -- daily habits / weekly chores see nothing on the days between.
-  -- Toggle with `agenda.show_future_repeats` (default true; matches
-  -- Emacs `org-agenda-show-future-repeats`).
-  local show_repeats = (
-    (require("organ.buf_config").read(nil, "agenda") or {}).show_future_repeats ~= false
-  )
-  do
-    local repeater_mod_ok, repeater_mod = pcall(require, "organ.todo.repeater")
-    if show_repeats and repeater_mod_ok and block.from and block.to then
-      local q = require("organ.query")
-      local from_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.from) or block.from)
-      local to_ts = dates.iso_to_ts(q.parse_date and q.parse_date(block.to) or block.to)
-      if from_ts and to_ts then
-        local function period_seconds(rep)
-          local n = rep.value or 1
-          if rep.unit == "d" then
-            return n * 86400
-          end
-          if rep.unit == "w" then
-            return n * 7 * 86400
-          end
-          return nil -- m/y handled separately (calendar math)
-        end
-        local function bump_calendar(ts, n, unit)
-          local d = os.date("*t", ts)
-          if unit == "m" then
-            d.month = d.month + n
-          elseif unit == "y" then
-            d.year = d.year + n
-          end
-          return os.time(d)
-        end
-        local expanded = {}
-        for _, r in ipairs(rows) do
-          local rep = r.scheduled and r.scheduled ~= "" and repeater_mod.parse(r.scheduled) or nil
-          local origin_ts = r.scheduled_date
-              and r.scheduled_date ~= ""
-              and dates.iso_to_ts(r.scheduled_date)
-            or nil
-          local emit_clones = false
-          if rep and rep.value and rep.unit and origin_ts then
-            local time_part = (
-              r.scheduled_date
-              and #r.scheduled_date >= 11
-              and r.scheduled_date:sub(11)
-            ) or ""
-            local cursor = origin_ts
-            local sec_period = period_seconds(rep)
-            -- Walk forward to first occurrence >= from_ts.
-            while cursor < from_ts do
-              if sec_period then
-                cursor = cursor + sec_period
-              else
-                cursor = bump_calendar(cursor, rep.value, rep.unit)
-              end
-            end
-            -- If origin is BEFORE the window, the first in-window clone
-            -- represents an overdue carryover.  Emit it with the
-            -- ORIGINAL scheduled_date so `sched_label_for` shows
-            -- `Sched. Nx:` (for habits the cycle count, otherwise
-            -- days late) -- matching Emacs.  The bucket-day is set via
-            -- `_bucket_date` so the row lands on `from_ts` regardless.
-            local origin_pre_window = origin_ts < from_ts
-            local first = true
-            while cursor <= to_ts do
-              emit_clones = true
-              local clone = vim.deepcopy(r)
-              if first and origin_pre_window then
-                -- Carryover row: keep original scheduled_date, but
-                -- bucket on the today (cursor) day.
-                clone._bucket_date = os.date("%Y-%m-%d", cursor)
-              else
-                clone.scheduled_date = os.date("%Y-%m-%d", cursor) .. time_part
-                clone._synthetic_repeater = (cursor ~= origin_ts)
-              end
-              expanded[#expanded + 1] = clone
-              first = false
-              if sec_period then
-                cursor = cursor + sec_period
-              else
-                cursor = bump_calendar(cursor, rep.value, rep.unit)
-              end
-            end
-          end
-          if not emit_clones then
-            -- No expansion (no repeater, or m/y origin already-future): keep
-            -- the row unchanged.
-            expanded[#expanded + 1] = r
-          end
-        end
-        rows = expanded
-      end
-    end
-  end
+  rows = expand_repeaters(rows, block)
 
   -- 1. Overdue bucket
-  if block.include_overdue then
-    local overdue = {}
-    for _, r in ipairs(rows) do
-      local dd = dates.date_only(r.deadline_date)
-      if dd and dd < today and not r.closed_date then
-        overdue[#overdue + 1] = r
-      end
-    end
-    if #overdue > 0 then
-      sort_records(overdue, block.order_within_group)
-      emit_line("Overdue", { { "@organ.agenda.date_overdue", 0, 7 } }, nil)
-      for _, r in ipairs(overdue) do
-        local text, marks = fmt(r)
-        emit_line(text, marks, r)
-      end
-      emit_line("", nil, nil)
-    end
-  end
+  emit_overdue(rows, block, today, fmt, emit_line)
 
   local effective = {}
   for _, r in ipairs(rows) do
@@ -303,146 +877,7 @@ local function render_block(rows, block, now_override)
       emit_line(text, marks, r)
     end
   else
-    -- Optional: items whose scheduled date is BEFORE the visible
-    -- window collapse into the today bucket. Emacs default does NOT
-    -- do this for non-repeating SCHEDULED items (they just disappear
-    -- from the window -- users see "Sched. Nx:" only for repeating
-    -- ones). Toggle via `agenda.show_overdue_scheduled = true` for
-    -- the more user-friendly "stale items keep showing" behavior.
-    local roll_overdue = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
-      == true
-    local window_from = block.from
-      and dates.date_only(
-        (require("organ.query").parse_date and require("organ.query").parse_date(block.from))
-          or block.from
-      )
-    local buckets, order, no_date = {}, {}, {}
-    local function add_to_bucket(r, key)
-      if roll_overdue and key and window_from and key < window_from then
-        key = window_from
-      end
-      if key then
-        if not buckets[key] then
-          buckets[key] = {}
-          order[#order + 1] = key
-        end
-        table.insert(buckets[key], r)
-      else
-        no_date[#no_date + 1] = r
-      end
-    end
-    -- Deadline-warning fanout: a row whose deadline is N days from
-    -- today (1 <= N <= deadline_warning_days, default 14) gets an
-    -- extra entry in today's bucket with an "In   N d.:" label.  The
-    -- row's natural deadline-day bucket entry stays.  Mirrors Emacs's
-    -- `org-deadline-warning-days` early-warning behavior -- without
-    -- this, deadlines drop off the user's radar until they're due.
-    local agenda_cfg_b = (require("organ.buf_config").read(nil, "agenda") or {})
-    local warning_days = agenda_cfg_b.deadline_warning_days or 14
-    -- Skip pair rules.  Both default to true (matches Emacs's
-    -- typical org-agenda behavior) and may be turned off to surface
-    -- both events.
-    local skip_sched_if_dl_shown
-    if block.skip_scheduled_if_deadline_shown ~= nil then
-      skip_sched_if_dl_shown = block.skip_scheduled_if_deadline_shown
-    else
-      skip_sched_if_dl_shown = agenda_cfg_b.skip_scheduled_if_deadline_shown
-    end
-    if skip_sched_if_dl_shown == nil then
-      skip_sched_if_dl_shown = false
-    end
-    local skip_dl_prewarn_if_sched
-    if block.skip_deadline_prewarning_if_scheduled ~= nil then
-      skip_dl_prewarn_if_sched = block.skip_deadline_prewarning_if_scheduled
-    else
-      skip_dl_prewarn_if_sched = agenda_cfg_b.skip_deadline_prewarning_if_scheduled
-    end
-    if skip_dl_prewarn_if_sched == nil then
-      skip_dl_prewarn_if_sched = true
-    end
-    for _, r in ipairs(effective) do
-      local sched_key = dates.date_only(r.scheduled_date)
-      local dead_key = dates.date_only(r.deadline_date)
-      if r._bucket_date then
-        -- `_bucket_date` is set by the repeater-overdue carryover path
-        -- to force the row onto today's bucket while preserving the
-        -- original scheduled_date for the `Sched. Nx:` label.
-        add_to_bucket(r, r._bucket_date)
-      elseif sched_key and dead_key and sched_key ~= dead_key then
-        -- Mirrors Emacs: a row with BOTH scheduled and deadline
-        -- appears in BOTH buckets (different prefixes per bucket via
-        -- bucket-relative sched_label_for).  The two events are
-        -- distinct calendar entries -- start day and must-finish day --
-        -- and the user wants to see both in the agenda.
-        --
-        -- `skip_scheduled_if_deadline_shown` (Emacs `org-agenda-skip-
-        -- scheduled-if-deadline-is-shown`) suppresses the scheduled-
-        -- day occurrence for rows that ALSO render on the deadline
-        -- day, eliminating the duplicate when the deadline is the
-        -- "real" event the user cares about.
-        if not skip_sched_if_dl_shown then
-          add_to_bucket(r, sched_key)
-        end
-        add_to_bucket(r, dead_key)
-      else
-        add_to_bucket(r, sched_key or dead_key)
-      end
-      -- Early-warning: deadline within the warning window AND the row
-      -- has no scheduled_date (so it wouldn't otherwise appear before
-      -- the deadline day) -> add a copy to today's bucket with an
-      -- `In N d.:` label.  Mirrors Emacs `org-agenda-skip-deadline-
-      -- prewarning-if-scheduled` (default true): if the row is already
-      -- scheduled within the visible window, the user sees it on the
-      -- scheduled day and the deadline-warning is redundant -- set
-      -- `skip_deadline_prewarning_if_scheduled = false` to opt back in.
-      if
-        dead_key
-        and warning_days > 0
-        and (not r.scheduled_date or not skip_dl_prewarn_if_sched)
-      then
-        local d = dates.days_diff(today, dead_key)
-        if d and d > 0 and d <= warning_days and dead_key ~= today then
-          local clone = vim.tbl_extend("force", {}, r)
-          clone._deadline_warning = true
-          add_to_bucket(clone, today)
-        end
-      end
-    end
-    -- Backfill empty days in the [block.from, block.to] window so the
-    -- agenda renders a header for every day (matches Emacs's
-    -- `org-agenda-show-all-dates = t` default -- Fri / Sat without
-    -- items still get a `Friday    8 May 2026` header).
-    if block.from and block.to then
-      local q = require("organ.query")
-      local from_iso = (q.parse_date and q.parse_date(block.from)) or block.from
-      local to_iso = (q.parse_date and q.parse_date(block.to)) or block.to
-      if from_iso and to_iso and #from_iso >= 10 and #to_iso >= 10 then
-        local function iso_to_t(iso)
-          local y, mo, da = iso:sub(1, 4), iso:sub(6, 7), iso:sub(9, 10)
-          return os.time({
-            year = tonumber(y),
-            month = tonumber(mo),
-            day = tonumber(da),
-            hour = 12,
-          })
-        end
-        local seen = {}
-        for _, k in ipairs(order) do
-          seen[k] = true
-        end
-        local cur, stop = iso_to_t(from_iso:sub(1, 10)), iso_to_t(to_iso:sub(1, 10))
-        while cur <= stop do
-          local iso = os.date("%Y-%m-%d", cur)
-          if not seen[iso] then
-            buckets[iso] = buckets[iso] or {}
-            order[#order + 1] = iso
-            seen[iso] = true
-          end
-          cur = cur + 86400
-        end
-      end
-    end
-    table.sort(order)
+    local buckets, order, no_date = build_day_buckets(effective, block, today)
     -- Wall-clock time for the "<- now" marker. now_override is a
     -- date-only ISO string ("2026-05-04") used by tests + the daily
     -- today/not-today comparison; it does NOT carry an hour, so we
@@ -483,168 +918,7 @@ local function render_block(rows, block, now_override)
     -- because users read top-to-bottom and expect a chronological
     -- timeline. Within ties (same time, or both untimed), fall back to
     -- the user's `order_within_group` (priority / state / title).
-    -- Time-only string is "9:00" / "23:45" -- no leading zero. Compare
-    -- as minutes-of-day (integer) so "9:00" < "10:00" sorts correctly.
-    local function tominutes(hhmm)
-      if not hhmm then
-        return nil
-      end
-      local h, m = hhmm:match("^(%d?%d):(%d%d)$")
-      if not h then
-        return nil
-      end
-      return tonumber(h) * 60 + tonumber(m)
-    end
-    -- Sort according to the user's `agenda.sorting_strategy` (Emacs
-    -- token syntax). Each token returns -1 / 0 / +1 in the standard
-    -- comparator sense; the first non-zero wins. Falls back to the
-    -- default time-up,priority-down,category-keep when not set.
-    --
-    -- Supported tokens (Emacs parity):
-    --   time-up / time-down                untimed always after timed
-    --   priority-up / priority-down        A < B < ... (up = ascending)
-    --   category-up / category-down        category alphabetical
-    --   category-keep                      preserve file + line order
-    --   alpha-up / alpha-down              by title
-    --   todo-state-up / todo-state-down    by todo_state alphabetical
-    --   tag-up / tag-down                  by first tag
-    --   effort-up / effort-down            by effort minutes
-    --   scheduled-up / scheduled-down      by scheduled_date
-    --   deadline-up / deadline-down        by deadline_date
-    local TOKEN_FNS = {
-      ["time-up"] = function(a, b)
-        local ta, tb =
-          tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
-        if ta and not tb then
-          return -1
-        end
-        if tb and not ta then
-          return 1
-        end
-        if ta and tb and ta ~= tb then
-          return ta < tb and -1 or 1
-        end
-        return 0
-      end,
-      ["time-down"] = function(a, b)
-        local ta, tb =
-          tominutes(dates.time_only(a.scheduled_date)), tominutes(dates.time_only(b.scheduled_date))
-        if ta and not tb then
-          return -1
-        end
-        if tb and not ta then
-          return 1
-        end
-        if ta and tb and ta ~= tb then
-          return ta > tb and -1 or 1
-        end
-        return 0
-      end,
-      -- Emacs naming convention: "priority-up" = lowest-importance first
-      -- (none, C, B, A); "priority-down" = highest-importance first
-      -- (A, B, C, none). Naming is "from top of list, descending in
-      -- importance" -- confusing but standard.
-      ["priority-up"] = function(a, b)
-        if a.priority == b.priority then
-          return 0
-        end
-        if not a.priority then
-          return -1
-        end -- none = lowest = first
-        if not b.priority then
-          return 1
-        end
-        -- Lower-byte letter = higher importance (A=highest). For "up"
-        -- (low-importance first), the higher-byte-value comes first.
-        return a.priority > b.priority and -1 or 1
-      end,
-      ["priority-down"] = function(a, b)
-        if a.priority == b.priority then
-          return 0
-        end
-        if not a.priority then
-          return 1
-        end -- none = lowest = last
-        if not b.priority then
-          return -1
-        end
-        return a.priority < b.priority and -1 or 1 -- A < B -> A first
-      end,
-      ["category-up"] = function(a, b)
-        local ca, cb = format.category_for(a), format.category_for(b)
-        if ca == cb then
-          return 0
-        end
-        return ca < cb and -1 or 1
-      end,
-      ["category-down"] = function(a, b)
-        local ca, cb = format.category_for(a), format.category_for(b)
-        if ca == cb then
-          return 0
-        end
-        return ca > cb and -1 or 1
-      end,
-      ["category-keep"] = function(a, b)
-        if a.file_path ~= b.file_path then
-          return (a.file_path or "") < (b.file_path or "") and -1 or 1
-        end
-        local la, lb = a.line_start or 0, b.line_start or 0
-        if la == lb then
-          return 0
-        end
-        return la < lb and -1 or 1
-      end,
-      ["alpha-up"] = function(a, b)
-        local ta, tb = a.title or "", b.title or ""
-        if ta == tb then
-          return 0
-        end
-        return ta < tb and -1 or 1
-      end,
-      ["alpha-down"] = function(a, b)
-        local ta, tb = a.title or "", b.title or ""
-        if ta == tb then
-          return 0
-        end
-        return ta > tb and -1 or 1
-      end,
-      ["todo-state-up"] = function(a, b)
-        local ta, tb = a.todo_state or "", b.todo_state or ""
-        if ta == tb then
-          return 0
-        end
-        return ta < tb and -1 or 1
-      end,
-      ["todo-state-down"] = function(a, b)
-        local ta, tb = a.todo_state or "", b.todo_state or ""
-        if ta == tb then
-          return 0
-        end
-        return ta > tb and -1 or 1
-      end,
-    }
-    local DEFAULT_STRATEGY = { "time-up", "priority-down", "category-keep" }
-    local strategy = block.sorting_strategy
-      or (require("organ.buf_config").read(nil, "agenda") or {}).sorting_strategy
-      or DEFAULT_STRATEGY
-    local function sort_by_time(rows)
-      table.sort(rows, function(a, b)
-        for _, tok in ipairs(strategy) do
-          local fn = TOKEN_FNS[tok]
-          if fn then
-            local cmp = fn(a, b)
-            if cmp ~= 0 then
-              return cmp < 0
-            end
-          end
-        end
-        -- Final stable tiebreak so tests are deterministic.
-        if a.file_path ~= b.file_path then
-          return (a.file_path or "") < (b.file_path or "")
-        end
-        return (a.line_start or 0) < (b.line_start or 0)
-      end)
-    end
+    local sort_by_time = make_sort_by_time(block)
 
     -- Optional row grouping (org-super-agenda equivalent). Per-block
     -- override via block.groups; falls back to agenda.groups.
@@ -658,245 +932,23 @@ local function render_block(rows, block, now_override)
       end
     end
 
+    local bucket_ctx = {
+      buckets = buckets,
+      block = block,
+      block_opts = block_opts,
+      today = today,
+      agenda_cfg = agenda_cfg_local,
+      now_hhmm = now_hhmm,
+      show_now = show_now,
+      sort_by_time = sort_by_time,
+      groups_mod = groups_mod,
+      groups_spec = groups_spec,
+      time_grid_on = time_grid_on,
+      time_grid_scope = time_grid_scope,
+      time_grid_hours = time_grid_hours,
+    }
     for _, key in ipairs(order) do
-      sort_by_time(buckets[key])
-      -- Per-bucket fmt: relative-time prefix is computed against the
-      -- BUCKET's date, not the renderer's global today. So a row
-      -- shown under Tuesday's header gets "Scheduled:" (its scheduled
-      -- date matches its bucket), not "In 1 d.:" (which would apply
-      -- in a flat / non-grouped view).
-      local bucket_block_opts = vim.tbl_extend("force", {}, block_opts, { today = key })
-      local bucket_fmt = function(r)
-        return format.format_line(r, bucket_block_opts)
-      end
-      if type(block.line_format) == "function" then
-        local user_fmt = block.line_format
-        bucket_fmt = function(r)
-          local ok, line = pcall(user_fmt, r)
-          if ok then
-            return line, nil
-          end
-          return format.format_line(r, bucket_block_opts)
-        end
-      end
-      local hl = key == today and "@organ.agenda.date_today" or "@organ.agenda.header"
-      local hdr = dates.date_header(key)
-      emit_line(hdr, { { hl, 0, #hdr } }, nil)
-
-      -- "<- now" marker: insert in the today-bucket between rows
-      -- whose times bracket the current wall-clock time. Renders as
-      -- a single dim line so it doesn't visually compete with item
-      -- rows.
-      -- Decide whether this day-bucket gets the time grid.
-      local emit_grid_for_day = time_grid_on and (time_grid_scope == "all" or key == today)
-
-      -- Configurable now-marker text. agenda.current_time_string is
-      -- expanded with `%s` -> the wall-clock HH:MM. Default mirrors
-      -- Emacs's `org-agenda-current-time-string` shape. Users can
-      -- pass any string with optional `%s` placeholder.
-      --
-      -- The default has NO leading whitespace; we prepend the proper
-      -- indent at emit time so the marker's time column lines up with
-      -- the grid hours (or with item time columns when there's no
-      -- grid). That keeps the user's override interpretable: they
-      -- write the *content*, we handle the alignment.
-      local now_template = agenda_cfg_local.current_time_string
-        or "%5s ┄┄┄┄┄ ← now ─────────────────────────────"
-      -- Time column starts at 2 (leading) + category_width + 1 (sep).
-      -- Use block_opts.category_width (auto-fit value computed above)
-      -- so the time grid aligns with the actually-rendered category
-      -- column, not the config default that may have been widened.
-      local time_col_indent = string.rep(" ", 2 + (block_opts.category_width or 12))
-      local inserted_now = false
-      -- Convert "H:MM" / "HH:MM" -> minutes-since-midnight, so we can
-      -- do real ordering instead of lexical (which gets `"11:53" <
-      -- "8:00"` wrong because '1' sorts before '8').
-      local function hhmm_to_min(s)
-        if not s then
-          return nil
-        end
-        local h, m = s:match("^(%d?%d):(%d%d)$")
-        if not h then
-          return nil
-        end
-        return tonumber(h) * 60 + tonumber(m)
-      end
-      local now_min = hhmm_to_min(now_hhmm)
-      local function maybe_emit_now(before_time)
-        if inserted_now or not show_now or key ~= today then
-          return
-        end
-        local before_min = hhmm_to_min(before_time)
-        if not before_min or (now_min and now_min < before_min) then
-          local body = now_template:find("%%s") and string.format(now_template, now_hhmm)
-            or now_template
-          -- Strip any leading whitespace the template carries so we
-          -- can re-impose the alignment indent: existing user configs
-          -- (and our previous default) carry a 2-space prefix that
-          -- would compound with the new indent into a misalignment.
-          body = body:gsub("^%s+", "")
-          -- In grid mode, indent so `<time> ┄┄...` aligns with the
-          -- grid hour rows. Outside grid mode, the default 2-space
-          -- prefix is retained for backwards compatibility.
-          local prefix = emit_grid_for_day and time_col_indent or "  "
-          local text = prefix .. body
-          local pos_now = text:find("← now", 1, true) or text:find("now", 1, true)
-          local marks = {}
-          if pos_now then
-            local marker_word = text:sub(pos_now):match("^(%S+%s*%S*)") or "now"
-            marks[#marks + 1] = {
-              "@organ.agenda.now_marker",
-              pos_now - 1,
-              pos_now - 1 + #marker_word,
-            }
-          end
-          emit_line(text, marks, nil)
-          inserted_now = true
-        end
-      end
-
-      -- Grouping path: when the user configured agenda.groups (or the
-      -- block has its own groups list), partition the bucket's rows
-      -- into named groups and emit each with its own sub-header.
-      -- Skips the time-grid path (groups + grid would visually fight
-      -- for vertical space).
-      if groups_mod and not emit_grid_for_day then
-        local agenda_cfg_g = (require("organ.buf_config").read(nil, "agenda") or {})
-        local partitions = groups_mod.partition(buckets[key], groups_spec, {
-          category_for = format.category_for,
-          catch_all_title = agenda_cfg_g.groups_catch_all_title,
-        })
-        for _, p in ipairs(partitions) do
-          if #p.rows > 0 then
-            if p.title then
-              local hdr = string.format("  %s (%d)", p.title, #p.rows)
-              emit_line(hdr, { { "@organ.agenda.block_header", 0, #hdr } }, nil)
-            end
-            for _, r in ipairs(p.rows) do
-              local row_time = dates.time_only(r.scheduled_date)
-              if row_time then
-                maybe_emit_now(row_time)
-              end
-              local text, marks = bucket_fmt(r)
-              emit_line(text, marks, r)
-            end
-          end
-        end
-      elseif emit_grid_for_day then
-        -- Build a sorted list of (HH:MM, kind, payload) events and
-        -- emit them in time order. kind in "grid" | "row". Rows with
-        -- the same HH:MM as a grid hour replace that grid line.
-        local events = {}
-        for _, h in ipairs(time_grid_hours) do
-          -- `sortkey` is zero-padded so "08:00" < "10:00" lexically;
-          -- `display` is the stripped form Emacs prints ("8:00").
-          events[#events + 1] = {
-            sortkey = string.format("%02d:00", h),
-            display = string.format("%d:00", h),
-            kind = "grid",
-          }
-        end
-        local untimed = {}
-        for _, r in ipairs(buckets[key]) do
-          local rt = dates.time_only(r.scheduled_date)
-          if rt then
-            local hh, mm = rt:match("^(%d?%d):(%d%d)$")
-            if hh and mm then
-              events[#events + 1] = {
-                sortkey = string.format("%02d:%s", tonumber(hh), mm),
-                display = rt,
-                kind = "row",
-                row = r,
-                raw_time = rt,
-              }
-            else
-              untimed[#untimed + 1] = r
-            end
-          else
-            untimed[#untimed + 1] = r
-          end
-        end
-        table.sort(events, function(a, b)
-          if a.sortkey ~= b.sortkey then
-            return a.sortkey < b.sortkey
-          end
-          -- Row beats grid at the same time (so the row's content shows).
-          return a.kind == "row" and b.kind == "grid"
-        end)
-        -- De-dupe grid lines that collide with rows at the same HH:MM.
-        local seen_at_time = {}
-        for _, e in ipairs(events) do
-          if e.kind == "row" then
-            seen_at_time[e.sortkey] = true
-          end
-        end
-        -- The now-marker also occupies its time slot; suppress any
-        -- grid line at that same HH:MM so we don't render both
-        -- "12:00 ┄ ← now ─" and "12:00 ┄ ┄┄" back-to-back.
-        if show_now and key == today and now_hhmm then
-          local hh, mm = now_hhmm:match("^(%d%d):(%d%d)$")
-          if hh and mm == "00" then
-            seen_at_time[hh .. ":00"] = true
-          end
-        end
-        for _, e in ipairs(events) do
-          if e.kind == "row" then
-            local rt = e.raw_time
-            if rt then
-              maybe_emit_now(rt)
-            end
-            local text, marks = bucket_fmt(e.row)
-            emit_line(text, marks, e.row)
-          else
-            if not seen_at_time[e.sortkey] then
-              maybe_emit_now(e.display)
-              -- Empty grid lines indent to the time column AND
-              -- right-align the hour to 5 chars so single-digit
-              -- hours (` 8:00`) and double-digit (`10:00`) end at
-              -- the same column.  Indent = `2 (leading) + cat_width`
-              -- (NO separator between cat and time -- Emacs's `:c`
-              -- modifier produces "Tasks:      " filling the cat
-              -- field, then time directly follows).
-              -- Use block_opts.category_width (auto-fit) so empty
-              -- grid lines align with the actually-rendered category
-              -- column, not the un-widened config default.
-              local indent = string.rep(" ", 2 + (block_opts.category_width or 12))
-              local text = string.format(
-                "%s%5s ┄┄┄┄┄ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄",
-                indent,
-                e.display
-              )
-              local pad = 5 - #e.display
-              local marks = { { "@organ.agenda.now_marker", #indent + pad, #indent + 5 } }
-              emit_line(text, marks, nil)
-            end
-          end
-        end
-        -- Now marker: when wall-clock is past the last grid hour but
-        -- the bucket still has untimed rows below the grid, place the
-        -- marker BETWEEN them -- matches Emacs's `20:00 ┄┄┄ / 22:49 <-
-        -- now / <untimed rows>` layout instead of letting `untimed`
-        -- emit first and the marker fall at end-of-bucket.
-        maybe_emit_now(nil)
-        -- Untimed rows after the grid.
-        for _, r in ipairs(untimed) do
-          local text, marks = bucket_fmt(r)
-          emit_line(text, marks, r)
-        end
-      else
-        for _, r in ipairs(buckets[key]) do
-          local row_time = dates.time_only(r.scheduled_date)
-          if row_time then
-            maybe_emit_now(row_time)
-          end
-          local text, marks = bucket_fmt(r)
-          emit_line(text, marks, r)
-        end
-      end
-      -- If "now" hasn't been emitted yet (every row was earlier than
-      -- now, or no timed rows at all), emit at the end of the day's bucket.
-      maybe_emit_now(nil)
-      emit_line("", nil, nil)
+      emit_day_bucket(key, bucket_ctx, emit_line)
     end
     if #no_date > 0 then
       emit_line("(No date)", { { "@organ.agenda.header", 0, 9 } }, nil)

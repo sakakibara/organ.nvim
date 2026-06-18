@@ -198,25 +198,13 @@ local function todo_sets(source)
   return active, done
 end
 
--- Register directives with the tree-sitter query engine.  Idempotent:
--- repeated calls (e.g. plugin/organ.lua + a test bootstrap) reuse the
--- existing registrations without throwing "Overriding existing
--- predicate".  Tracks via a module-local flag rather than the engine's
--- internal state because nvim's add_predicate has no force-replace
--- option for our cross-version target.
-function M.register()
-  if M._registered then
-    return
-  end
-  M._registered = true
-  local q = vim.treesitter.query
-
-  -- Per-level (stars) predicate. Usage in highlights.scm:
-  --   ((headline_line stars: (stars) @org.heading.1)
-  --    (#org-stars-level? @org.heading.1 1))
-  -- Counts the `*` chars in the captured node's text and compares to
-  -- the requested level. Used by the modern field-based heading
-  -- highlight rules that capture `(stars)` directly.
+-- Per-level (stars) predicate. Usage in highlights.scm:
+--   ((headline_line stars: (stars) @org.heading.1)
+--    (#org-stars-level? @org.heading.1 1))
+-- Counts the `*` chars in the captured node's text and compares to
+-- the requested level. Used by the modern field-based heading
+-- highlight rules that capture `(stars)` directly.
+local function register_stars_level(q)
   q.add_predicate("org-stars-level?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local want_level = tonumber(predicate[3])
@@ -237,13 +225,15 @@ function M.register()
     end
     return #text == want_level
   end, { all = false })
+end
 
-  -- TODO-keyword classifier on a captured `(todo)` node.
-  -- Usage:
-  --   (headline_line todo: (todo) @org.todo.active
-  --     (#org-todo-keyword? @org.todo.active active))
-  -- Tests the captured node's text against `config.todo.sequence`,
-  -- splitting on `|` to distinguish active / done.
+-- TODO-keyword classifier on a captured `(todo)` node.
+-- Usage:
+--   (headline_line todo: (todo) @org.todo.active
+--     (#org-todo-keyword? @org.todo.active active))
+-- Tests the captured node's text against `config.todo.sequence`,
+-- splitting on `|` to distinguish active / done.
+local function register_todo_keyword_predicate(q)
   q.add_predicate("org-todo-keyword?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local kind = predicate[3]
@@ -269,11 +259,13 @@ function M.register()
     end
     return active[kw] == true or done[kw] == true
   end, { all = false })
+end
 
-  -- Per-level headline predicate. Usage in highlights.scm:
-  --   ((headline) @org.heading.1 (#org-heading-level? @org.heading.1 1))
-  --   ((headline) @org.heading.2 (#org-heading-level? @org.heading.2 2))
-  --   ...
+-- Per-level headline predicate. Usage in highlights.scm:
+--   ((headline) @org.heading.1 (#org-heading-level? @org.heading.1 1))
+--   ((headline) @org.heading.2 (#org-heading-level? @org.heading.2 2))
+--   ...
+local function register_heading_level(q)
   q.add_predicate("org-heading-level?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local want_level = tonumber(predicate[3])
@@ -290,10 +282,12 @@ function M.register()
     end
     return headline_stars(node, source) == want_level
   end, { all = false })
+end
 
-  -- Predicate: true iff the headline's first non-stars token is a TODO
-  -- keyword in the requested set ("active" / "done"). Pair with the
-  -- range directive so non-matches don't render the whole headline.
+-- Predicate: true iff the headline's first non-stars token is a TODO
+-- keyword in the requested set ("active" / "done"). Pair with the
+-- range directive so non-matches don't render the whole headline.
+local function register_has_todo_kw(q)
   q.add_predicate("org-has-todo-kw?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local kind = predicate[3]
@@ -323,8 +317,10 @@ function M.register()
     end
     return active[kw] == true or done[kw] == true
   end, { all = false })
+end
 
-  -- Predicate: true iff the headline carries a [#A] / [#B] / [#C] cookie.
+-- Predicate: true iff the headline carries a [#A] / [#B] / [#C] cookie.
+local function register_has_priority(q)
   q.add_predicate("org-has-priority?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -342,8 +338,10 @@ function M.register()
     local first = text:match("^[^\n]*") or ""
     return first:find("%[#%w%]") ~= nil
   end, { all = false })
+end
 
-  -- Predicate: true iff the headline ends in a `:tag1:tag2:` block.
+-- Predicate: true iff the headline ends in a `:tag1:tag2:` block.
+local function register_has_tags(q)
   q.add_predicate("org-has-tags?", function(match, _, source, predicate)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -361,13 +359,15 @@ function M.register()
     local first = text:match("^[^\n]*") or ""
     return first:find("%s+:[%w_@#%%]+:%s*$") ~= nil
   end, { all = false })
+end
 
-  -- Range directive: when the captured node is a headline whose first word
-  -- after the stars is a configured TODO keyword, narrow the capture to
-  -- ONLY that keyword's byte range. Argument selects "active" or "done".
-  -- Usage in highlights.scm:
-  --   ((headline) @org.todo.active (#org-has-todo-kw? @org.todo.active active)
-  --                                (#org-todo-keyword! @org.todo.active active))
+-- Range directive: when the captured node is a headline whose first word
+-- after the stars is a configured TODO keyword, narrow the capture to
+-- ONLY that keyword's byte range. Argument selects "active" or "done".
+-- Usage in highlights.scm:
+--   ((headline) @org.todo.active (#org-has-todo-kw? @org.todo.active active)
+--                                (#org-todo-keyword! @org.todo.active active))
+local function register_todo_keyword_directive(q)
   q.add_directive("org-todo-keyword!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local kind = predicate[3]
@@ -414,14 +414,16 @@ function M.register()
       sc + kw_byte_end,
     }
   end, { all = true })
+end
 
-  -- Narrow a (headline) capture to JUST its first line (the heading line
-  -- itself), so highlights on @org.heading.N don't bleed onto the body
-  -- content under the heading. tree-sitter-organ's `(headline)` node spans
-  -- the whole subtree (heading + body + nested headlines); without this
-  -- directive, @org.heading.1 paints the entire file under a level-1
-  -- heading, @org.heading.2 paints sub-trees, and the actual heading lines
-  -- never visually stand out.
+-- Narrow a (headline) capture to JUST its first line (the heading line
+-- itself), so highlights on @org.heading.N don't bleed onto the body
+-- content under the heading. tree-sitter-organ's `(headline)` node spans
+-- the whole subtree (heading + body + nested headlines); without this
+-- directive, @org.heading.1 paints the entire file under a level-1
+-- heading, @org.heading.2 paints sub-trees, and the actual heading lines
+-- never visually stand out.
+local function register_heading_line(q)
   q.add_directive("org-heading-line!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -444,8 +446,10 @@ function M.register()
     metadata[capture_id] = metadata[capture_id] or {}
     metadata[capture_id].range = { sr, sc, sr, sc + #first_line }
   end, { all = true })
+end
 
-  -- Same idea for priority cookies `[#A]` / `[#B]` / `[#C]`.
+-- Same idea for priority cookies `[#A]` / `[#B]` / `[#C]`.
+local function register_priority_directive(q)
   q.add_directive("org-priority!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -472,8 +476,10 @@ function M.register()
     metadata[capture_id] = metadata[capture_id] or {}
     metadata[capture_id].range = { sr, sc + s - 1, sr, sc + e }
   end, { all = true })
+end
 
-  -- Trailing tag block `:tag1:tag2:` at the end of a headline.
+-- Trailing tag block `:tag1:tag2:` at the end of a headline.
+local function register_tags_directive(q)
   q.add_directive("org-tags!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -505,7 +511,9 @@ function M.register()
     metadata[capture_id] = metadata[capture_id] or {}
     metadata[capture_id].range = { sr, sc + tag_s, sr, sc + e }
   end, { all = true })
+end
 
+local function register_src_block_lang(q)
   q.add_directive("org-src-block-lang!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -519,7 +527,9 @@ function M.register()
     metadata.injection = metadata.injection or {}
     metadata.injection.language = lang
   end, { all = true })
+end
 
+local function register_src_block_body(q)
   q.add_directive("org-src-block-body!", function(match, _, source, predicate, metadata)
     local capture_id = predicate[2]
     local nodes = match[capture_id]
@@ -552,6 +562,33 @@ function M.register()
     local er, ec = pos(eb)
     metadata[capture_id].range = { sr, sc, er, ec }
   end, { all = true })
+end
+
+-- Register directives with the tree-sitter query engine.  Idempotent:
+-- repeated calls (e.g. plugin/organ.lua + a test bootstrap) reuse the
+-- existing registrations without throwing "Overriding existing
+-- predicate".  Tracks via a module-local flag rather than the engine's
+-- internal state because nvim's add_predicate has no force-replace
+-- option for our cross-version target.
+function M.register()
+  if M._registered then
+    return
+  end
+  M._registered = true
+  local q = vim.treesitter.query
+
+  register_stars_level(q)
+  register_todo_keyword_predicate(q)
+  register_heading_level(q)
+  register_has_todo_kw(q)
+  register_has_priority(q)
+  register_has_tags(q)
+  register_todo_keyword_directive(q)
+  register_heading_line(q)
+  register_priority_directive(q)
+  register_tags_directive(q)
+  register_src_block_lang(q)
+  register_src_block_body(q)
 end
 
 return M
