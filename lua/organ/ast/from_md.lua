@@ -131,7 +131,29 @@ local function indented_code(p, line)
 end
 M._block_starters[#M._block_starters + 1] = indented_code
 
+-- Setext heading: a paragraph underlined by =+ (level 1) or -+ (level 2).
+local function setext_heading(p, line)
+  if #p.open_para == 0 then
+    return false
+  end
+  local level
+  if line:match("^ ? ? ?=+%s*$") then
+    level = 1
+  elseif line:match("^ ? ? ?%-+%s*$") then
+    level = 2
+  else
+    return false
+  end
+  local title = table.concat(p.open_para, "\n"):gsub("^%s+", ""):gsub("%s+$", "")
+  p.open_para = {}
+  p.blocks[#p.blocks + 1] =
+    ast.headline({ level = level, title = { ast.text(title) }, children = {} })
+  return true
+end
+M._block_starters[#M._block_starters + 1] = setext_heading
+
 local Parser = {}
+
 Parser.__index = Parser
 
 function Parser.new()

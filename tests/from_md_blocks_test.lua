@@ -55,4 +55,18 @@ assert(
   "empty ATX heading from all-closing content"
 )
 
+-- Setext headings: a paragraph underlined by = (h1) or - (h2).
+local s1 = only("Title\n=====\n")
+assert(s1.kind == "headline" and s1.level == 1, "setext h1")
+assert(s1.title[1].text == "Title", "setext h1 title")
+local s2 = only("Subtitle\n---\n")
+assert(s2.kind == "headline" and s2.level == 2, "setext h2")
+-- Multi-line paragraph content joins into the heading.
+local multi = only("foo\nbar\n===\n")
+assert(multi.kind == "headline" and multi.title[1].text == "foo\nbar", "multi-line setext content")
+-- An underline with no preceding paragraph is not a setext heading.
+assert(only("=====\n").kind == "paragraph", "=== with no paragraph is a paragraph")
+-- A dash line with no paragraph is still a thematic break.
+assert(only("---\n").kind == "rule", "--- with no paragraph stays a thematic break")
+
 print("from_md_blocks_test: PASS")
