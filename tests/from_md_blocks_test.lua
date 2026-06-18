@@ -85,4 +85,20 @@ assert(#d3.children == 1 and d3.children[1].kind == "paragraph", "paragraph afte
 local d4 = from_md.parse("[not a def] just text\n")
 assert(d4.children[1].kind == "paragraph", "non-definition bracket line is a paragraph")
 
+-- HTML blocks (kinds 1-6): raw, verbatim, mapped to block(export/html).
+local function is_html_block(node)
+  return node.kind == "block" and node.style == "export" and node.backend == "html"
+end
+-- Kind 2: comment, complete on one line.
+assert(is_html_block(only("<!-- a comment -->\n")), "kind 2 single-line comment")
+-- Kind 1: pre ... </pre>, multi-line, verbatim body.
+local pre = only("<pre>\nx < y & z\n</pre>\n")
+assert(is_html_block(pre), "kind 1 pre block")
+assert(pre.body == "<pre>\nx < y & z\n</pre>\n", "kind 1 body is verbatim (no escaping)")
+-- Kind 6: a <div> block ends at the next blank line (the blank line is excluded).
+local doc = from_md.parse("<div>\nstuff\n\nafter\n")
+assert(is_html_block(doc.children[1]), "kind 6 div block")
+assert(doc.children[1].body == "<div>\nstuff\n", "kind 6 body ends before the blank line")
+assert(doc.children[2].kind == "paragraph", "content after the blank line is a paragraph")
+
 print("from_md_blocks_test: PASS")

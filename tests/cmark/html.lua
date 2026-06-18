@@ -39,6 +39,8 @@ local function block(node, out)
         and (' class="language-' .. node.language .. '"')
       or ""
     out[#out + 1] = "<pre><code" .. attr .. ">" .. escape(node.body or "") .. "</code></pre>\n"
+  elseif node.kind == "block" and node.style == "export" and node.backend == "html" then
+    out[#out + 1] = node.body or ""
   end
   -- later stages: list, block, table, ...
 end

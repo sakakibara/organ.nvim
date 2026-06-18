@@ -182,6 +182,168 @@ local function link_ref_def(p, line)
 end
 M._block_starters[#M._block_starters + 1] = link_ref_def
 
+local HTML_BLOCK_TAGS = {}
+for _, t in ipairs({
+  "address",
+  "article",
+  "aside",
+  "base",
+  "basefont",
+  "blockquote",
+  "body",
+  "caption",
+  "center",
+  "col",
+  "colgroup",
+  "dd",
+  "details",
+  "dialog",
+  "dir",
+  "div",
+  "dl",
+  "dt",
+  "fieldset",
+  "figcaption",
+  "figure",
+  "footer",
+  "form",
+  "frame",
+  "frameset",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "head",
+  "header",
+  "hr",
+  "html",
+  "iframe",
+  "legend",
+  "li",
+  "link",
+  "main",
+  "menu",
+  "menuitem",
+  "nav",
+  "noframes",
+  "ol",
+  "optgroup",
+  "option",
+  "p",
+  "param",
+  "search",
+  "section",
+  "summary",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "title",
+  "tr",
+  "track",
+  "ul",
+}) do
+  HTML_BLOCK_TAGS[t] = true
+end
+
+-- Returns kind (1-6), an end-predicate fn(line)->bool, and whether the end line
+-- is included; or nil if `s` (the line with leading <=3 spaces removed) does not
+-- start an HTML block of kinds 1-6.
+local function html_block_start(s)
+  local low = s:lower()
+  if
+    low:match("^<[sptx]")
+    and (
+      low:match("^<script[%s>]")
+      or low:match("^<script$")
+      or low:match("^<pre[%s>]")
+      or low:match("^<pre$")
+      or low:match("^<style[%s>]")
+      or low:match("^<style$")
+      or low:match("^<textarea[%s>]")
+      or low:match("^<textarea$")
+    )
+  then
+    return 1,
+      function(l)
+        local ll = l:lower()
+        return ll:find("</script>", 1, true)
+          or ll:find("</pre>", 1, true)
+          or ll:find("</style>", 1, true)
+          or ll:find("</textarea>", 1, true)
+      end,
+      true
+  elseif s:match("^<!%-%-") then
+    return 2, function(l)
+      return l:find("%-%->")
+    end, true
+  elseif s:match("^<%?") then
+    return 3, function(l)
+      return l:find("%?>")
+    end, true
+  elseif s:match("^<![a-zA-Z]") then
+    return 4, function(l)
+      return l:find(">")
+    end, true
+  elseif s:match("^<!%[CDATA%[") then
+    return 5, function(l)
+      return l:find("]]>", 1, true)
+    end, true
+  else
+    local tag = low:match("^</?([a-z][a-z0-9]*)")
+    if tag and HTML_BLOCK_TAGS[tag] then
+      local after = low:match("^</?" .. tag .. "(.?)") or ""
+      if after == "" or after == ">" or after:match("%s") or low:match("^</?" .. tag .. "/>") then
+        return 6, function(l)
+          return l:match("^%s*$")
+        end, false
+      end
+    end
+  end
+  return nil
+end
+
+local function html_block(p, line)
+  local s = line:match("^ ? ? ?(<.*)$")
+  if not s then
+    return false
+  end
+  local kind, ends, inclusive = html_block_start(s)
+  if not kind then
+    return false
+  end
+  local body_lines = {}
+  local j = p.i
+  while j <= #p.lines do
+    local l = p.lines[j]
+    if ends(l) then
+      if inclusive then
+        body_lines[#body_lines + 1] = l
+        j = j + 1
+      end
+      break
+    end
+    body_lines[#body_lines + 1] = l
+    j = j + 1
+  end
+  -- Unclosed kinds 1-5 run to EOF; split_lines appends a trailing "" artifact.
+  if inclusive and j > #p.lines then
+    while #body_lines > 0 and body_lines[#body_lines] == "" do
+      body_lines[#body_lines] = nil
+    end
+  end
+  p:add_block(
+    ast.block("export", { body = table.concat(body_lines, "\n") .. "\n", backend = "html" })
+  )
+  p.i = j - 1 -- loop will +1 to the first line after the block
+  return true
+end
+M._block_starters[#M._block_starters + 1] = html_block
+
 local Parser = {}
 
 Parser.__index = Parser
