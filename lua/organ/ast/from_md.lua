@@ -23,6 +23,25 @@ end
 -- when no starter claims the line.
 M._block_starters = {}
 
+-- ATX heading: up to 3 leading spaces, 1-6 '#', then a space or EOL.
+local function atx_heading(p, line)
+  local hashes, rest = line:match("^ ? ? ?(#+)%s+(.*)$")
+  if not hashes then
+    hashes = line:match("^ ? ? ?(#+)%s*$") -- empty heading
+    if hashes then
+      rest = ""
+    end
+  end
+  if not hashes or #hashes > 6 then
+    return false
+  end
+  -- Strip an optional closing run of '#' (preceded by space) and trim.
+  local content = (rest or ""):gsub("%s+#+%s*$", ""):gsub("^%s+", ""):gsub("%s+$", "")
+  p:add_block(ast.headline({ level = #hashes, title = { ast.text(content) }, children = {} }))
+  return true
+end
+M._block_starters[#M._block_starters + 1] = atx_heading
+
 local Parser = {}
 Parser.__index = Parser
 

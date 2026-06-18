@@ -29,8 +29,11 @@ end
 local function block(node, out)
   if node.kind == "paragraph" then
     out[#out + 1] = "<p>" .. inline(node.inline) .. "</p>\n"
+  elseif node.kind == "headline" then
+    local lvl = node.level
+    out[#out + 1] = "<h" .. lvl .. ">" .. inline(node.title) .. "</h" .. lvl .. ">\n"
   end
-  -- later stages: headline, list, code_block, block, rule, table, ...
+  -- later stages: list, code_block, block, rule, table, ...
 end
 
 function M.render(doc)
