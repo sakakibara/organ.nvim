@@ -9,6 +9,14 @@
 
 local root = vim.fn.getcwd()
 
+-- Line-coverage collection (opt-in via `make test-cov`).  luarocks installs
+-- luacov outside nvim's default package path, so make it reachable first.
+if os.getenv("ORGAN_COVERAGE") then
+  package.path = package.path
+    .. ";/usr/local/share/lua/5.1/?.lua;/usr/local/share/lua/5.1/?/init.lua"
+  pcall(require, "luacov")
+end
+
 local function fail(msg)
   io.stderr:write("\n")
   io.stderr:write("ERROR: " .. msg .. "\n")

@@ -1,0 +1,6 @@
+-- luacov configuration (used by `make test-cov`).
+return {
+  include = { "lua/organ" }, -- only report on lua/organ/* modules
+  statsfile = "luacov.stats.out",
+  reportfile = "luacov.report.out",
+}

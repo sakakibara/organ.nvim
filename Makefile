@@ -90,6 +90,22 @@ test-behavioral:
 
 lint:
 	@stylua --check lua/ plugin/ tests/
+	@command -v luacheck >/dev/null || { \
+	  echo "luacheck not on PATH -- install with: luarocks install luacheck"; \
+	  exit 1; }
+	@luacheck lua/ plugin/
+
+# Line-coverage report via luacov. Each headless test process loads luacov
+# when ORGAN_COVERAGE is set (see tests/_bootstrap.lua); stats accumulate in
+# luacov.stats.out across the run, then luacov renders the summary.
+test-cov: deps grammar
+	@command -v luacov >/dev/null || { \
+	  echo "luacov not on PATH -- install with: luarocks install luacov"; \
+	  exit 1; }
+	@rm -f luacov.stats.out luacov.report.out
+	@ORGAN_COVERAGE=1 $(MAKE) test-only >/dev/null 2>&1 || true
+	@luacov
+	@tail -n 12 luacov.report.out
 
 lint-md:
 	@command -v markdownlint-cli2 >/dev/null || { \
