@@ -136,6 +136,7 @@ local DOMAIN_MODULES = {
   "organ.holidays",
   "organ.id",
   "organ.image",
+  "organ.import",
   "organ.indent",
   "organ.indexer",
   "organ.inline_edit",
