@@ -112,4 +112,31 @@ assert(notk7.children[1].kind == "paragraph", "kind 7 cannot interrupt a paragra
 -- A non-complete tag line is not a kind-7 block.
 assert(only("<a href=\n").kind == "paragraph", "incomplete tag is a paragraph")
 
+-- Block quotes: the first real container.  Content is parsed by the same stack
+-- machinery (recursive containment), so quotes nest and any block may open
+-- inside one.
+local function is_quote(n)
+  return n.kind == "block" and n.style == "quote"
+end
+-- Simple block quote with a paragraph inside.
+local q = only("> hello\n> world\n")
+assert(is_quote(q), "block quote node")
+assert(q.content[1].kind == "paragraph", "quote contains a paragraph")
+assert(q.content[1].inline[1].text == "hello\nworld", "quote paragraph text (marker stripped)")
+-- A heading inside a quote.
+local qh = only("> # Title\n")
+assert(
+  is_quote(qh) and qh.content[1].kind == "headline" and qh.content[1].level == 1,
+  "heading in quote"
+)
+-- Nested block quotes.
+local nq = only("> > deep\n")
+assert(is_quote(nq) and is_quote(nq.content[1]), "nested block quote")
+-- Lazy continuation: a >-less line continues the quote's paragraph.
+local lazy = only("> a\nb\n")
+assert(
+  is_quote(lazy) and lazy.content[1].inline[1].text == "a\nb",
+  "lazy continuation into quote paragraph"
+)
+
 print("from_md_blocks_test: PASS")

@@ -3,13 +3,16 @@
 -- input degrades to literal paragraph text.
 --
 -- Architecture: CommonMark's open-blocks stack.  The document is parsed one
--- line at a time against a stack of currently-open blocks.  Currently the
--- stack contains the root `document` container plus at most one open leaf
--- block (the `tip`).  Per-container continuation and marker-stripping for
--- block quotes and lists are not yet handled; only the document container
--- is present.  Each line tries block starts against the current tip, then
--- feeds text to an open paragraph (lazy continuation).  Closing a block
--- finalises it to the same `ast.*` node the renderer expects.
+-- line at a time against a stack of currently-open blocks: the root `document`
+-- container, zero or more nested containers (block quotes), and at most one open
+-- leaf block (the `tip`).  Each line runs four phases: (1) walk the open
+-- containers, consuming each one's continuation marker off the line and stopping
+-- at the first that does not continue; (3) run block starts on the stripped
+-- remainder under the deepest matched container (a start may open a new
+-- container, whose content is parsed by the same machinery recursively); (4)
+-- otherwise append to an open paragraph (lazy continuation, allowed even when a
+-- container marker was missing) or open a fresh one.  Closing a block finalises
+-- it to the same `ast.*` node the renderer expects.
 local ast = require("organ.ast")
 
 local M = {}
@@ -381,6 +384,20 @@ local function html_block(line, tip_is_paragraph)
   }
 end
 
+-- Block quote marker: <=3 leading spaces then '>' plus one optional following
+-- space.  Returns the line with the marker stripped, or nil when the line has no
+-- marker.  Used by both the start recogniser (phase 3) and the continue test
+-- (phase 1) -- the marker grammar is identical for opening and continuing.
+local function strip_block_quote_marker(line)
+  local rest = line:match("^ ? ? ?>(.*)$")
+  if not rest then
+    return nil
+  end
+  -- Consume one optional space after '>'.  A tab also counts as the single
+  -- separator but is otherwise left for the inner block's indent handling.
+  return (rest:gsub("^ ", "", 1))
+end
+
 -- Finalising an open block to the AST node the renderer consumes.  These mirror
 -- the previous leaf-by-leaf output exactly so the renderer and roundtrip are
 -- unchanged.
@@ -393,7 +410,9 @@ end
 
 local function finalize(block)
   local t = block.type
-  if t == "paragraph" then
+  if t == "block_quote" then
+    return ast.block("quote", { content = block.children })
+  elseif t == "paragraph" then
     return ast.paragraph({ ast.text(table.concat(block.lines, "\n")) })
   elseif t == "heading" then
     return ast.headline({
@@ -469,12 +488,55 @@ function Parser:push(block)
   self.stack[#self.stack + 1] = block
 end
 
--- Try the leaf starters, in proven CommonMark precedence, against the
--- marker-stripped `line`.  Returns true if the line opened (and possibly closed)
--- a block or was consumed as a reference definition.
-function Parser:try_starts(line)
+-- Is the stack element at `index` a container (holds finalised children) rather
+-- than an accumulating leaf?  `document` and `block_quote` are containers.
+local function is_container(block)
+  return block.type == "document" or block.type == "block_quote"
+end
+
+-- PHASE 1: walk the open containers from the document down, testing each
+-- container's continue condition against the progressively marker-stripped line
+-- and consuming its marker.  `document` always continues with no marker.  Stops
+-- at the first container that does not continue.  Returns the stack index of the
+-- deepest still-matched container and the line text with all matched containers'
+-- markers stripped.
+function Parser:match_continuation(line)
+  local last_matched = 1 -- the document container always matches
+  local rest = line
+  for i = 2, #self.stack do
+    local block = self.stack[i]
+    if block.type == "block_quote" then
+      local stripped = strip_block_quote_marker(rest)
+      if stripped == nil then
+        break
+      end
+      rest = stripped
+      last_matched = i
+    else
+      -- A leaf or future container with no marker grammar: continuation past it
+      -- is decided by the start/lazy phases, not by phase 1.
+      break
+    end
+  end
+  return last_matched, rest
+end
+
+-- Close every open block strictly below stack index `keep` (deepest first), so
+-- that a new block starting under the matched container does not nest inside
+-- now-unmatched siblings.
+function Parser:close_below(keep)
+  while #self.stack > keep do
+    self:close_tip()
+  end
+end
+
+-- Try the block starters, in proven CommonMark precedence, against the
+-- marker-stripped `line`, pushing any new block under the container at stack
+-- index `from`.  Returns true if the line opened (and possibly closed) a block,
+-- opened a container, or was consumed as a reference definition.
+function Parser:try_starts(line, from)
   local tip = self:tip()
-  local tip_para = tip.type == "paragraph"
+  local tip_para = #self.stack > from and tip.type == "paragraph"
 
   -- Setext underline converts an open paragraph in place; check before other
   -- starts so "---" under a paragraph becomes an h2 rather than a break.
@@ -494,15 +556,26 @@ function Parser:try_starts(line)
     end
   end
 
+  -- A block quote opens a new container, then its content (the further-stripped
+  -- remainder) is placed under it: '> # x' opens a heading inside the quote,
+  -- '> > x' nests two quotes, '> a' opens a paragraph inside the quote, and a
+  -- bare '>' opens an empty quote.
+  local bq_rest = strip_block_quote_marker(line)
+  if bq_rest then
+    self:close_below(from)
+    local quote = { type = "block_quote", children = {} }
+    self:push(quote)
+    self:place_content(bq_rest, #self.stack)
+    return true
+  end
+
   local block = atx_heading(line)
     or thematic_break(line, tip_para)
     or fenced_code(line)
     or (not tip_para and indented_code(line))
     or html_block(line, tip_para)
   if block then
-    if tip_para then
-      self:close_tip()
-    end
+    self:close_below(from)
     self:push(block)
     if block.closed_immediately then
       self:close_tip()
@@ -519,10 +592,32 @@ function Parser:try_starts(line)
 
   -- Link reference definitions only at a fresh block position.
   if not tip_para and link_ref_def(line, self.refmap) then
+    self:close_below(from)
     return true
   end
 
   return false
+end
+
+-- Place a marker-stripped remainder under the container at stack index `from`:
+-- run block starts (phase 3); failing that, append to or open a paragraph
+-- (phase 4).  A blank remainder leaves the container empty.  Shared by the
+-- top-level line dispatch and the block-quote start (so quote content is parsed
+-- by the same machinery, recursively).
+function Parser:place_content(rest, from)
+  if is_blank(rest) then
+    return
+  end
+  if self:try_starts(rest, from) then
+    return
+  end
+  local tip = self:tip()
+  if #self.stack > from and tip.type == "paragraph" then
+    tip.lines[#tip.lines + 1] = rest
+  else
+    self:close_below(from)
+    self:push({ type = "paragraph", lines = { rest }, children = {} })
+  end
 end
 
 -- Feed one line to the tip when it is an open leaf still accumulating across
@@ -554,9 +649,18 @@ function Parser:feed_open_leaf(line)
 end
 
 function Parser:add_line(line)
-  -- Step 1: an open accumulating leaf (fenced code / html block) swallows the
-  -- line directly.
-  if self:feed_open_leaf(line) then
+  -- PHASE 1: walk open containers, consuming their markers.  `last_matched` is
+  -- the deepest container whose continuation marker was present on this line;
+  -- `rest` is the line with those markers stripped.  An open leaf below
+  -- `last_matched` whose containers all matched may still continue (paragraph
+  -- lazy continuation, accumulating code/html); a leaf whose containers did NOT
+  -- all match is a candidate for lazy continuation or gets closed.
+  local last_matched, rest = self:match_continuation(line)
+  local all_matched = last_matched == #self.stack or not is_container(self.stack[last_matched + 1])
+
+  -- An open accumulating leaf (fenced code / html block) swallows the stripped
+  -- line, but only while all its containers continue to match.
+  if all_matched and self:feed_open_leaf(rest) then
     return
   end
 
@@ -564,38 +668,40 @@ function Parser:add_line(line)
 
   -- An open indented-code leaf keeps absorbing indented and interior-blank
   -- lines; any other non-blank line ends it and is reprocessed as a start.
-  if tip.type == "code_block" and tip.variant == "indented" then
-    if line:match("^    ") then
-      tip.body[#tip.body + 1] = line:gsub("^    ", "")
+  if all_matched and tip.type == "code_block" and tip.variant == "indented" then
+    if rest:match("^    ") then
+      tip.body[#tip.body + 1] = rest:gsub("^    ", "")
       return
-    elseif is_blank(line) then
+    elseif is_blank(rest) then
       tip.body[#tip.body + 1] = ""
       return
     else
       self:close_tip()
-      tip = self:tip()
     end
   end
 
-  if is_blank(line) then
-    -- A blank line closes an open paragraph; otherwise it is just consumed.
-    if tip.type == "paragraph" then
-      self:close_tip()
-    end
+  if is_blank(rest) then
+    -- A blank line (after any matched markers) closes everything below the
+    -- deepest matched container; in particular an open paragraph ends.
+    self:close_below(last_matched)
     return
   end
 
-  -- Step 2: new block starts.
-  if self:try_starts(line) then
+  -- PHASE 3: new block starts, pushed under the deepest matched container.
+  if self:try_starts(rest, last_matched) then
     return
   end
 
-  -- Step 3: lazy continuation / paragraph text.
+  -- PHASE 4: lazy continuation / paragraph text.  A non-blank line with no
+  -- start appends to an open paragraph even when some container markers were
+  -- missing in phase 1 (CommonMark lazy continuation); otherwise it closes the
+  -- unmatched blocks and opens a fresh paragraph under the matched container.
   tip = self:tip()
   if tip.type == "paragraph" then
-    tip.lines[#tip.lines + 1] = line
+    tip.lines[#tip.lines + 1] = rest
   else
-    self:push({ type = "paragraph", lines = { line }, children = {} })
+    self:close_below(last_matched)
+    self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
 end
 

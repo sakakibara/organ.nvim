@@ -39,10 +39,16 @@ local function block(node, out)
         and (' class="language-' .. node.language .. '"')
       or ""
     out[#out + 1] = "<pre><code" .. attr .. ">" .. escape(node.body or "") .. "</code></pre>\n"
+  elseif node.kind == "block" and node.style == "quote" then
+    out[#out + 1] = "<blockquote>\n"
+    for _, c in ipairs(node.content or {}) do
+      block(c, out)
+    end
+    out[#out + 1] = "</blockquote>\n"
   elseif node.kind == "block" and node.style == "export" and node.backend == "html" then
     out[#out + 1] = node.body or ""
   end
-  -- later stages: list, block, table, ...
+  -- later stages: list, table, ...
 end
 
 function M.render(doc)
