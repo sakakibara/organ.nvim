@@ -393,8 +393,8 @@ local function strip_block_quote_marker(line)
   if not rest then
     return nil
   end
-  -- Consume one optional space after '>'.  A tab also counts as the single
-  -- separator but is otherwise left for the inner block's indent handling.
+  -- Consume one optional space after '>'.  Only a single space is consumed; a
+  -- tab is left intact for the inner block's indent handling.
   return (rest:gsub("^ ", "", 1))
 end
 
@@ -559,12 +559,22 @@ function Parser:try_starts(line, from)
   -- A block quote opens a new container, then its content (the further-stripped
   -- remainder) is placed under it: '> # x' opens a heading inside the quote,
   -- '> > x' nests two quotes, '> a' opens a paragraph inside the quote, and a
-  -- bare '>' opens an empty quote.
+  -- bare '>' opens an empty quote.  Consecutive '>' markers on one line are
+  -- consumed iteratively -- one container pushed per marker -- so the parser
+  -- depth does not scale with the number of '>' on a line (a recursive call per
+  -- marker would overflow the C stack on pathological '> > > ...' input).
   local bq_rest = strip_block_quote_marker(line)
   if bq_rest then
     self:close_below(from)
-    local quote = { type = "block_quote", children = {} }
-    self:push(quote)
+    repeat
+      local quote = { type = "block_quote", children = {} }
+      self:push(quote)
+      local next_rest = strip_block_quote_marker(bq_rest)
+      if next_rest == nil then
+        break
+      end
+      bq_rest = next_rest
+    until false
     self:place_content(bq_rest, #self.stack)
     return true
   end
@@ -648,6 +658,8 @@ function Parser:feed_open_leaf(line)
   return false
 end
 
+-- Phase numbering follows CommonMark's reference algorithm; phase 2 (list-item
+-- markers) is reserved for a later stage, so the 1/3/4 gap is intentional.
 function Parser:add_line(line)
   -- PHASE 1: walk open containers, consuming their markers.  `last_matched` is
   -- the deepest container whose continuation marker was present on this line;

@@ -139,4 +139,10 @@ assert(
   "lazy continuation into quote paragraph"
 )
 
+-- A long single-line run of '>' markers must not overflow the stack.
+local ok = pcall(function()
+  return from_md.parse(string.rep("> ", 10000) .. "deep\n")
+end)
+assert(ok, "deeply-quoted single line must not throw (stack overflow regression)")
+
 print("from_md_blocks_test: PASS")
