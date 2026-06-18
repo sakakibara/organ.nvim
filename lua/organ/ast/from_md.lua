@@ -97,6 +97,36 @@ local function fenced_code(p, line)
 end
 M._block_starters[#M._block_starters + 1] = fenced_code
 
+local function indented_code(p, line)
+  if #p.open_para > 0 then
+    return false -- paragraph continuation, not code
+  end
+  if not line:match("^    ") then
+    return false
+  end
+  local body_lines = {}
+  local j = p.i
+  while j <= #p.lines do
+    local l = p.lines[j]
+    if l:match("^    ") then
+      body_lines[#body_lines + 1] = l:gsub("^    ", "")
+    elseif is_blank(l) then
+      body_lines[#body_lines + 1] = "" -- interior blank kept for now; trimmed below
+    else
+      break
+    end
+    j = j + 1
+  end
+  -- Trim trailing blank lines.
+  while #body_lines > 0 and body_lines[#body_lines] == "" do
+    body_lines[#body_lines] = nil
+  end
+  p:add_block(ast.code_block(nil, table.concat(body_lines, "\n") .. "\n"))
+  p.i = j - 1 -- loop will +1 to the first non-code line
+  return true
+end
+M._block_starters[#M._block_starters + 1] = indented_code
+
 local Parser = {}
 Parser.__index = Parser
 

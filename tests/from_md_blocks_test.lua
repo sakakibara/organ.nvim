@@ -41,4 +41,11 @@ assert(unclosed.kind == "code_block" and unclosed.body == "still code\n", "unclo
 -- Tildes work too.
 assert(only("~~~\ntc\n~~~\n").kind == "code_block", "tilde fence")
 
+-- Indented code blocks (>=4 spaces, not continuing a paragraph).
+local ic = only("    indented code\n")
+assert(ic.kind == "code_block" and ic.body == "indented code\n", "4-space indented code")
+-- A paragraph followed by an indented line is a lazy paragraph continuation.
+local doc = from_md.parse("text\n    not code\n")
+assert(doc.children[1].kind == "paragraph", "indent after paragraph stays paragraph")
+
 print("from_md_blocks_test: PASS")
