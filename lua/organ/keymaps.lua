@@ -146,6 +146,7 @@ M.groups = {
   { "<LocalLeader>i", group = "insert" },
   { "<LocalLeader>l", group = "list" },
   { "<LocalLeader>n", group = "narrow / roam" },
+  { "<LocalLeader>p", group = "property" },
   { "<LocalLeader>S", group = "subtree clipboard" },
   { "<LocalLeader>v", group = "sparse tree" },
   { "<LocalLeader>x", group = "execute / dblock / babel" },
