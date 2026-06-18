@@ -584,52 +584,46 @@ end
 -- Exposed for tests; call sites stay local.
 M._format_buf_name = format_buf_name
 
-function M.open(view_opts, view_name)
-  highlights.register()
-
-  -- First-run safety net: if the DB has zero indexed files AND the
-  -- user has a real org_dir, trigger a background scan and tell them.
-  -- Otherwise the agenda silently shows nothing useful, which masquerades
-  -- as a parser/filter bug — Emacs's agenda always re-reads
-  -- `org-agenda-files` on open.  We don't wait for the scan; the user
-  -- can `r`-refresh once the queue drains.  We probe the DB directly
-  -- (`indexer.files_count`) instead of trusting `_last_status.last_file`,
-  -- which is session-local state that resets on every nvim restart.
-  do
-    local organ = require("organ")
-    local org_dir = organ.config and require("organ.buf_config").read(nil, "org_dir")
-    local indexed = 0
-    local rt_ok, rt = pcall(require, "organ.runtime")
-    if rt_ok then
-      local h_ok, h = pcall(rt.db)
-      if h_ok and h then
-        local idx_ok, idx = pcall(require, "organ.indexer")
-        if idx_ok and idx.files_count then
-          indexed = idx.files_count(h)
-        end
+-- First-run safety net: if the DB has zero indexed files AND the user
+-- has a real org_dir, trigger a background scan and tell them.  Otherwise
+-- the agenda silently shows nothing useful, which masquerades as a
+-- parser/filter bug — Emacs's agenda always re-reads `org-agenda-files`
+-- on open.  We don't wait for the scan; the user can `r`-refresh once the
+-- queue drains.  We probe the DB directly (`indexer.files_count`) instead
+-- of trusting `_last_status.last_file`, which is session-local state that
+-- resets on every nvim restart.
+local function maybe_start_first_scan()
+  local organ = require("organ")
+  local org_dir = organ.config and require("organ.buf_config").read(nil, "org_dir")
+  local indexed = 0
+  local rt_ok, rt = pcall(require, "organ.runtime")
+  if rt_ok then
+    local h_ok, h = pcall(rt.db)
+    if h_ok and h then
+      local idx_ok, idx = pcall(require, "organ.indexer")
+      if idx_ok and idx.files_count then
+        indexed = idx.files_count(h)
       end
     end
-    if
-      indexed == 0
-      and type(org_dir) == "string"
-      and org_dir ~= ""
-      and vim.fn.isdirectory(vim.fn.expand(org_dir)) == 1
-    then
-      require("organ.notify").info(
-        "organ: index is empty — scanning "
-          .. org_dir
-          .. " in background (refresh agenda with `r` when done)"
-      )
-      pcall(organ._start_scan)
-    end
   end
-
-  local view, err = M.normalize_view(view_opts, view_name)
-  if not view then
-    require("organ.notify").error(err)
-    return nil
+  if
+    indexed == 0
+    and type(org_dir) == "string"
+    and org_dir ~= ""
+    and vim.fn.isdirectory(vim.fn.expand(org_dir)) == 1
+  then
+    require("organ.notify").info(
+      "organ: index is empty — scanning "
+        .. org_dir
+        .. " in background (refresh agenda with `r` when done)"
+    )
+    pcall(organ._start_scan)
   end
+end
 
+-- Apply the config's default line_format to any block that didn't set
+-- its own.
+local function apply_default_line_format(view)
   local default_lf = (require("organ.buf_config").read(nil, "agenda") or {}).line_format
   if default_lf then
     for _, block in ipairs(view.blocks) do
@@ -638,38 +632,45 @@ function M.open(view_opts, view_name)
       end
     end
   end
+end
 
-  -- Reuse an existing buffer for this view name (sticky agenda). The
-  -- buffer keeps its scroll position, fold state, and bulk_marked set
-  -- across re-opens. New view config overwrites the stored view so a
-  -- changed period / title_match takes effect on next refresh.
-  local sticky_on = ((require("organ.buf_config").read(nil, "agenda") or {}).sticky ~= false)
-  local sticky_key = view_name or "default"
-  if sticky_on and M._sticky[sticky_key] then
-    local existing = M._sticky[sticky_key]
-    if vim.api.nvim_buf_is_valid(existing) then
-      local state = vstate.decode(vim.b[existing].organ_agenda) or {}
-      state.view = view
-      state.view_name = view_name or "default"
-      local first = view.blocks[1] or {}
-      if first.from then
-        state.window = { from = first.from, to = first.to }
-      end
-      vim.b[existing].organ_agenda = vstate.encode(state)
-      -- Refresh the buffer name in case the view's resolved date
-      -- changed (e.g. "day" view kept across midnight).
-      local desired = format_buf_name(view, view_name)
-      if vim.api.nvim_buf_get_name(existing) ~= desired then
-        set_unique_buf_name(existing, desired)
-      end
-      vim.api.nvim_set_current_buf(existing)
-      M.refresh(existing)
-      return existing
-    else
-      M._sticky[sticky_key] = nil
-    end
+-- Reuse an existing buffer for this view name (sticky agenda). The buffer
+-- keeps its scroll position, fold state, and bulk_marked set across
+-- re-opens. New view config overwrites the stored view so a changed
+-- period / title_match takes effect on next refresh.  Returns the reused
+-- bufnr (already activated + refreshed) or nil when no reusable buffer
+-- exists.
+local function reuse_sticky_buffer(view, view_name, sticky_on, sticky_key)
+  if not (sticky_on and M._sticky[sticky_key]) then
+    return nil
   end
+  local existing = M._sticky[sticky_key]
+  if not vim.api.nvim_buf_is_valid(existing) then
+    M._sticky[sticky_key] = nil
+    return nil
+  end
+  local state = vstate.decode(vim.b[existing].organ_agenda) or {}
+  state.view = view
+  state.view_name = view_name or "default"
+  local first = view.blocks[1] or {}
+  if first.from then
+    state.window = { from = first.from, to = first.to }
+  end
+  vim.b[existing].organ_agenda = vstate.encode(state)
+  -- Refresh the buffer name in case the view's resolved date
+  -- changed (e.g. "day" view kept across midnight).
+  local desired = format_buf_name(view, view_name)
+  if vim.api.nvim_buf_get_name(existing) ~= desired then
+    set_unique_buf_name(existing, desired)
+  end
+  vim.api.nvim_set_current_buf(existing)
+  M.refresh(existing)
+  return existing
+end
 
+-- Create the agenda scratch buffer, name it, set its buffer-local options,
+-- and register it in the sticky map when sticky mode is on.
+local function create_agenda_buffer(view, view_name, sticky_on, sticky_key)
   local bufnr = vim.api.nvim_create_buf(true, true)
   set_unique_buf_name(bufnr, format_buf_name(view, view_name))
   vim.bo[bufnr].filetype = "organ-agenda"
@@ -679,16 +680,19 @@ function M.open(view_opts, view_name)
   if sticky_on then
     M._sticky[sticky_key] = bufnr
   end
+  return bufnr
+end
 
-  -- Stash the view kind / window / name on the buffer so the statusline
-  -- elements (`organ.statusline`) and lualine components can read them.
+-- Stash the view kind / window / name on the buffer so the statusline
+-- elements (`organ.statusline`) and lualine components can read them.
+-- Honors on_start defaults so users who always want previews / log mode
+-- don't have to press the toggle after every open.
+local function stash_view_state(bufnr, view, view_name)
   local first = view.blocks[1] or {}
   local window
   if first.from then
     window = { from = first.from, to = first.to }
   end
-  -- Honor on_start defaults so users who always want previews / log
-  -- mode don't have to press the toggle after every open.
   local et_cfg = ((require("organ.buf_config").read(nil, "agenda") or {}).entry_text or {})
   local log_cfg_init = ((require("organ.buf_config").read(nil, "agenda") or {}).log_mode or {})
   vstate.set(bufnr, {
@@ -699,8 +703,11 @@ function M.open(view_opts, view_name)
     entry_text = et_cfg.on_start == true,
     log_mode = log_cfg_init.on_start == true,
   })
+end
 
-  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
+-- Subscribe the buffer to "indexed" events with a debounced refresh, and
+-- clean up the listener + timer + sticky entry on BufWipeout.
+local function install_index_listener(bufnr, view, cfg)
   local debounce_ms = (view.refresh_debounce_ms or cfg.refresh_debounce_ms or 300)
   local timer
   local listener = function(payload)
@@ -759,15 +766,16 @@ function M.open(view_opts, view_name)
       end
     end,
   })
+end
 
-  -- WinResized: rerender so the tag-overflow check (virt_text vs
-  -- single-cell marker) re-evaluates against the new content width.
-  -- Without this, a window narrowed AFTER initial render still has
-  -- the original full-tag virt_text emitted at the right edge — and
-  -- with line text now wider than (window - tag_width), the virt_text
-  -- visually overlaps the END of the title.  Refresh is debounced
-  -- through the same timer the indexed-listener uses so back-to-back
-  -- resizes don't thrash.
+-- WinResized: rerender so the tag-overflow check (virt_text vs
+-- single-cell marker) re-evaluates against the new content width.
+-- Without this, a window narrowed AFTER initial render still has the
+-- original full-tag virt_text emitted at the right edge — and with line
+-- text now wider than (window - tag_width), the virt_text visually
+-- overlaps the END of the title.  Refresh is debounced so back-to-back
+-- resizes don't thrash.
+local function install_resize_listener(bufnr)
   local resize_group =
     vim.api.nvim_create_augroup("organ_agenda_resize_" .. bufnr, { clear = true })
   local resize_timer
@@ -813,18 +821,18 @@ function M.open(view_opts, view_name)
       )
     end,
   })
+end
 
-  keymaps.install(bufnr, M)
-
-  -- Window-open strategy (Emacs `org-agenda-window-setup`).  Default
-  -- "reuse" replaces the current window's buffer (preserves layout).
-  -- Other shapes:
-  --   "only"          → close other windows, agenda fills the tab
-  --   "split-below"   → horizontal split beneath the current window
-  --   "vsplit-right"  → vertical split to the right
-  --   "tab"           → new tab page
-  -- When `restore_windows_after_quit` is on, the previous layout is
-  -- snapshot-and-restored on `q` close.
+-- Window-open strategy (Emacs `org-agenda-window-setup`).  Default
+-- "reuse" replaces the current window's buffer (preserves layout).
+-- Other shapes:
+--   "only"          → close other windows, agenda fills the tab
+--   "split-below"   → horizontal split beneath the current window
+--   "vsplit-right"  → vertical split to the right
+--   "tab"           → new tab page
+-- When `restore_windows_after_quit` is on, the previous layout is
+-- snapshot-and-restored on `q` close.
+local function open_agenda_window(bufnr, cfg)
   local cfg_open = cfg.window_setup or "reuse"
   local cfg_restore = cfg.restore_windows_after_quit == true
   local restore_view
@@ -854,8 +862,13 @@ function M.open(view_opts, view_name)
     -- across refresh cycles.
     vim.b[bufnr].organ_agenda_restore_cmd = restore_view
   end
+end
 
-  local winid = vim.api.nvim_get_current_win()
+-- Set window-local fold + wrap options on the agenda window.  Emacs's
+-- agenda buffer has `truncate-lines` on; mirror that so long title rows
+-- don't wrap and so `virt_text_pos = "right_align"` tags always anchor
+-- cleanly at the window's right edge.
+local function set_agenda_window_options(winid)
   vim.api.nvim_set_option_value("foldmethod", "expr", { win = winid })
   vim.api.nvim_set_option_value(
     "foldexpr",
@@ -863,10 +876,42 @@ function M.open(view_opts, view_name)
     { win = winid }
   )
   vim.api.nvim_set_option_value("foldlevel", 99, { win = winid })
-  -- Emacs's agenda buffer has `truncate-lines` on; mirror that so long
-  -- title rows don't wrap and so `virt_text_pos = "right_align"` tags
-  -- always anchor cleanly at the window's right edge.
   vim.api.nvim_set_option_value("wrap", false, { win = winid })
+end
+
+function M.open(view_opts, view_name)
+  highlights.register()
+
+  maybe_start_first_scan()
+
+  local view, err = M.normalize_view(view_opts, view_name)
+  if not view then
+    require("organ.notify").error(err)
+    return nil
+  end
+
+  apply_default_line_format(view)
+
+  local sticky_on = ((require("organ.buf_config").read(nil, "agenda") or {}).sticky ~= false)
+  local sticky_key = view_name or "default"
+  local reused = reuse_sticky_buffer(view, view_name, sticky_on, sticky_key)
+  if reused then
+    return reused
+  end
+
+  local bufnr = create_agenda_buffer(view, view_name, sticky_on, sticky_key)
+  stash_view_state(bufnr, view, view_name)
+
+  local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
+  install_index_listener(bufnr, view, cfg)
+  install_resize_listener(bufnr)
+
+  keymaps.install(bufnr, M)
+
+  open_agenda_window(bufnr, cfg)
+
+  local winid = vim.api.nvim_get_current_win()
+  set_agenda_window_options(winid)
 
   -- Window-local winbar + statusline. Buffer-local only — never touches
   -- the user's global `vim.o.winbar` / `vim.o.statusline`. Each is opt-out

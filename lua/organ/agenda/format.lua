@@ -501,6 +501,331 @@ local function tag_padding(line_len, tags_str, tags_column)
   return string.rep(" ", pad)
 end
 
+-- Resolve the per-row prefix spec from block/render opts.  A table spec
+-- (per-view-type map) without an enclosing block picks the "default"
+-- entry as the safest fallback.
+local function resolve_row_prefix_spec(block_opts, opts)
+  local prefix_spec = block_opts.prefix_format or opts.prefix_format
+  if type(prefix_spec) == "table" then
+    prefix_spec = prefix_spec.default or prefix_spec.todo or "  %-12:c "
+  end
+  return prefix_spec
+end
+
+-- Render the prefix block (category + time + sched/dl tag), mirroring
+-- Emacs's `org-agenda-prefix-format`.  A function spec is called with
+-- the row + context; a string spec runs through format_prefix.
+local function build_prefix(prefix_spec, r, opts)
+  if type(prefix_spec) == "function" then
+    local ok, s = pcall(prefix_spec, r, { category = category_for(r), today = opts.today })
+    return ok and s or ""
+  end
+  return format_prefix(prefix_spec, r, opts)
+end
+
+-- Locate semantic substrings inside the prefix and highlight them.
+-- Category, time, and the Scheduled:/Deadline: tag all live in the
+-- prefix string so we colorize by string-search.
+local function mark_prefix_substrings(marks, prefix_str, r)
+  local cat = category_for(r)
+  local cat_start = prefix_str:find(cat, 1, true)
+  if cat_start then
+    marks[#marks + 1] = { "@organ.agenda.category", cat_start - 1, cat_start - 1 + #cat }
+  end
+  local tstr = dates.time_only(r.scheduled_date)
+  if tstr then
+    local t_start = prefix_str:find(tstr, 1, true)
+    if t_start then
+      marks[#marks + 1] = { "@organ.agenda.time", t_start - 1, t_start - 1 + #tstr }
+    end
+  end
+  -- The %s token emits one of:
+  --   "Scheduled:"   today's scheduled rows
+  --   "In N d.:"     future scheduled / deadline within 14 days
+  --   "Sched.Nx:"    overdue scheduled
+  --   "Deadline:"    deadlines (today or far-future)
+  --   "Past due:"    overdue deadlines
+  -- Color each so the prefix doesn't read as a wall of repeated text.
+  for _, pair in ipairs({
+    { "Scheduled:", "@organ.agenda.scheduled" },
+    { "Deadline:", "@organ.agenda.deadline" },
+    { "Past due:", "@organ.agenda.deadline" },
+  }) do
+    local p = prefix_str:find(pair[1], 1, true)
+    if p then
+      marks[#marks + 1] = { pair[2], p - 1, p - 1 + #pair[1] }
+    end
+  end
+  -- "In   N d.:" and "Sched. Nx:" -- match by pattern (note the space
+  -- after "Sched." now that we mirror Emacs's literal form).
+  local in_s, in_e = prefix_str:find("In%s+%d+%s+d%.:")
+  if in_s then
+    marks[#marks + 1] = { "@organ.agenda.scheduled", in_s - 1, in_e }
+  end
+  local sx_s, sx_e = prefix_str:find("Sched%.%s+%d+x:")
+  if sx_s then
+    marks[#marks + 1] = { "@organ.agenda.deadline", sx_s - 1, sx_e }
+  end
+end
+
+-- TODO state (left-padded to `todo_width`; no padding if nothing in this
+-- block has a state).  When `agenda.todo_keyword_format` is set (Emacs
+-- `org-agenda-todo-keyword-format`, default `"%s"`), the keyword passes
+-- through `string.format` first so users can right-pad / left-pad / wrap
+-- it.  Examples: `"%-7s"` right-pads to 7 chars so all rows align across
+-- `TODO` / `NEXT` / `WAITING`; `"[%s]"` wraps in brackets.
+local function append_todo(parts, marks, col, r, todo_width)
+  if todo_width <= 0 then
+    return col
+  end
+  local todo_raw = r.todo_state or ""
+  local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format or "%s"
+  local todo_disp = todo_raw
+  if r.todo_state and kw_fmt ~= "%s" then
+    local ok, formatted = pcall(string.format, kw_fmt, todo_raw)
+    if ok then
+      todo_disp = formatted
+    end
+  end
+  local todo_padded = todo_disp
+  if #todo_disp < todo_width then
+    todo_padded = todo_disp .. string.rep(" ", todo_width - #todo_disp)
+  end
+  table.insert(parts, todo_padded)
+  if r.todo_state then
+    local hl = "@organ.agenda.todo_" .. r.todo_state:lower()
+    marks[#marks + 1] = { hl, col, col + #todo_disp }
+  end
+  col = col + #todo_padded
+  table.insert(parts, " ")
+  col = col + 1
+  return col
+end
+
+-- Priority cookie `[#A]` -- matches the org-mode source format. Blank
+-- when unset (no `[ ]` placeholder; mirrors Emacs).
+local function append_priority(parts, marks, col, r)
+  if not r.priority then
+    return col
+  end
+  local prio_text = "[#" .. r.priority .. "]"
+  table.insert(parts, prio_text .. " ")
+  marks[#marks + 1] = { "@organ.agenda.priority_" .. r.priority, col, col + #prio_text }
+  return col + #prio_text + 1
+end
+
+-- Title. Apply @organ.agenda.title so titles read distinctly from body
+-- text (Emacs uses org-agenda-structure-secondary-face / the per-todo-
+-- state face that bleeds into title bytes; we keep them separate so
+-- users can theme each independently).
+local function append_title(parts, marks, col, r)
+  local title = r.title or ""
+  if title == "" then
+    return col
+  end
+  table.insert(parts, title)
+  marks[#marks + 1] = { "@organ.agenda.title", col, col + #title }
+  return col + #title
+end
+
+-- Build the tag display string from a row's tags, mirroring Emacs's
+-- tag-marker convention:
+--   * pure-direct, no inherited   -> `:tag1:tag2:`
+--   * pure-inherited, no direct    -> `:tag1:tag2::`  (trailing `::`)
+--   * mixed                        -> `:inh1::dir1:dir2:`
+local function build_tag_str(r, n_direct)
+  if n_direct >= #r.tags then
+    return ":" .. table.concat(r.tags, ":") .. ":"
+  elseif n_direct == 0 then
+    return ":" .. table.concat(r.tags, ":") .. "::"
+  end
+  local direct, inherited = {}, {}
+  for i, t in ipairs(r.tags) do
+    if i <= n_direct then
+      direct[#direct + 1] = t
+    else
+      inherited[#inherited + 1] = t
+    end
+  end
+  return ":" .. table.concat(inherited, ":") .. "::" .. table.concat(direct, ":") .. ":"
+end
+
+-- Build per-tag virt_text chunks so `tags.faces[tag]` can color
+-- individual tags (Emacs `org-tag-faces`).  Fall back to the generic
+-- `@organ.agenda.tag` highlight for tags without a registered face.
+-- When `faces` is empty, return a single chunk so we don't pay the
+-- split cost.
+local function build_tag_chunks(r, n_direct, tag_str, faces)
+  if next(faces) == nil then
+    return { { tag_str, "@organ.agenda.tag" } }
+  end
+  local chunks = {}
+  local direct, inherited = {}, {}
+  if n_direct >= #r.tags then
+    direct = r.tags
+  elseif n_direct == 0 then
+    inherited = r.tags
+  else
+    for i, t in ipairs(r.tags) do
+      if i <= n_direct then
+        direct[#direct + 1] = t
+      else
+        inherited[#inherited + 1] = t
+      end
+    end
+  end
+  local function emit_tag_chunks(list)
+    for _, t in ipairs(list) do
+      chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
+      if faces[t] then
+        chunks[#chunks + 1] = { t, "@organ.agenda.tag_" .. t }
+      else
+        chunks[#chunks + 1] = { t, "@organ.agenda.tag" }
+      end
+    end
+  end
+  if n_direct >= #r.tags then
+    emit_tag_chunks(direct)
+    chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
+  elseif n_direct == 0 then
+    emit_tag_chunks(inherited)
+    chunks[#chunks + 1] = { "::", "@organ.agenda.tag" }
+  else
+    emit_tag_chunks(inherited)
+    chunks[#chunks + 1] = { "::", "@organ.agenda.tag" }
+    -- emit_tag_chunks adds leading `:` for each tag, which becomes
+    -- a third colon in a row -- strip the first colon by passing
+    -- direct chunks built manually.
+    for i, t in ipairs(direct) do
+      if faces[t] then
+        chunks[#chunks + 1] = { t, "@organ.agenda.tag_" .. t }
+      else
+        chunks[#chunks + 1] = { t, "@organ.agenda.tag" }
+      end
+      if i < #direct then
+        chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
+      end
+    end
+    chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
+  end
+  return chunks
+end
+
+-- Tags as a `virt_text_pos = "right_align"` extmark rather than written
+-- into the line.  Neovim's render layer positions virt-text against the
+-- window's right edge on every redraw, so window resizes / splits /
+-- Zen-mode toggles re-align the tag column for free with no buffer churn
+-- or flicker (same mechanism as winbar / statuscolumn).  Nothing in the
+-- line string itself changes; tags float independently.  Strictly better
+-- than Emacs's "re-align on refresh only" behavior.
+--
+-- Overflow guard: when the line text + a 2-char gap + tag block would
+-- not fit in the window's content area, the tag virt_text would visually
+-- overlap the END of the title.  Title visibility wins -- drop the tag
+-- and emit a single-cell marker (`tags_overflow_marker`, default `›`) so
+-- the user still knows tags exist on this row and can widen the window
+-- to see them.  Marks tuple's 5th element is an `extra_opts` table merged
+-- into the nvim_buf_set_extmark call by `apply_extmarks`.  col is left
+-- unchanged -- virt_text doesn't occupy line cells.
+local function append_tags_virt(marks, col, r, n_direct, tag_str, faces, agcfg)
+  local overflow_marker = agcfg.tags_overflow_marker
+  if overflow_marker == nil then
+    overflow_marker = "›"
+  end
+  local needed = col + 2 + vim.fn.strdisplaywidth(tag_str)
+  if needed > content_width() and overflow_marker ~= false then
+    marks[#marks + 1] = {
+      "_virt",
+      col,
+      col,
+      {
+        virt_text = { { overflow_marker, "@organ.agenda.tag_overflow" } },
+        virt_text_pos = "right_align",
+        hl_mode = "combine",
+      },
+    }
+  else
+    marks[#marks + 1] = {
+      "_virt",
+      col,
+      col,
+      {
+        virt_text = build_tag_chunks(r, n_direct, tag_str, faces),
+        virt_text_pos = "right_align",
+        hl_mode = "combine",
+      },
+    }
+  end
+  return col
+end
+
+-- Legacy inline-padding path: bake tag chars + spaces into the buffer
+-- line.  Use this when consumers need plain-text output (export, copy/
+-- paste, headless snapshot tests).
+--
+-- Overflow guard (same policy as virt_align mode): when the title +
+-- 2-char gap + tag block exceeds the visible content width, write a
+-- single-cell `tags_overflow_marker` (default `›`) instead of the full
+-- tag run.  Title stays readable, user knows tags exist.  Set
+-- `tags_overflow_marker = false` to keep the legacy behavior of always
+-- emitting full tags (which then get clipped at the window edge).
+local function append_tags_inline(parts, marks, col, r, n_direct, tag_str, faces, agcfg, opts)
+  local overflow_marker = agcfg.tags_overflow_marker
+  if overflow_marker == nil then
+    overflow_marker = "›"
+  end
+  local edge = content_width()
+  if overflow_marker ~= false and (col + 2 + vim.fn.strdisplaywidth(tag_str)) > edge then
+    local pad = math.max(2, edge - col - vim.fn.strdisplaywidth(overflow_marker))
+    table.insert(parts, string.rep(" ", pad) .. overflow_marker)
+    marks[#marks + 1] = {
+      "@organ.agenda.tag_overflow",
+      col + pad,
+      col + pad + #overflow_marker,
+    }
+    col = col + pad + #overflow_marker
+  else
+    local pad = tag_padding(col, tag_str, opts.tags_column)
+    table.insert(parts, pad .. tag_str)
+    if next(faces) == nil then
+      marks[#marks + 1] = { "@organ.agenda.tag", col + #pad, col + #pad + #tag_str }
+    else
+      -- Per-tag highlight: walk the chunks built for virt_text and
+      -- emit one extmark per chunk at the corresponding byte offset
+      -- inside the inlined tag_str.
+      local off = col + #pad
+      for _, chunk in ipairs(build_tag_chunks(r, n_direct, tag_str, faces)) do
+        local txt, hl = chunk[1], chunk[2]
+        marks[#marks + 1] = { hl, off, off + #txt }
+        off = off + #txt
+      end
+    end
+    col = col + #pad + #tag_str
+  end
+  return col
+end
+
+-- Tags -- right-aligned at `tags_column` (Emacs convention).  When
+-- inherited tags are present (n_direct_tags < #tags), Emacs emits
+-- `:inherited1:inherited2::direct1:direct2:` -- the doubled colon
+-- between sections marks the inheritance boundary.  Pure-direct and
+-- pure-inherited rows just get `:tag1:tag2:`.
+local function append_tags(parts, marks, col, r, opts)
+  if not (r.tags and #r.tags > 0) then
+    return col
+  end
+  local n_direct = r.n_direct_tags or #r.tags
+  local tag_str = build_tag_str(r, n_direct)
+  local agcfg = require("organ.buf_config").read(nil, "agenda") or {}
+  local virt_align = (agcfg.tags_virt_align ~= false)
+  local tags_cfg = (require("organ.buf_config").read(nil, "tags") or {})
+  local faces = tags_cfg.faces or {}
+  if virt_align then
+    return append_tags_virt(marks, col, r, n_direct, tag_str, faces, agcfg)
+  end
+  return append_tags_inline(parts, marks, col, r, n_direct, tag_str, faces, agcfg, opts)
+end
+
 -- Format a single headline into a line string + a list of highlight ranges.
 -- Returns (line_str, extmarks_list) where each extmark is
 -- { hl_group, col_start, col_end }.
@@ -524,312 +849,22 @@ local function format_line(r, block_opts)
   -- un-pushed on others.
   opts.category_width = block_opts.category_width or opts.category_width
   local todo_width = block_opts.todo_width or opts.todo_width or 0
-  local prefix_spec = block_opts.prefix_format or opts.prefix_format
-  if type(prefix_spec) == "table" then
-    -- Bare format_line call (no enclosing block) -- pick the table's
-    -- "default" entry as the safest fallback.
-    prefix_spec = prefix_spec.default or prefix_spec.todo or "  %-12:c "
-  end
+  local prefix_spec = resolve_row_prefix_spec(block_opts, opts)
   local parts, marks = {}, {}
 
   -- Prefix block (category + time + sched/dl tag) -- mirrors Emacs's
   -- `org-agenda-prefix-format`.
-  local prefix_str
-  if type(prefix_spec) == "function" then
-    local ok, s = pcall(prefix_spec, r, { category = category_for(r), today = opts.today })
-    prefix_str = ok and s or ""
-  else
-    prefix_str = format_prefix(prefix_spec, r, opts)
-  end
+  local prefix_str = build_prefix(prefix_spec, r, opts)
   table.insert(parts, prefix_str)
-  -- Locate semantic substrings inside the prefix and highlight them.
-  -- Category, time, and the Scheduled:/Deadline: tag all live in the
-  -- prefix string so we colorize by string-search.
-  do
-    local cat = category_for(r)
-    local cat_start = prefix_str:find(cat, 1, true)
-    if cat_start then
-      marks[#marks + 1] = { "@organ.agenda.category", cat_start - 1, cat_start - 1 + #cat }
-    end
-    local tstr = dates.time_only(r.scheduled_date)
-    if tstr then
-      local t_start = prefix_str:find(tstr, 1, true)
-      if t_start then
-        marks[#marks + 1] = { "@organ.agenda.time", t_start - 1, t_start - 1 + #tstr }
-      end
-    end
-    -- The %s token emits one of:
-    --   "Scheduled:"   today's scheduled rows
-    --   "In N d.:"     future scheduled / deadline within 14 days
-    --   "Sched.Nx:"    overdue scheduled
-    --   "Deadline:"    deadlines (today or far-future)
-    --   "Past due:"    overdue deadlines
-    -- Color each so the prefix doesn't read as a wall of repeated text.
-    for _, pair in ipairs({
-      { "Scheduled:", "@organ.agenda.scheduled" },
-      { "Deadline:", "@organ.agenda.deadline" },
-      { "Past due:", "@organ.agenda.deadline" },
-    }) do
-      local p = prefix_str:find(pair[1], 1, true)
-      if p then
-        marks[#marks + 1] = { pair[2], p - 1, p - 1 + #pair[1] }
-      end
-    end
-    -- "In   N d.:" and "Sched. Nx:" -- match by pattern (note the space
-    -- after "Sched." now that we mirror Emacs's literal form).
-    local in_s, in_e = prefix_str:find("In%s+%d+%s+d%.:")
-    if in_s then
-      marks[#marks + 1] = { "@organ.agenda.scheduled", in_s - 1, in_e }
-    end
-    local sx_s, sx_e = prefix_str:find("Sched%.%s+%d+x:")
-    if sx_s then
-      marks[#marks + 1] = { "@organ.agenda.deadline", sx_s - 1, sx_e }
-    end
-  end
+  mark_prefix_substrings(marks, prefix_str, r)
   local col = #prefix_str
 
-  -- TODO state (left-padded to `todo_width`; no padding if nothing in this
-  -- block has a state).  When `agenda.todo_keyword_format` is set
-  -- (Emacs `org-agenda-todo-keyword-format`, default `"%s"`), the
-  -- keyword passes through `string.format` first so users can right-
-  -- pad / left-pad / wrap it.  Examples: `"%-7s"` right-pads to 7
-  -- chars so all rows align across `TODO` / `NEXT` / `WAITING`;
-  -- `"[%s]"` wraps in brackets.
-  if todo_width > 0 then
-    local todo_raw = r.todo_state or ""
-    local kw_fmt = (require("organ.buf_config").read(nil, "agenda") or {}).todo_keyword_format
-      or "%s"
-    local todo_disp = todo_raw
-    if r.todo_state and kw_fmt ~= "%s" then
-      local ok, formatted = pcall(string.format, kw_fmt, todo_raw)
-      if ok then
-        todo_disp = formatted
-      end
-    end
-    local todo_padded = todo_disp
-    if #todo_disp < todo_width then
-      todo_padded = todo_disp .. string.rep(" ", todo_width - #todo_disp)
-    end
-    table.insert(parts, todo_padded)
-    if r.todo_state then
-      local hl = "@organ.agenda.todo_" .. r.todo_state:lower()
-      marks[#marks + 1] = { hl, col, col + #todo_disp }
-    end
-    col = col + #todo_padded
-    table.insert(parts, " ")
-    col = col + 1
-  end
-
-  -- Priority cookie `[#A]` -- matches the org-mode source format. Blank
-  -- when unset (no `[ ]` placeholder; mirrors Emacs).
-  if r.priority then
-    local prio_text = "[#" .. r.priority .. "]"
-    table.insert(parts, prio_text .. " ")
-    marks[#marks + 1] = { "@organ.agenda.priority_" .. r.priority, col, col + #prio_text }
-    col = col + #prio_text + 1
-  end
-
-  -- Title. Apply @organ.agenda.title so titles read distinctly from
-  -- body text (Emacs uses org-agenda-structure-secondary-face / the
-  -- per-todo-state face that bleeds into title bytes; we keep them
-  -- separate so users can theme each independently).
-  local title = r.title or ""
-  if title ~= "" then
-    table.insert(parts, title)
-    marks[#marks + 1] = { "@organ.agenda.title", col, col + #title }
-    col = col + #title
-  end
-
+  col = append_todo(parts, marks, col, r, todo_width)
+  col = append_priority(parts, marks, col, r)
+  col = append_title(parts, marks, col, r)
   -- Effort estimate / clock budget.
   col = append_effort(parts, marks, col, r)
-
-  -- Tags -- right-aligned at `tags_column` (Emacs convention).  When
-  -- inherited tags are present (n_direct_tags < #tags), Emacs emits
-  -- `:inherited1:inherited2::direct1:direct2:` -- the doubled colon
-  -- between sections marks the inheritance boundary.  Pure-direct
-  -- and pure-inherited rows just get `:tag1:tag2:`.
-  if r.tags and #r.tags > 0 then
-    local n_direct = r.n_direct_tags or #r.tags
-    local tag_str
-    -- Emacs's tag-marker convention:
-    --   * pure-direct, no inherited        -> `:tag1:tag2:`
-    --   * pure-inherited, no direct        -> `:tag1:tag2::`  (trailing `::`)
-    --   * mixed                            -> `:inh1::dir1:dir2:`
-    if n_direct >= #r.tags then
-      tag_str = ":" .. table.concat(r.tags, ":") .. ":"
-    elseif n_direct == 0 then
-      tag_str = ":" .. table.concat(r.tags, ":") .. "::"
-    else
-      local direct, inherited = {}, {}
-      for i, t in ipairs(r.tags) do
-        if i <= n_direct then
-          direct[#direct + 1] = t
-        else
-          inherited[#inherited + 1] = t
-        end
-      end
-      tag_str = ":" .. table.concat(inherited, ":") .. "::" .. table.concat(direct, ":") .. ":"
-    end
-    local agcfg = require("organ.buf_config").read(nil, "agenda") or {}
-    local virt_align = (agcfg.tags_virt_align ~= false)
-    -- Build per-tag virt_text chunks so `tags.faces[tag]` can color
-    -- individual tags (Emacs `org-tag-faces`).  Fall back to the
-    -- generic `@organ.agenda.tag` highlight for tags without a
-    -- registered face.  When `faces` is empty, return a single chunk
-    -- so we don't pay the split cost.
-    local tags_cfg = (require("organ.buf_config").read(nil, "tags") or {})
-    local faces = tags_cfg.faces or {}
-    local function build_virt_chunks()
-      if next(faces) == nil then
-        return { { tag_str, "@organ.agenda.tag" } }
-      end
-      local chunks = {}
-      -- Reuse the direct/inherited split derived above.
-      local direct, inherited = {}, {}
-      if n_direct >= #r.tags then
-        direct = r.tags
-      elseif n_direct == 0 then
-        inherited = r.tags
-      else
-        for i, t in ipairs(r.tags) do
-          if i <= n_direct then
-            direct[#direct + 1] = t
-          else
-            inherited[#inherited + 1] = t
-          end
-        end
-      end
-      local function emit_tag_chunks(list)
-        for _, t in ipairs(list) do
-          chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
-          if faces[t] then
-            chunks[#chunks + 1] = { t, "@organ.agenda.tag_" .. t }
-          else
-            chunks[#chunks + 1] = { t, "@organ.agenda.tag" }
-          end
-        end
-      end
-      if n_direct >= #r.tags then
-        emit_tag_chunks(direct)
-        chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
-      elseif n_direct == 0 then
-        emit_tag_chunks(inherited)
-        chunks[#chunks + 1] = { "::", "@organ.agenda.tag" }
-      else
-        emit_tag_chunks(inherited)
-        chunks[#chunks + 1] = { "::", "@organ.agenda.tag" }
-        -- emit_tag_chunks adds leading `:` for each tag, which becomes
-        -- a third colon in a row -- strip the first colon by passing
-        -- direct chunks built manually.
-        for i, t in ipairs(direct) do
-          if faces[t] then
-            chunks[#chunks + 1] = { t, "@organ.agenda.tag_" .. t }
-          else
-            chunks[#chunks + 1] = { t, "@organ.agenda.tag" }
-          end
-          if i < #direct then
-            chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
-          end
-        end
-        chunks[#chunks + 1] = { ":", "@organ.agenda.tag" }
-      end
-      return chunks
-    end
-    if virt_align then
-      -- Tags rendered as a `virt_text_pos = "right_align"` extmark
-      -- rather than written into the line.  Neovim's render layer
-      -- positions virt-text against the window's right edge on
-      -- every redraw, so window resizes / splits / Zen-mode toggles
-      -- re-align the tag column for free with no buffer churn or
-      -- flicker (same mechanism as winbar / statuscolumn).  Nothing
-      -- in the line string itself changes; tags float
-      -- independently.  Strictly better than Emacs's "re-align on
-      -- refresh only" behavior.
-      --
-      -- Overflow guard: when the line text + a 2-char gap + tag
-      -- block would not fit in the window's content area, the tag
-      -- virt_text would visually overlap the END of the title.
-      -- Title visibility wins -- drop the tag and emit a single-cell
-      -- marker (`tags_overflow_marker`, default `›`) so the user
-      -- still knows tags exist on this row and can widen the
-      -- window to see them.  Marks tuple's 5th element is an
-      -- `extra_opts` table merged into the nvim_buf_set_extmark
-      -- call by `apply_extmarks`.
-      local overflow_marker = agcfg.tags_overflow_marker
-      if overflow_marker == nil then
-        overflow_marker = "›"
-      end
-      local needed = col + 2 + vim.fn.strdisplaywidth(tag_str)
-      if needed > content_width() and overflow_marker ~= false then
-        marks[#marks + 1] = {
-          "_virt",
-          col,
-          col,
-          {
-            virt_text = { { overflow_marker, "@organ.agenda.tag_overflow" } },
-            virt_text_pos = "right_align",
-            hl_mode = "combine",
-          },
-        }
-      else
-        marks[#marks + 1] = {
-          "_virt",
-          col,
-          col,
-          {
-            virt_text = build_virt_chunks(),
-            virt_text_pos = "right_align",
-            hl_mode = "combine",
-          },
-        }
-      end
-      -- col unchanged -- virt_text doesn't occupy line cells.
-    else
-      -- Legacy inline-padding path: bake tag chars + spaces into
-      -- the buffer line.  Use this when consumers need plain-text
-      -- output (export, copy/paste, headless snapshot tests).
-      --
-      -- Overflow guard (same policy as virt_align mode): when the
-      -- title + 2-char gap + tag block exceeds the visible content
-      -- width, write a single-cell `tags_overflow_marker` (default
-      -- `›`) instead of the full tag run.  Title stays readable,
-      -- user knows tags exist.  Set `tags_overflow_marker = false`
-      -- to keep the legacy behavior of always emitting full tags
-      -- (which then get clipped at the window edge).
-      local overflow_marker = agcfg.tags_overflow_marker
-      if overflow_marker == nil then
-        overflow_marker = "›"
-      end
-      local edge = content_width()
-      if overflow_marker ~= false and (col + 2 + vim.fn.strdisplaywidth(tag_str)) > edge then
-        local pad = math.max(2, edge - col - vim.fn.strdisplaywidth(overflow_marker))
-        table.insert(parts, string.rep(" ", pad) .. overflow_marker)
-        marks[#marks + 1] = {
-          "@organ.agenda.tag_overflow",
-          col + pad,
-          col + pad + #overflow_marker,
-        }
-        col = col + pad + #overflow_marker
-      else
-        local pad = tag_padding(col, tag_str, opts.tags_column)
-        table.insert(parts, pad .. tag_str)
-        if next(faces) == nil then
-          marks[#marks + 1] = { "@organ.agenda.tag", col + #pad, col + #pad + #tag_str }
-        else
-          -- Per-tag highlight: walk the chunks built for virt_text and
-          -- emit one extmark per chunk at the corresponding byte
-          -- offset inside the inlined tag_str.
-          local off = col + #pad
-          for _, chunk in ipairs(build_virt_chunks()) do
-            local txt, hl = chunk[1], chunk[2]
-            marks[#marks + 1] = { hl, off, off + #txt }
-            off = off + #txt
-          end
-        end
-        col = col + #pad + #tag_str
-      end
-    end
-  end
+  col = append_tags(parts, marks, col, r, opts)
 
   -- Habit consistency graph (`..............` after the tag).  Off by
   -- default: Emacs's `org-habit` ships disabled in most distributions

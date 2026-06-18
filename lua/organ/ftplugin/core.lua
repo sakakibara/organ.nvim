@@ -4,28 +4,52 @@
 
 local M = {}
 
-function M.attach(bufnr)
-  local organ = require("organ")
-  local cfg = organ.config
+-- `nvim_set_option_value(name, val, { win = 0 })` without a scope is
+-- equivalent to `:set` -- it sets BOTH the win-local AND the global
+-- value.  For visually-customised options (foldtext, statuscolumn,
+-- fillchars, winhighlight, conceallevel) clobbering the global means
+-- the user's own setting is gone, and our wrappers' non-org fallback
+-- (which reads vim.go.foldtext) hits its own string and falls to
+-- vim's default.  Always pass `scope = "local"` for win-only writes.
+local function setlocal(name, value)
+  pcall(vim.api.nvim_set_option_value, name, value, { win = 0, scope = "local" })
+end
 
-  -- Clear this buffer's per-module state when it is wiped.  Registered here
-  -- (not lazily) so every org buffer is covered regardless of whether the
-  -- state was ever created.  The complete augroup teardown is registered in
-  -- the completion block below, where the augroup is created.
-  do
-    local buf_state = require("organ.buf_state")
-    buf_state.on_cleanup(bufnr, "fold", function(b)
-      require("organ.fold").forget(b)
-    end)
-    buf_state.on_cleanup(bufnr, "complete_open_for", function(b)
-      require("organ.complete")._open_for[b] = nil
-    end)
+-- Buffer-scoped normal-mode keymap installer.  Returns a `map(lhs, fn, desc)`
+-- that no-ops when lhs is nil/false.
+local function make_map(bufnr)
+  return function(lhs, fn, desc)
+    if lhs == nil or lhs == false then
+      return
+    end
+    vim.api.nvim_buf_set_keymap(bufnr, "n", lhs, "", {
+      noremap = true,
+      silent = true,
+      callback = fn,
+      desc = desc,
+    })
   end
+end
 
-  -- Pick up any buffer-local `#+TODO:` directives so keywords
-  -- introduced inline (e.g. `WAIT`, `SOMEDAY`) get the active/done
-  -- highlight coloring without a config change.  Re-runs on
-  -- BufWritePost so edits to the directive line take effect on save.
+-- Clear this buffer's per-module state when it is wiped.  Registered here
+-- (not lazily) so every org buffer is covered regardless of whether the
+-- state was ever created.  The complete augroup teardown is registered in
+-- the completion block below, where the augroup is created.
+local function register_cleanup(bufnr)
+  local buf_state = require("organ.buf_state")
+  buf_state.on_cleanup(bufnr, "fold", function(b)
+    require("organ.fold").forget(b)
+  end)
+  buf_state.on_cleanup(bufnr, "complete_open_for", function(b)
+    require("organ.complete")._open_for[b] = nil
+  end)
+end
+
+-- Pick up any buffer-local `#+TODO:` directives so keywords
+-- introduced inline (e.g. `WAIT`, `SOMEDAY`) get the active/done
+-- highlight coloring without a config change.  Re-runs on
+-- BufWritePost so edits to the directive line take effect on save.
+local function setup_buffer_todo_keywords(bufnr)
   pcall(function()
     require("organ.highlights").register_buffer_todo_keywords(bufnr)
   end)
@@ -39,21 +63,11 @@ function M.attach(bufnr)
       end)
     end,
   })
+end
 
-  local function map(lhs, fn, desc)
-    if lhs == nil or lhs == false then
-      return
-    end
-    vim.api.nvim_buf_set_keymap(bufnr, "n", lhs, "", {
-      noremap = true,
-      silent = true,
-      callback = fn,
-      desc = desc,
-    })
-  end
-
-  -- TODO keymaps (opt-in via config.todo.keymaps).
-  -- Rule 2: keymaps = false disables all todo bindings.
+-- TODO keymaps (opt-in via config.todo.keymaps).
+-- Rule 2: keymaps = false disables all todo bindings.
+local function setup_todo_keymaps(bufnr, cfg, map)
   local cfg_todo = cfg.todo or {}
   local km_todo = cfg_todo.keymaps ~= false and (cfg_todo.keymaps or {}) or {}
   local function do_cycle()
@@ -97,34 +111,26 @@ function M.attach(bufnr)
       end
     end)
   end, "Pick TODO state from menu")
+end
 
-  -- Fold options.  Use organ's headline-depth foldexpr instead of
-  -- `vim.treesitter.foldexpr()` because the latter conflated list /
-  -- drawer / block nodes with outline depth and broke heading
-  -- folding in files containing lists.  See `lua/organ/fold.lua` for
-  -- the algorithm.  These are window-local options; setting them
-  -- once at FileType time covers the FIRST window the buffer enters,
-  -- but a `:vsplit` / `wincmd s` later spawns another window where
-  -- foldexpr defaults back to "" -- re-apply on BufWinEnter so every
-  -- window the buffer lands in gets the same options.
-  --
-  -- `foldtext` and `statuscolumn` are auto-applied (defaults.lua sets
-  -- both `fold.auto_foldtext` and `fold.auto_statuscolumn` to `true`).
-  -- Opt out by setting either to `false` in your config.  When on,
-  -- organ writes the win-local option here using a flat `v:lua.<name>()`
-  -- form (avoids the nvim TUI option-eval bug with chained
-  -- `v:lua.require` calls).
+-- Fold options.  Use organ's headline-depth foldexpr instead of
+-- `vim.treesitter.foldexpr()` because the latter conflated list /
+-- drawer / block nodes with outline depth and broke heading
+-- folding in files containing lists.  See `lua/organ/fold.lua` for
+-- the algorithm.  These are window-local options; setting them
+-- once at FileType time covers the FIRST window the buffer enters,
+-- but a `:vsplit` / `wincmd s` later spawns another window where
+-- foldexpr defaults back to "" -- re-apply on BufWinEnter so every
+-- window the buffer lands in gets the same options.
+--
+-- `foldtext` and `statuscolumn` are auto-applied (defaults.lua sets
+-- both `fold.auto_foldtext` and `fold.auto_statuscolumn` to `true`).
+-- Opt out by setting either to `false` in your config.  When on,
+-- organ writes the win-local option here using a flat `v:lua.<name>()`
+-- form (avoids the nvim TUI option-eval bug with chained
+-- `v:lua.require` calls).
+local function setup_fold_window_opts(bufnr, cfg)
   local cfg_fold_top = cfg.fold or {}
-  -- `nvim_set_option_value(name, val, { win = 0 })` without a scope is
-  -- equivalent to `:set` -- it sets BOTH the win-local AND the global
-  -- value.  For visually-customised options (foldtext, statuscolumn,
-  -- fillchars, winhighlight, conceallevel) clobbering the global means
-  -- the user's own setting is gone, and our wrappers' non-org fallback
-  -- (which reads vim.go.foldtext) hits its own string and falls to
-  -- vim's default.  Always pass `scope = "local"` for win-only writes.
-  local function setlocal(name, value)
-    pcall(vim.api.nvim_set_option_value, name, value, { win = 0, scope = "local" })
-  end
   local function apply_fold_window_opts()
     pcall(function()
       setlocal("foldmethod", "expr")
@@ -222,21 +228,23 @@ function M.attach(bufnr)
       pcall(vim.api.nvim_del_augroup_by_id, fold_win_group)
     end,
   })
+end
 
-  -- Initial outline fold state (Emacs `org-startup-folded`).  Honor
-  -- a buffer-local `#+STARTUP:` override (overview/content/showall/
-  -- showeverything/fold/nofold) when present, else fall back to the
-  -- global `startup.folded` config.  The four resolved states map
-  -- 1:1 onto organ.fold's apply_* helpers, so this path and the
-  -- <S-Tab> cycle path stay in lock-step: previously the startup
-  -- path inlined its own foldlevel writes that disagreed with
-  -- cycle_global (overview here was foldlevel=1, cycle_global's
-  -- overview is foldlevel=0), and the file opened in a state S-Tab
-  -- could never return to.
-  --
-  -- Scratch-style org buffers (capture float, etc.) opt out via
-  -- `b:organ_no_startup_fold = true` so a 1-2 line entry isn't
-  -- folded into a single headline-only line.
+-- Initial outline fold state (Emacs `org-startup-folded`).  Honor
+-- a buffer-local `#+STARTUP:` override (overview/content/showall/
+-- showeverything/fold/nofold) when present, else fall back to the
+-- global `startup.folded` config.  The four resolved states map
+-- 1:1 onto organ.fold's apply_* helpers, so this path and the
+-- <S-Tab> cycle path stay in lock-step: previously the startup
+-- path inlined its own foldlevel writes that disagreed with
+-- cycle_global (overview here was foldlevel=1, cycle_global's
+-- overview is foldlevel=0), and the file opened in a state S-Tab
+-- could never return to.
+--
+-- Scratch-style org buffers (capture float, etc.) opt out via
+-- `b:organ_no_startup_fold = true` so a 1-2 line entry isn't
+-- folded into a single headline-only line.
+local function setup_startup_fold_state(bufnr, cfg)
   if not vim.b[bufnr].organ_no_startup_fold then
     local folded = (cfg.startup or {}).folded
     -- Scan the first 50 lines for #+STARTUP: directives.
@@ -291,9 +299,11 @@ function M.attach(bufnr)
       end)
     end
   end -- if not organ_no_startup_fold
+end
 
-  -- Fold keymaps (opt-in via config.fold.keymaps).
-  -- Rule 2: keymaps = false disables all fold bindings.
+-- Fold keymaps (opt-in via config.fold.keymaps).
+-- Rule 2: keymaps = false disables all fold bindings.
+local function setup_fold_keymaps(bufnr, cfg, map)
   local cfg_fold = cfg.fold or {}
   local km_fold = cfg_fold.keymaps ~= false and (cfg_fold.keymaps or {}) or {}
   map(km_fold.cycle, function()
@@ -308,13 +318,10 @@ function M.attach(bufnr)
   map(km_fold.cycle_global, function()
     require("organ.fold").cycle_global(bufnr)
   end, "Cycle fold (global) / toggle drawer")
+end
 
-  -- Auto-attach indent if enabled.
-  if (cfg.indent or {}).enabled then
-    require("organ.indent").attach(bufnr)
-  end
-
-  -- Insert-mode link completion auto-trigger.
+-- Insert-mode link completion auto-trigger.
+local function setup_completion_autotrigger(bufnr, cfg)
   if (cfg.complete or {}).enabled then
     local group = vim.api.nvim_create_augroup("organ_complete_" .. bufnr, { clear = true })
     require("organ.errors").autocmd("TextChangedI", {
@@ -328,8 +335,10 @@ function M.attach(bufnr)
       vim.api.nvim_del_augroup_by_id(group)
     end)
   end
+end
 
-  -- Clock keymaps (opt-in; gated by enabled flag).
+-- Clock keymaps (opt-in; gated by enabled flag).
+local function setup_clock_keymaps(bufnr, cfg, map)
   local cfg_clock = cfg.clock or {}
   if cfg_clock.enabled ~= false then
     -- Rule 2: keymaps = false disables all clock bindings.
@@ -350,17 +359,12 @@ function M.attach(bufnr)
       require("organ.clock").report()
     end, "Open clock report")
   end
+end
 
-  -- Speed commands: cursor-at-column-0-of-headline single-key dispatch.
-  if (cfg.speed or {}).enabled then
-    require("organ.speed").attach(bufnr)
-  end
-
-  -- Pretty entities (org-pretty-entities): conceal `\alpha` → α etc.
-  if (cfg.entities or {}).enabled then
-    require("organ.entities").attach(bufnr)
-  end
-
+-- Decoration / visual-feature modules.  Each is independently opt-in
+-- via its own config flag; the shared decoration provider wires the
+-- per-buffer `nvim_buf_attach` + `on_line` dispatch.
+local function setup_decorations(bufnr, cfg)
   -- Shared decoration provider infrastructure (organ.decoration).
   -- Individual decoration modules register as providers when their
   -- module is loaded (top-level `decoration.register`); this single
@@ -387,7 +391,26 @@ function M.attach(bufnr)
   pcall(function()
     require("organ.radio").attach(bufnr)
   end)
+end
 
+-- Visual structure stages (leading-star hiding + org-modern bullets/
+-- blocks/pills).  Each is independently opt-in.
+local function setup_visual_stages(bufnr, cfg)
+  -- Hide leading stars (Emacs `org-hide-leading-stars`). Off by default
+  -- because it changes the visual structure; opt in via stars.hide=true.
+  if (cfg.stars or {}).hide then
+    require("organ.stars").attach(bufnr)
+  end
+
+  -- org-modern visual upgrades (bullets, block frames, pills). Each
+  -- stage is independently opt-in via `modern.{bullets,blocks,pills}`.
+  if (cfg.modern or {}).bullets or (cfg.modern or {}).blocks or (cfg.modern or {}).pills then
+    require("organ.modern").attach(bufnr)
+  end
+end
+
+-- Buffer-local expr / option wiring for formatting, indent, and conceal.
+local function setup_format_options(bufnr, cfg)
   -- Formatter: hook `gq` to organ.format (paragraph rewrap that
   -- preserves headlines / lists / drawers / blocks / tables).
   -- Auto-format-on-save is delegated to conform.nvim / none-ls /
@@ -416,19 +439,10 @@ function M.attach(bufnr)
       setlocal("conceallevel", 2)
     end)
   end
+end
 
-  -- Hide leading stars (Emacs `org-hide-leading-stars`). Off by default
-  -- because it changes the visual structure; opt in via stars.hide=true.
-  if (cfg.stars or {}).hide then
-    require("organ.stars").attach(bufnr)
-  end
-
-  -- org-modern visual upgrades (bullets, block frames, pills). Each
-  -- stage is independently opt-in via `modern.{bullets,blocks,pills}`.
-  if (cfg.modern or {}).bullets or (cfg.modern or {}).blocks or (cfg.modern or {}).pills then
-    require("organ.modern").attach(bufnr)
-  end
-
+-- omnifunc completion fallback wiring.
+local function setup_omnifunc_fallback(bufnr, cfg)
   -- omnifunc fallback for users without blink.cmp / nvim-cmp.  Only
   -- set if the buffer doesn't already have one — we don't want to
   -- clobber user-supplied or LSP-attached omnifuncs.  Vim's built-in
@@ -444,6 +458,42 @@ function M.attach(bufnr)
       )
     end
   end
+end
+
+function M.attach(bufnr)
+  local organ = require("organ")
+  local cfg = organ.config
+  local map = make_map(bufnr)
+
+  register_cleanup(bufnr)
+  setup_buffer_todo_keywords(bufnr)
+  setup_todo_keymaps(bufnr, cfg, map)
+  setup_fold_window_opts(bufnr, cfg)
+  setup_startup_fold_state(bufnr, cfg)
+  setup_fold_keymaps(bufnr, cfg, map)
+
+  -- Auto-attach indent if enabled.
+  if (cfg.indent or {}).enabled then
+    require("organ.indent").attach(bufnr)
+  end
+
+  setup_completion_autotrigger(bufnr, cfg)
+  setup_clock_keymaps(bufnr, cfg, map)
+
+  -- Speed commands: cursor-at-column-0-of-headline single-key dispatch.
+  if (cfg.speed or {}).enabled then
+    require("organ.speed").attach(bufnr)
+  end
+
+  -- Pretty entities (org-pretty-entities): conceal `\alpha` → α etc.
+  if (cfg.entities or {}).enabled then
+    require("organ.entities").attach(bufnr)
+  end
+
+  setup_decorations(bufnr, cfg)
+  setup_format_options(bufnr, cfg)
+  setup_visual_stages(bufnr, cfg)
+  setup_omnifunc_fallback(bufnr, cfg)
 end
 
 return M

@@ -5,54 +5,9 @@ local M = {}
 
 local vstate = require("organ.agenda.state")
 
-local function install(bufnr, agenda)
-  local agenda_cfg = require("organ.buf_config").read(nil, "agenda") or {}
-  -- Rule 2: keymaps = false disables all agenda bindings.
-  if agenda_cfg.keymaps == false then
-    return
-  end
-  local cfg = agenda_cfg.keymaps or {}
-
-  local function map(default_lhs, rhs, desc)
-    local lhs = cfg[desc] -- user may override via organ.config.agenda.keymaps[desc]
-    if lhs == false then
-      return
-    end
-    if lhs == nil then
-      lhs = default_lhs
-    end
-    vim.api.nvim_buf_set_keymap(bufnr, "n", lhs, "", {
-      noremap = true,
-      silent = true,
-      desc = desc,
-      callback = rhs,
-    })
-  end
-
-  local function current_row()
-    local lnum = vim.api.nvim_win_get_cursor(0)[1]
-    local state = vstate.get(bufnr)
-    return (state.line_index or {})[lnum]
-  end
-
-  -- Helper: load the source buffer + return the 1-based source line for a
-  -- row. Returns nil + warns if the row has no editable source (synthetic
-  -- diary_sexp rows, empty-state placeholders, etc. lack file_path /
-  -- line_start). Without this guard, every t/T/s/D/I/R/<CR>/gs/gv keymap
-  -- would crash with `attempt to perform arithmetic on field 'line_start'
-  -- (a nil value)` on synthetic rows.
-  local function source_for(r)
-    if not r.file_path or not r.line_start then
-      require("organ.notify").warn(
-        "agenda: this row has no editable source (synthetic / placeholder)"
-      )
-      return nil, nil
-    end
-    local target = vim.fn.bufadd(r.file_path)
-    vim.fn.bufload(target)
-    return target, r.line_start + 1
-  end
-
+-- Source-jump, preview, and split-open maps. These read the cursor row and
+-- navigate to its source file without mutating agenda state.
+local function install_navigation_maps(map, current_row)
   map("<CR>", function()
     local r = current_row()
     if not r then
@@ -144,7 +99,11 @@ local function install(bufnr, agenda)
       vim.api.nvim_win_set_cursor(0, { r.line_start + 1, 0 })
     end
   end, "open_vsplit")
+end
 
+-- Refresh, view-mode toggles (entry-text / log mode), undo/redo of bulk
+-- deletes, and buffer close.
+local function install_refresh_maps(map, bufnr, agenda)
   map("r", function()
     agenda.refresh(bufnr)
   end, "refresh")
@@ -207,7 +166,11 @@ local function install(bufnr, agenda)
       pcall(vim.cmd, restore)
     end
   end, "close")
+end
 
+-- In-buffer movement (next/prev item, block jumps), title filter, fold
+-- toggle, and the keymap cheat-sheet.
+local function install_movement_maps(map, bufnr, agenda)
   map("j", function()
     local lnum = vim.api.nvim_win_get_cursor(0)[1]
     local state = vstate.get(bufnr)
@@ -306,7 +269,11 @@ local function install(bufnr, agenda)
     }
     vim.api.nvim_echo({ { table.concat(help, "\n"), "None" } }, true, {})
   end, "help")
+end
 
+-- Per-row TODO state changes (cycle / pick), priority raise/lower/clear,
+-- and the date-jump prompt.
+local function install_todo_priority_maps(map, bufnr, agenda, current_row, source_for)
   map("t", function()
     local r = current_row()
     if not r then
@@ -431,13 +398,14 @@ local function install(bufnr, agenda)
       agenda.refresh(bufnr)
     end)
   end, "jump_to_date")
+end
 
-  -- Bulk selection + action menu (Emacs `m`/`u`/`*`/`B B`).
-  -- Marks are stored on buf_state.bulk_marked as { [src_id] = true }
-  -- and rendered as a sign in the agenda buffer's gutter. Action menu
-  -- (`B`) iterates marked rows and applies one of: state change,
-  -- schedule, deadline, refile, archive, delete-subtree.
-  --
+-- Bulk selection + action menu (Emacs `m`/`u`/`*`/`B B`).
+-- Marks are stored on buf_state.bulk_marked as { [src_id] = true }
+-- and rendered as a sign in the agenda buffer's gutter. Action menu
+-- (`B`) iterates marked rows and applies one of: state change,
+-- schedule, deadline, refile, archive, delete-subtree.
+local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
   -- Mark id: row.id when present; else file_path .. ":" .. line_start.
   local function row_mark_id(r)
     if not r then
@@ -657,7 +625,12 @@ local function install(bufnr, agenda)
       end
     )
   end, "bulk_action")
+end
 
+-- Per-row edit / period / misc maps: tags, archive visibility + archive,
+-- clock report toggles, new entry, schedule/deadline, clock in/out, refile,
+-- period navigation, day/week views, and the effort filter.
+local function install_edit_maps(map, bufnr, agenda, current_row, source_for)
   -- Set tags on row at cursor. Bound to `gT` (override vim's "previous
   -- tab" -- agenda buffers usually live in a single tab, and the
   -- alternative `:` would shadow vim's command-mode trigger which
@@ -907,6 +880,62 @@ local function install(bufnr, agenda)
       agenda.refresh(bufnr)
     end)
   end, "effort_filter")
+end
+
+local function install(bufnr, agenda)
+  local agenda_cfg = require("organ.buf_config").read(nil, "agenda") or {}
+  -- Rule 2: keymaps = false disables all agenda bindings.
+  if agenda_cfg.keymaps == false then
+    return
+  end
+  local cfg = agenda_cfg.keymaps or {}
+
+  local function map(default_lhs, rhs, desc)
+    local lhs = cfg[desc] -- user may override via organ.config.agenda.keymaps[desc]
+    if lhs == false then
+      return
+    end
+    if lhs == nil then
+      lhs = default_lhs
+    end
+    vim.api.nvim_buf_set_keymap(bufnr, "n", lhs, "", {
+      noremap = true,
+      silent = true,
+      desc = desc,
+      callback = rhs,
+    })
+  end
+
+  local function current_row()
+    local lnum = vim.api.nvim_win_get_cursor(0)[1]
+    local state = vstate.get(bufnr)
+    return (state.line_index or {})[lnum]
+  end
+
+  -- Helper: load the source buffer + return the 1-based source line for a
+  -- row. Returns nil + warns if the row has no editable source (synthetic
+  -- diary_sexp rows, empty-state placeholders, etc. lack file_path /
+  -- line_start). Without this guard, every t/T/s/D/I/R/<CR>/gs/gv keymap
+  -- would crash with `attempt to perform arithmetic on field 'line_start'
+  -- (a nil value)` on synthetic rows.
+  local function source_for(r)
+    if not r.file_path or not r.line_start then
+      require("organ.notify").warn(
+        "agenda: this row has no editable source (synthetic / placeholder)"
+      )
+      return nil, nil
+    end
+    local target = vim.fn.bufadd(r.file_path)
+    vim.fn.bufload(target)
+    return target, r.line_start + 1
+  end
+
+  install_navigation_maps(map, current_row)
+  install_refresh_maps(map, bufnr, agenda)
+  install_movement_maps(map, bufnr, agenda)
+  install_todo_priority_maps(map, bufnr, agenda, current_row, source_for)
+  install_bulk_maps(map, bufnr, agenda, current_row, source_for)
+  install_edit_maps(map, bufnr, agenda, current_row, source_for)
 end
 
 M.install = install

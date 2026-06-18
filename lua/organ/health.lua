@@ -6,20 +6,22 @@
 
 local M = {}
 
-function M.check()
-  local health = vim.health
-  local organ = require("organ")
+local health = vim.health
 
-  -- libsqlite3
+-- Probe libsqlite3 via FFI. Returns the loaded db module, or nil when the
+-- module fails to load (a hard stop for the rest of the report).
+local function check_sqlite()
   local ok, db = pcall(require, "organ.db")
   if ok then
     health.ok("libsqlite3 loaded via FFI")
-  else
-    health.error("libsqlite3 failed to load: " .. tostring(db))
-    return
+    return db
   end
+  health.error("libsqlite3 failed to load: " .. tostring(db))
+  return nil
+end
 
-  -- parser presence + dlopen verification (catches arch mismatches early).
+-- Parser presence + dlopen verification (catches arch mismatches early).
+local function check_parser()
   local parser = require("organ.buf_config").read(nil, "parser_path")
   local plat
   do
@@ -47,24 +49,28 @@ function M.check()
       )
     end
   end
+end
 
-  -- DB + schema: trigger lazy open so we report the live schema version.
+-- DB + schema: trigger lazy open so we report the live schema version.
+-- `db` is the module returned by check_sqlite (needed for db.SQLITE_ROW).
+-- Returns false to signal check() should stop early.
+local function check_db_and_schema(db)
   local db_path = require("organ.buf_config").read(nil, "db_path")
   if not db_path then
     health.error("db_path unset")
-    return
+    return false
   end
 
   local rt = require("organ.runtime")
   local h_live, open_err = pcall(rt.db)
   if not h_live then
     health.error("db_path failed to open: " .. tostring(open_err))
-    return
+    return false
   end
   local live_handle = rt.db_if_open()
   if not live_handle then
     health.error("runtime.db() returned nil after open attempt")
-    return
+    return false
   end
 
   if vim.loop.fs_stat(db_path) then
@@ -77,7 +83,7 @@ function M.check()
   local s, perr = live_handle:prepare("PRAGMA user_version")
   if not s then
     health.error("schema probe failed: " .. tostring(perr))
-    return
+    return false
   end
   assert(s:step() == db.SQLITE_ROW)
   local v = s:column_int(0)
@@ -89,7 +95,10 @@ function M.check()
   else
     health.warn(("schema user_version = %d (newer than this build expects)"):format(v))
   end
+  return true
+end
 
+local function check_watcher()
   local watcher_ok, w = pcall(require, "organ.watcher")
   if watcher_ok and w then
     local dirs = w.watched_dirs()
@@ -101,11 +110,13 @@ function M.check()
   else
     health.warn("watcher module not loadable")
   end
+end
 
-  -- Optional plugin detection. organ degrades gracefully when these aren't
-  -- installed, but several features only light up when the right host
-  -- plugin is available; this section tells the user what's wired in their
-  -- current session.
+-- Optional plugin detection. organ degrades gracefully when these aren't
+-- installed, but several features only light up when the right host
+-- plugin is available; this section tells the user what's wired in their
+-- current session.
+local function check_optional_integrations()
   health.start("organ optional integrations")
 
   -- Picker backends.
@@ -180,11 +191,12 @@ function M.check()
   else
     health.info("image.nvim not loaded — image links open in the system viewer instead")
   end
+end
 
-  -- which-key + alarms surface a quick summary of opt-in features the user
-  -- has turned on. Helps spot common misconfigurations.
+-- which-key + alarms surface a quick summary of opt-in features the user
+-- has turned on. Helps spot common misconfigurations.
+local function check_feature_toggles(cfg)
   health.start("organ feature toggles")
-  local cfg = organ.config
   local function status(name, on)
     if on then
       health.ok(name .. " = on")
@@ -202,7 +214,9 @@ function M.check()
   status("links.allow_unsafe", (cfg.links or {}).allow_unsafe == true)
   status("speed", (cfg.speed or {}).enabled == true)
   status("tags.inherit", (cfg.tags or {}).inherit ~= false)
+end
 
+local function check_startup()
   -- Sanity check: did plugin/organ.lua actually load?
   -- If it did, vim.g.loaded_organ is true. If false at this point, the
   -- user has lazy-loaded organ and the :Org* commands aren't registered.
@@ -229,10 +243,12 @@ function M.check()
   else
     health.info("neither curl nor wget on PATH — :Org attach url will fail")
   end
+end
 
-  -- Live session state for the modules that maintain runtime objects
-  -- across calls — surfaces timer running, sessions count, sticky
-  -- agenda buffers, profiler running, modern stages attached.
+-- Live session state for the modules that maintain runtime objects
+-- across calls — surfaces timer running, sessions count, sticky
+-- agenda buffers, profiler running, modern stages attached.
+local function check_session_state()
   health.start("organ session state")
   do
     local timer_ok, timer = pcall(require, "organ.timer")
@@ -322,10 +338,12 @@ function M.check()
       end
     end
   end
+end
 
-  -- Native CSL processor probe. The processor is pure Lua, so the only
-  -- thing to verify is that vim.json is reachable (Neovim 0.10+) since
-  -- the CSL-JSON parser depends on it.
+-- Native CSL processor probe. The processor is pure Lua, so the only
+-- thing to verify is that vim.json is reachable (Neovim 0.10+) since
+-- the CSL-JSON parser depends on it.
+local function check_citation_processor()
   health.start("organ citation processor")
   if vim and vim.json and vim.json.decode then
     health.ok("vim.json available — CSL-JSON parser usable")
@@ -357,12 +375,14 @@ function M.check()
       health.info("no #+bibliography: directives in current buffer")
     end
   end
+end
 
-  -- User-config integration: when the user runs a custom foldtext or
-  -- custom statuscolumn, those override organ's win-local set and
-  -- silently strip the Emacs-style folded heading / fold-aware relnum
-  -- unless they delegate.  Detect the common shapes and surface a
-  -- warning with a one-line fix.
+-- User-config integration: when the user runs a custom foldtext or
+-- custom statuscolumn, those override organ's win-local set and
+-- silently strip the Emacs-style folded heading / fold-aware relnum
+-- unless they delegate.  Detect the common shapes and surface a
+-- warning with a one-line fix.
+local function check_user_config_integration()
   health.start("organ.user-config integration")
 
   local function references(s, ...)
@@ -474,6 +494,29 @@ function M.check()
       }
     )
   end
+end
+
+function M.check()
+  local organ = require("organ")
+
+  local db = check_sqlite()
+  if not db then
+    return
+  end
+
+  check_parser()
+
+  if not check_db_and_schema(db) then
+    return
+  end
+
+  check_watcher()
+  check_optional_integrations()
+  check_feature_toggles(organ.config)
+  check_startup()
+  check_session_state()
+  check_citation_processor()
+  check_user_config_integration()
 end
 
 return M
