@@ -101,4 +101,15 @@ assert(is_html_block(doc.children[1]), "kind 6 div block")
 assert(doc.children[1].body == "<div>\nstuff\n", "kind 6 body ends before the blank line")
 assert(doc.children[2].kind == "paragraph", "content after the blank line is a paragraph")
 
+-- Kind 7: a complete tag alone on a line (ending at a blank line); cannot
+-- interrupt a paragraph.
+local k7 = from_md.parse('<a href="/x">\ncontent\n\nafter\n')
+assert(is_html_block(k7.children[1]), "kind 7 open tag block")
+assert(k7.children[1].body == '<a href="/x">\ncontent\n', "kind 7 body ends before blank line")
+-- Kind 7 does NOT interrupt a paragraph.
+local notk7 = from_md.parse('text\n<a href="/x">\n')
+assert(notk7.children[1].kind == "paragraph", "kind 7 cannot interrupt a paragraph")
+-- A non-complete tag line is not a kind-7 block.
+assert(only("<a href=\n").kind == "paragraph", "incomplete tag is a paragraph")
+
 print("from_md_blocks_test: PASS")

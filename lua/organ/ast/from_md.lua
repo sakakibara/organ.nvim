@@ -250,9 +250,64 @@ for _, t in ipairs({
   HTML_BLOCK_TAGS[t] = true
 end
 
--- Returns kind (1-6), an end-predicate fn(line)->bool, and whether the end line
+-- Returns the lowercased tag name if `s` is a complete open or closing tag
+-- filling the whole line (optional trailing whitespace), nil otherwise.
+local function is_complete_tag_line(s)
+  -- closing tag: </name ws* >
+  local close = s:match("^</([a-zA-Z][a-zA-Z0-9%-]*)%s*>%s*$")
+  if close then
+    return close:lower()
+  end
+  -- open tag: <name (attrs)* /?>
+  -- Use a lazy match on content before the final > to avoid catastrophic
+  -- backtracking on lines with multiple >.
+  local name, rest = s:match("^<([a-zA-Z][a-zA-Z0-9%-]*)(.-)>%s*$")
+  if not name then
+    return nil
+  end
+  -- Strip optional trailing self-close marker.
+  rest = rest:gsub("/%s*$", "")
+  -- Strip valid attributes one at a time.  Lua patterns do not support |
+  -- alternation, so the attribute-value branch is tried in three passes:
+  -- double-quoted, single-quoted, unquoted.
+  while true do
+    local orig = rest
+    -- 1. attribute with double-quoted value
+    local nr = rest:gsub('^%s+[A-Za-z_:][A-Za-z0-9_.:%-]*%s*=%s*"[^"]*"', "", 1)
+    if nr ~= rest then
+      rest = nr
+    else
+      -- 2. attribute with single-quoted value
+      nr = rest:gsub("^%s+[A-Za-z_:][A-Za-z0-9_.:%-]*%s*=%s*'[^']*'", "", 1)
+      if nr ~= rest then
+        rest = nr
+      else
+        -- 3. attribute with unquoted value (no spaces, quotes, =, <, >, `)
+        nr = rest:gsub("^%s+[A-Za-z_:][A-Za-z0-9_.:%-]*%s*=%s*[^%s\"'=<>`]+", "", 1)
+        if nr ~= rest then
+          rest = nr
+        else
+          -- 4. valueless attribute
+          nr = rest:gsub("^%s+[A-Za-z_:][A-Za-z0-9_.:%-]*", "", 1)
+          if nr ~= rest then
+            rest = nr
+          end
+        end
+      end
+    end
+    if rest == orig then
+      break
+    end
+  end
+  if rest:match("^%s*$") then
+    return name:lower()
+  end
+  return nil
+end
+
+-- Returns kind (1-7), an end-predicate fn(line)->bool, and whether the end line
 -- is included; or nil if `s` (the line with leading <=3 spaces removed) does not
--- start an HTML block of kinds 1-6.
+-- start an HTML block of kinds 1-7.
 local function html_block_start(s)
   local low = s:lower()
   if
@@ -303,6 +358,20 @@ local function html_block_start(s)
         end, false
       end
     end
+    -- Kind 7: a complete open or closing tag that fills the line, tag name not
+    -- in {script, style, pre, textarea}.
+    local k7name = is_complete_tag_line(s)
+    if
+      k7name
+      and k7name ~= "script"
+      and k7name ~= "style"
+      and k7name ~= "pre"
+      and k7name ~= "textarea"
+    then
+      return 7, function(l)
+        return l:match("^%s*$")
+      end, false
+    end
   end
   return nil
 end
@@ -314,6 +383,10 @@ local function html_block(p, line)
   end
   local kind, ends, inclusive = html_block_start(s)
   if not kind then
+    return false
+  end
+  -- Kind 7 cannot interrupt a paragraph; kinds 1-6 can.
+  if kind == 7 and #p.open_para > 0 then
     return false
   end
   local body_lines = {}
