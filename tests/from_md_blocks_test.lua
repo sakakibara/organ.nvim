@@ -185,6 +185,12 @@ local ok_list = pcall(function()
 end)
 assert(ok_list, "deeply-nested single-line list markers must not throw (stack overflow regression)")
 
+-- Interleaved block-quote and list markers on one line must not overflow the stack.
+local ok_mixed = pcall(function()
+  return from_md.parse(string.rep("> - ", 10000) .. "x\n")
+end)
+assert(ok_mixed, "interleaved > and - markers must not overflow (stack regression)")
+
 -- Ordered lists with different delimiters are two separate lists (CommonMark #302).
 local two = from_md.parse("1. a\n2. b\n3) c\n")
 assert(#two.children == 2, "delimiter change splits ordered lists, got " .. #two.children)

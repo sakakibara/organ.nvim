@@ -521,6 +521,11 @@ local function finalize(block)
   return nil
 end
 
+-- Sentinel returned by try_starts when it opened a container and the remaining
+-- content must still be placed one level deeper; place_content loops on it
+-- instead of recursing, keeping single-line container descent at constant depth.
+local DESCEND = {}
+
 -- Parser state: an open-blocks stack rooted at `document`.  `stack[1]` is the
 -- document container; the last element is the `tip`.  Containers hold `children`
 -- (already-finalised child blocks); the tip leaf accumulates raw text.
@@ -680,8 +685,15 @@ end
 
 -- Try the block starters, in proven CommonMark precedence, against the
 -- marker-stripped `line`, pushing any new block under the container at stack
--- index `from`.  Returns true if the line opened (and possibly closed) a block,
--- opened a container, or was consumed as a reference definition.
+-- index `from`.  Returns true if the line opened (and possibly closed) a leaf
+-- block or was consumed as a reference definition; returns the DESCEND sentinel
+-- plus the deeper (remainder, stack index) when it opened a container (block
+-- quote or list item) into which the remaining content must still be placed;
+-- returns false when no start matched.  The container-descent is reported back
+-- to the caller (place_content) rather than recursing, so that interleaved
+-- '> - > - ...' markers descend iteratively and the parser depth does not scale
+-- with the marker count (a recursive call per marker would overflow the C
+-- stack).
 function Parser:try_starts(line, from)
   local tip = self:tip()
   local tip_para = #self.stack > from and tip.type == "paragraph"
@@ -694,7 +706,10 @@ function Parser:try_starts(line, from)
   if not thematic_break(line, tip_para) then
     local lm = list_marker(line)
     if lm and self:extends_list(lm, from) then
-      self:open_list_item(lm, from)
+      local rest, deep = self:open_list_item(lm, from)
+      if rest then
+        return DESCEND, rest, deep
+      end
       return true
     end
   end
@@ -737,8 +752,7 @@ function Parser:try_starts(line, from)
       end
       bq_rest = next_rest
     until false
-    self:place_content(bq_rest, #self.stack)
-    return true
+    return DESCEND, bq_rest, #self.stack
   end
 
   local block = atx_heading(line)
@@ -792,7 +806,10 @@ function Parser:try_starts(line, from)
       or closes_open_list
       or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1)))
     then
-      self:open_list_item(lm, from)
+      local rest, deep = self:open_list_item(lm, from)
+      if rest then
+        return DESCEND, rest, deep
+      end
       return true
     end
   end
@@ -829,7 +846,9 @@ end
 -- index `from`.  If the container directly under `from` is an open list of the
 -- same kind (same bullet char, or same ordered delimiter), the item extends it;
 -- otherwise the open blocks below `from` are closed and a fresh list is pushed.
--- The marker's trailing content is then parsed under the item.
+-- Returns the deepest item's still-unparsed remainder and its stack index, for
+-- the caller to place content under (or nil when the remainder was blank / a
+-- thematic break consumed it, leaving the item empty).
 function Parser:open_list_item(lm, from)
   -- A list item's content may itself begin with a list marker, opening a nested
   -- sublist.  Each such marker is consumed iteratively -- one list + item pushed
@@ -888,7 +907,7 @@ function Parser:open_list_item(lm, from)
       lm = list_marker(rest)
     end
     if not lm then
-      self:place_content(rest, from)
+      return rest, from
     end
   end
 end
@@ -909,14 +928,24 @@ end
 -- Place a marker-stripped remainder under the container at stack index `from`:
 -- run block starts (phase 3); failing that, append to or open a paragraph
 -- (phase 4).  A blank remainder leaves the container empty.  Shared by the
--- top-level line dispatch and the block-quote start (so quote content is parsed
--- by the same machinery, recursively).
+-- top-level line dispatch and the block-quote / list-item starts (so their
+-- content is parsed by the same machinery).  When try_starts opens a container,
+-- it reports the deeper (remainder, index) via the DESCEND sentinel and this
+-- loop continues there instead of recursing, so single-line container descent
+-- ('> - > - ...') runs at constant parser depth.
 function Parser:place_content(rest, from)
-  if is_blank(rest) then
-    return
-  end
-  if self:try_starts(rest, from) then
-    return
+  while true do
+    if is_blank(rest) then
+      return
+    end
+    local result, deep_rest, deep_from = self:try_starts(rest, from)
+    if result == DESCEND then
+      rest, from = deep_rest, deep_from
+    elseif result then
+      return
+    else
+      break
+    end
   end
   local tip = self:tip()
   if #self.stack > from and tip.type == "paragraph" then
@@ -1009,8 +1038,17 @@ function Parser:add_line(line)
     return
   end
 
-  -- PHASE 3: new block starts, pushed under the deepest matched container.
-  if self:try_starts(rest, last_matched) then
+  -- PHASE 3: new block starts, pushed under the deepest matched container.  A
+  -- container opening (block quote, list item) reports its deeper remainder via
+  -- the DESCEND sentinel; once descended, the remainder belongs strictly inside
+  -- the new container, so place_content owns it (its own descent loop keeps the
+  -- depth bounded on interleaved single-line markers).  Only the first,
+  -- top-level start gets phase 4's lazy continuation.
+  local result, deep_rest, deep_from = self:try_starts(rest, last_matched)
+  if result == DESCEND then
+    self:place_content(deep_rest, deep_from)
+    return
+  elseif result then
     return
   end
 
