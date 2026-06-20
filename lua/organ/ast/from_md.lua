@@ -477,7 +477,9 @@ local function finalize(block)
   if t == "block_quote" then
     return ast.block("quote", { content = block.children })
   elseif t == "list" then
-    return ast.list(block.ordered, block.children)
+    local node = ast.list(block.ordered, block.children)
+    node.loose = block.loose or false
+    return node
   elseif t == "list_item" then
     return ast.list_item({
       marker = block.bullet,
@@ -558,6 +560,32 @@ end
 
 function Parser:push(block)
   self.stack[#self.stack + 1] = block
+end
+
+-- Arm a pending blank on every open list.  The blank only matters once content
+-- follows it (see confirm_list_loose), so a trailing blank after the final item
+-- -- never followed by list content -- leaves the list tight; only an interior
+-- blank, between two items or between two block children of one item, confirms.
+function Parser:arm_list_blank()
+  for i = 2, #self.stack do
+    local block = self.stack[i]
+    if block.type == "list" then
+      block.pending_blank = true
+    end
+  end
+end
+
+-- A list at or above `index` that carries an armed blank becomes loose, because
+-- content is now landing inside it after that blank.  Called whenever a new item
+-- opens in a list or new content is placed inside an open item.
+function Parser:confirm_list_loose(index)
+  for i = 2, index do
+    local block = self.stack[i]
+    if block.type == "list" and block.pending_blank then
+      block.loose = true
+      block.pending_blank = false
+    end
+  end
 end
 
 -- Per-container behavior, keyed by block type.  `continue(block, rest)` is the
@@ -711,6 +739,11 @@ function Parser:try_starts(line, from)
   if block then
     from = self:leaf_base(from)
     self:close_below(from)
+    -- A leaf block opening as a second child inside an open item, after an
+    -- armed blank, makes the list loose.
+    if self.stack[from] and self.stack[from].type == "list_item" then
+      self:confirm_list_loose(from)
+    end
     self:push(block)
     if block.closed_immediately then
       self:close_tip()
@@ -814,6 +847,9 @@ function Parser:open_list_item(lm, from)
         children = {},
       })
     end
+    -- A new item opening in a list that has an armed blank confirms the blank
+    -- was a between-items separator: the whole list is loose.
+    self:confirm_list_loose(#self.stack)
     self:push({
       type = "list_item",
       indent = lm.indent,
@@ -867,6 +903,11 @@ function Parser:place_content(rest, from)
   else
     from = self:leaf_base(from)
     self:close_below(from)
+    -- Fresh content attaching directly inside an open item, after an armed
+    -- blank, is a second block child of that item: the list is loose.
+    if self.stack[from] and self.stack[from].type == "list_item" then
+      self:confirm_list_loose(from)
+    end
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
 end
@@ -935,7 +976,14 @@ function Parser:add_line(line)
 
   if is_blank(rest) then
     -- A blank line (after any matched markers) closes everything below the
-    -- deepest matched container; in particular an open paragraph ends.
+    -- deepest matched container; in particular an open paragraph ends.  It also
+    -- arms looseness on every still-open list: a blank between two of a list's
+    -- items, or between two block children of one item, makes the LIST loose.
+    -- The blank is only armed here; it is confirmed (turned into list.loose)
+    -- when subsequent content actually lands inside the list, so a trailing
+    -- blank after the final item -- which is never followed by list content --
+    -- leaves the list tight.
+    self:arm_list_blank()
     self:close_below(last_matched)
     return
   end
@@ -955,6 +1003,11 @@ function Parser:add_line(line)
   else
     last_matched = self:leaf_base(last_matched)
     self:close_below(last_matched)
+    -- A second block child opening inside an open item, after an armed blank,
+    -- makes the list loose.
+    if self.stack[last_matched] and self.stack[last_matched].type == "list_item" then
+      self:confirm_list_loose(last_matched)
+    end
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
 end

@@ -190,4 +190,21 @@ local two = from_md.parse("1. a\n2. b\n3) c\n")
 assert(#two.children == 2, "delimiter change splits ordered lists, got " .. #two.children)
 assert(two.children[1].kind == "list" and two.children[2].kind == "list", "both are lists")
 
+-- Loose list: a blank line between items -> items wrap their paragraph in <p>.
+assert(
+  cmark.render(from_md.parse("- a\n\n- b\n"))
+    == "<ul>\n<li>\n<p>a</p>\n</li>\n<li>\n<p>b</p>\n</li>\n</ul>\n",
+  "loose list wraps items in <p>"
+)
+-- Tight list stays tight (regression).
+assert(
+  cmark.render(from_md.parse("- a\n- b\n")) == "<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n",
+  "tight stays tight"
+)
+-- An item with two paragraphs (blank between) makes the list loose.
+assert(
+  cmark.render(from_md.parse("- a\n\n  b\n")) == "<ul>\n<li>\n<p>a</p>\n<p>b</p>\n</li>\n</ul>\n",
+  "blank within an item makes the list loose"
+)
+
 print("from_md_blocks_test: PASS")

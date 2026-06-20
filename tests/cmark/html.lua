@@ -59,18 +59,31 @@ function block(node, out)
       out[#out + 1] = "<ul>\n"
     end
     for _, item in ipairs(items) do
-      list_item(item, out)
+      list_item(item, out, node.loose)
     end
     out[#out + 1] = node.ordered and "</ol>\n" or "</ul>\n"
   end
   -- later stages: table, ...
 end
 
--- Render a list item (tight): a lone paragraph child renders as its inline text
--- with no <p> wrapper; other children render normally; a nested list follows the
--- item's text on its own lines.
-list_item = function(item, out)
+-- Render a list item.  In a loose list every paragraph child is wrapped in
+-- <p>...</p> on its own line and the item is `<li>\n` ... `</li>\n`.  In a tight
+-- list a lone paragraph child renders as bare inline text inside `<li>`...`</li>`
+-- and other children render normally.
+list_item = function(item, out, loose)
   local children = item.content or {}
+  if loose then
+    out[#out + 1] = "<li>\n"
+    for _, c in ipairs(children) do
+      if c.kind == "paragraph" then
+        out[#out + 1] = "<p>" .. inline(c.inline) .. "</p>\n"
+      else
+        block(c, out)
+      end
+    end
+    out[#out + 1] = "</li>\n"
+    return
+  end
   if #children == 1 and children[1].kind == "paragraph" then
     out[#out + 1] = "<li>" .. inline(children[1].inline) .. "</li>\n"
     return
