@@ -207,4 +207,38 @@ assert(
   "blank within an item makes the list loose"
 )
 
+-- Looseness is per-list and must NOT propagate up or down the nesting chain.
+
+-- A blank interior only to the innermost sublist loosens that sublist alone;
+-- the two outer lists stay tight (CommonMark spec example 307).
+assert(
+  cmark.render(from_md.parse("- foo\n  - bar\n    - baz\n\n\n      bim\n"))
+    == "<ul>\n<li>foo\n<ul>\n<li>bar\n<ul>\n<li>\n<p>baz</p>\n<p>bim</p>\n</li>\n</ul>\n</li>\n</ul>\n</li>\n</ul>\n",
+  "blank in deepest sublist leaves ancestor lists tight"
+)
+
+-- A blank within an inner item makes only the inner list loose; the outer items
+-- a and d stay tight (CommonMark spec example 319).
+assert(
+  cmark.render(from_md.parse("- a\n  - b\n\n    c\n- d\n"))
+    == "<ul>\n<li>a\n<ul>\n<li>\n<p>b</p>\n<p>c</p>\n</li>\n</ul>\n</li>\n<li>d</li>\n</ul>\n",
+  "inner-item blank does not loosen the outer list"
+)
+
+-- A blank between two items of an inner list loosens the inner list only; the
+-- outer single item stays tight.
+assert(
+  cmark.render(from_md.parse("- a\n  - b\n\n  - c\n"))
+    == "<ul>\n<li>a\n<ul>\n<li>\n<p>b</p>\n</li>\n<li>\n<p>c</p>\n</li>\n</ul>\n</li>\n</ul>\n",
+  "inner list loose, outer item tight"
+)
+
+-- A blank between an item's first paragraph and a following sublist loosens the
+-- OUTER list (the item gains a second block child); the inner list stays tight.
+assert(
+  cmark.render(from_md.parse("- a\n  - b\n\n  c\n"))
+    == "<ul>\n<li>\n<p>a</p>\n<ul>\n<li>b</li>\n</ul>\n<p>c</p>\n</li>\n</ul>\n",
+  "outer item with two block children loose, inner list tight"
+)
+
 print("from_md_blocks_test: PASS")

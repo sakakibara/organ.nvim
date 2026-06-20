@@ -562,10 +562,12 @@ function Parser:push(block)
   self.stack[#self.stack + 1] = block
 end
 
--- Arm a pending blank on every open list.  The blank only matters once content
--- follows it (see confirm_list_loose), so a trailing blank after the final item
--- -- never followed by list content -- leaves the list tight; only an interior
--- blank, between two items or between two block children of one item, confirms.
+-- Arm a pending blank on every open list.  At blank time the parser cannot yet
+-- tell which list the blank is interior to -- that depends on where the content
+-- after the blank lands -- so the candidacy is recorded on every open list and
+-- resolved later by confirm_list_loose.  The blank only matters once content
+-- follows it, so a trailing blank after the final item -- never followed by list
+-- content -- leaves every list tight.
 function Parser:arm_list_blank()
   for i = 2, #self.stack do
     local block = self.stack[i]
@@ -575,14 +577,22 @@ function Parser:arm_list_blank()
   end
 end
 
--- A list at or above `index` that carries an armed blank becomes loose, because
--- content is now landing inside it after that blank.  Called whenever a new item
--- opens in a list or new content is placed inside an open item.
-function Parser:confirm_list_loose(index)
-  for i = 2, index do
+-- CommonMark looseness is per-list: a list is loose iff two of ITS OWN items are
+-- separated by a blank, or one of its items directly holds two block children
+-- separated by a blank.  When post-blank content lands, exactly one list owns
+-- that blank -- the list given by `owner` (the list whose item the content is a
+-- sibling item of, or whose item directly contains it).  Confirm looseness on
+-- that single list; the same blank cannot also belong to any other list, so
+-- disarm the pending candidacy on every other open list.  `owner` is nil when no
+-- list owns the blank (e.g. a fresh list opening beside a different-kind one);
+-- then the blank is purely a separator and loosens nothing.
+function Parser:confirm_list_loose(owner)
+  for i = 2, #self.stack do
     local block = self.stack[i]
-    if block.type == "list" and block.pending_blank then
-      block.loose = true
+    if block.type == "list" then
+      if i == owner and block.pending_blank then
+        block.loose = true
+      end
       block.pending_blank = false
     end
   end
@@ -740,9 +750,9 @@ function Parser:try_starts(line, from)
     from = self:leaf_base(from)
     self:close_below(from)
     -- A leaf block opening as a second child inside an open item, after an
-    -- armed blank, makes the list loose.
+    -- armed blank, makes the list that directly contains that item loose.
     if self.stack[from] and self.stack[from].type == "list_item" then
-      self:confirm_list_loose(from)
+      self:confirm_list_loose(from - 1)
     end
     self:push(block)
     if block.closed_immediately then
@@ -832,9 +842,19 @@ function Parser:open_list_item(lm, from)
     -- item.  After the first iteration the content is always parsed under the
     -- just-pushed item, so it can only extend lists at #stack, never reopen one.
     local list_index = self:extends_list(lm, from)
+    -- Which list, if any, owns a blank that preceded this marker.  Extending an
+    -- open list means the marker opens that list's next item: a preceding blank
+    -- sat directly between two of its items, so the extended list owns it.  A
+    -- fresh list nested inside the item at `from` is a second block child of
+    -- that item: a preceding blank sat within the item, so the item's own list
+    -- (the container at `from - 1`) owns it.  A fresh list opening beside a
+    -- different-kind list (no item parent) owns no blank.
+    local owner
     if list_index then
+      owner = list_index
       self:close_below(list_index)
     else
+      owner = (self.stack[from] and self.stack[from].type == "list_item") and (from - 1) or nil
       -- A different-kind marker ends an open list at `from` (a '+' after a '-'
       -- list, a ')' after a '.' list) before the new list opens beside it.
       from = self:leaf_base(from)
@@ -847,9 +867,10 @@ function Parser:open_list_item(lm, from)
         children = {},
       })
     end
-    -- A new item opening in a list that has an armed blank confirms the blank
-    -- was a between-items separator: the whole list is loose.
-    self:confirm_list_loose(#self.stack)
+    -- A new item or nested sublist landing after an armed blank confirms that
+    -- blank was interior to exactly the owning list (between its items, or
+    -- between two block children of one of its items); loosen that one list.
+    self:confirm_list_loose(owner)
     self:push({
       type = "list_item",
       indent = lm.indent,
@@ -904,9 +925,10 @@ function Parser:place_content(rest, from)
     from = self:leaf_base(from)
     self:close_below(from)
     -- Fresh content attaching directly inside an open item, after an armed
-    -- blank, is a second block child of that item: the list is loose.
+    -- blank, is a second block child of that item: the list that directly
+    -- contains the item is loose.
     if self.stack[from] and self.stack[from].type == "list_item" then
-      self:confirm_list_loose(from)
+      self:confirm_list_loose(from - 1)
     end
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
@@ -977,12 +999,11 @@ function Parser:add_line(line)
   if is_blank(rest) then
     -- A blank line (after any matched markers) closes everything below the
     -- deepest matched container; in particular an open paragraph ends.  It also
-    -- arms looseness on every still-open list: a blank between two of a list's
-    -- items, or between two block children of one item, makes the LIST loose.
-    -- The blank is only armed here; it is confirmed (turned into list.loose)
-    -- when subsequent content actually lands inside the list, so a trailing
-    -- blank after the final item -- which is never followed by list content --
-    -- leaves the list tight.
+    -- arms a looseness candidacy on every still-open list, because the blank
+    -- may turn out to be interior to any one of them.  Which single list the
+    -- blank actually belongs to is decided later, when content lands after it
+    -- (see confirm_list_loose); a trailing blank after the final item -- never
+    -- followed by content -- belongs to no list and leaves every list tight.
     self:arm_list_blank()
     self:close_below(last_matched)
     return
@@ -1004,9 +1025,9 @@ function Parser:add_line(line)
     last_matched = self:leaf_base(last_matched)
     self:close_below(last_matched)
     -- A second block child opening inside an open item, after an armed blank,
-    -- makes the list loose.
+    -- makes the list that directly contains the item loose.
     if self.stack[last_matched] and self.stack[last_matched].type == "list_item" then
-      self:confirm_list_loose(last_matched)
+      self:confirm_list_loose(last_matched - 1)
     end
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
