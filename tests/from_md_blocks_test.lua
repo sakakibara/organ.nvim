@@ -185,4 +185,9 @@ local ok_list = pcall(function()
 end)
 assert(ok_list, "deeply-nested single-line list markers must not throw (stack overflow regression)")
 
+-- Ordered lists with different delimiters are two separate lists (CommonMark #302).
+local two = from_md.parse("1. a\n2. b\n3) c\n")
+assert(#two.children == 2, "delimiter change splits ordered lists, got " .. #two.children)
+assert(two.children[1].kind == "list" and two.children[2].kind == "list", "both are lists")
+
 print("from_md_blocks_test: PASS")

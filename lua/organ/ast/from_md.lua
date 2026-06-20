@@ -600,7 +600,8 @@ local CONTAINER = {
 }
 
 -- Is the stack element at `index` a container (holds finalised children) rather
--- than an accumulating leaf?  `document` and `block_quote` are containers.
+-- than an accumulating leaf?  `document`, `block_quote`, `list`, and
+-- `list_item` are containers.
 local function is_container(block)
   return CONTAINER[block.type] ~= nil
 end
@@ -734,8 +735,20 @@ function Parser:try_starts(line, from)
     -- may interrupt a paragraph only when its content is non-empty and, for
     -- ordered lists, only when it starts at 1.  Extending an open same-kind
     -- list is always allowed (item 2 of an ordered list, etc.).
+    -- A marker whose ordered-ness matches an open list at `from` but whose
+    -- delimiter differs (e.g. "." vs ")") closes that list and starts a new
+    -- one -- this is not a paragraph-interrupt but a list-type change.
     local extends = self:extends_list(lm, from)
-    if extends or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1))) then
+    local bl = self.stack[from]
+    local bl1 = self.stack[from + 1]
+    local open_list = (bl and bl.type == "list") and bl
+      or ((bl1 and bl1.type == "list") and bl1 or nil)
+    local closes_open_list = open_list ~= nil and open_list.ordered == lm.ordered
+    if
+      extends
+      or closes_open_list
+      or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1)))
+    then
       self:open_list_item(lm, from)
       return true
     end
@@ -750,20 +763,16 @@ function Parser:try_starts(line, from)
   return false
 end
 
--- Open a list item for marker descriptor `lm` under the container at stack
--- index `from`.  If the container directly under `from` is an open list of the
--- same kind (same bullet char, or same ordered delimiter), the item extends it;
--- otherwise the open blocks below `from` are closed and a fresh list is pushed.
--- The marker's trailing content is then parsed under the item.
--- The stack index of an open same-kind list a marker `lm` would extend, or nil.
--- It is either the container at `from` itself (phase 1 stopped at the list when
--- its open item did not continue) or a sibling list directly under `from`.
+-- Return the stack index of an open same-kind list a marker `lm` would extend,
+-- or nil.  It is either the container at `from` itself (phase 1 stopped at the
+-- list when its open item did not continue) or a sibling list directly under
+-- `from`.
 function Parser:extends_list(lm, from)
   local function same_kind(b)
     return b
       and b.type == "list"
       and b.ordered == lm.ordered
-      and (lm.ordered and b.delim == lm.delim or b.bullet == lm.bullet)
+      and ((lm.ordered and b.delim == lm.delim) or (not lm.ordered and b.bullet == lm.bullet))
   end
   if same_kind(self.stack[from]) then
     return from
@@ -773,6 +782,11 @@ function Parser:extends_list(lm, from)
   return nil
 end
 
+-- Open a list item for marker descriptor `lm` under the container at stack
+-- index `from`.  If the container directly under `from` is an open list of the
+-- same kind (same bullet char, or same ordered delimiter), the item extends it;
+-- otherwise the open blocks below `from` are closed and a fresh list is pushed.
+-- The marker's trailing content is then parsed under the item.
 function Parser:open_list_item(lm, from)
   -- A list item's content may itself begin with a list marker, opening a nested
   -- sublist.  Each such marker is consumed iteratively -- one list + item pushed
