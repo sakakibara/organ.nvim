@@ -847,8 +847,9 @@ end
 -- same kind (same bullet char, or same ordered delimiter), the item extends it;
 -- otherwise the open blocks below `from` are closed and a fresh list is pushed.
 -- Returns the deepest item's still-unparsed remainder and its stack index, for
--- the caller to place content under (or nil when the remainder was blank / a
--- thematic break consumed it, leaving the item empty).
+-- the caller to place content under.  The remainder may be blank (an empty
+-- marker like `-` or `> -`); place_content absorbs a blank remainder, leaving
+-- the item empty.
 function Parser:open_list_item(lm, from)
   -- A list item's content may itself begin with a list marker, opening a nested
   -- sublist.  Each such marker is consumed iteratively -- one list + item pushed
