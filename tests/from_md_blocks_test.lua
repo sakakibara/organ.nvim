@@ -145,4 +145,44 @@ local ok = pcall(function()
 end)
 assert(ok, "deeply-quoted single line must not throw (stack overflow regression)")
 
+-- Lists: bullet and ordered, with structure + tight HTML.
+local cmark = dofile(vim.fn.getcwd() .. "/tests/cmark/html.lua")
+local function is_list(n)
+  return n.kind == "list"
+end
+local bl = only("- a\n- b\n")
+assert(is_list(bl) and bl.ordered == false, "bullet list node")
+assert(#bl.items == 2, "two list items, got " .. #bl.items)
+assert(bl.items[1].kind == "list_item", "list_item node")
+local ol = only("1. a\n2. b\n")
+assert(is_list(ol) and ol.ordered == true, "ordered list node")
+-- Tight rendering: item with one paragraph -> no <p> wrapper.
+assert(
+  cmark.render(from_md.parse("- a\n- b\n")) == "<ul>\n<li>a</li>\n<li>b</li>\n</ul>\n",
+  "tight bullet HTML"
+)
+assert(
+  cmark.render(from_md.parse("1. a\n2. b\n")) == "<ol>\n<li>a</li>\n<li>b</li>\n</ol>\n",
+  "tight ordered HTML"
+)
+-- Ordered start attribute.
+assert(
+  cmark.render(from_md.parse("3. a\n")) == '<ol start="3">\n<li>a</li>\n</ol>\n',
+  "ordered start attr"
+)
+-- Nesting: an indented marker opens a sublist inside the item.
+local nest = from_md.parse("- a\n  - b\n")
+assert(
+  nest.children[1].kind == "list" and nest.children[1].items[1].content[2].kind == "list",
+  "nested sublist in item"
+)
+-- A spaced-dash thematic break is NOT a list.
+assert(only("- - -\n").kind == "rule", "spaced-dash stays a thematic break")
+
+-- A long single-line run of list markers must not overflow the stack.
+local ok_list = pcall(function()
+  return from_md.parse(string.rep("  - ", 5000) .. "x\n")
+end)
+assert(ok_list, "deeply-nested single-line list markers must not throw (stack overflow regression)")
+
 print("from_md_blocks_test: PASS")

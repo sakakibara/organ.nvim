@@ -398,6 +398,70 @@ local function strip_block_quote_marker(line)
   return (rest:gsub("^ ", "", 1))
 end
 
+-- List item marker: <=3 leading spaces, then a bullet ('-', '+', '*') or an
+-- ordered marker (1-9 digits then '.' or ')').  Returns a descriptor or nil.
+-- `indent` is the item's content indent W = leading + marker width + spaces
+-- after the marker (1-4); content starting >4 cols past the marker counts only
+-- one space (the rest is content indentation), and a marker followed by nothing
+-- or a blank uses W = leading + marker width + 1.  `rest` is the line content
+-- to be parsed under the item (with the marker + W's worth of spaces removed).
+local function list_marker(line)
+  local lead, marker, after = line:match("^( ? ? ?)([%-%+%*])( .*)$")
+  local ordered, bullet, delim, start
+  if marker then
+    bullet = marker
+  else
+    lead, marker, after = line:match("^( ? ? ?)([%-%+%*])$") -- marker then EOL
+    if marker then
+      bullet = marker
+      after = ""
+    end
+  end
+  if not bullet then
+    local digits, d
+    lead, digits, d, after = line:match("^( ? ? ?)(%d+)([%.%)])( .*)$")
+    if not digits then
+      lead, digits, d = line:match("^( ? ? ?)(%d+)([%.%)])$")
+      if digits then
+        after = ""
+      end
+    end
+    if not digits or #digits > 9 then
+      return nil
+    end
+    ordered = true
+    delim = d
+    start = tonumber(digits)
+    marker = digits .. d
+  end
+  local marker_width = #lead + #marker
+  -- Count the run of spaces after the marker (tabs are not part of this scan;
+  -- a tab here is rare and treated as content for simplicity).
+  local spaces = after:match("^( *)")
+  local nspaces = #spaces
+  local content = after:sub(nspaces + 1)
+  local w
+  if content == "" then
+    -- Marker followed by nothing or only blanks: empty item, W = marker + 1.
+    w = marker_width + 1
+    content = ""
+  elseif nspaces >= 1 and nspaces <= 4 then
+    w = marker_width + nspaces
+  else
+    -- >=5 spaces: only one space is the marker gap; the rest is indentation.
+    w = marker_width + 1
+    content = string.rep(" ", nspaces - 1) .. content
+  end
+  return {
+    ordered = ordered or false,
+    bullet = bullet,
+    delim = delim,
+    start = start,
+    indent = w,
+    rest = content,
+  }
+end
+
 -- Finalising an open block to the AST node the renderer consumes.  These mirror
 -- the previous leaf-by-leaf output exactly so the renderer and roundtrip are
 -- unchanged.
@@ -412,6 +476,14 @@ local function finalize(block)
   local t = block.type
   if t == "block_quote" then
     return ast.block("quote", { content = block.children })
+  elseif t == "list" then
+    return ast.list(block.ordered, block.children)
+  elseif t == "list_item" then
+    return ast.list_item({
+      marker = block.bullet,
+      counter = block.counter,
+      content = block.children,
+    })
   elseif t == "paragraph" then
     return ast.paragraph({ ast.text(table.concat(block.lines, "\n")) })
   elseif t == "heading" then
@@ -504,6 +576,27 @@ local CONTAINER = {
       return strip_block_quote_marker(rest)
     end,
   },
+  -- A list is transparent in phase 1: the item below it strips the indentation.
+  list = {
+    continue = function(_block, rest)
+      return rest
+    end,
+  },
+  -- A list item continues when the (already outer-marker-stripped) line is
+  -- indented at least W spaces -- strip exactly W -- or when it is blank.  Other
+  -- lines return nil; phase 4 may still lazily continue an open paragraph.
+  list_item = {
+    continue = function(block, rest)
+      if is_blank(rest) then
+        return ""
+      end
+      local indent = rest:match("^( *)")
+      if #indent >= block.indent then
+        return rest:sub(block.indent + 1)
+      end
+      return nil
+    end,
+  },
 }
 
 -- Is the stack element at `index` a container (holds finalised children) rather
@@ -554,6 +647,19 @@ function Parser:try_starts(line, from)
   local tip = self:tip()
   local tip_para = #self.stack > from and tip.type == "paragraph"
 
+  -- A marker that extends an already-open same-kind list opens its next item
+  -- before the setext / thematic-break checks: a bare '-' under a list's
+  -- paragraph ('- foo\n-\n- bar') is that list's empty item, not a setext
+  -- underline of "foo".  (A bare marker that would START a list still cannot
+  -- interrupt a paragraph; that case is handled by the later list start.)
+  if not thematic_break(line, tip_para) then
+    local lm = list_marker(line)
+    if lm and self:extends_list(lm, from) then
+      self:open_list_item(lm, from)
+      return true
+    end
+  end
+
   -- Setext underline converts an open paragraph in place; check before other
   -- starts so "---" under a paragraph becomes an h2 rather than a break.
   if tip_para then
@@ -581,6 +687,7 @@ function Parser:try_starts(line, from)
   -- marker would overflow the C stack on pathological '> > > ...' input).
   local bq_rest = strip_block_quote_marker(line)
   if bq_rest then
+    from = self:leaf_base(from)
     self:close_below(from)
     repeat
       local quote = { type = "block_quote", children = {} }
@@ -601,6 +708,7 @@ function Parser:try_starts(line, from)
     or (not tip_para and indented_code(line))
     or html_block(line, tip_para)
   if block then
+    from = self:leaf_base(from)
     self:close_below(from)
     self:push(block)
     if block.closed_immediately then
@@ -616,13 +724,115 @@ function Parser:try_starts(line, from)
     return true
   end
 
+  -- List item.  Tried after the thematic-break / atx / fenced chain so that
+  -- '- - -' and '***' stay thematic breaks, and an indented marker reaching
+  -- here under an open item naturally opens a nested list (its content was
+  -- parsed under #stack with the outer item's indentation stripped).
+  local lm = list_marker(line)
+  if lm then
+    -- A marker that would START a new list (no matching open same-kind list)
+    -- may interrupt a paragraph only when its content is non-empty and, for
+    -- ordered lists, only when it starts at 1.  Extending an open same-kind
+    -- list is always allowed (item 2 of an ordered list, etc.).
+    local extends = self:extends_list(lm, from)
+    if extends or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1))) then
+      self:open_list_item(lm, from)
+      return true
+    end
+  end
+
   -- Link reference definitions only at a fresh block position.
   if not tip_para and link_ref_def(line, self.refmap) then
-    self:close_below(from)
+    self:close_below(self:leaf_base(from))
     return true
   end
 
   return false
+end
+
+-- Open a list item for marker descriptor `lm` under the container at stack
+-- index `from`.  If the container directly under `from` is an open list of the
+-- same kind (same bullet char, or same ordered delimiter), the item extends it;
+-- otherwise the open blocks below `from` are closed and a fresh list is pushed.
+-- The marker's trailing content is then parsed under the item.
+-- The stack index of an open same-kind list a marker `lm` would extend, or nil.
+-- It is either the container at `from` itself (phase 1 stopped at the list when
+-- its open item did not continue) or a sibling list directly under `from`.
+function Parser:extends_list(lm, from)
+  local function same_kind(b)
+    return b
+      and b.type == "list"
+      and b.ordered == lm.ordered
+      and (lm.ordered and b.delim == lm.delim or b.bullet == lm.bullet)
+  end
+  if same_kind(self.stack[from]) then
+    return from
+  elseif same_kind(self.stack[from + 1]) then
+    return from + 1
+  end
+  return nil
+end
+
+function Parser:open_list_item(lm, from)
+  -- A list item's content may itself begin with a list marker, opening a nested
+  -- sublist.  Each such marker is consumed iteratively -- one list + item pushed
+  -- per marker -- rather than by re-entering try_starts per marker, so the
+  -- parser depth does not scale with the marker count on a line (a recursive
+  -- call per marker would overflow the C stack on '  -   -   - ...' input).
+  while lm do
+    -- Extend an open same-kind list or open a fresh one; in both cases
+    -- everything below the target list is closed first, ending any previous
+    -- item.  After the first iteration the content is always parsed under the
+    -- just-pushed item, so it can only extend lists at #stack, never reopen one.
+    local list_index = self:extends_list(lm, from)
+    if list_index then
+      self:close_below(list_index)
+    else
+      -- A different-kind marker ends an open list at `from` (a '+' after a '-'
+      -- list, a ')' after a '.' list) before the new list opens beside it.
+      from = self:leaf_base(from)
+      self:close_below(from)
+      self:push({
+        type = "list",
+        ordered = lm.ordered,
+        bullet = lm.bullet,
+        delim = lm.delim,
+        children = {},
+      })
+    end
+    self:push({
+      type = "list_item",
+      indent = lm.indent,
+      bullet = lm.bullet,
+      counter = lm.ordered and tostring(lm.start) or nil,
+      children = {},
+    })
+    from = #self.stack
+    local rest = lm.rest
+    -- A blank remainder leaves the item open and empty; a thematic break wins
+    -- over a further nested marker (the existing precedence).
+    if is_blank(rest) or thematic_break(rest, false) then
+      lm = nil
+    else
+      lm = list_marker(rest)
+    end
+    if not lm then
+      self:place_content(rest, from)
+    end
+  end
+end
+
+-- A `list` only ever holds `list_item` children; non-marker content (a stray
+-- paragraph, a heading, the line after a list-ending blank) cannot attach to it.
+-- When the container at `from` is a list, close it and return its parent's index
+-- so the content lands in the list's parent instead.  Markers reach the list
+-- through open_list_item, not here, so closing is always correct.
+function Parser:leaf_base(from)
+  if self.stack[from] and self.stack[from].type == "list" then
+    self:close_below(from - 1)
+    return from - 1
+  end
+  return from
 end
 
 -- Place a marker-stripped remainder under the container at stack index `from`:
@@ -641,6 +851,7 @@ function Parser:place_content(rest, from)
   if #self.stack > from and tip.type == "paragraph" then
     tip.lines[#tip.lines + 1] = rest
   else
+    from = self:leaf_base(from)
     self:close_below(from)
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
@@ -728,6 +939,7 @@ function Parser:add_line(line)
   if tip.type == "paragraph" then
     tip.lines[#tip.lines + 1] = rest
   else
+    last_matched = self:leaf_base(last_matched)
     self:close_below(last_matched)
     self:push({ type = "paragraph", lines = { rest }, children = {} })
   end
