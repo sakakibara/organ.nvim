@@ -488,10 +488,28 @@ function Parser:push(block)
   self.stack[#self.stack + 1] = block
 end
 
+-- Per-container behavior, keyed by block type.  `continue(block, rest)` is the
+-- phase-1 marker match: it returns the remainder with this container's
+-- continuation marker stripped, or nil when the line does not continue the
+-- container.  New container types (lists) register here rather than adding a
+-- branch to the phase-1 walk.
+local CONTAINER = {
+  document = {
+    continue = function(_block, rest)
+      return rest
+    end,
+  },
+  block_quote = {
+    continue = function(_block, rest)
+      return strip_block_quote_marker(rest)
+    end,
+  },
+}
+
 -- Is the stack element at `index` a container (holds finalised children) rather
 -- than an accumulating leaf?  `document` and `block_quote` are containers.
 local function is_container(block)
-  return block.type == "document" or block.type == "block_quote"
+  return CONTAINER[block.type] ~= nil
 end
 
 -- PHASE 1: walk the open containers from the document down, testing each
@@ -505,18 +523,16 @@ function Parser:match_continuation(line)
   local rest = line
   for i = 2, #self.stack do
     local block = self.stack[i]
-    if block.type == "block_quote" then
-      local stripped = strip_block_quote_marker(rest)
-      if stripped == nil then
-        break
-      end
-      rest = stripped
-      last_matched = i
-    else
-      -- A leaf or future container with no marker grammar: continuation past it
-      -- is decided by the start/lazy phases, not by phase 1.
+    local container = CONTAINER[block.type]
+    if not container then
+      break -- a leaf (or non-container) ends the phase-1 walk
+    end
+    local stripped = container.continue(block, rest)
+    if stripped == nil then
       break
     end
+    rest = stripped
+    last_matched = i
   end
   return last_matched, rest
 end
