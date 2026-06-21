@@ -149,4 +149,20 @@ assert(
   "long unfinished-tag run must not throw"
 )
 
+-- A 1-character URI scheme is not an autolink (CommonMark #609).
+assert(
+  cmark.render(from_md.parse("<m:abc>\n")) == "<p>&lt;m:abc&gt;</p>\n",
+  "1-char scheme is not an autolink"
+)
+-- A 2-character scheme IS an autolink.
+assert(
+  cmark.render(from_md.parse("<ab:xyz>\n")) == '<p><a href="ab:xyz">ab:xyz</a></p>\n',
+  "2-char scheme is an autolink"
+)
+-- An HTML comment may contain internal double-hyphens (CommonMark 0.31).
+assert(
+  cmark.render(from_md.parse("foo <!-- a -- b -->\n")) == "<p>foo <!-- a -- b --></p>\n",
+  "comment allows internal --"
+)
+
 print("from_md_inline_test: PASS")

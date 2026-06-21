@@ -2,9 +2,9 @@
 -- nodes.  Runs after the block parse completes (so link reference definitions
 -- are fully collected).  A position-advancing scanner: literal characters
 -- accumulate into a buffer that flushes to an ast.text node whenever a special
--- construct is recognised.  This file currently handles backslash escapes,
--- code spans, and hard/soft line breaks; autolinks, raw HTML are added
--- incrementally.
+-- construct is recognised.  Handles backslash escapes, code spans, hard/soft
+-- line breaks, URI and email autolinks, and raw inline HTML.  Emphasis/strong
+-- and links/images are not yet handled.
 local ast = require("organ.ast")
 
 local M = {}
@@ -28,13 +28,14 @@ end
 
 -- Try to match a CommonMark URI autolink starting at text[i] (text[i] == "<").
 -- Returns the URI string and the index just past the closing ">", or nil.
-local function match_uri_autolink(text, i, n)
+local function match_uri_autolink(text, i)
   -- Scheme: ASCII letter then (letter|digit|+|.|-), total 2-32 chars.
   local scheme, after = text:match("^<(%a[%a%d+.-]*):()", i)
-  if not scheme or #scheme < 1 or #scheme > 32 then
+  if not scheme or #scheme < 2 or #scheme > 32 then
     return nil
   end
   -- Body: any chars except whitespace, <, >, control chars; then ">".
+  local n = #text
   local j = after
   while j <= n do
     local ch = text:sub(j, j)
@@ -53,7 +54,7 @@ end
 -- Try to match a CommonMark email autolink starting at text[i].  Returns the
 -- bare address and the index just past ">", or nil.  Decomposes the spec regex:
 -- local-part chars, then @, then dot-separated alnum-bounded labels (<=63 each).
-local function match_email_autolink(text, i, n)
+local function match_email_autolink(text, i)
   local close = text:find(">", i + 1, true)
   if not close then
     return nil
@@ -89,7 +90,7 @@ end
 
 -- Skip an attribute-value-spec sequence in a raw-HTML open tag, starting at j.
 -- Returns the index after a single attribute, or nil if none matches.
-local function match_attribute(text, j, n)
+local function match_attribute(text, j)
   -- Require whitespace before an attribute name.
   local k = text:match("^%s+()", j)
   if not k then
@@ -134,7 +135,7 @@ end
 -- Returns the index just past the construct, or nil.  Covers open/closing tags,
 -- comments, processing instructions, declarations, and CDATA sections.
 local function match_raw_html(text, i, n)
-  -- HTML comment: <!--, then text not starting with > or ->, no --, ending -->.
+  -- HTML comment: <!--, then any text not ending with -, ending -->.
   if text:sub(i, i + 3) == "<!--" then
     -- <!--> and <!---> are valid empty comments.
     if text:sub(i, i + 4) == "<!-->" then
@@ -147,11 +148,6 @@ local function match_raw_html(text, i, n)
     local j = body_start
     while j <= n - 2 do
       if text:sub(j, j + 2) == "-->" then
-        local body = text:sub(body_start, j - 1)
-        -- Body must not contain "--".
-        if body:find("--", 1, true) then
-          return nil
-        end
         return j + 3
       end
       j = j + 1
@@ -196,7 +192,7 @@ local function match_raw_html(text, i, n)
     return nil
   end
   while true do
-    local nj = match_attribute(text, j, n)
+    local nj = match_attribute(text, j)
     if not nj then
       break
     end
@@ -272,13 +268,13 @@ function M.parse(text, _refmap)
 
     -- Less-than: autolink (URI then email) or raw inline HTML, else literal <.
     elseif c == "<" then
-      local uri, uend = match_uri_autolink(text, i, n)
+      local uri, uend = match_uri_autolink(text, i)
       if uri then
         flush()
         nodes[#nodes + 1] = ast.link(uri, uri, "autolink")
         i = uend
       else
-        local addr, eend = match_email_autolink(text, i, n)
+        local addr, eend = match_email_autolink(text, i)
         if addr then
           flush()
           nodes[#nodes + 1] = ast.link("mailto:" .. addr, addr, "autolink")
