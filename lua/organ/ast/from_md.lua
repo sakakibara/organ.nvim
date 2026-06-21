@@ -33,6 +33,52 @@ local function strip(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
+-- Columns spanned by the leading whitespace of `s`, starting at absolute column
+-- `base` (a tab advances to the next multiple of 4).  Returns the column count
+-- and the byte length of that whitespace run.
+local function indent_cols(s, base)
+  local cols, i = 0, 1
+  while i <= #s do
+    local c = s:sub(i, i)
+    if c == " " then
+      cols = cols + 1
+    elseif c == "\t" then
+      cols = cols + (4 - (base + cols) % 4)
+    else
+      break
+    end
+    i = i + 1
+  end
+  return cols, i - 1
+end
+
+-- Remove exactly `n` columns of leading whitespace from `s` (whose first char is
+-- at absolute column `base`).  If the n-th column lands inside a tab, the tab's
+-- remaining columns become leading spaces on the result.  Returns the remainder
+-- string.  Caller guarantees indent_cols(s, base) >= n.
+local function drop_cols(s, base, n)
+  local col, i = 0, 1
+  while col < n and i <= #s do
+    local c = s:sub(i, i)
+    if c == " " then
+      col = col + 1
+      i = i + 1
+    elseif c == "\t" then
+      local w = 4 - (base + col) % 4
+      if col + w <= n then
+        col = col + w
+        i = i + 1
+      else
+        -- Partial tab: consume it, leave (col + w - n) residual spaces.
+        return string.rep(" ", col + w - n) .. s:sub(i + 1)
+      end
+    else
+      break
+    end
+  end
+  return s:sub(i)
+end
+
 -- Leaf recognisers.  Each inspects the marker-stripped line and, when it begins
 -- a block, returns a fresh open-block table (see Block types below); otherwise
 -- nil.  The regexes and edge cases are the proven CommonMark behaviour; only the
@@ -119,10 +165,11 @@ local function is_closing_fence(block, line)
   return close and close:sub(1, 1) == block.fence_char and #close >= block.fence_len
 end
 
--- Indented code: a line indented >=4 spaces that does not continue a paragraph.
--- Opens a leaf that accumulates indented and interior-blank lines.
-local function indented_code(line)
-  if not line:match("^    ") then
+-- Indented code: a line indented >=4 columns that does not continue a paragraph.
+-- Opens a leaf that accumulates indented and interior-blank lines.  `base` is the
+-- absolute column at which `line` begins (after outer container markers).
+local function indented_code(line, base)
+  if indent_cols(line, base or 0) < 4 then
     return nil
   end
   return { type = "code_block", variant = "indented", body = {}, children = {} }
@@ -384,18 +431,33 @@ local function html_block(line, tip_is_paragraph)
   }
 end
 
--- Block quote marker: <=3 leading spaces then '>' plus one optional following
--- space.  Returns the line with the marker stripped, or nil when the line has no
--- marker.  Used by both the start recogniser (phase 3) and the continue test
--- (phase 1) -- the marker grammar is identical for opening and continuing.
-local function strip_block_quote_marker(line)
-  local rest = line:match("^ ? ? ?>(.*)$")
-  if not rest then
+-- Block quote marker: <=3 leading columns then '>' plus one optional following
+-- column of whitespace.  `base` is the absolute column at which `line` begins.
+-- Returns the line with the marker stripped and the new absolute base column, or
+-- nil when the line has no marker.  Used by both the start recogniser (phase 3)
+-- and the continue test (phase 1) -- the marker grammar is identical for opening
+-- and continuing.  A tab partially consumed for the post-'>' gap leaves its
+-- residual columns as leading spaces on the inner remainder.
+local function strip_block_quote_marker(line, base)
+  base = base or 0
+  local lead = line:match("^( ? ? ?)>")
+  if not lead then
     return nil
   end
-  -- Consume one optional space after '>'.  Only a single space is consumed; a
-  -- tab is left intact for the inner block's indent handling.
-  return (rest:gsub("^ ", "", 1))
+  local lead_cols = #lead
+  local after = line:sub(#lead + 2)
+  base = base + lead_cols + 1
+  -- Consume one optional column of whitespace after '>'.  A space drops one
+  -- column; a tab drops one of its columns, materializing the rest as spaces.
+  local c = after:sub(1, 1)
+  if c == " " then
+    after = after:sub(2)
+    base = base + 1
+  elseif c == "\t" then
+    after = drop_cols(after, base, 1)
+    base = base + 1
+  end
+  return after, base
 end
 
 -- List item marker: <=3 leading spaces, then a bullet ('-', '+', '*') or an
@@ -405,13 +467,17 @@ end
 -- one space (the rest is content indentation), and a marker followed by nothing
 -- or a blank uses W = leading + marker width + 1.  `rest` is the line content
 -- to be parsed under the item (with the marker + W's worth of spaces removed).
-local function list_marker(line)
-  local lead, marker, after = line:match("^( ? ? ?)([%-%+%*])( .*)$")
+local function list_marker(line, base)
+  base = base or 0
+  -- The marker glyph must be preceded by <=3 columns of leading whitespace and
+  -- followed by a tab/space or end-of-line.  Match the leading whitespace and
+  -- the marker, then handle the post-marker gap with the column model.
+  local lead, marker, after = line:match("^( ? ? ?)([%-%+%*])([ \t].*)$")
   local ordered, bullet, delim, start
   if marker then
     bullet = marker
   else
-    lead, marker, after = line:match("^( ? ? ?)([%-%+%*])$") -- marker then EOL
+    lead, marker = line:match("^( ? ? ?)([%-%+%*])$") -- marker then EOL
     if marker then
       bullet = marker
       after = ""
@@ -419,7 +485,7 @@ local function list_marker(line)
   end
   if not bullet then
     local digits, d
-    lead, digits, d, after = line:match("^( ? ? ?)(%d+)([%.%)])( .*)$")
+    lead, digits, d, after = line:match("^( ? ? ?)(%d+)([%.%)])([ \t].*)$")
     if not digits then
       lead, digits, d = line:match("^( ? ? ?)(%d+)([%.%)])$")
       if digits then
@@ -434,23 +500,27 @@ local function list_marker(line)
     start = tonumber(digits)
     marker = digits .. d
   end
+  -- Absolute column just past the marker glyph (leading whitespace is plain
+  -- spaces, so its column width equals its byte length).
   local marker_width = #lead + #marker
-  -- Count the run of spaces after the marker (tabs are not part of this scan;
-  -- a tab here is rare and treated as content for simplicity).
-  local spaces = after:match("^( *)")
-  local nspaces = #spaces
-  local content = after:sub(nspaces + 1)
+  local after_base = base + marker_width
+  -- Columns and bytes of the whitespace gap after the marker.
+  local gap_cols, gap_bytes = indent_cols(after, after_base)
+  local content_after = after:sub(gap_bytes + 1)
   local w
-  if content == "" then
+  if content_after == "" then
     -- Marker followed by nothing or only blanks: empty item, W = marker + 1.
     w = marker_width + 1
-    content = ""
-  elseif nspaces >= 1 and nspaces <= 4 then
-    w = marker_width + nspaces
+    content_after = ""
+  elseif gap_cols >= 1 and gap_cols <= 4 then
+    w = marker_width + gap_cols
+    -- Re-materialize the exact content indent: drop one column of the gap and
+    -- keep the residual columns (a partial tab becomes leading spaces).
+    content_after = drop_cols(after, after_base, gap_cols)
   else
-    -- >=5 spaces: only one space is the marker gap; the rest is indentation.
+    -- >=5 columns: only one column is the marker gap; the rest is indentation.
     w = marker_width + 1
-    content = string.rep(" ", nspaces - 1) .. content
+    content_after = drop_cols(after, after_base, 1)
   end
   return {
     ordered = ordered or false,
@@ -458,7 +528,8 @@ local function list_marker(line)
     delim = delim,
     start = start,
     indent = w,
-    rest = content,
+    rest = content_after,
+    base = base + w,
   }
 end
 
@@ -729,34 +800,36 @@ end
 -- continuation marker stripped, or nil when the line does not continue the
 -- container.  New container types (lists) register here rather than adding a
 -- branch to the phase-1 walk.
+-- Each `continue(block, rest, base)` returns the remainder with this container's
+-- continuation marker stripped and the new absolute base column, or nil when the
+-- line does not continue the container.
 local CONTAINER = {
   document = {
-    continue = function(_block, rest)
-      return rest
+    continue = function(_block, rest, base)
+      return rest, base
     end,
   },
   block_quote = {
-    continue = function(_block, rest)
-      return strip_block_quote_marker(rest)
+    continue = function(_block, rest, base)
+      return strip_block_quote_marker(rest, base)
     end,
   },
   -- A list is transparent in phase 1: the item below it strips the indentation.
   list = {
-    continue = function(_block, rest)
-      return rest
+    continue = function(_block, rest, base)
+      return rest, base
     end,
   },
   -- A list item continues when the (already outer-marker-stripped) line is
-  -- indented at least W spaces -- strip exactly W -- or when it is blank.  Other
+  -- indented at least W columns -- strip exactly W -- or when it is blank.  Other
   -- lines return nil; phase 4 may still lazily continue an open paragraph.
   list_item = {
-    continue = function(block, rest)
+    continue = function(block, rest, base)
       if is_blank(rest) then
-        return ""
+        return "", base + block.indent
       end
-      local indent = rest:match("^( *)")
-      if #indent >= block.indent then
-        return rest:sub(block.indent + 1)
+      if indent_cols(rest, base) >= block.indent then
+        return drop_cols(rest, base, block.indent), base + block.indent
       end
       return nil
     end,
@@ -778,21 +851,21 @@ end
 -- markers stripped.
 function Parser:match_continuation(line)
   local last_matched = 1 -- the document container always matches
-  local rest = line
+  local rest, base = line, 0
   for i = 2, #self.stack do
     local block = self.stack[i]
     local container = CONTAINER[block.type]
     if not container then
       break -- a leaf (or non-container) ends the phase-1 walk
     end
-    local stripped = container.continue(block, rest)
+    local stripped, new_base = container.continue(block, rest, base)
     if stripped == nil then
       break
     end
-    rest = stripped
+    rest, base = stripped, new_base
     last_matched = i
   end
-  return last_matched, rest
+  return last_matched, rest, base
 end
 
 -- Close every open block strictly below stack index `keep` (deepest first), so
@@ -808,14 +881,14 @@ end
 -- marker-stripped `line`, pushing any new block under the container at stack
 -- index `from`.  Returns true if the line opened (and possibly closed) a leaf
 -- block or was consumed as a reference definition; returns the DESCEND sentinel
--- plus the deeper (remainder, stack index) when it opened a container (block
--- quote or list item) into which the remaining content must still be placed;
+-- plus the deeper (remainder, base column, stack index) when it opened a
+-- container (block quote or list item) into which the content must be placed;
 -- returns false when no start matched.  The container-descent is reported back
 -- to the caller (place_content) rather than recursing, so that interleaved
 -- '> - > - ...' markers descend iteratively and the parser depth does not scale
 -- with the marker count (a recursive call per marker would overflow the C
 -- stack).
-function Parser:try_starts(line, from)
+function Parser:try_starts(line, base, from)
   local tip = self:tip()
   local tip_para = #self.stack > from and tip.type == "paragraph"
 
@@ -825,11 +898,11 @@ function Parser:try_starts(line, from)
   -- underline of "foo".  (A bare marker that would START a list still cannot
   -- interrupt a paragraph; that case is handled by the later list start.)
   if not thematic_break(line, tip_para) then
-    local lm = list_marker(line)
+    local lm = list_marker(line, base)
     if lm and self:extends_list(lm, from) then
-      local rest, deep = self:open_list_item(lm, from)
+      local rest, new_base, deep = self:open_list_item(lm, from)
       if rest then
-        return DESCEND, rest, deep
+        return DESCEND, rest, new_base, deep
       end
       return true
     end
@@ -860,26 +933,26 @@ function Parser:try_starts(line, from)
   -- consumed iteratively -- one container pushed per marker -- so the parser
   -- depth does not scale with the number of '>' on a line (a recursive call per
   -- marker would overflow the C stack on pathological '> > > ...' input).
-  local bq_rest = strip_block_quote_marker(line)
+  local bq_rest, bq_base = strip_block_quote_marker(line, base)
   if bq_rest then
     from = self:leaf_base(from)
     self:close_below(from)
     repeat
       local quote = { type = "block_quote", children = {} }
       self:push(quote)
-      local next_rest = strip_block_quote_marker(bq_rest)
+      local next_rest, next_base = strip_block_quote_marker(bq_rest, bq_base)
       if next_rest == nil then
         break
       end
-      bq_rest = next_rest
+      bq_rest, bq_base = next_rest, next_base
     until false
-    return DESCEND, bq_rest, #self.stack
+    return DESCEND, bq_rest, bq_base, #self.stack
   end
 
   local block = atx_heading(line)
     or thematic_break(line, tip_para)
     or fenced_code(line)
-    or (not tip_para and indented_code(line))
+    or (not tip_para and indented_code(line, base))
     or html_block(line, tip_para)
   if block then
     from = self:leaf_base(from)
@@ -894,7 +967,7 @@ function Parser:try_starts(line, from)
       self:close_tip()
     elseif block.type == "code_block" and block.variant == "indented" then
       -- The opening line is itself the first body line.
-      block.body[#block.body + 1] = line:gsub("^    ", "")
+      block.body[#block.body + 1] = drop_cols(line, base, 4)
     elseif block.type == "html_block" then
       -- The opening line is part of the verbatim body; it may also already
       -- satisfy the end condition (a one-line comment, a closed pre, etc.).
@@ -907,7 +980,7 @@ function Parser:try_starts(line, from)
   -- '- - -' and '***' stay thematic breaks, and an indented marker reaching
   -- here under an open item naturally opens a nested list (its content was
   -- parsed under #stack with the outer item's indentation stripped).
-  local lm = list_marker(line)
+  local lm = list_marker(line, base)
   if lm then
     -- A marker that would START a new list (no matching open same-kind list)
     -- may interrupt a paragraph only when its content is non-empty and, for
@@ -927,9 +1000,9 @@ function Parser:try_starts(line, from)
       or closes_open_list
       or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1)))
     then
-      local rest, deep = self:open_list_item(lm, from)
+      local rest, new_base, deep = self:open_list_item(lm, from)
       if rest then
-        return DESCEND, rest, deep
+        return DESCEND, rest, new_base, deep
       end
       return true
     end
@@ -967,10 +1040,10 @@ end
 -- index `from`.  If the container directly under `from` is an open list of the
 -- same kind (same bullet char, or same ordered delimiter), the item extends it;
 -- otherwise the open blocks below `from` are closed and a fresh list is pushed.
--- Returns the deepest item's still-unparsed remainder and its stack index, for
--- the caller to place content under.  The remainder may be blank (an empty
--- marker like `-` or `> -`); place_content absorbs a blank remainder, leaving
--- the item empty.
+-- Returns the deepest item's still-unparsed remainder, its absolute base column,
+-- and its stack index, for the caller to place content under.  The remainder may
+-- be blank (an empty marker like `-` or `> -`); place_content absorbs a blank
+-- remainder, leaving the item empty.
 function Parser:open_list_item(lm, from)
   -- A list item's content may itself begin with a list marker, opening a nested
   -- sublist.  Each such marker is consumed iteratively -- one list + item pushed
@@ -1021,15 +1094,16 @@ function Parser:open_list_item(lm, from)
     })
     from = #self.stack
     local rest = lm.rest
+    local base = lm.base
     -- A blank remainder leaves the item open and empty; a thematic break wins
     -- over a further nested marker (the existing precedence).
     if is_blank(rest) or thematic_break(rest, false) then
       lm = nil
     else
-      lm = list_marker(rest)
+      lm = list_marker(rest, base)
     end
     if not lm then
-      return rest, from
+      return rest, base, from
     end
   end
 end
@@ -1055,14 +1129,14 @@ end
 -- it reports the deeper (remainder, index) via the DESCEND sentinel and this
 -- loop continues there instead of recursing, so single-line container descent
 -- ('> - > - ...') runs at constant parser depth.
-function Parser:place_content(rest, from)
+function Parser:place_content(rest, base, from)
   while true do
     if is_blank(rest) then
       return
     end
-    local result, deep_rest, deep_from = self:try_starts(rest, from)
+    local result, deep_rest, deep_base, deep_from = self:try_starts(rest, base, from)
     if result == DESCEND then
-      rest, from = deep_rest, deep_from
+      rest, base, from = deep_rest, deep_base, deep_from
     elseif result then
       return
     else
@@ -1175,7 +1249,7 @@ function Parser:add_line(line)
   -- `last_matched` whose containers all matched may still continue (paragraph
   -- lazy continuation, accumulating code/html); a leaf whose containers did NOT
   -- all match is a candidate for lazy continuation or gets closed.
-  local last_matched, rest = self:match_continuation(line)
+  local last_matched, rest, base = self:match_continuation(line)
   local all_matched = last_matched == #self.stack or not is_container(self.stack[last_matched + 1])
 
   -- An open accumulating leaf (fenced code / html block) swallows the stripped
@@ -1189,8 +1263,8 @@ function Parser:add_line(line)
   -- An open indented-code leaf keeps absorbing indented and interior-blank
   -- lines; any other non-blank line ends it and is reprocessed as a start.
   if all_matched and tip.type == "code_block" and tip.variant == "indented" then
-    if rest:match("^    ") then
-      tip.body[#tip.body + 1] = rest:gsub("^    ", "")
+    if indent_cols(rest, base) >= 4 then
+      tip.body[#tip.body + 1] = drop_cols(rest, base, 4)
       return
     elseif is_blank(rest) then
       tip.body[#tip.body + 1] = ""
@@ -1234,9 +1308,9 @@ function Parser:add_line(line)
   -- the new container, so place_content owns it (its own descent loop keeps the
   -- depth bounded on interleaved single-line markers).  Only the first,
   -- top-level start gets phase 4's lazy continuation.
-  local result, deep_rest, deep_from = self:try_starts(rest, last_matched)
+  local result, deep_rest, deep_base, deep_from = self:try_starts(rest, base, last_matched)
   if result == DESCEND then
-    self:place_content(deep_rest, deep_from)
+    self:place_content(deep_rest, deep_base, deep_from)
     return
   elseif result then
     return
