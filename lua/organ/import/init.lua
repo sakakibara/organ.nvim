@@ -26,7 +26,7 @@ local function import_markdown(cmd)
     return
   end
   local md = table.concat(vim.fn.readfile(path), "\n")
-  local doc = require("organ.ast.from_md").parse(md)
+  local doc = require("organ.ast.from_md").parse(md, { extended_autolinks = true })
   local org_text = require("organ.ast.to_org").render(doc)
   open_org(org_text)
 end

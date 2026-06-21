@@ -669,7 +669,258 @@ local function normalize_label(label)
   return (label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower())
 end
 
-function M.parse(text, refmap)
+-- GFM extended autolinks (opt-in post-pass).  These operate on a single flat
+-- text-node literal, recognising bare `www.`/scheme/email runs and splitting
+-- them into `ast.link(..., "autolink")` nodes.  Distinct from the CommonMark
+-- `<uri>`/`<email>` autolinks above (which require angle brackets).
+
+-- Valid GFM domain: dot-separated segments of [%w_-], at least one period, and
+-- no underscore in either of the last two segments.  Scans s starting at `i`
+-- over the [%w_.-] run; a trailing dot (and any path beyond) is excluded from
+-- the domain proper and left for the path scan.  Returns the index just past
+-- the domain (the first non-domain char), or nil if no valid domain.
+local function autolink_domain_end(s, i, n)
+  local j = i
+  while j <= n and s:sub(j, j):match("[%w_.-]") do
+    j = j + 1
+  end
+  -- j is now one past the last [%w_.-] char.  Trailing dots are not part of the
+  -- domain.  Split the run into dot-separated segments for validation.
+  local run_end = j - 1
+  while run_end >= i and s:sub(run_end, run_end) == "." do
+    run_end = run_end - 1
+  end
+  if run_end < i then
+    return nil
+  end
+  local run = s:sub(i, run_end)
+  local segments = {}
+  for seg in (run .. "."):gmatch("([^.]*)%.") do
+    segments[#segments + 1] = seg
+  end
+  -- Need >= 2 segments (>= 1 period) and every segment non-empty.
+  if #segments < 2 then
+    return nil
+  end
+  for _, seg in ipairs(segments) do
+    if seg == "" then
+      return nil
+    end
+  end
+  -- No underscore in the last two segments.
+  if segments[#segments]:find("_", 1, true) or segments[#segments - 1]:find("_", 1, true) then
+    return nil
+  end
+  return run_end + 1
+end
+
+-- Path validation: given the full match extent s[start..stop] (inclusive),
+-- trim trailing chars per GFM until stable.  Returns the inclusive end index
+-- of the valid extent.  Trailing
+-- `?!.,:*_~` are stripped; a trailing `)` is stripped while closing parens
+-- outnumber opening parens across the whole extent; a trailing `&alnum+;`
+-- entity reference is stripped.  Running paren counts keep this O(n).
+local function autolink_trim_path(s, start, stop)
+  -- Count parens once across the extent; update incrementally as we trim.
+  local opens, closes = 0, 0
+  for k = start, stop do
+    local ch = s:sub(k, k)
+    if ch == "(" then
+      opens = opens + 1
+    elseif ch == ")" then
+      closes = closes + 1
+    end
+  end
+  while stop >= start do
+    local last = s:sub(stop, stop)
+    if last:match("[%?!.,:*_~]") then
+      stop = stop - 1
+    elseif last == ")" and closes > opens then
+      closes = closes - 1
+      stop = stop - 1
+    else
+      -- Trailing entity-like reference: &alnum+; (the ';' is `last`).
+      if last == ";" then
+        local amp = stop - 1
+        while amp >= start and s:sub(amp, amp):match("%w") do
+          amp = amp - 1
+        end
+        if amp >= start and s:sub(amp, amp) == "&" and amp < stop - 1 then
+          -- The stripped `&alnum+;` span holds no parens, so counts are unchanged.
+          stop = amp - 1
+        else
+          break
+        end
+      else
+        break
+      end
+    end
+  end
+  return stop
+end
+
+-- Match a www / scheme URL autolink at s[i].  scheme is nil for www. links
+-- (the visible text omits the inserted http://) or the literal scheme string.
+-- Returns (link_node, next_index) or nil.
+local function match_autolink_url(s, i, n)
+  local lower = s:sub(i):lower()
+  local scheme_len, is_www
+  if lower:sub(1, 4) == "www." then
+    is_www = true
+    scheme_len = 4
+  elseif lower:sub(1, 7) == "http://" then
+    scheme_len = 7
+  elseif lower:sub(1, 8) == "https://" then
+    scheme_len = 8
+  elseif lower:sub(1, 6) == "ftp://" then
+    scheme_len = 6
+  else
+    return nil
+  end
+  local dom_start = i + scheme_len
+  local dom_end = autolink_domain_end(s, dom_start, n)
+  if not dom_end then
+    return nil
+  end
+  -- Path: consume to whitespace or `<`, then trim trailing chars.
+  local stop = dom_end - 1
+  local j = dom_end
+  while j <= n do
+    local ch = s:sub(j, j)
+    if is_ws(ch) or ch == "<" then
+      break
+    end
+    stop = j
+    j = j + 1
+  end
+  stop = autolink_trim_path(s, i, stop)
+  if stop < dom_end - 1 then
+    -- Trimming ate into the domain; reject.
+    return nil
+  end
+  local matched = s:sub(i, stop)
+  local node
+  if is_www then
+    node = ast.link("http://" .. matched, matched, "autolink")
+  else
+    node = ast.link(matched, matched, "autolink")
+  end
+  return node, stop + 1
+end
+
+-- Match an email autolink at s[i].  Returns (link_node, next_index) or nil.
+local function match_autolink_email(s, i, n)
+  -- Local part: [%w.+_-]+
+  local j = i
+  while j <= n and s:sub(j, j):match("[%w.+_-]") do
+    j = j + 1
+  end
+  if j == i or s:sub(j, j) ~= "@" then
+    return nil
+  end
+  j = j + 1
+  local dom_start = j
+  while j <= n and s:sub(j, j):match("[%w._-]") do
+    j = j + 1
+  end
+  local dom_end = j - 1
+  if dom_end < dom_start then
+    return nil
+  end
+  -- Exclude a single trailing '.' (left as following text).
+  if s:sub(dom_end, dom_end) == "." then
+    dom_end = dom_end - 1
+  end
+  if dom_end < dom_start then
+    return nil
+  end
+  -- Validate: at least one period, last char not '-'/'_'.
+  local domain = s:sub(dom_start, dom_end)
+  if not domain:find(".", 1, true) then
+    return nil
+  end
+  local last = domain:sub(-1)
+  if last == "-" or last == "_" then
+    return nil
+  end
+  local addr = s:sub(i, dom_end)
+  return ast.link("mailto:" .. addr, addr, "autolink"), dom_end + 1
+end
+
+-- Split a text literal into text/autolink nodes per the GFM extended-autolinks
+-- extension.  A candidate may begin only at a valid boundary: offset 1, or
+-- right after whitespace or one of `* _ ~ (`.
+local function scan_text(s)
+  local nodes = {}
+  local n = #s
+  local run_start = 1
+  local i = 1
+  local function flush_run(upto)
+    if upto >= run_start then
+      nodes[#nodes + 1] = ast.text(s:sub(run_start, upto))
+    end
+  end
+  while i <= n do
+    local boundary = i == 1
+    if not boundary then
+      local prev = s:sub(i - 1, i - 1)
+      boundary = is_ws(prev) or prev == "*" or prev == "_" or prev == "~" or prev == "("
+    end
+    local matched = false
+    if boundary then
+      local node, next_i = match_autolink_url(s, i, n)
+      if not node then
+        node, next_i = match_autolink_email(s, i, n)
+      end
+      if node and next_i and next_i > i then
+        flush_run(i - 1)
+        nodes[#nodes + 1] = node
+        run_start = next_i
+        i = next_i
+        matched = true
+      end
+    end
+    if not matched then
+      i = i + 1
+    end
+  end
+  flush_run(n)
+  return nodes
+end
+
+-- Recursively apply scan_text to text nodes, descending into non-code emphasis;
+-- links/images and code spans are left untouched (no autolinks inside).
+-- Consecutive text nodes are coalesced first so a candidate that straddles an
+-- intraword delimiter split (e.g. `c_d@a.b`, where `_` left a node boundary) is
+-- still recognised.
+local function extend_autolinks(nodes)
+  local out = {}
+  local run = {}
+  local function flush_run()
+    if #run > 0 then
+      for _, sub in ipairs(scan_text(table.concat(run))) do
+        out[#out + 1] = sub
+      end
+      run = {}
+    end
+  end
+  for _, node in ipairs(nodes) do
+    if node.kind == "text" then
+      run[#run + 1] = node.text or ""
+    elseif node.kind == "emphasis" and node.style ~= "code" then
+      flush_run()
+      node.content = extend_autolinks(node.content or {})
+      out[#out + 1] = node
+    else
+      flush_run()
+      out[#out + 1] = node
+    end
+  end
+  flush_run()
+  return out
+end
+
+function M.parse(text, refmap, opts)
   text = text or ""
   refmap = refmap or {}
   -- Delimiter stack: entries reference their text node, doubly linked.  Bracket
@@ -1136,6 +1387,10 @@ function M.parse(text, refmap)
       result[#result + 1] = cur
     end
     cur = nxt
+  end
+
+  if opts and opts.extended_autolinks then
+    result = extend_autolinks(result)
   end
   return result
 end

@@ -2,13 +2,13 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 local from_md = require("organ.ast.from_md")
 local cmark = dofile(root .. "/tests/cmark/html.lua")
-local GFM_BASELINE = 12
+local GFM_BASELINE = 23
 local examples =
   vim.json.decode(table.concat(vim.fn.readfile("tests/fixtures/gfm/spec.json"), "\n"))
 local passing = 0
 for _, ex in ipairs(examples) do
   local ok, got = pcall(function()
-    return cmark.render(from_md.parse(ex.markdown))
+    return cmark.render(from_md.parse(ex.markdown, { extended_autolinks = true }))
   end)
   if ok and got == ex.html then
     passing = passing + 1

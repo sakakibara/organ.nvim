@@ -400,4 +400,96 @@ assert(
   "10000 tildes no throw"
 )
 
+-- GFM extended autolinks (opt-in via opts.extended_autolinks).
+local A = { extended_autolinks = true }
+assert(
+  cmark.render(from_md.parse("www.commonmark.org\n", A))
+    == '<p><a href="http://www.commonmark.org">www.commonmark.org</a></p>\n',
+  "www autolink, http:// inserted"
+)
+assert(
+  cmark.render(from_md.parse("Visit www.commonmark.org.\n", A))
+    == '<p>Visit <a href="http://www.commonmark.org">www.commonmark.org</a>.</p>\n',
+  "www after whitespace, trailing dot excluded"
+)
+assert(
+  cmark.render(from_md.parse("(www.google.com/search?q=Markup+(business))\n", A))
+    == '<p>(<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>)</p>\n',
+  "( boundary + unbalanced trailing paren excluded"
+)
+assert(
+  cmark.render(from_md.parse("www.google.com/search?q=(business))+ok\n", A))
+    == '<p><a href="http://www.google.com/search?q=(business))+ok">www.google.com/search?q=(business))+ok</a></p>\n',
+  "balanced/interior parens kept"
+)
+assert(
+  cmark.render(from_md.parse("www.google.com/search?q=commonmark&hl=en\n", A))
+    == '<p><a href="http://www.google.com/search?q=commonmark&amp;hl=en">www.google.com/search?q=commonmark&amp;hl=en</a></p>\n',
+  "interior & kept (no trailing semicolon)"
+)
+assert(
+  cmark.render(from_md.parse("www.google.com/search?q=commonmark&hl;\n", A))
+    == '<p><a href="http://www.google.com/search?q=commonmark">www.google.com/search?q=commonmark</a>&amp;hl;</p>\n',
+  "trailing entity-like reference excluded"
+)
+assert(
+  cmark.render(from_md.parse("www.commonmark.org/he<lp\n", A))
+    == '<p><a href="http://www.commonmark.org/he">www.commonmark.org/he</a>&lt;lp</p>\n',
+  "< terminates the autolink"
+)
+assert(
+  cmark.render(from_md.parse("http://commonmark.org\n", A))
+    == '<p><a href="http://commonmark.org">http://commonmark.org</a></p>\n',
+  "http url autolink"
+)
+assert(
+  cmark.render(from_md.parse("Anonymous FTP is available at ftp://foo.bar.baz.\n", A))
+    == '<p>Anonymous FTP is available at <a href="ftp://foo.bar.baz">ftp://foo.bar.baz</a>.</p>\n',
+  "ftp url autolink, trailing dot excluded"
+)
+assert(
+  cmark.render(from_md.parse("foo@bar.baz\n", A))
+    == '<p><a href="mailto:foo@bar.baz">foo@bar.baz</a></p>\n',
+  "email autolink -> mailto:"
+)
+assert(
+  cmark.render(
+    from_md.parse("hello@mail+xyz.example isn't valid, but hello+xyz@mail.example is.\n", A)
+  )
+    == '<p>hello@mail+xyz.example isn\'t valid, but <a href="mailto:hello+xyz@mail.example">hello+xyz@mail.example</a> is.</p>\n',
+  "email: + only before @, invalid domain not linked"
+)
+assert(
+  cmark.render(from_md.parse("a.b-c_d@a.b.\n\na.b-c_d@a.b-\n", A))
+    == '<p><a href="mailto:a.b-c_d@a.b">a.b-c_d@a.b</a>.</p>\n<p>a.b-c_d@a.b-</p>\n',
+  "email: trailing . excluded; trailing - invalidates"
+)
+-- Boundary: a letter before www is not a valid boundary.
+assert(
+  cmark.render(from_md.parse("xwww.x.com\n", A)) == "<p>xwww.x.com</p>\n",
+  "no boundary, no link"
+)
+-- Default OFF: bare url/email stay literal (CommonMark semantics, the 605 guard).
+assert(
+  cmark.render(from_md.parse("https://example.com\n")) == "<p>https://example.com</p>\n",
+  "default off: url literal"
+)
+assert(
+  cmark.render(from_md.parse("foo@bar.example.com\n")) == "<p>foo@bar.example.com</p>\n",
+  "default off: email literal"
+)
+-- No-throw on pathological input.
+assert(
+  pcall(function()
+    return from_md.parse("www." .. string.rep("a.", 5000) .. "\n", A)
+  end),
+  "long domain no throw"
+)
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("(", 2000) .. "www.x.com" .. string.rep(")", 2000) .. "\n", A)
+  end),
+  "many parens no throw"
+)
+
 print("from_md_inline_test: PASS")

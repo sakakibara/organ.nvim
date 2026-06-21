@@ -1264,16 +1264,16 @@ end
 -- Walk every block in the document tree and re-parse inline-bearing nodes.
 -- Uses an explicit stack to avoid C-stack overflow on deeply-nested input
 -- (e.g. 10 000 consecutive block-quote markers on one line).
-local function inline_pass(root, refmap)
+local function inline_pass(root, refmap, opts)
   local from_md_inline = require("organ.ast.from_md_inline")
   local stack = { root }
   while #stack > 0 do
     local node = table.remove(stack)
     local k = node.kind
     if k == "paragraph" then
-      node.inline = from_md_inline.parse(node.inline[1] and node.inline[1].text or "", refmap)
+      node.inline = from_md_inline.parse(node.inline[1] and node.inline[1].text or "", refmap, opts)
     elseif k == "headline" then
-      node.title = from_md_inline.parse(node.title[1] and node.title[1].text or "", refmap)
+      node.title = from_md_inline.parse(node.title[1] and node.title[1].text or "", refmap, opts)
       for _, c in ipairs(node.children or {}) do
         stack[#stack + 1] = c
       end
@@ -1300,7 +1300,7 @@ local function inline_pass(root, refmap)
         if row.sep ~= true then
           for ci, cell in ipairs(row.cells) do
             local raw = (cell[1] and cell[1].text) or ""
-            row.cells[ci] = from_md_inline.parse(raw, refmap)
+            row.cells[ci] = from_md_inline.parse(raw, refmap, opts)
           end
         end
       end
@@ -1309,7 +1309,7 @@ local function inline_pass(root, refmap)
   end
 end
 
-function M.parse(text)
+function M.parse(text, opts)
   local p = Parser.new()
   for _, line in ipairs(split_lines(text or "")) do
     p:add_line(line)
@@ -1317,7 +1317,7 @@ function M.parse(text)
   p:close_to_document()
   local doc = ast.document(p.stack[1].children)
   doc.reference_map = p.refmap
-  inline_pass(doc, p.refmap)
+  inline_pass(doc, p.refmap, opts)
   return doc
 end
 
