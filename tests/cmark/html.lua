@@ -105,29 +105,42 @@ end
 -- <p>...</p> on its own line and the item is `<li>\n` ... `</li>\n`.  In a tight
 -- list a lone paragraph child renders as bare inline text inside `<li>`...`</li>`
 -- and other children render normally.
+--
+-- GFM task list: when item.checkbox is set, a disabled <input> precedes content.
+local function checkbox_prefix(item)
+  if item.checkbox == "done" then
+    return '<input checked="" disabled="" type="checkbox"> '
+  elseif item.checkbox == "todo" then
+    return '<input disabled="" type="checkbox"> '
+  end
+  return ""
+end
+
 list_item = function(item, out, loose)
   local children = item.content or {}
+  local prefix = checkbox_prefix(item)
   if loose then
     out[#out + 1] = "<li>\n"
     for _, c in ipairs(children) do
       if c.kind == "paragraph" then
-        out[#out + 1] = "<p>" .. inline(c.inline) .. "</p>\n"
+        out[#out + 1] = "<p>" .. prefix .. inline(c.inline) .. "</p>\n"
       else
         block(c, out)
       end
+      prefix = ""
     end
     out[#out + 1] = "</li>\n"
     return
   end
   if #children == 1 and children[1].kind == "paragraph" then
-    out[#out + 1] = "<li>" .. inline(children[1].inline) .. "</li>\n"
+    out[#out + 1] = "<li>" .. prefix .. inline(children[1].inline) .. "</li>\n"
     return
   end
   out[#out + 1] = "<li>"
   local body = {}
   for i, c in ipairs(children) do
     if c.kind == "paragraph" then
-      body[#body + 1] = inline(c.inline)
+      body[#body + 1] = prefix .. inline(c.inline)
       if i < #children then
         body[#body + 1] = "\n"
       end
@@ -137,6 +150,7 @@ list_item = function(item, out, loose)
       end
       block(c, body)
     end
+    prefix = ""
   end
   out[#out + 1] = table.concat(body)
   out[#out + 1] = "</li>\n"

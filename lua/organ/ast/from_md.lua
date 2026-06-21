@@ -481,9 +481,27 @@ local function finalize(block)
     node.loose = block.loose or false
     return node
   elseif t == "list_item" then
+    local checkbox
+    local first = block.children[1]
+    if first and first.kind == "paragraph" then
+      local text_node = first.inline and first.inline[1]
+      if text_node and text_node.kind == "text" then
+        local raw = text_node.text or ""
+        local marker, rest = raw:match("^(%[[ xX]%]) (.*)$")
+        if marker then
+          if marker == "[ ]" then
+            checkbox = "todo"
+          else
+            checkbox = "done"
+          end
+          text_node.text = rest
+        end
+      end
+    end
     return ast.list_item({
       marker = block.bullet,
       counter = block.counter,
+      checkbox = checkbox,
       content = block.children,
     })
   elseif t == "paragraph" then

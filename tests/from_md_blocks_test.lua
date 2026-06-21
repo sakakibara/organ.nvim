@@ -256,4 +256,19 @@ assert(
   "outer item with two block children loose, inner list tight"
 )
 
+-- GFM task list items.
+local tl = from_md.parse("- [ ] foo\n- [x] bar\n")
+assert(tl.children[1].kind == "list", "task list is a list")
+assert(tl.children[1].items[1].checkbox == "todo", "[ ] -> todo")
+assert(tl.children[1].items[2].checkbox == "done", "[x] -> done")
+assert(
+  cmark.render(from_md.parse("- [ ] foo\n- [x] bar\n"))
+    == '<ul>\n<li><input disabled="" type="checkbox"> foo</li>\n<li><input checked="" disabled="" type="checkbox"> bar</li>\n</ul>\n',
+  "task list HTML"
+)
+-- A non-task list item is unaffected.
+assert(from_md.parse("- foo\n").children[1].items[1].checkbox == nil, "plain item has no checkbox")
+-- [X] uppercase is done too.
+assert(from_md.parse("- [X] a\n").children[1].items[1].checkbox == "done", "[X] -> done")
+
 print("from_md_blocks_test: PASS")
