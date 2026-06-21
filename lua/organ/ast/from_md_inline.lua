@@ -924,6 +924,34 @@ local function extend_autolinks(nodes)
   return out
 end
 
+-- Scan a link label starting at the `[` at text[i]: returns the raw label
+-- content (escapes preserved) and the index just past the closing `]`, or nil.
+-- The label ends at the first unescaped `]`; `\[` and `\]` are escaped and stay
+-- in the label; an unescaped `[` inside is not a valid label.  Bounded to 999
+-- label characters.
+local function scan_label(text, i, n)
+  if text:sub(i, i) ~= "[" then
+    return nil
+  end
+  local j = i + 1
+  local count = 0
+  while j <= n and count <= 999 do
+    local c = text:sub(j, j)
+    if c == "\\" and j < n then
+      j = j + 2
+      count = count + 2
+    elseif c == "]" then
+      return text:sub(i + 1, j - 1), j + 1
+    elseif c == "[" then
+      return nil
+    else
+      j = j + 1
+      count = count + 1
+    end
+  end
+  return nil
+end
+
 function M.parse(text, refmap, opts)
   text = text or ""
   refmap = refmap or {}
@@ -1095,12 +1123,12 @@ function M.parse(text, refmap, opts)
 
     if text:sub(close_pos + 1, close_pos + 1) == "[" then
       -- A bracket follows: full `[label]` or collapsed `[]`.
-      local inner, iend = text:match("^%[(.-)%]()", close_pos + 1)
+      local inner, iend = scan_label(text, close_pos + 1, n)
       if inner ~= nil then
         if inner == "" then
           -- COLLAPSED: lookup the link-text label.
           entry = refmap[normalize_label(label_text)]
-        elseif not inner:match("[%[%]]") then
+        else
           -- FULL: lookup the explicit (nonempty) label.
           entry = refmap[normalize_label(inner)]
         end

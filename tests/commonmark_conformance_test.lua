@@ -6,7 +6,7 @@ local cmark_html = dofile(root .. "/tests/cmark/html.lua")
 
 -- Ratchet floor: the number of CommonMark examples that must pass. Raise this
 -- as each parser stage lands. Never lower it.
-local BASELINE = 644
+local BASELINE = 645
 
 local examples =
   vim.json.decode(table.concat(vim.fn.readfile("tests/fixtures/commonmark/spec.json"), "\n"))
