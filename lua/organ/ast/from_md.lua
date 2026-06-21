@@ -1072,6 +1072,44 @@ function Parser:add_line(line)
   end
 end
 
+-- Walk every block in the document tree and re-parse inline-bearing nodes.
+-- Uses an explicit stack to avoid C-stack overflow on deeply-nested input
+-- (e.g. 10 000 consecutive block-quote markers on one line).
+local function inline_pass(root, refmap)
+  local from_md_inline = require("organ.ast.from_md_inline")
+  local stack = { root }
+  while #stack > 0 do
+    local node = table.remove(stack)
+    local k = node.kind
+    if k == "paragraph" then
+      node.inline = from_md_inline.parse(node.inline[1] and node.inline[1].text or "", refmap)
+    elseif k == "headline" then
+      node.title = from_md_inline.parse(node.title[1] and node.title[1].text or "", refmap)
+      for _, c in ipairs(node.children or {}) do
+        stack[#stack + 1] = c
+      end
+    elseif k == "document" then
+      for _, c in ipairs(node.children or {}) do
+        stack[#stack + 1] = c
+      end
+    elseif k == "block" then
+      -- quote: child blocks live in .content; export: .body is a string, skip.
+      for _, c in ipairs(node.content or {}) do
+        stack[#stack + 1] = c
+      end
+    elseif k == "list" then
+      for _, it in ipairs(node.items or {}) do
+        stack[#stack + 1] = it
+      end
+    elseif k == "list_item" then
+      for _, c in ipairs(node.content or {}) do
+        stack[#stack + 1] = c
+      end
+    end
+    -- code_block, rule, directive, drawer: literal, not inline-parsed.
+  end
+end
+
 function M.parse(text)
   local p = Parser.new()
   for _, line in ipairs(split_lines(text or "")) do
@@ -1080,6 +1118,7 @@ function M.parse(text)
   p:close_to_document()
   local doc = ast.document(p.stack[1].children)
   doc.reference_map = p.refmap
+  inline_pass(doc, p.refmap)
   return doc
 end
 
