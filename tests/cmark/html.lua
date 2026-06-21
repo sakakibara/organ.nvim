@@ -4,6 +4,33 @@
 -- which define conformance as HTML.  Grows one node kind per parser stage.
 local M = {}
 
+local DISALLOWED = {
+  title = true,
+  textarea = true,
+  style = true,
+  xmp = true,
+  iframe = true,
+  noembed = true,
+  noframes = true,
+  script = true,
+  plaintext = true,
+}
+
+-- GFM tagfilter: replace the leading `<` of a disallowed raw-HTML tag (open or
+-- close) with `&lt;`.  Tag-name match is case-insensitive; the delimiter after
+-- the name must be `>`, whitespace, or `/`.  All other markup is left as-is.
+local function tagfilter(s)
+  return (
+    s:gsub("<(/?)(%a[%w]*)([ \t\r\n/>])", function(slash, name, delim)
+      if DISALLOWED[name:lower()] then
+        return "&lt;" .. slash .. name .. delim
+      end
+    end)
+  )
+end
+
+local tagfilter_on = false
+
 local function escape(s)
   return (
     s:gsub('[&<>"]', {
@@ -54,7 +81,8 @@ local function inline(nodes)
         .. (n.title and ' title="' .. escape(n.title) .. '"' or "")
         .. " />"
     elseif n.kind == "raw_inline" then
-      out[#out + 1] = n.text or ""
+      local t = n.text or ""
+      out[#out + 1] = tagfilter_on and tagfilter(t) or t
     end
     -- later stages: emphasis (bold/italic), link, etc.
   end
@@ -130,7 +158,8 @@ function block(node, out)
     end
     out[#out + 1] = "</blockquote>\n"
   elseif node.kind == "block" and node.style == "export" and node.backend == "html" then
-    out[#out + 1] = node.body or ""
+    local b = node.body or ""
+    out[#out + 1] = tagfilter_on and tagfilter(b) or b
   elseif node.kind == "list" then
     local items = node.items or {}
     if node.ordered then
@@ -204,7 +233,8 @@ list_item = function(item, out, loose)
   out[#out + 1] = "</li>\n"
 end
 
-function M.render(doc)
+function M.render(doc, opts)
+  tagfilter_on = opts ~= nil and opts.tagfilter == true
   local out = {}
   for _, c in ipairs(doc.children or {}) do
     block(c, out)

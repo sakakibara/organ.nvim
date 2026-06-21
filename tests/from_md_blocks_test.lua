@@ -304,4 +304,35 @@ assert(
   "10000 pipes no throw"
 )
 
+-- GFM disallowed raw HTML (tagfilter, opt-in render option).
+local TF = { tagfilter = true }
+assert(
+  cmark.render(from_md.parse("<strong> <title> <style> <em>\n"), TF)
+    == "<p><strong> &lt;title> &lt;style> <em></p>\n",
+  "tagfilter: inline raw html, only disallowed tags filtered"
+)
+assert(
+  cmark.render(
+    from_md.parse(
+      "<blockquote>\n  <xmp> is disallowed.  <XMP> is also disallowed.\n</blockquote>\n"
+    ),
+    TF
+  ) == "<blockquote>\n  &lt;xmp> is disallowed.  &lt;XMP> is also disallowed.\n</blockquote>\n",
+  "tagfilter: html block, case-insensitive, container tags kept"
+)
+assert(
+  cmark.render(from_md.parse("<script> x\n"), TF) == "&lt;script> x\n",
+  "tagfilter: script html block filtered"
+)
+-- Near-miss tag name is untouched.
+assert(
+  cmark.render(from_md.parse("<scriptx> ok\n"), TF) == "<p><scriptx> ok</p>\n",
+  "tagfilter: near-miss tag name untouched"
+)
+-- Default OFF: disallowed tags pass through raw (CommonMark semantics, the 605 guard).
+assert(
+  cmark.render(from_md.parse("<script> x\n")) == "<script> x\n",
+  "tagfilter default off: raw passes through"
+)
+
 print("from_md_blocks_test: PASS")
