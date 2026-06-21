@@ -197,6 +197,10 @@ list_item = function(item, out, loose)
   local children = item.content or {}
   local prefix = checkbox_prefix(item)
   if loose then
+    if #children == 0 then
+      out[#out + 1] = "<li></li>\n"
+      return
+    end
     out[#out + 1] = "<li>\n"
     for _, c in ipairs(children) do
       if c.kind == "paragraph" then

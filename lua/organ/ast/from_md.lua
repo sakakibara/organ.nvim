@@ -785,17 +785,22 @@ function Parser:push(block)
   self.stack[#self.stack + 1] = block
 end
 
--- Arm a pending blank on every open list.  At blank time the parser cannot yet
--- tell which list the blank is interior to -- that depends on where the content
--- after the blank lands -- so the candidacy is recorded on every open list and
--- resolved later by confirm_list_loose.  The blank only matters once content
--- follows it, so a trailing blank after the final item -- never followed by list
--- content -- leaves every list tight.
-function Parser:arm_list_blank()
+-- Arm a pending blank on every open list, but ONLY when the blank sits in a
+-- list context: the deepest container that matched this line is a list or list
+-- item.  A blank whose deepest matched container is a block quote (or other
+-- non-list block) is interior to that block and loosens no list (e.g. a trailing
+-- `>` blank inside a blockquote inside an item).  When the deepest match is a
+-- list item -- even one reached through an enclosing blockquote, because a blank
+-- line continues the item -- the blank is in the item and may loosen.  The exact
+-- owning list is resolved later by confirm_list_loose, which disarms the rest.
+function Parser:arm_list_blank(last_matched)
+  local deepest = self.stack[last_matched]
+  if not (deepest and (deepest.type == "list" or deepest.type == "list_item")) then
+    return
+  end
   for i = 2, #self.stack do
-    local block = self.stack[i]
-    if block.type == "list" then
-      block.pending_blank = true
+    if self.stack[i].type == "list" then
+      self.stack[i].pending_blank = true
     end
   end
 end
@@ -1136,6 +1141,9 @@ function Parser:open_list_item(lm, from)
       lm = list_marker(rest, base)
     end
     if not lm then
+      if is_blank(rest) then
+        self.stack[from].opened_blank = true
+      end
       return rest, base, from
     end
   end
@@ -1330,7 +1338,20 @@ function Parser:add_line(line)
     -- blank actually belongs to is decided later, when content lands after it
     -- (see confirm_list_loose); a trailing blank after the final item -- never
     -- followed by content -- belongs to no list and leaves every list tight.
-    self:arm_list_blank()
+    local lm_block = self.stack[last_matched]
+    if
+      lm_block
+      and lm_block.type == "list_item"
+      and #lm_block.children == 0
+      and lm_block.opened_blank
+    then
+      -- A list item can begin with at most one blank line: this empty item
+      -- already started blank, so a second blank seals it and later content is
+      -- not part of it.
+      self:close_below(last_matched - 1)
+      last_matched = last_matched - 1
+    end
+    self:arm_list_blank(last_matched)
     self:close_below(last_matched)
     return
   end
