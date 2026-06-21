@@ -12,10 +12,14 @@ assert(doc.children[1].inline[1].kind == "text", "paragraph holds a text node")
 assert(doc.children[1].inline[1].text == "hello world", "first paragraph text")
 assert(doc.children[2].inline[1].text == "second para", "second paragraph text")
 
--- Soft-wrapped lines join within one paragraph.
+-- Soft-wrapped lines join within one paragraph; inline pass emits a soft-break
+-- text node between them.
 local wrapped = from_md.parse("line one\nline two\n")
 assert(#wrapped.children == 1, "soft-wrapped lines are one paragraph")
-assert(wrapped.children[1].inline[1].text == "line one\nline two", "lines joined with newline")
+local winline = wrapped.children[1].inline
+assert(winline[1].text == "line one", "first line text")
+assert(winline[2].kind == "text" and winline[2].text == "\n", "soft-break node")
+assert(winline[3].text == "line two", "second line text")
 
 -- Empty / blank input yields an empty document, never an error.
 assert(#from_md.parse("").children == 0, "empty input -> empty document")

@@ -61,9 +61,13 @@ assert(s1.kind == "headline" and s1.level == 1, "setext h1")
 assert(s1.title[1].text == "Title", "setext h1 title")
 local s2 = only("Subtitle\n---\n")
 assert(s2.kind == "headline" and s2.level == 2, "setext h2")
--- Multi-line paragraph content joins into the heading.
+-- Multi-line paragraph content joins into the heading; inline pass emits a
+-- soft-break node between the two lines.
 local multi = only("foo\nbar\n===\n")
-assert(multi.kind == "headline" and multi.title[1].text == "foo\nbar", "multi-line setext content")
+assert(
+  multi.kind == "headline" and multi.title[1].text == "foo" and multi.title[3].text == "bar",
+  "multi-line setext content"
+)
 -- An underline with no preceding paragraph is not a setext heading.
 assert(only("=====\n").kind == "paragraph", "=== with no paragraph is a paragraph")
 -- A dash line with no paragraph is still a thematic break.
@@ -122,7 +126,11 @@ end
 local q = only("> hello\n> world\n")
 assert(is_quote(q), "block quote node")
 assert(q.content[1].kind == "paragraph", "quote contains a paragraph")
-assert(q.content[1].inline[1].text == "hello\nworld", "quote paragraph text (marker stripped)")
+-- inline pass emits a soft-break node between the two continuation lines.
+assert(
+  q.content[1].inline[1].text == "hello" and q.content[1].inline[3].text == "world",
+  "quote paragraph text (marker stripped)"
+)
 -- A heading inside a quote.
 local qh = only("> # Title\n")
 assert(
@@ -132,10 +140,11 @@ assert(
 -- Nested block quotes.
 local nq = only("> > deep\n")
 assert(is_quote(nq) and is_quote(nq.content[1]), "nested block quote")
--- Lazy continuation: a >-less line continues the quote's paragraph.
+-- Lazy continuation: a >-less line continues the quote's paragraph; inline
+-- pass emits a soft-break node between the lines.
 local lazy = only("> a\nb\n")
 assert(
-  is_quote(lazy) and lazy.content[1].inline[1].text == "a\nb",
+  is_quote(lazy) and lazy.content[1].inline[1].text == "a" and lazy.content[1].inline[3].text == "b",
   "lazy continuation into quote paragraph"
 )
 

@@ -34,4 +34,34 @@ assert(
   "plain paragraph unchanged"
 )
 
+-- Code spans.
+assert(cmark.render(from_md.parse("`foo`\n")) == "<p><code>foo</code></p>\n", "simple code span")
+assert(
+  cmark.render(from_md.parse("`` foo ` bar ``\n")) == "<p><code>foo ` bar</code></p>\n",
+  "double-backtick code span trims one space each end"
+)
+assert(
+  cmark.render(from_md.parse("`` `code` ``\n")) == "<p><code>`code`</code></p>\n",
+  "code span keeps inner backticks"
+)
+assert(cmark.render(from_md.parse("`foo\n")) == "<p>`foo</p>\n", "unmatched backtick is literal")
+-- Code span content is HTML-escaped, not markup-processed.
+assert(
+  cmark.render(from_md.parse("`a < b`\n")) == "<p><code>a &lt; b</code></p>\n",
+  "code span escapes html but no markup"
+)
+-- Hard break (two trailing spaces) and soft break.
+assert(
+  cmark.render(from_md.parse("foo  \nbar\n")) == "<p>foo<br />\nbar</p>\n",
+  "two-space hard break"
+)
+assert(
+  cmark.render(from_md.parse("foo\\\nbar\n")) == "<p>foo<br />\nbar</p>\n",
+  "backslash hard break"
+)
+assert(cmark.render(from_md.parse("foo\nbar\n")) == "<p>foo\nbar</p>\n", "soft break is a newline")
+-- Unmatched long backtick run must not throw or hang.
+local ok_probe = pcall(from_md.parse, string.rep("`", 10000) .. "x\n")
+assert(ok_probe, "unmatched long backtick run must not throw")
+
 print("from_md_inline_test: PASS")

@@ -20,8 +20,13 @@ local function inline(nodes)
   for _, n in ipairs(nodes or {}) do
     if n.kind == "text" then
       out[#out + 1] = escape(n.text or "")
+    elseif n.kind == "emphasis" and n.style == "code" then
+      local content = (n.content and n.content[1] and n.content[1].text) or ""
+      out[#out + 1] = "<code>" .. escape(content) .. "</code>"
+    elseif n.kind == "linebreak" then
+      out[#out + 1] = "<br />\n"
     end
-    -- later stages: emphasis, link, code, etc.
+    -- later stages: emphasis (bold/italic), link, etc.
   end
   return table.concat(out)
 end
