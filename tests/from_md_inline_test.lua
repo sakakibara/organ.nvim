@@ -327,4 +327,53 @@ assert(
   "10000 reference shortcuts no throw"
 )
 
+-- Named entities decode to characters (then HTML-escaped on output).
+assert(
+  cmark.render(from_md.parse("&amp; &lt; &gt; &quot;\n")) == "<p>&amp; &lt; &gt; &quot;</p>\n",
+  "core named entities round-trip through escaping"
+)
+assert(
+  cmark.render(from_md.parse("&auml;\n")) == "<p>\195\164</p>\n",
+  "named entity auml -> a-umlaut"
+)
+assert(cmark.render(from_md.parse("&copy;\n")) == "<p>\194\169</p>\n", "named entity copy")
+-- Numeric: decimal and hex; code point 0 -> U+FFFD.
+assert(
+  cmark.render(from_md.parse("&#35; &#1234; &#0;\n")) == "<p># \211\146 \239\191\189</p>\n",
+  "decimal numeric incl 0 -> replacement char"
+)
+assert(
+  cmark.render(from_md.parse("&#X22;\n")) == "<p>&quot;</p>\n",
+  "hex numeric decodes to quote, re-escaped"
+)
+-- Invalid references stay literal.
+assert(cmark.render(from_md.parse("&copy\n")) == "<p>&amp;copy</p>\n", "no-semicolon is literal &")
+assert(
+  cmark.render(from_md.parse("&MadeUpEntity;\n")) == "<p>&amp;MadeUpEntity;</p>\n",
+  "unknown named entity is literal"
+)
+-- Entities decode in link destination + title, NOT in code spans.
+assert(
+  cmark.render(from_md.parse('[foo](/f&ouml;&ouml; "f&ouml;&ouml;")\n'))
+    == '<p><a href="/f%C3%B6%C3%B6" title="f\195\182\195\182">foo</a></p>\n',
+  "entities in dest + title"
+)
+assert(
+  cmark.render(from_md.parse("`f&ouml;&ouml;`\n")) == "<p><code>f&amp;ouml;&amp;ouml;</code></p>\n",
+  "no entity decoding inside a code span"
+)
+-- No-throw on pathological & runs.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("&", 10000) .. "x\n")
+  end),
+  "10000 ampersands no throw"
+)
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("&#9999999999;", 1000) .. "\n")
+  end),
+  "huge numeric refs no throw"
+)
+
 print("from_md_inline_test: PASS")

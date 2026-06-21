@@ -6,12 +6,93 @@
 -- line breaks, URI and email autolinks, raw inline HTML, emphasis/strong, and
 -- inline links/images via the CommonMark delimiter stack.
 local ast = require("organ.ast")
+local html5_entities = require("organ.ast.html5_entities")
 
 local M = {}
 
 local ASCII_PUNCT = {}
 for ch in ("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"):gmatch(".") do
   ASCII_PUNCT[ch] = true
+end
+
+-- U+FFFD replacement character (UTF-8 encoding).
+local REPLACEMENT_CHAR = "\239\191\189"
+
+-- match_entity(text, i) -> (decoded_string, length) | nil
+-- At position i where text[i] == '&', try to match a character reference:
+--   NAMED:   &name;   where name is a key in html5_entities
+--   DECIMAL: &#N;     1-7 digits; invalid/0/surrogate -> U+FFFD
+--   HEX:     &#xH; or &#XH;  1-6 hex digits; same validity rules
+-- Returns decoded string and total byte length of the reference, or nil.
+local function match_entity(text, i)
+  -- Must start with '&'.
+  if text:sub(i, i) ~= "&" then
+    return nil
+  end
+  local n = #text
+  local j = i + 1
+
+  if text:sub(j, j) == "#" then
+    j = j + 1
+    local hex = false
+    if text:sub(j, j):lower() == "x" then
+      hex = true
+      j = j + 1
+    end
+    -- Collect digits (max 7 decimal, max 6 hex per CommonMark).
+    local max_digits = hex and 6 or 7
+    local digit_start = j
+    local count = 0
+    while j <= n and count < max_digits do
+      local ch = text:sub(j, j)
+      if hex and ch:match("[%x]") then
+        count = count + 1
+        j = j + 1
+      elseif not hex and ch:match("%d") then
+        count = count + 1
+        j = j + 1
+      else
+        break
+      end
+    end
+    if count == 0 then
+      return nil
+    end
+    -- Must be followed by ';'.
+    if text:sub(j, j) ~= ";" then
+      return nil
+    end
+    local digits = text:sub(digit_start, j - 1)
+    local cp = tonumber(digits, hex and 16 or 10)
+    -- Invalid code points: 0, surrogates (D800-DFFF), or > U+10FFFF -> U+FFFD.
+    if cp == 0 or cp > 0x10FFFF or (cp >= 0xD800 and cp <= 0xDFFF) then
+      return REPLACEMENT_CHAR, j + 1 - i
+    end
+    return vim.fn.nr2char(cp, true), j + 1 - i
+  else
+    -- Named entity: collect [A-Za-z0-9] name then ';'.
+    local name_start = j
+    while j <= n do
+      local ch = text:sub(j, j)
+      if ch:match("[%a%d]") then
+        j = j + 1
+      else
+        break
+      end
+    end
+    local name = text:sub(name_start, j - 1)
+    if name == "" then
+      return nil
+    end
+    if text:sub(j, j) ~= ";" then
+      return nil
+    end
+    local decoded = html5_entities[name]
+    if not decoded then
+      return nil
+    end
+    return decoded, j + 1 - i
+  end
 end
 
 -- Classify a single byte for flanking analysis.  CommonMark treats start/end of
@@ -227,12 +308,14 @@ for ch in ("-_.~:/?#[]@!$&'()*+,;=%"):gmatch(".") do
   DEST_SAFE[ch] = true
 end
 
--- normalize_destination: decode backslash escapes in a raw link destination,
--- then percent-encode it for an href per CommonMark.  An existing valid %XX is
--- preserved; the safe/reserved set above passes through; all other bytes become
--- %XX (uppercase hex).  Operates on bytes (UTF-8 multibyte -> multiple %XX).
+-- normalize_destination: decode backslash escapes and entity references in a
+-- raw link destination, then percent-encode it for an href per CommonMark.  An
+-- existing valid %XX is preserved; the safe/reserved set above passes through;
+-- all other bytes become %XX (uppercase hex).  Operates on bytes (UTF-8
+-- multibyte -> multiple %XX).
 local function normalize_destination(raw)
-  -- Decode backslash escapes (only before ASCII punctuation, per spec).
+  -- Decode backslash escapes (only before ASCII punctuation, per spec) and
+  -- entity references.
   local decoded = {}
   local i, n = 1, #raw
   while i <= n do
@@ -240,6 +323,15 @@ local function normalize_destination(raw)
     if c == "\\" and i < n and ASCII_PUNCT[raw:sub(i + 1, i + 1)] then
       decoded[#decoded + 1] = raw:sub(i + 1, i + 1)
       i = i + 2
+    elseif c == "&" then
+      local entity, len = match_entity(raw, i)
+      if entity then
+        decoded[#decoded + 1] = entity
+        i = i + len
+      else
+        decoded[#decoded + 1] = c
+        i = i + 1
+      end
     else
       decoded[#decoded + 1] = c
       i = i + 1
@@ -266,7 +358,8 @@ local function normalize_destination(raw)
   return table.concat(out)
 end
 
--- Decode backslash escapes (ASCII punctuation only) in a raw title string.
+-- Decode backslash escapes (ASCII punctuation only) and entity references in a
+-- raw title string.
 local function decode_escapes(raw)
   local out = {}
   local i, n = 1, #raw
@@ -275,6 +368,15 @@ local function decode_escapes(raw)
     if c == "\\" and i < n and ASCII_PUNCT[raw:sub(i + 1, i + 1)] then
       out[#out + 1] = raw:sub(i + 1, i + 1)
       i = i + 2
+    elseif c == "&" then
+      local entity, len = match_entity(raw, i)
+      if entity then
+        out[#out + 1] = entity
+        i = i + len
+      else
+        out[#out + 1] = c
+        i = i + 1
+      end
     else
       out[#out + 1] = c
       i = i + 1
@@ -967,6 +1069,18 @@ function M.parse(text, refmap)
       -- Backslash-before-newline hard break is caught by the \n branch above.
       buf[#buf + 1] = text:sub(i + 1, i + 1)
       i = i + 2
+
+    -- Ampersand: try to decode a named or numeric character reference.
+    elseif c == "&" then
+      local entity, len = match_entity(text, i)
+      if entity then
+        flush()
+        append(ast.text(entity))
+        i = i + len
+      else
+        buf[#buf + 1] = c
+        i = i + 1
+      end
     else
       buf[#buf + 1] = c
       i = i + 1
