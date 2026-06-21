@@ -662,9 +662,10 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
   return head
 end
 
--- Normalize a link label for reference lookup.  MUST match the block parser's
--- ref-def key normalization in from_md.link_ref_def: collapse internal
--- whitespace runs to a single space, trim a leading/trailing space, case-fold.
+-- Normalize a link label for reference lookup.  Shared by inline reference
+-- lookups and parse_reference's definition keys, so a definition and its use
+-- normalize to the same key: collapse internal whitespace runs to a single
+-- space, trim a leading/trailing space, case-fold.
 local function normalize_label(label)
   return (label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower())
 end
@@ -1393,6 +1394,149 @@ function M.parse(text, refmap, opts)
     result = extend_autolinks(result)
   end
   return result
+end
+
+-- Skip spaces/tabs from s[i], crossing AT MOST one line ending, then more
+-- spaces/tabs.  Returns the resulting index and whether any whitespace was
+-- consumed and whether a line ending was crossed.
+local function skip_blanks_one_eol(s, i, n)
+  local consumed = false
+  local crossed_eol = false
+  while i <= n do
+    local c = s:sub(i, i)
+    if c == " " or c == "\t" then
+      i = i + 1
+      consumed = true
+    elseif c == "\n" and not crossed_eol then
+      i = i + 1
+      consumed = true
+      crossed_eol = true
+    else
+      break
+    end
+  end
+  return i, consumed, crossed_eol
+end
+
+-- True if from s[i] the rest of the current line is only spaces/tabs up to a
+-- line ending or end of input.  Returns also the index just past that line
+-- ending (or #s + 1 at EOF).
+local function rest_of_line_blank(s, i, n)
+  local j = i
+  while j <= n do
+    local c = s:sub(j, j)
+    if c == " " or c == "\t" then
+      j = j + 1
+    elseif c == "\n" then
+      return true, j + 1
+    else
+      return false, nil
+    end
+  end
+  return true, n + 1
+end
+
+-- Parse ONE leading link reference definition from `s` starting at index `i`.
+-- `s` is the joined paragraph text (lines separated by "\n").  Returns
+-- `next_index, key, destination, title` on success, or nil.  Reuses the inline
+-- destination/title/label parsers so the grammar is shared with inline links.
+function M.parse_reference(s, i)
+  local n = #s
+  local j = i
+
+  -- Up to three leading spaces.
+  local spaces = 0
+  while j <= n and s:sub(j, j) == " " and spaces < 3 do
+    j = j + 1
+    spaces = spaces + 1
+  end
+  if s:sub(j, j) ~= "[" then
+    return nil
+  end
+
+  -- Label: scan to the matching unescaped `]`, cap 999 content chars, require a
+  -- non-whitespace char.
+  local label_start = j + 1
+  local k = label_start
+  local content = 0
+  local label_end
+  while k <= n do
+    local c = s:sub(k, k)
+    if c == "\\" and k < n and ASCII_PUNCT[s:sub(k + 1, k + 1)] then
+      content = content + 2
+      k = k + 2
+    elseif c == "]" then
+      label_end = k
+      break
+    elseif c == "[" then
+      -- An unescaped `[` is not allowed inside a label.
+      return nil
+    else
+      content = content + 1
+      k = k + 1
+    end
+    if content > 999 then
+      return nil
+    end
+  end
+  if not label_end then
+    return nil
+  end
+  local raw_label = s:sub(label_start, label_end - 1)
+  if raw_label:match("^%s*$") then
+    return nil
+  end
+  -- Require `]:`.
+  if s:sub(label_end + 1, label_end + 1) ~= ":" then
+    return nil
+  end
+
+  -- Skip whitespace after `:` (spaces/tabs incl up to one line ending).
+  local pos = skip_blanks_one_eol(s, label_end + 2, n)
+
+  -- Destination.  An empty destination is valid only in angle-bracket form
+  -- (`<>`); an empty bare form is no destination at all.
+  local angle = s:sub(pos, pos) == "<"
+  local raw_dest, after = parse_destination(s, pos, n)
+  if not raw_dest or (raw_dest == "" and not angle) then
+    return nil
+  end
+
+  -- Title with backtrack.  Try to read a title separated from the dest by
+  -- whitespace (incl up to one line ending); accept only if its line then ends.
+  local raw_title = nil
+  local title_end = nil
+  local tpos, tconsumed = skip_blanks_one_eol(s, after, n)
+  if tconsumed and tpos <= n then
+    local tc = s:sub(tpos, tpos)
+    if tc == '"' or tc == "'" or tc == "(" then
+      local rt, tafter = parse_title(s, tpos, n)
+      if rt ~= nil then
+        local ok, line_end = rest_of_line_blank(s, tafter, n)
+        if ok then
+          raw_title = rt
+          title_end = line_end
+        end
+      end
+    end
+  end
+
+  local next_index
+  if raw_title ~= nil then
+    next_index = title_end
+  else
+    -- No acceptable title: the dest must end its line (only trailing blanks).
+    local ok, line_end = rest_of_line_blank(s, after, n)
+    if not ok then
+      return nil
+    end
+    next_index = line_end
+  end
+
+  local key = normalize_label(raw_label)
+  local destination = normalize_destination(raw_dest)
+  local title = raw_title and decode_escapes(raw_title) or nil
+  return next_index, key, destination, title
 end
 
 return M

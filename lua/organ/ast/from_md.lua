@@ -188,32 +188,6 @@ local function setext_level(line)
   return nil
 end
 
--- Link reference definition: [label]: destination optional-title, at a fresh
--- block position (cannot interrupt a paragraph).  Records into `refmap` and
--- emits no block.  Returns true when consumed.
-local function link_ref_def(line, refmap)
-  local label, after = line:match("^ ? ? ?%[(.-)%]:%s*(.*)$")
-  if not label or label:match("^%s*$") or label:match("[%[%]]") then
-    return false
-  end
-  local dest, rest = after:match("^(%S+)%s*(.*)$")
-  if not dest then
-    return false
-  end
-  dest = dest:gsub("^<(.*)>$", "%1") -- strip optional angle brackets
-  local title = rest:match('^"(.-)"%s*$')
-    or rest:match("^'(.-)'%s*$")
-    or rest:match("^%((.-)%)%s*$")
-  if rest ~= "" and not title then
-    return false -- trailing junk -> not a definition (treat as paragraph)
-  end
-  local key = label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower()
-  if refmap[key] == nil then -- first definition wins
-    refmap[key] = { destination = dest, title = title }
-  end
-  return true
-end
-
 local HTML_BLOCK_TAGS = {}
 for _, t in ipairs({
   "address",
@@ -735,6 +709,37 @@ function Parser:tip()
   return self.stack[#self.stack]
 end
 
+-- Peel leading link reference definitions off a paragraph's accumulated lines
+-- (CommonMark's paragraph-finalization model).  Joins lines with "\n", records
+-- each leading definition into self.refmap (first definition of a key wins), and
+-- returns the leftover text after the last consumed definition.
+function Parser:extract_para_refs(lines)
+  local from_md_inline = require("organ.ast.from_md_inline")
+  local text = table.concat(lines, "\n")
+  local pos = 1
+  local n = #text
+  while pos <= n do
+    local next_index, key, dest, title = from_md_inline.parse_reference(text, pos)
+    if not next_index then
+      break
+    end
+    self.refmap[key] = self.refmap[key] or { destination = dest, title = title }
+    pos = next_index
+  end
+  return text:sub(pos)
+end
+
+-- Extract leading link reference definitions off a paragraph block, rewriting
+-- block.lines to the leftover content.  Returns true if any content remains.
+function Parser:extract_refs(block)
+  local rest = self:extract_para_refs(block.lines)
+  if rest:match("^%s*$") then
+    return false
+  end
+  block.lines = vim.split(rest, "\n", { plain = true })
+  return true
+end
+
 -- Finalise and pop the tip leaf, attaching its node to its parent container.
 function Parser:close_tip()
   local n = #self.stack
@@ -743,6 +748,9 @@ function Parser:close_tip()
   end
   local block = self.stack[n]
   self.stack[n] = nil
+  if block.type == "paragraph" and not self:extract_refs(block) then
+    return
+  end
   local node = finalize(block)
   if node then
     local parent = self.stack[#self.stack]
@@ -921,11 +929,20 @@ function Parser:try_starts(line, base, from)
     if level then
       local n = #self.stack
       local para = self.stack[n]
+      -- A setext underline applies to what REMAINS after stripping leading
+      -- reference definitions from the paragraph.  If the paragraph was entirely
+      -- definitions, there is nothing to underline: the defs are recorded, the
+      -- empty paragraph is dropped, and the underline line is reprocessed with no
+      -- paragraph above it (so it becomes ordinary text or a thematic break).
+      local remaining = self:extract_para_refs(para.lines)
       self.stack[n] = nil
+      if remaining:match("^%s*$") then
+        return self:try_starts(line, base, from)
+      end
       local parent = self.stack[#self.stack]
       parent.children[#parent.children + 1] = ast.headline({
         level = level,
-        title = { ast.text(strip(table.concat(para.lines, "\n"))) },
+        title = { ast.text(strip(remaining)) },
         children = {},
       })
       return true
@@ -1012,12 +1029,6 @@ function Parser:try_starts(line, base, from)
       end
       return true
     end
-  end
-
-  -- Link reference definitions only at a fresh block position.
-  if not tip_para and link_ref_def(line, self.refmap) then
-    self:close_below(self:leaf_base(from))
-    return true
   end
 
   return false
@@ -1202,7 +1213,14 @@ function Parser:try_table_start(rest, from)
   if not aligns then
     return false
   end
-  local header = tip.lines[1]
+  -- A leading reference definition is recorded and removed before the line can
+  -- serve as a table header; a header that is entirely a definition leaves
+  -- nothing to underline, so no table forms.
+  local header = self:extract_para_refs(tip.lines)
+  if header:match("^%s*$") then
+    self.stack[#self.stack] = nil
+    return false
+  end
   if not has_unescaped_pipe(header) then
     return false
   end
