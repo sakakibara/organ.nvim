@@ -188,6 +188,12 @@ local function setext_level(line)
   return nil
 end
 
+-- A paragraph line's leading whitespace is its own indentation, which
+-- CommonMark does not preserve; interior and trailing whitespace stay.
+local function para_content(rest)
+  return (rest:gsub("^[ \t]+", ""))
+end
+
 local HTML_BLOCK_TAGS = {}
 for _, t in ipairs({
   "address",
@@ -1162,7 +1168,7 @@ function Parser:place_content(rest, base, from)
   end
   local tip = self:tip()
   if #self.stack > from and tip.type == "paragraph" then
-    tip.lines[#tip.lines + 1] = rest
+    tip.lines[#tip.lines + 1] = para_content(rest)
   else
     from = self:leaf_base(from)
     self:close_below(from)
@@ -1172,7 +1178,7 @@ function Parser:place_content(rest, base, from)
     if self.stack[from] and self.stack[from].type == "list_item" then
       self:confirm_list_loose(from - 1)
     end
-    self:push({ type = "paragraph", lines = { rest }, children = {} })
+    self:push({ type = "paragraph", lines = { para_content(rest) }, children = {} })
   end
 end
 
@@ -1346,7 +1352,7 @@ function Parser:add_line(line)
   -- unmatched blocks and opens a fresh paragraph under the matched container.
   tip = self:tip()
   if tip.type == "paragraph" then
-    tip.lines[#tip.lines + 1] = rest
+    tip.lines[#tip.lines + 1] = para_content(rest)
   else
     last_matched = self:leaf_base(last_matched)
     self:close_below(last_matched)
@@ -1355,7 +1361,7 @@ function Parser:add_line(line)
     if self.stack[last_matched] and self.stack[last_matched].type == "list_item" then
       self:confirm_list_loose(last_matched - 1)
     end
-    self:push({ type = "paragraph", lines = { rest }, children = {} })
+    self:push({ type = "paragraph", lines = { para_content(rest) }, children = {} })
   end
 end
 
