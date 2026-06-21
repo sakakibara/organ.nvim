@@ -376,4 +376,28 @@ assert(
   "huge numeric refs no throw"
 )
 
+-- GFM strikethrough.
+assert(
+  cmark.render(from_md.parse("~~Hi~~ Hello\n")) == "<p><del>Hi</del> Hello</p>\n",
+  "double-tilde strikethrough"
+)
+assert(
+  cmark.render(from_md.parse("~Hi~\n")) == "<p><del>Hi</del></p>\n",
+  "single-tilde strikethrough"
+)
+-- A ~~ opener with no matching closer stays literal.
+assert(cmark.render(from_md.parse("~~foo\n")) == "<p>~~foo</p>\n", "unmatched tilde is literal")
+-- Strikethrough composes with emphasis.
+assert(
+  cmark.render(from_md.parse("~~*foo*~~\n")) == "<p><del><em>foo</em></del></p>\n",
+  "emphasis inside strikethrough"
+)
+-- No-throw on pathological tildes.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("~", 10000) .. "x\n")
+  end),
+  "10000 tildes no throw"
+)
+
 print("from_md_inline_test: PASS")

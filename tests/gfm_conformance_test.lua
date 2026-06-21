@@ -2,7 +2,7 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 local from_md = require("organ.ast.from_md")
 local cmark = dofile(root .. "/tests/cmark/html.lua")
-local GFM_BASELINE = 2
+local GFM_BASELINE = 3
 local examples =
   vim.json.decode(table.concat(vim.fn.readfile("tests/fixtures/gfm/spec.json"), "\n"))
 local passing = 0

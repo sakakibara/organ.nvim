@@ -27,6 +27,8 @@ local function inline(nodes)
       out[#out + 1] = "<em>" .. inline(n.content) .. "</em>"
     elseif n.kind == "emphasis" and n.style == "bold" then
       out[#out + 1] = "<strong>" .. inline(n.content) .. "</strong>"
+    elseif n.kind == "emphasis" and n.style == "strike" then
+      out[#out + 1] = "<del>" .. inline(n.content) .. "</del>"
     elseif n.kind == "linebreak" then
       out[#out + 1] = "<br />\n"
     elseif n.kind == "link" and n.form == "autolink" then

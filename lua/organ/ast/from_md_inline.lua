@@ -513,6 +513,7 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
   local openers_bottom = {
     ["*"] = { [true] = {}, [false] = {} },
     ["_"] = { [true] = {}, [false] = {} },
+    ["~"] = { [true] = {}, [false] = {} },
   }
 
   -- Walk the delimiter stack from the bottom looking for closers.
@@ -529,23 +530,42 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
       local opener_found = false
       while opener and opener ~= bottom do
         if opener.can_open and opener.char == closer.char then
-          -- Rule of 3: if either side can both open and close, the sum of the
-          -- ORIGINAL run lengths must not be a multiple of 3 (unless both
-          -- original lengths are multiples of 3).
-          local odd_match = (closer.can_open or opener.can_close)
-            and (opener.orig_len + closer.orig_len) % 3 == 0
-            and not (opener.orig_len % 3 == 0 and closer.orig_len % 3 == 0)
-          if not odd_match then
-            opener_found = true
-            break
+          if closer.char == "~" then
+            -- GFM strikethrough: a `~` run matches only a run of the SAME
+            -- length (1<->1, 2<->2); the rule of 3 does not apply.
+            if opener.length == closer.length then
+              opener_found = true
+              break
+            end
+          else
+            -- Rule of 3: if either side can both open and close, the sum of the
+            -- ORIGINAL run lengths must not be a multiple of 3 (unless both
+            -- original lengths are multiples of 3).
+            local odd_match = (closer.can_open or opener.can_close)
+              and (opener.orig_len + closer.orig_len) % 3 == 0
+              and not (opener.orig_len % 3 == 0 and closer.orig_len % 3 == 0)
+            if not odd_match then
+              opener_found = true
+              break
+            end
           end
         end
         opener = opener.prev
       end
 
       if opener_found then
-        local strong = opener.length >= 2 and closer.length >= 2
-        local use = strong and 2 or 1
+        -- For `~`, the matched runs are equal-length (GFM): consume the whole
+        -- run (1 or 2) and emit a strike node.  For `*`/`_`, consume 2 (strong)
+        -- when both sides have >=2, else 1 (em).
+        local style, use
+        if closer.char == "~" then
+          style = "strike"
+          use = closer.length
+        elseif opener.length >= 2 and closer.length >= 2 then
+          style, use = "bold", 2
+        else
+          style, use = "italic", 1
+        end
 
         -- Collect the nodes strictly between opener.node and closer.node.
         local content = {}
@@ -555,7 +575,7 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
           cur = cur.lnext
         end
 
-        local emph = ast.emphasis(strong and "bold" or "italic", content)
+        local emph = ast.emphasis(style, content)
 
         -- Splice the emphasis node into the list right after opener.node.
         emph.lprev = opener.node
@@ -856,8 +876,9 @@ function M.parse(text, refmap)
   while i <= n do
     local c = text:sub(i, i)
 
-    -- Asterisk or underscore: a delimiter run for emphasis/strong.
-    if c == "*" or c == "_" then
+    -- Asterisk, underscore, or tilde: a delimiter run for emphasis/strong
+    -- (`*`/`_`) or GFM strikethrough (`~`).
+    if c == "*" or c == "_" or c == "~" then
       local run_start = i
       while i <= n and text:sub(i, i) == c do
         i = i + 1
@@ -877,7 +898,7 @@ function M.parse(text, refmap)
       local right_flank = (not before_ws) and ((not before_punct) or after_ws or after_punct)
 
       local can_open, can_close
-      if c == "*" then
+      if c == "*" or c == "~" then
         can_open = left_flank
         can_close = right_flank
       else
