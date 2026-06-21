@@ -165,4 +165,67 @@ assert(
   "comment allows internal --"
 )
 
+-- Emphasis and strong (delimiter stack).
+assert(cmark.render(from_md.parse("*foo bar*\n")) == "<p><em>foo bar</em></p>\n", "simple em")
+assert(
+  cmark.render(from_md.parse("**foo bar**\n")) == "<p><strong>foo bar</strong></p>\n",
+  "simple strong"
+)
+assert(
+  cmark.render(from_md.parse("***foo***\n")) == "<p><em><strong>foo</strong></em></p>\n",
+  "em+strong"
+)
+-- Intraword: * allowed, _ not.
+assert(
+  cmark.render(from_md.parse("**foo**bar\n")) == "<p><strong>foo</strong>bar</p>\n",
+  "intraword strong with *"
+)
+assert(
+  cmark.render(from_md.parse("__foo__bar\n")) == "<p>__foo__bar</p>\n",
+  "intraword __ is literal"
+)
+assert(
+  cmark.render(from_md.parse("foo_bar_\n")) == "<p>foo_bar_</p>\n",
+  "intraword _ closer is literal"
+)
+-- Flanking with punctuation.
+assert(
+  cmark.render(from_md.parse('a*"foo"*\n')) == "<p>a*&quot;foo&quot;*</p>\n",
+  "* before quote not left-flanking here"
+)
+-- Leftover delimiter.
+assert(
+  cmark.render(from_md.parse("*foo**\n")) == "<p><em>foo</em>*</p>\n",
+  "leftover delimiter stays literal"
+)
+-- Nested emphasis.
+assert(
+  cmark.render(from_md.parse("*foo **bar** baz*\n"))
+    == "<p><em>foo <strong>bar</strong> baz</em></p>\n",
+  "nested strong in em"
+)
+-- Emphasis across a soft break.
+assert(
+  cmark.render(from_md.parse("**foo\nbar**\n")) == "<p><strong>foo\nbar</strong></p>\n",
+  "strong across soft break"
+)
+-- A code span inside emphasis stays a code span (precedence).
+assert(
+  cmark.render(from_md.parse("*`code`*\n")) == "<p><em><code>code</code></em></p>\n",
+  "code span inside em"
+)
+-- No-throw on pathological delimiter runs.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("*", 10000) .. "x\n")
+  end),
+  "10000 asterisks must not throw"
+)
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("*a", 10000) .. "\n")
+  end),
+  "alternating must not throw"
+)
+
 print("from_md_inline_test: PASS")

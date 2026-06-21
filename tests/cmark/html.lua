@@ -23,6 +23,10 @@ local function inline(nodes)
     elseif n.kind == "emphasis" and n.style == "code" then
       local content = (n.content and n.content[1] and n.content[1].text) or ""
       out[#out + 1] = "<code>" .. escape(content) .. "</code>"
+    elseif n.kind == "emphasis" and n.style == "italic" then
+      out[#out + 1] = "<em>" .. inline(n.content) .. "</em>"
+    elseif n.kind == "emphasis" and n.style == "bold" then
+      out[#out + 1] = "<strong>" .. inline(n.content) .. "</strong>"
     elseif n.kind == "linebreak" then
       out[#out + 1] = "<br />\n"
     elseif n.kind == "link" and n.form == "autolink" then
