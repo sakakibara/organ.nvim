@@ -1,4 +1,4 @@
--- Generated from IANA zone1970.tab by scripts/fetch-tz-table.sh.
+-- Generated from IANA zone1970.tab by scripts/gen-tz-table.lua.
 -- IANA zone name -> ISO 3166-1 alpha-2 country code (primary country).
 return {
   ["Africa/Abidjan"] = "CI",
@@ -36,8 +36,8 @@ return {
   ["America/Argentina/Tucuman"] = "AR",
   ["America/Argentina/Ushuaia"] = "AR",
   ["America/Asuncion"] = "PY",
-  ["America/Bahia_Banderas"] = "MX",
   ["America/Bahia"] = "BR",
+  ["America/Bahia_Banderas"] = "MX",
   ["America/Barbados"] = "BB",
   ["America/Belem"] = "BR",
   ["America/Belize"] = "BZ",
@@ -56,8 +56,8 @@ return {
   ["America/Coyhaique"] = "CL",
   ["America/Cuiaba"] = "BR",
   ["America/Danmarkshavn"] = "GL",
-  ["America/Dawson_Creek"] = "CA",
   ["America/Dawson"] = "CA",
+  ["America/Dawson_Creek"] = "CA",
   ["America/Denver"] = "US",
   ["America/Detroit"] = "US",
   ["America/Edmonton"] = "CA",
