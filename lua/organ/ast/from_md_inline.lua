@@ -540,8 +540,16 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
   return head
 end
 
-function M.parse(text, _refmap)
+-- Normalize a link label for reference lookup.  MUST match the block parser's
+-- ref-def key normalization in from_md.link_ref_def: collapse internal
+-- whitespace runs to a single space, trim a leading/trailing space, case-fold.
+local function normalize_label(label)
+  return (label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower())
+end
+
+function M.parse(text, refmap)
   text = text or ""
+  refmap = refmap or {}
   -- Delimiter stack: entries reference their text node, doubly linked.  Bracket
   -- delimiters (`[`, `![`) ride the same stack; they are inert to the emphasis
   -- algorithm (can_open/can_close false) and consumed by the link procedure.
@@ -582,56 +590,11 @@ function M.parse(text, _refmap)
     end
   end
 
-  -- "look for link or image" on `]` at text[close_pos].  Returns the index just
-  -- past the consumed `)` on success, or nil to fall through to a literal `]`.
-  local function look_for_link(close_pos)
-    -- Find the nearest bracket opener on the delimiter stack.
-    local opener = delim_top
-    while opener and opener.char ~= "[" do
-      opener = opener.prev
-    end
-    if not opener then
-      return nil
-    end
-    if not opener.active then
-      remove_opener(opener)
-      return nil
-    end
-
-    -- Try to parse the inline `(dest "title")` form.  On any failure the opener
-    -- is removed and the `]` becomes literal.  char after `]` must be `(`.
-    local p = close_pos + 1
-    if text:sub(p, p) ~= "(" then
-      remove_opener(opener)
-      return nil
-    end
-    p = p + 1
-    p = text:match("^[ \t\n]*()", p) or p
-    local dest, title = "", nil
-    if text:sub(p, p) ~= ")" then
-      local d, after = parse_destination(text, p, n)
-      if not d then
-        remove_opener(opener)
-        return nil
-      end
-      dest = d
-      p = after
-      local ws = text:match("^[ \t\n]+()", p)
-      if ws then
-        local t, tafter = parse_title(text, ws, n)
-        if t then
-          title = t
-          p = tafter
-        end
-      end
-    end
-    p = text:match("^[ \t\n]*()", p) or p
-    if text:sub(p, p) ~= ")" then
-      remove_opener(opener)
-      return nil
-    end
-    p = p + 1
-
+  -- Build a link/image node from a resolved bracket opener and dest/title (raw
+  -- destination, raw title or nil, link form).  Resolves emphasis within the
+  -- link-text span, splices the node in place of the opener and its span, drops
+  -- consumed stack entries, and deactivates earlier link openers for a link.
+  local function build_link(opener, dest, title, form)
     local is_image = opener.image
     -- Resolve emphasis strictly within the link-text span (above the opener);
     -- the opener bounds the scan so emphasis cannot reach earlier delimiters.
@@ -662,7 +625,7 @@ function M.parse(text, _refmap)
       for k = 1, #span do
         span[k].lprev, span[k].lnext = nil, nil
       end
-      newnode = ast.link(normalize_destination(dest), span, "inline")
+      newnode = ast.link(normalize_destination(dest), span, form)
       newnode.title = title_decoded
     end
 
@@ -695,8 +658,96 @@ function M.parse(text, _refmap)
         d = d.prev
       end
     end
+  end
 
-    return p
+  -- "look for link or image" on `]` at text[close_pos].  Returns the index just
+  -- past the consumed link syntax on success, or nil to fall through to a
+  -- literal `]`.  Tries the inline `(...)` form first, then the reference forms
+  -- (full, collapsed, shortcut) against refmap.
+  local function look_for_link(close_pos)
+    -- Find the nearest bracket opener on the delimiter stack.
+    local opener = delim_top
+    while opener and opener.char ~= "[" do
+      opener = opener.prev
+    end
+    if not opener then
+      return nil
+    end
+    if not opener.active then
+      remove_opener(opener)
+      return nil
+    end
+
+    -- Try to parse the inline `(dest "title")` form.  char after `]` must be `(`.
+    local p = close_pos + 1
+    if text:sub(p, p) == "(" then
+      p = p + 1
+      p = text:match("^[ \t\n]*()", p) or p
+      local dest, title = "", nil
+      local ok = true
+      if text:sub(p, p) ~= ")" then
+        local d, after = parse_destination(text, p, n)
+        if d then
+          dest = d
+          p = after
+          local ws = text:match("^[ \t\n]+()", p)
+          if ws then
+            local t, tafter = parse_title(text, ws, n)
+            if t then
+              title = t
+              p = tafter
+            end
+          end
+        else
+          ok = false
+        end
+      end
+      if ok then
+        p = text:match("^[ \t\n]*()", p) or p
+        if text:sub(p, p) == ")" then
+          build_link(opener, dest, title, "inline")
+          return p + 1
+        end
+      end
+    end
+
+    -- Inline form failed.  Try the reference forms against refmap.  The label
+    -- text is the raw source between the opener bracket and this `]`.
+    local label_text = text:sub(opener.text_start, close_pos - 1)
+    local entry, after
+
+    if text:sub(close_pos + 1, close_pos + 1) == "[" then
+      -- A bracket follows: full `[label]` or collapsed `[]`.
+      local inner, iend = text:match("^%[(.-)%]()", close_pos + 1)
+      if inner ~= nil then
+        if inner == "" then
+          -- COLLAPSED: lookup the link-text label.
+          entry = refmap[normalize_label(label_text)]
+        elseif not inner:match("[%[%]]") then
+          -- FULL: lookup the explicit (nonempty) label.
+          entry = refmap[normalize_label(inner)]
+        end
+        if entry then
+          after = iend
+        end
+      end
+    else
+      -- SHORTCUT: no following bracket; lookup the link-text label.
+      entry = refmap[normalize_label(label_text)]
+      if entry then
+        after = close_pos + 1
+      end
+    end
+
+    if not entry then
+      -- Not a reference: drop this opener and fall through to a literal `]`.
+      -- For the full form, the trailing `[label]` is reprocessed as text.
+      remove_opener(opener)
+      return nil
+    end
+
+    build_link(opener, entry.destination, entry.title, "reference")
+    return after
   end
 
   local i = 1
@@ -831,6 +882,7 @@ function M.parse(text, _refmap)
         node = tnode,
         char = "[",
         image = false,
+        text_start = i + 1,
         active = true,
         can_open = false,
         can_close = false,
@@ -854,6 +906,7 @@ function M.parse(text, _refmap)
         node = tnode,
         char = "[",
         image = true,
+        text_start = i + 2,
         active = true,
         can_open = false,
         can_close = false,

@@ -288,4 +288,43 @@ assert(
   "10000 image opens no throw"
 )
 
+-- Reference links: full, collapsed, shortcut.
+assert(
+  cmark.render(from_md.parse('[foo][bar]\n\n[bar]: /url "t"\n'))
+    == '<p><a href="/url" title="t">foo</a></p>\n',
+  "full reference link"
+)
+assert(
+  cmark.render(from_md.parse("[foo][]\n\n[foo]: /url\n")) == '<p><a href="/url">foo</a></p>\n',
+  "collapsed reference link"
+)
+assert(
+  cmark.render(from_md.parse("[foo]\n\n[foo]: /url\n")) == '<p><a href="/url">foo</a></p>\n',
+  "shortcut reference link"
+)
+-- Label normalization (case-fold + whitespace collapse) matches the definition.
+assert(
+  cmark.render(from_md.parse("[Foo  Bar]\n\n[foo bar]: /u\n"))
+    == '<p><a href="/u">Foo  Bar</a></p>\n',
+  "label normalized for lookup"
+)
+-- An undefined reference is literal text.
+assert(
+  cmark.render(from_md.parse("[foo]\n\n[bar]: /url\n")) == "<p>[foo]</p>\n",
+  "undefined reference is literal"
+)
+-- Reference image with emphasis in the label; alt is plain text.
+assert(
+  cmark.render(from_md.parse('![*foo* bar][]\n\n[*foo* bar]: /url "title"\n'))
+    == '<p><img src="/url" alt="foo bar" title="title" /></p>\n',
+  "collapsed reference image, plain alt"
+)
+-- No-throw on pathological reference-bracket input.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("[a]", 10000) .. "\n")
+  end),
+  "10000 reference shortcuts no throw"
+)
+
 print("from_md_inline_test: PASS")
