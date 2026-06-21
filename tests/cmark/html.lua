@@ -61,7 +61,54 @@ local function inline(nodes)
   return table.concat(out)
 end
 
-local block, list_item
+local block, list_item, table_node
+
+-- GFM table renderer.  The first non-separator row is the header (thead); the
+-- remaining non-separator rows are data rows (tbody, omitted when there are
+-- none).  Column alignment comes from `node.alignments`: "l"/"r"/"c" map to an
+-- align="left"/"right"/"center" attribute; `false`/nil emits no attribute.
+local ALIGN_ATTR = { l = "left", r = "right", c = "center" }
+
+table_node = function(node, out)
+  local rows = node.rows or {}
+  local aligns = node.alignments or {}
+  local data = {}
+  local header
+  for _, row in ipairs(rows) do
+    if row.sep ~= true then
+      if not header then
+        header = row
+      else
+        data[#data + 1] = row
+      end
+    end
+  end
+  if not header then
+    return
+  end
+  local function cell(tag, content, col)
+    local a = ALIGN_ATTR[aligns[col]]
+    local attr = a and (' align="' .. a .. '"') or ""
+    return "<" .. tag .. attr .. ">" .. inline(content) .. "</" .. tag .. ">\n"
+  end
+  out[#out + 1] = "<table>\n<thead>\n<tr>\n"
+  for c, content in ipairs(header.cells) do
+    out[#out + 1] = cell("th", content, c)
+  end
+  out[#out + 1] = "</tr>\n</thead>\n"
+  if #data > 0 then
+    out[#out + 1] = "<tbody>\n"
+    for _, row in ipairs(data) do
+      out[#out + 1] = "<tr>\n"
+      for c, content in ipairs(row.cells) do
+        out[#out + 1] = cell("td", content, c)
+      end
+      out[#out + 1] = "</tr>\n"
+    end
+    out[#out + 1] = "</tbody>\n"
+  end
+  out[#out + 1] = "</table>\n"
+end
 
 function block(node, out)
   if node.kind == "paragraph" then
@@ -97,8 +144,9 @@ function block(node, out)
       list_item(item, out, node.loose)
     end
     out[#out + 1] = node.ordered and "</ol>\n" or "</ul>\n"
+  elseif node.kind == "table" then
+    table_node(node, out)
   end
-  -- later stages: table, ...
 end
 
 -- Render a list item.  In a loose list every paragraph child is wrapped in

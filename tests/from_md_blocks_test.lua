@@ -271,4 +271,37 @@ assert(from_md.parse("- foo\n").children[1].items[1].checkbox == nil, "plain ite
 -- [X] uppercase is done too.
 assert(from_md.parse("- [X] a\n").children[1].items[1].checkbox == "done", "[X] -> done")
 
+-- GFM tables.
+local t = from_md.parse("| foo | bar |\n| --- | --- |\n| baz | bim |\n")
+assert(t.children[1].kind == "table", "table node")
+assert(
+  cmark.render(from_md.parse("| foo | bar |\n| --- | --- |\n| baz | bim |\n"))
+    == "<table>\n<thead>\n<tr>\n<th>foo</th>\n<th>bar</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>baz</td>\n<td>bim</td>\n</tr>\n</tbody>\n</table>\n",
+  "basic table HTML"
+)
+-- Alignment from the delimiter row (no leading/trailing pipe needed).
+assert(
+  cmark.render(from_md.parse("| abc | defghi |\n:-: | -----------:\nbar | baz\n"))
+    == '<table>\n<thead>\n<tr>\n<th align="center">abc</th>\n<th align="right">defghi</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td align="center">bar</td>\n<td align="right">baz</td>\n</tr>\n</tbody>\n</table>\n',
+  "table alignment"
+)
+-- Escaped pipe in a cell + inline content; a header-only table omits tbody.
+assert(
+  cmark.render(from_md.parse("| f\\|oo  |\n| ------ |\n| b `\\|` az |\n"))
+    == "<table>\n<thead>\n<tr>\n<th>f|oo</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>b <code>|</code> az</td>\n</tr>\n</tbody>\n</table>\n",
+  "escaped pipe + inline code in cell"
+)
+-- A line with a pipe but no delimiter row is a plain paragraph (CommonMark unchanged).
+assert(
+  cmark.render(from_md.parse("a | b\n")) == "<p>a | b</p>\n",
+  "pipe without delimiter is a paragraph"
+)
+-- No-throw on pathological pipes.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("|", 10000) .. "\n")
+  end),
+  "10000 pipes no throw"
+)
+
 print("from_md_blocks_test: PASS")

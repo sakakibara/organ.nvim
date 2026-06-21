@@ -462,6 +462,107 @@ local function list_marker(line)
   }
 end
 
+-- GFM pipe table support.  A table row is split on UNESCAPED '|' (a '\|' is a
+-- literal pipe in the cell), with optional leading and trailing edge pipes
+-- stripped and each cell trimmed.  The scan is bounded by the input length, so
+-- pathological all-pipe input terminates.
+
+-- Split `line` into trimmed cells on unescaped '|', un-escaping '\|' to '|'.
+-- A single leading and a single trailing edge pipe (with surrounding
+-- whitespace) are optional delimiters, not empty cells.
+local function table_cells(line)
+  local cells = {}
+  local buf = {}
+  local i = 1
+  local len = #line
+  while i <= len do
+    local c = line:sub(i, i)
+    if c == "\\" and line:sub(i + 1, i + 1) == "|" then
+      buf[#buf + 1] = "|"
+      i = i + 2
+    elseif c == "|" then
+      cells[#cells + 1] = strip(table.concat(buf))
+      buf = {}
+      i = i + 1
+    else
+      buf[#buf + 1] = c
+      i = i + 1
+    end
+  end
+  cells[#cells + 1] = strip(table.concat(buf))
+  -- Strip a leading empty cell produced by a leading edge pipe, and a trailing
+  -- empty cell produced by a trailing edge pipe.
+  if #cells > 1 and cells[1] == "" then
+    table.remove(cells, 1)
+  end
+  if #cells > 1 and cells[#cells] == "" then
+    cells[#cells] = nil
+  end
+  return cells
+end
+
+-- True if `line` contains at least one unescaped '|' (the minimal table-row
+-- test).  Bounded scan.
+local function has_unescaped_pipe(line)
+  local i, len = 1, #line
+  while i <= len do
+    local c = line:sub(i, i)
+    if c == "\\" then
+      i = i + 2
+    elseif c == "|" then
+      return true
+    else
+      i = i + 1
+    end
+  end
+  return false
+end
+
+-- If every cell of `line` matches ^:?-+:?$ (a delimiter row), return the list
+-- of per-column alignments (":-:"->"c", ":-"->"l", "-:"->"r", "-"->false);
+-- otherwise nil.  Requires at least one cell.
+local function delimiter_alignments(line)
+  if not has_unescaped_pipe(line) and strip(line):match("^:?%-+:?$") == nil then
+    -- No pipe and not a bare single delimiter cell -> not a delimiter row.
+    return nil
+  end
+  local cells = table_cells(line)
+  if #cells == 0 then
+    return nil
+  end
+  local aligns = {}
+  for _, cell in ipairs(cells) do
+    local left = cell:sub(1, 1) == ":"
+    local right = cell:sub(-1) == ":"
+    local core = cell:gsub("^:", ""):gsub(":$", "")
+    if core == "" or core:match("^%-+$") == nil then
+      return nil
+    end
+    if left and right then
+      aligns[#aligns + 1] = "c"
+    elseif left then
+      aligns[#aligns + 1] = "l"
+    elseif right then
+      aligns[#aligns + 1] = "r"
+    else
+      aligns[#aligns + 1] = false
+    end
+  end
+  return aligns
+end
+
+-- Build a table data row from `line`, padding with empty cells or truncating to
+-- `ncols` columns.  Each cell is a one-element inline list `{ ast.text(raw) }`;
+-- the inline pass re-parses the raw text into proper inline nodes.
+local function table_data_row(line, ncols)
+  local raw = table_cells(line)
+  local cells = {}
+  for i = 1, ncols do
+    cells[i] = { ast.text(raw[i] or "") }
+  end
+  return { sep = false, cells = cells }
+end
+
 -- Finalising an open block to the AST node the renderer consumes.  These mirror
 -- the previous leaf-by-leaf output exactly so the renderer and roundtrip are
 -- unchanged.
@@ -535,6 +636,8 @@ local function finalize(block)
       trim_trailing_blank(body_lines)
     end
     return ast.block("export", { body = table.concat(body_lines, "\n") .. "\n", backend = "html" })
+  elseif t == "table" then
+    return { kind = "table", alignments = block.alignments, rows = block.rows }
   end
   return nil
 end
@@ -982,6 +1085,59 @@ function Parser:place_content(rest, from)
   end
 end
 
+-- True if `line` begins a block-level structure that should close an open table
+-- body (and then be reprocessed normally).  A table data row is any other
+-- non-blank line; only block starts and blanks interrupt it.  `tip_para` is
+-- false here (the tip is the table, not a paragraph), so setext does not apply.
+local function line_starts_block(line)
+  if strip_block_quote_marker(line) then
+    return true
+  end
+  if list_marker(line) then
+    return true
+  end
+  if
+    atx_heading(line)
+    or thematic_break(line, false)
+    or fenced_code(line)
+    or indented_code(line)
+    or html_block(line, false)
+  then
+    return true
+  end
+  return false
+end
+
+-- GFM table start: when `rest` is a valid delimiter row, the tip is an open
+-- paragraph (directly under the matched container at `from`) of exactly one
+-- line, and that header line is a table row whose cell count equals the
+-- delimiter's column count, convert the paragraph into an open `table` block.
+-- Returns true on conversion; otherwise the line is handled normally.
+function Parser:try_table_start(rest, from)
+  local tip = self:tip()
+  if #self.stack <= from or tip.type ~= "paragraph" or #tip.lines ~= 1 then
+    return false
+  end
+  local aligns = delimiter_alignments(rest)
+  if not aligns then
+    return false
+  end
+  local header = tip.lines[1]
+  if not has_unescaped_pipe(header) then
+    return false
+  end
+  local header_cells = table_cells(header)
+  if #header_cells ~= #aligns then
+    return false
+  end
+  local ncols = #aligns
+  local rows = { table_data_row(header, ncols), { sep = true, cells = {} } }
+  local n = #self.stack
+  self.stack[n] = nil -- drop the paragraph; the header becomes the first row
+  self:push({ type = "table", alignments = aligns, ncols = ncols, rows = rows })
+  return true
+end
+
 -- Feed one line to the tip when it is an open leaf still accumulating across
 -- lines (fenced code or an html block).  Returns true if the line was consumed.
 function Parser:feed_open_leaf(line)
@@ -1044,6 +1200,14 @@ function Parser:add_line(line)
     end
   end
 
+  -- An open table absorbs each subsequent non-blank line that does not start a
+  -- new block as a data row (padded/truncated to the column count); a blank
+  -- line or a block start closes it (and is reprocessed below).
+  if all_matched and tip.type == "table" and not is_blank(rest) and not line_starts_block(rest) then
+    tip.rows[#tip.rows + 1] = table_data_row(rest, tip.ncols)
+    return
+  end
+
   if is_blank(rest) then
     -- A blank line (after any matched markers) closes everything below the
     -- deepest matched container; in particular an open paragraph ends.  It also
@@ -1054,6 +1218,13 @@ function Parser:add_line(line)
     -- followed by content -- belongs to no list and leaves every list tight.
     self:arm_list_blank()
     self:close_below(last_matched)
+    return
+  end
+
+  -- GFM table start: a delimiter row converts a lone-line header paragraph into
+  -- an open table.  Checked before phase 3 so the delimiter row is not taken as
+  -- a paragraph continuation; only fires when the header's cell count matches.
+  if all_matched and self:try_table_start(rest, last_matched) then
     return
   end
 
@@ -1122,6 +1293,16 @@ local function inline_pass(root, refmap)
     elseif k == "list_item" then
       for _, c in ipairs(node.content or {}) do
         stack[#stack + 1] = c
+      end
+    elseif k == "table" then
+      -- Re-parse each non-separator cell's raw text into inline nodes.
+      for _, row in ipairs(node.rows or {}) do
+        if row.sep ~= true then
+          for ci, cell in ipairs(row.cells) do
+            local raw = (cell[1] and cell[1].text) or ""
+            row.cells[ci] = from_md_inline.parse(raw, refmap)
+          end
+        end
       end
     end
     -- code_block, rule, directive, drawer: literal, not inline-parsed.
