@@ -3,8 +3,8 @@
 -- are fully collected).  A position-advancing scanner: literal characters
 -- accumulate into a buffer that flushes to an ast.text node whenever a special
 -- construct is recognised.  Handles backslash escapes, code spans, hard/soft
--- line breaks, URI and email autolinks, raw inline HTML, and emphasis/strong
--- via the CommonMark delimiter stack.  Links/images are not yet handled.
+-- line breaks, URI and email autolinks, raw inline HTML, emphasis/strong, and
+-- inline links/images via the CommonMark delimiter stack.
 local ast = require("organ.ast")
 
 local M = {}
@@ -219,15 +219,195 @@ local function match_raw_html(text, i, n)
   return nil
 end
 
+-- Bytes left unescaped in a normalized link destination.  CommonMark keeps
+-- ASCII letters/digits and this reserved/safe punctuation; everything else is
+-- percent-encoded.  A pre-existing valid %XX escape is also left intact.
+local DEST_SAFE = {}
+for ch in ("-_.~:/?#[]@!$&'()*+,;=%"):gmatch(".") do
+  DEST_SAFE[ch] = true
+end
+
+-- normalize_destination: decode backslash escapes in a raw link destination,
+-- then percent-encode it for an href per CommonMark.  An existing valid %XX is
+-- preserved; the safe/reserved set above passes through; all other bytes become
+-- %XX (uppercase hex).  Operates on bytes (UTF-8 multibyte -> multiple %XX).
+local function normalize_destination(raw)
+  -- Decode backslash escapes (only before ASCII punctuation, per spec).
+  local decoded = {}
+  local i, n = 1, #raw
+  while i <= n do
+    local c = raw:sub(i, i)
+    if c == "\\" and i < n and ASCII_PUNCT[raw:sub(i + 1, i + 1)] then
+      decoded[#decoded + 1] = raw:sub(i + 1, i + 1)
+      i = i + 2
+    else
+      decoded[#decoded + 1] = c
+      i = i + 1
+    end
+  end
+  local s = table.concat(decoded)
+
+  local out = {}
+  i, n = 1, #s
+  while i <= n do
+    local c = s:sub(i, i)
+    if c == "%" and s:sub(i + 1, i + 2):match("^%x%x$") then
+      -- Preserve an existing valid percent-escape verbatim.
+      out[#out + 1] = s:sub(i, i + 2)
+      i = i + 3
+    elseif DEST_SAFE[c] or c:match("[%w]") then
+      out[#out + 1] = c
+      i = i + 1
+    else
+      out[#out + 1] = string.format("%%%02X", c:byte())
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+-- Decode backslash escapes (ASCII punctuation only) in a raw title string.
+local function decode_escapes(raw)
+  local out = {}
+  local i, n = 1, #raw
+  while i <= n do
+    local c = raw:sub(i, i)
+    if c == "\\" and i < n and ASCII_PUNCT[raw:sub(i + 1, i + 1)] then
+      out[#out + 1] = raw:sub(i + 1, i + 1)
+      i = i + 2
+    else
+      out[#out + 1] = c
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+-- Parse an inline link destination at text[i].  Returns the raw destination
+-- string and the index just past it, or nil.  Two forms: angle-bracketed
+-- (<...>, no unescaped <, >, or newline) or bare (no whitespace/control, with
+-- balanced parentheses unless backslash-escaped).
+local function parse_destination(text, i, n)
+  if text:sub(i, i) == "<" then
+    local j = i + 1
+    while j <= n do
+      local ch = text:sub(j, j)
+      if ch == "\\" and j < n and ASCII_PUNCT[text:sub(j + 1, j + 1)] then
+        j = j + 2
+      elseif ch == ">" then
+        return text:sub(i + 1, j - 1), j + 1
+      elseif ch == "<" or ch == "\n" then
+        return nil
+      else
+        j = j + 1
+      end
+    end
+    return nil
+  end
+  -- Bare destination: stop at whitespace; track paren balance; control chars
+  -- (byte <= 0x1f or 0x7f) terminate the destination as not allowed.
+  local j = i
+  local depth = 0
+  while j <= n do
+    local ch = text:sub(j, j)
+    local b = ch:byte()
+    if ch == "\\" and j < n and ASCII_PUNCT[text:sub(j + 1, j + 1)] then
+      j = j + 2
+    elseif b <= 0x20 or b == 0x7f then
+      break
+    elseif ch == "(" then
+      depth = depth + 1
+      j = j + 1
+    elseif ch == ")" then
+      if depth == 0 then
+        break
+      end
+      depth = depth - 1
+      j = j + 1
+    else
+      j = j + 1
+    end
+  end
+  -- Unbalanced open parens: not a valid destination.
+  if depth ~= 0 then
+    return nil
+  end
+  return text:sub(i, j - 1), j
+end
+
+-- Parse an inline link title at text[i] (one of ", ', or ().  Returns the raw
+-- (still-escaped) title string and the index just past the closing delimiter,
+-- or nil.  The title may not contain its unescaped closing delimiter.
+local function parse_title(text, i, n)
+  local open = text:sub(i, i)
+  local close
+  if open == '"' then
+    close = '"'
+  elseif open == "'" then
+    close = "'"
+  elseif open == "(" then
+    close = ")"
+  else
+    return nil
+  end
+  local j = i + 1
+  while j <= n do
+    local ch = text:sub(j, j)
+    if ch == "\\" and j < n and ASCII_PUNCT[text:sub(j + 1, j + 1)] then
+      j = j + 2
+    elseif ch == close then
+      return text:sub(i + 1, j - 1), j + 1
+    elseif open == "(" and ch == "(" then
+      -- A `(...)` title may not contain an unescaped `(`.
+      return nil
+    else
+      j = j + 1
+    end
+  end
+  return nil
+end
+
+-- Flatten a link-text node span to plain text for image alt rendering.  Text
+-- and code content concatenate; emphasis and links unwrap to their content's
+-- plain text; images contribute their alt; raw inline HTML is dropped.
+local function plain_text(node)
+  if node.kind == "text" then
+    return node.text or ""
+  elseif node.kind == "emphasis" and node.style == "code" then
+    return (node.content and node.content[1] and node.content[1].text) or ""
+  elseif node.kind == "emphasis" then
+    local parts = {}
+    for _, c in ipairs(node.content or {}) do
+      parts[#parts + 1] = plain_text(c)
+    end
+    return table.concat(parts)
+  elseif node.kind == "link" then
+    local parts = {}
+    for _, c in ipairs(node.description or {}) do
+      parts[#parts + 1] = plain_text(c)
+    end
+    return table.concat(parts)
+  elseif node.kind == "image" then
+    return node.alt or ""
+  elseif node.kind == "linebreak" then
+    return "\n"
+  end
+  return ""
+end
+
 -- process_emphasis: the CommonMark phase-2 algorithm over a doubly-linked node
 -- list and its delimiter stack.  Each delimiter entry has fields node (its text
 -- node), prev/next (stack links), char, length (remaining delim chars),
 -- can_open, can_close, and orig_len (run length at scan time, for trimming).
 -- Node-list links live on the nodes themselves (lnext/lprev).  Wrapping splices
 -- an emphasis node into the list between opener and closer text nodes.
-local function process_emphasis(head, delim_bottom)
+-- stack_bottom (optional) bounds the opener scan: openers at or below it are out
+-- of reach.  Used when resolving emphasis within a link-text span so emphasis
+-- cannot reach across the bracket opener into earlier delimiters.
+local function process_emphasis(head, delim_bottom, stack_bottom)
   -- openers_bottom[char][closer_can_open][len%3] : the lowest opener we may
-  -- match for a closer with that key.  nil means the stack bottom.
+  -- match for a closer with that key.  nil means stack_bottom (or the real
+  -- stack bottom when stack_bottom is nil).
   local openers_bottom = {
     ["*"] = { [true] = {}, [false] = {} },
     ["_"] = { [true] = {}, [false] = {} },
@@ -240,7 +420,7 @@ local function process_emphasis(head, delim_bottom)
       closer = closer.next
     else
       local key_base = openers_bottom[closer.char][closer.can_open]
-      local bottom = key_base[closer.length % 3]
+      local bottom = key_base[closer.length % 3] or stack_bottom
 
       -- Scan back for the nearest matching opener above openers_bottom.
       local opener = closer.prev
@@ -362,13 +542,24 @@ end
 
 function M.parse(text, _refmap)
   text = text or ""
-  -- Node list with linked-list fields (lprev/lnext) used by process_emphasis.
-  local nodes = {}
-  -- Delimiter stack: entries reference their text node, doubly linked.
+  -- Delimiter stack: entries reference their text node, doubly linked.  Bracket
+  -- delimiters (`[`, `![`) ride the same stack; they are inert to the emphasis
+  -- algorithm (can_open/can_close false) and consumed by the link procedure.
   local delim_top, delim_bottom = nil, nil
+  -- The node list is doubly linked (lprev/lnext) as it is built so the inline
+  -- link/image procedure can splice nodes mid-scan.
+  local head, tail = nil, nil
   local buf = {}
+  local n = #text
   local function append(node)
-    nodes[#nodes + 1] = node
+    node.lprev = tail
+    node.lnext = nil
+    if tail then
+      tail.lnext = node
+    else
+      head = node
+    end
+    tail = node
   end
   local function flush()
     if #buf > 0 then
@@ -376,7 +567,139 @@ function M.parse(text, _refmap)
       buf = {}
     end
   end
-  local i, n = 1, #text
+
+  -- Unlink a bracket-opener delimiter entry from the stack.
+  local function remove_opener(opener)
+    if opener.prev then
+      opener.prev.next = opener.next
+    else
+      delim_bottom = opener.next
+    end
+    if opener.next then
+      opener.next.prev = opener.prev
+    else
+      delim_top = opener.prev
+    end
+  end
+
+  -- "look for link or image" on `]` at text[close_pos].  Returns the index just
+  -- past the consumed `)` on success, or nil to fall through to a literal `]`.
+  local function look_for_link(close_pos)
+    -- Find the nearest bracket opener on the delimiter stack.
+    local opener = delim_top
+    while opener and opener.char ~= "[" do
+      opener = opener.prev
+    end
+    if not opener then
+      return nil
+    end
+    if not opener.active then
+      remove_opener(opener)
+      return nil
+    end
+
+    -- Try to parse the inline `(dest "title")` form.  On any failure the opener
+    -- is removed and the `]` becomes literal.  char after `]` must be `(`.
+    local p = close_pos + 1
+    if text:sub(p, p) ~= "(" then
+      remove_opener(opener)
+      return nil
+    end
+    p = p + 1
+    p = text:match("^[ \t\n]*()", p) or p
+    local dest, title = "", nil
+    if text:sub(p, p) ~= ")" then
+      local d, after = parse_destination(text, p, n)
+      if not d then
+        remove_opener(opener)
+        return nil
+      end
+      dest = d
+      p = after
+      local ws = text:match("^[ \t\n]+()", p)
+      if ws then
+        local t, tafter = parse_title(text, ws, n)
+        if t then
+          title = t
+          p = tafter
+        end
+      end
+    end
+    p = text:match("^[ \t\n]*()", p) or p
+    if text:sub(p, p) ~= ")" then
+      remove_opener(opener)
+      return nil
+    end
+    p = p + 1
+
+    local is_image = opener.image
+    -- Resolve emphasis strictly within the link-text span (above the opener);
+    -- the opener bounds the scan so emphasis cannot reach earlier delimiters.
+    head = process_emphasis(head, opener.next, opener)
+
+    -- Collect the resolved span: nodes strictly after the opener's `[` node.
+    local span = {}
+    local cur = opener.node.lnext
+    while cur do
+      span[#span + 1] = cur
+      cur = cur.lnext
+    end
+
+    local title_decoded = title and decode_escapes(title) or nil
+    local newnode
+    if is_image then
+      local parts = {}
+      for _, sn in ipairs(span) do
+        parts[#parts + 1] = plain_text(sn)
+      end
+      newnode = {
+        kind = "image",
+        target = normalize_destination(dest),
+        alt = table.concat(parts),
+        title = title_decoded,
+      }
+    else
+      for k = 1, #span do
+        span[k].lprev, span[k].lnext = nil, nil
+      end
+      newnode = ast.link(normalize_destination(dest), span, "inline")
+      newnode.title = title_decoded
+    end
+
+    -- Splice newnode in place of the opener's `[` node and the whole span.
+    local before = opener.node.lprev
+    newnode.lprev = before
+    newnode.lnext = nil
+    if before then
+      before.lnext = newnode
+    else
+      head = newnode
+    end
+    tail = newnode
+
+    -- Drop the opener and every delimiter above it from the stack.
+    if opener.prev then
+      opener.prev.next = nil
+    else
+      delim_bottom = nil
+    end
+    delim_top = opener.prev
+
+    -- A link deactivates all earlier non-image `[` openers (no nested links).
+    if not is_image then
+      local d = delim_top
+      while d do
+        if d.char == "[" and not d.image then
+          d.active = false
+        end
+        d = d.prev
+      end
+    end
+
+    return p
+  end
+
+  local i = 1
   while i <= n do
     local c = text:sub(i, i)
 
@@ -454,7 +777,7 @@ function M.parse(text, _refmap)
             -- Found matching close run.
             local content = text:sub(i, close_start - 1)
             flush()
-            nodes[#nodes + 1] = ast.emphasis("code", { ast.text(normalize_code_span(content)) })
+            append(ast.emphasis("code", { ast.text(normalize_code_span(content)) }))
             i = j
             found = true
             break
@@ -477,25 +800,83 @@ function M.parse(text, _refmap)
       local uri, uend = match_uri_autolink(text, i)
       if uri then
         flush()
-        nodes[#nodes + 1] = ast.link(uri, uri, "autolink")
+        append(ast.link(uri, uri, "autolink"))
         i = uend
       else
         local addr, eend = match_email_autolink(text, i)
         if addr then
           flush()
-          nodes[#nodes + 1] = ast.link("mailto:" .. addr, addr, "autolink")
+          append(ast.link("mailto:" .. addr, addr, "autolink"))
           i = eend
         else
           local hend = match_raw_html(text, i, n)
           if hend then
             flush()
-            nodes[#nodes + 1] = ast.raw_inline(text:sub(i, hend - 1))
+            append(ast.raw_inline(text:sub(i, hend - 1)))
             i = hend
           else
             buf[#buf + 1] = "<"
             i = i + 1
           end
         end
+      end
+
+    -- Open bracket: an image opener `![` (when `!` precedes) or a link opener
+    -- `[`.  Push a bracket delimiter referencing its text node.
+    elseif c == "[" then
+      flush()
+      local tnode = ast.text("[")
+      append(tnode)
+      local d = {
+        node = tnode,
+        char = "[",
+        image = false,
+        active = true,
+        can_open = false,
+        can_close = false,
+        prev = delim_top,
+        next = nil,
+      }
+      if delim_top then
+        delim_top.next = d
+      else
+        delim_bottom = d
+      end
+      delim_top = d
+      i = i + 1
+
+    -- Exclamation: `![` is an image opener; a bare `!` is literal text.
+    elseif c == "!" and text:sub(i + 1, i + 1) == "[" then
+      flush()
+      local tnode = ast.text("![")
+      append(tnode)
+      local d = {
+        node = tnode,
+        char = "[",
+        image = true,
+        active = true,
+        can_open = false,
+        can_close = false,
+        prev = delim_top,
+        next = nil,
+      }
+      if delim_top then
+        delim_top.next = d
+      else
+        delim_bottom = d
+      end
+      delim_top = d
+      i = i + 2
+
+    -- Close bracket: run the "look for link or image" procedure.
+    elseif c == "]" then
+      flush()
+      local after = look_for_link(i)
+      if after then
+        i = after
+      else
+        buf[#buf + 1] = "]"
+        i = i + 1
       end
 
     -- Newline: hard break (2+ trailing spaces or preceding backslash) or soft break.
@@ -509,18 +890,18 @@ function M.parse(text, _refmap)
         -- CommonMark: 2+ trailing spaces before \n = hard break.
         buf = { buf_str:sub(1, #buf_str - trailing_spaces) }
         flush()
-        nodes[#nodes + 1] = ast.linebreak()
+        append(ast.linebreak())
       elseif ends_backslash then
         -- CommonMark: backslash immediately before \n = hard break.
         buf = { buf_str:sub(1, #buf_str - 1) }
         flush()
-        nodes[#nodes + 1] = ast.linebreak()
+        append(ast.linebreak())
       else
         -- Soft break: CommonMark strips trailing spaces before a soft break.
         local stripped = buf_str:gsub(" +$", "")
         buf = { stripped }
         flush()
-        nodes[#nodes + 1] = ast.text("\n")
+        append(ast.text("\n"))
       end
       -- Strip leading spaces from next line.
       i = i + 1
@@ -548,17 +929,13 @@ function M.parse(text, _refmap)
   end
   flush()
 
-  -- Link the scanned nodes into a doubly-linked list, then run the emphasis
-  -- phase over it.  Wrapping splices emphasis nodes between delimiter text
-  -- nodes; leftover delimiter text nodes (length > 0) stay as literal text.
-  if #nodes == 0 then
-    return nodes
+  -- Resolve any emphasis delimiters left on the stack (those not consumed by a
+  -- link procedure).  The node list is already doubly linked from append; the
+  -- bracket entries on the stack are inert to the emphasis algorithm.
+  if not head then
+    return {}
   end
-  for k = 1, #nodes do
-    nodes[k].lprev = nodes[k - 1]
-    nodes[k].lnext = nodes[k + 1]
-  end
-  local head = process_emphasis(nodes[1], delim_bottom)
+  head = process_emphasis(head, delim_bottom)
 
   -- Flatten the list back into an array, dropping the link fields and any
   -- empty text nodes left by fully-consumed delimiters.

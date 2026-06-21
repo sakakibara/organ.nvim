@@ -35,6 +35,22 @@ local function inline(nodes)
         .. '">'
         .. escape(n.description or "")
         .. "</a>"
+    elseif n.kind == "link" then
+      out[#out + 1] = '<a href="'
+        .. escape(n.target or "")
+        .. '"'
+        .. (n.title and ' title="' .. escape(n.title) .. '"' or "")
+        .. ">"
+        .. inline(n.description)
+        .. "</a>"
+    elseif n.kind == "image" then
+      out[#out + 1] = '<img src="'
+        .. escape(n.target or "")
+        .. '" alt="'
+        .. escape(n.alt or "")
+        .. '"'
+        .. (n.title and ' title="' .. escape(n.title) .. '"' or "")
+        .. " />"
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""
     end

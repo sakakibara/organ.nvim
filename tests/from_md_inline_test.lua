@@ -228,4 +228,64 @@ assert(
   "alternating must not throw"
 )
 
+-- Inline links.
+assert(
+  cmark.render(from_md.parse('[link](/uri "title")\n'))
+    == '<p><a href="/uri" title="title">link</a></p>\n',
+  "inline link with title"
+)
+assert(
+  cmark.render(from_md.parse("[link](/uri)\n")) == '<p><a href="/uri">link</a></p>\n',
+  "inline link no title"
+)
+assert(
+  cmark.render(from_md.parse("[link]()\n")) == '<p><a href="">link</a></p>\n',
+  "empty destination"
+)
+assert(
+  cmark.render(from_md.parse("[a](<b c>)\n")) == '<p><a href="b%20c">a</a></p>\n',
+  "angle dest with space normalized"
+)
+assert(
+  cmark.render(from_md.parse("[link](foo\nbar)\n")) == "<p>[link](foo\nbar)</p>\n",
+  "newline in dest is not a link"
+)
+assert(
+  cmark.render(from_md.parse("[link](foo(and(bar))\n")) == "<p>[link](foo(and(bar))</p>\n",
+  "unbalanced parens not a link"
+)
+-- Emphasis inside link text resolves.
+assert(
+  cmark.render(from_md.parse("[*foo*](/u)\n")) == '<p><a href="/u"><em>foo</em></a></p>\n',
+  "emphasis inside link text"
+)
+-- Links cannot nest links: the inner [b](/u) forms a link and deactivates the
+-- outer [ opener, so the outer brackets stay literal.
+assert(
+  cmark.render(from_md.parse("[a [b](/u) c]\n")) == '<p>[a <a href="/u">b</a> c]</p>\n',
+  "no nested links: inner link, outer brackets literal"
+)
+-- Inline images; alt text is plain (emphasis stripped).
+assert(
+  cmark.render(from_md.parse("![](/url)\n")) == '<p><img src="/url" alt="" /></p>\n',
+  "empty image"
+)
+assert(
+  cmark.render(from_md.parse("![*foo*](/u)\n")) == '<p><img src="/u" alt="foo" /></p>\n',
+  "image alt is plain text"
+)
+-- No-throw on pathological brackets.
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("[", 10000) .. "x\n")
+  end),
+  "10000 open brackets no throw"
+)
+assert(
+  pcall(function()
+    return from_md.parse(string.rep("![](", 10000) .. "\n")
+  end),
+  "10000 image opens no throw"
+)
+
 print("from_md_inline_test: PASS")
