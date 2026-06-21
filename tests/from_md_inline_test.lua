@@ -75,4 +75,78 @@ assert(
   "space before code span kept"
 )
 
+-- Autolinks.
+assert(
+  cmark.render(from_md.parse("<http://foo.bar.baz>\n"))
+    == '<p><a href="http://foo.bar.baz">http://foo.bar.baz</a></p>\n',
+  "uri autolink"
+)
+assert(
+  cmark.render(from_md.parse("<irc://foo.bar:2233/baz>\n"))
+    == '<p><a href="irc://foo.bar:2233/baz">irc://foo.bar:2233/baz</a></p>\n',
+  "scheme autolink"
+)
+assert(
+  cmark.render(from_md.parse("<MAILTO:FOO@BAR.BAZ>\n"))
+    == '<p><a href="MAILTO:FOO@BAR.BAZ">MAILTO:FOO@BAR.BAZ</a></p>\n',
+  "uppercase scheme autolink"
+)
+assert(
+  cmark.render(from_md.parse("<foo@bar.example.com>\n"))
+    == '<p><a href="mailto:foo@bar.example.com">foo@bar.example.com</a></p>\n',
+  "email autolink"
+)
+-- A space inside disqualifies an autolink (falls through to literal <).
+assert(
+  cmark.render(from_md.parse("<http://foo.bar/baz bim>\n"))
+    == "<p>&lt;http://foo.bar/baz bim&gt;</p>\n",
+  "autolink with space is literal"
+)
+-- Raw inline HTML emitted verbatim.
+assert(
+  cmark.render(from_md.parse("<a><bab><c2c>\n")) == "<p><a><bab><c2c></p>\n",
+  "raw html tags verbatim"
+)
+-- Mid-text open tag with multiple attribute forms (not a line-filling block).
+assert(
+  cmark.render(from_md.parse("x <a foo=\"bar\" bam = 'baz' _boolean zoop:33=zoop:33> y\n"))
+    == "<p>x <a foo=\"bar\" bam = 'baz' _boolean zoop:33=zoop:33> y</p>\n",
+  "raw html open tag with attributes verbatim"
+)
+assert(
+  cmark.render(from_md.parse("x </a></foo > y\n")) == "<p>x </a></foo > y</p>\n",
+  "raw html closing tags verbatim"
+)
+assert(
+  cmark.render(from_md.parse("foo <!-- this is a comment - with hyphen --> bar\n"))
+    == "<p>foo <!-- this is a comment - with hyphen --> bar</p>\n",
+  "raw html comment verbatim"
+)
+assert(
+  cmark.render(from_md.parse("foo <?php echo $a; ?> bar\n")) == "<p>foo <?php echo $a; ?> bar</p>\n",
+  "raw html processing instruction verbatim"
+)
+assert(
+  cmark.render(from_md.parse("foo <!ELEMENT br EMPTY> bar\n"))
+    == "<p>foo <!ELEMENT br EMPTY> bar</p>\n",
+  "raw html declaration verbatim"
+)
+assert(
+  cmark.render(from_md.parse("foo <![CDATA[>&<]]> bar\n")) == "<p>foo <![CDATA[>&<]]> bar</p>\n",
+  "raw html cdata verbatim"
+)
+-- A bare < that is neither autolink nor tag is a literal <.
+assert(cmark.render(from_md.parse("a < b\n")) == "<p>a &lt; b</p>\n", "bare less-than is literal")
+assert(
+  cmark.render(from_md.parse("foo <bar/ baz>\n")) == "<p>foo &lt;bar/ baz&gt;</p>\n",
+  "malformed tag is literal"
+)
+
+-- No-throw / no-hang guard on pathological < runs (must terminate quickly).
+assert(pcall(from_md.parse, string.rep("<", 10000) .. "x\n"), "long < run must not throw")
+assert(
+  pcall(from_md.parse, string.rep("<a ", 10000) .. "\n"),
+  "long unfinished-tag run must not throw"
+)
+
 print("from_md_inline_test: PASS")

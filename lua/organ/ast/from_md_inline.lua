@@ -26,6 +26,193 @@ local function normalize_code_span(s)
   return s
 end
 
+-- Try to match a CommonMark URI autolink starting at text[i] (text[i] == "<").
+-- Returns the URI string and the index just past the closing ">", or nil.
+local function match_uri_autolink(text, i, n)
+  -- Scheme: ASCII letter then (letter|digit|+|.|-), total 2-32 chars.
+  local scheme, after = text:match("^<(%a[%a%d+.-]*):()", i)
+  if not scheme or #scheme < 1 or #scheme > 32 then
+    return nil
+  end
+  -- Body: any chars except whitespace, <, >, control chars; then ">".
+  local j = after
+  while j <= n do
+    local ch = text:sub(j, j)
+    if ch == ">" then
+      return text:sub(i + 1, j - 1), j + 1
+    end
+    -- Whitespace, <, or control chars (<= 0x20) terminate without a match.
+    if ch == "<" or ch:byte() <= 0x20 then
+      return nil
+    end
+    j = j + 1
+  end
+  return nil
+end
+
+-- Try to match a CommonMark email autolink starting at text[i].  Returns the
+-- bare address and the index just past ">", or nil.  Decomposes the spec regex:
+-- local-part chars, then @, then dot-separated alnum-bounded labels (<=63 each).
+local function match_email_autolink(text, i, n)
+  local close = text:find(">", i + 1, true)
+  if not close then
+    return nil
+  end
+  local addr = text:sub(i + 1, close - 1)
+  local at = addr:find("@", 1, true)
+  if not at then
+    return nil
+  end
+  local local_part = addr:sub(1, at - 1)
+  local domain = addr:sub(at + 1)
+  if local_part == "" or domain == "" then
+    return nil
+  end
+  -- Local part: one or more of [a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-].
+  if local_part:match("^[%w.!#$%%&'*+/=?^_`{|}~-]+$") == nil then
+    return nil
+  end
+  -- Domain: dot-separated labels, each alnum-bounded, hyphens interior, <=63.
+  for label in (domain .. "."):gmatch("([^.]*)%.") do
+    if #label == 0 or #label > 63 then
+      return nil
+    end
+    if not label:match("^%w[%w-]*$") then
+      return nil
+    end
+    if label:sub(-1) == "-" then
+      return nil
+    end
+  end
+  return addr, close + 1
+end
+
+-- Skip an attribute-value-spec sequence in a raw-HTML open tag, starting at j.
+-- Returns the index after a single attribute, or nil if none matches.
+local function match_attribute(text, j, n)
+  -- Require whitespace before an attribute name.
+  local k = text:match("^%s+()", j)
+  if not k then
+    return nil
+  end
+  -- Attribute name: [a-zA-Z_:] then [a-zA-Z0-9_.:-]*.
+  local name_end = text:match("^[%a_:][%w_.:-]*()", k)
+  if not name_end then
+    return nil
+  end
+  j = name_end
+  -- Optional value spec: ws? = ws? value.
+  local eq = text:match("^%s*=%s*()", j)
+  if not eq then
+    return j
+  end
+  j = eq
+  local ch = text:sub(j, j)
+  if ch == '"' then
+    local close = text:find('"', j + 1, true)
+    if not close then
+      return nil
+    end
+    return close + 1
+  elseif ch == "'" then
+    local close = text:find("'", j + 1, true)
+    if not close then
+      return nil
+    end
+    return close + 1
+  else
+    -- Unquoted value: one or more chars excluding whitespace, "'=<>`.
+    local ue = text:match("^[^%s\"'=<>`]+()", j)
+    if not ue then
+      return nil
+    end
+    return ue
+  end
+end
+
+-- Try to match a raw inline HTML construct starting at text[i] (== "<").
+-- Returns the index just past the construct, or nil.  Covers open/closing tags,
+-- comments, processing instructions, declarations, and CDATA sections.
+local function match_raw_html(text, i, n)
+  -- HTML comment: <!--, then text not starting with > or ->, no --, ending -->.
+  if text:sub(i, i + 3) == "<!--" then
+    -- <!--> and <!---> are valid empty comments.
+    if text:sub(i, i + 4) == "<!-->" then
+      return i + 5
+    end
+    if text:sub(i, i + 5) == "<!--->" then
+      return i + 6
+    end
+    local body_start = i + 4
+    local j = body_start
+    while j <= n - 2 do
+      if text:sub(j, j + 2) == "-->" then
+        local body = text:sub(body_start, j - 1)
+        -- Body must not contain "--".
+        if body:find("--", 1, true) then
+          return nil
+        end
+        return j + 3
+      end
+      j = j + 1
+    end
+    return nil
+  end
+  -- CDATA section: <![CDATA[ ... ]]>.
+  if text:sub(i, i + 8) == "<![CDATA[" then
+    local close = text:find("]]>", i + 9, true)
+    if not close then
+      return nil
+    end
+    return close + 3
+  end
+  -- Declaration: <! ASCII-letter ... >.
+  if text:sub(i, i + 1) == "<!" and text:sub(i + 2, i + 2):match("%a") then
+    local close = text:find(">", i + 2, true)
+    if not close then
+      return nil
+    end
+    return close + 1
+  end
+  -- Processing instruction: <? ... ?>.
+  if text:sub(i, i + 1) == "<?" then
+    local close = text:find("?>", i + 2, true)
+    if not close then
+      return nil
+    end
+    return close + 2
+  end
+  -- Closing tag: </ tagname ws? >.
+  if text:sub(i, i + 1) == "</" then
+    local close = text:match("^</%a[%w-]*%s*>()", i)
+    if close then
+      return close
+    end
+    return nil
+  end
+  -- Open tag: < tagname (attr)* ws? /? >.
+  local j = text:match("^<%a[%w-]*()", i)
+  if not j then
+    return nil
+  end
+  while true do
+    local nj = match_attribute(text, j, n)
+    if not nj then
+      break
+    end
+    j = nj
+  end
+  -- Optional trailing whitespace, optional self-close slash, then ">".
+  j = text:match("^%s*()", j) or j
+  if text:sub(j, j) == "/" then
+    j = j + 1
+  end
+  if text:sub(j, j) == ">" then
+    return j + 1
+  end
+  return nil
+end
+
 function M.parse(text, _refmap)
   text = text or ""
   local nodes = {}
@@ -81,6 +268,32 @@ function M.parse(text, _refmap)
           buf[#buf + 1] = text:sub(k, k)
         end
         -- i is already past the opening run; continue scanning from there.
+      end
+
+    -- Less-than: autolink (URI then email) or raw inline HTML, else literal <.
+    elseif c == "<" then
+      local uri, uend = match_uri_autolink(text, i, n)
+      if uri then
+        flush()
+        nodes[#nodes + 1] = ast.link(uri, uri, "autolink")
+        i = uend
+      else
+        local addr, eend = match_email_autolink(text, i, n)
+        if addr then
+          flush()
+          nodes[#nodes + 1] = ast.link("mailto:" .. addr, addr, "autolink")
+          i = eend
+        else
+          local hend = match_raw_html(text, i, n)
+          if hend then
+            flush()
+            nodes[#nodes + 1] = ast.raw_inline(text:sub(i, hend - 1))
+            i = hend
+          else
+            buf[#buf + 1] = "<"
+            i = i + 1
+          end
+        end
       end
 
     -- Newline: hard break (2+ trailing spaces or preceding backslash) or soft break.

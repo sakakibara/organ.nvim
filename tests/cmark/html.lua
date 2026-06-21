@@ -25,6 +25,14 @@ local function inline(nodes)
       out[#out + 1] = "<code>" .. escape(content) .. "</code>"
     elseif n.kind == "linebreak" then
       out[#out + 1] = "<br />\n"
+    elseif n.kind == "link" and n.form == "autolink" then
+      out[#out + 1] = '<a href="'
+        .. escape(n.target or "")
+        .. '">'
+        .. escape(n.description or "")
+        .. "</a>"
+    elseif n.kind == "raw_inline" then
+      out[#out + 1] = n.text or ""
     end
     -- later stages: emphasis (bold/italic), link, etc.
   end
