@@ -64,4 +64,15 @@ assert(cmark.render(from_md.parse("foo\nbar\n")) == "<p>foo\nbar</p>\n", "soft b
 local ok_probe = pcall(from_md.parse, string.rep("`", 10000) .. "x\n")
 assert(ok_probe, "unmatched long backtick run must not throw")
 
+-- Trailing spaces on a paragraph's final line are stripped (CommonMark #645).
+assert(
+  cmark.render(from_md.parse("foo  \n")) == "<p>foo</p>\n",
+  "trailing spaces on last line stripped"
+)
+-- ...but a significant space before a code span is preserved.
+assert(
+  cmark.render(from_md.parse("foo `code`\n")) == "<p>foo <code>code</code></p>\n",
+  "space before code span kept"
+)
+
 print("from_md_inline_test: PASS")

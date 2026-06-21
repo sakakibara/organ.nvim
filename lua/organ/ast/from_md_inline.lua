@@ -91,18 +91,17 @@ function M.parse(text, _refmap)
       local ends_backslash = buf_str:sub(-1) == "\\"
 
       if trailing_spaces >= 2 then
-        -- Hard break: strip trailing spaces, flush, emit linebreak.
+        -- CommonMark: 2+ trailing spaces before \n = hard break.
         buf = { buf_str:sub(1, #buf_str - trailing_spaces) }
         flush()
         nodes[#nodes + 1] = ast.linebreak()
       elseif ends_backslash then
-        -- Hard break: strip trailing backslash, flush, emit linebreak.
+        -- CommonMark: backslash immediately before \n = hard break.
         buf = { buf_str:sub(1, #buf_str - 1) }
         flush()
         nodes[#nodes + 1] = ast.linebreak()
       else
-        -- Soft break: strip any trailing spaces (CommonMark strips trailing
-        -- spaces before a soft break), flush current buf, emit "\n" text.
+        -- Soft break: CommonMark strips trailing spaces before a soft break.
         local stripped = buf_str:gsub(" +$", "")
         buf = { stripped }
         flush()
@@ -116,14 +115,21 @@ function M.parse(text, _refmap)
 
     -- Backslash escape: next ASCII punctuation becomes literal.
     elseif c == "\\" and i < n and ASCII_PUNCT[text:sub(i + 1, i + 1)] then
-      -- A backslash before a newline is a hard break (handled above since \n
-      -- branch checks for trailing backslash).  All other ASCII-punct escapes.
+      -- Backslash-before-newline hard break is caught by the \n branch above.
       buf[#buf + 1] = text:sub(i + 1, i + 1)
       i = i + 2
     else
       buf[#buf + 1] = c
       i = i + 1
     end
+  end
+  -- CommonMark #645: trailing spaces on a paragraph's final line are not
+  -- significant and must be stripped.  The newline branch handles interior
+  -- lines; this covers the last line, which reaches end-of-input without a \n.
+  if #buf > 0 then
+    local s = table.concat(buf)
+    local stripped = s:gsub(" +$", "")
+    buf = { stripped }
   end
   flush()
   return nodes
