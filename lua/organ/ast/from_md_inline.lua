@@ -1542,4 +1542,6 @@ function M.parse_reference(s, i)
   return next_index, key, destination, title
 end
 
+M.decode_escapes = decode_escapes
+
 return M

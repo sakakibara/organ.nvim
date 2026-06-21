@@ -134,6 +134,16 @@ local function thematic_break(line, tip_is_paragraph)
   return { type = "thematic_break", children = {}, closed_immediately = true }
 end
 
+-- Remove up to `n` leading spaces from a fenced code body line (a line
+-- indented fewer than the opening fence has all of its leading spaces removed).
+local function strip_fence_indent(line, n)
+  local i = 1
+  while i <= n and line:sub(i, i) == " " do
+    i = i + 1
+  end
+  return line:sub(i)
+end
+
 -- Fenced code: <=3 space indent, then >=3 backticks or tildes, then an info
 -- string.  Opens a leaf that accumulates body lines until its closing fence.
 local function fenced_code(line)
@@ -1251,7 +1261,7 @@ function Parser:feed_open_leaf(line)
       tip.closed = true
       self:close_tip()
     else
-      tip.body[#tip.body + 1] = line:gsub("^" .. string.rep(" ", tip.indent), "")
+      tip.body[#tip.body + 1] = strip_fence_indent(line, tip.indent)
     end
     return true
   elseif tip.type == "html_block" then
@@ -1408,8 +1418,12 @@ local function inline_pass(root, refmap, opts)
           end
         end
       end
+    elseif k == "code_block" then
+      if node.language and node.language ~= "" then
+        node.language = from_md_inline.decode_escapes(node.language)
+      end
+      -- rule, directive, drawer: literal, not inline-parsed.
     end
-    -- code_block, rule, directive, drawer: literal, not inline-parsed.
   end
 end
 
