@@ -304,8 +304,29 @@ end
 -- ASCII letters/digits and this reserved/safe punctuation; everything else is
 -- percent-encoded.  A pre-existing valid %XX escape is also left intact.
 local DEST_SAFE = {}
-for ch in ("-_.~:/?#[]@!$&'()*+,;=%"):gmatch(".") do
+for ch in ("-_.~:/?#@!$&'()*+,;=%"):gmatch(".") do
   DEST_SAFE[ch] = true
+end
+
+-- Percent-encode a string for use as an href: a valid existing %XX is kept; the
+-- href-safe set and alphanumerics pass through; every other byte becomes %XX.
+local function percent_encode(s)
+  local out = {}
+  local i, n = 1, #s
+  while i <= n do
+    local c = s:sub(i, i)
+    if c == "%" and s:sub(i + 1, i + 2):match("^%x%x$") then
+      out[#out + 1] = s:sub(i, i + 2)
+      i = i + 3
+    elseif DEST_SAFE[c] or c:match("[%w]") then
+      out[#out + 1] = c
+      i = i + 1
+    else
+      out[#out + 1] = string.format("%%%02X", c:byte())
+      i = i + 1
+    end
+  end
+  return table.concat(out)
 end
 
 -- normalize_destination: decode backslash escapes and entity references in a
@@ -337,25 +358,7 @@ local function normalize_destination(raw)
       i = i + 1
     end
   end
-  local s = table.concat(decoded)
-
-  local out = {}
-  i, n = 1, #s
-  while i <= n do
-    local c = s:sub(i, i)
-    if c == "%" and s:sub(i + 1, i + 2):match("^%x%x$") then
-      -- Preserve an existing valid percent-escape verbatim.
-      out[#out + 1] = s:sub(i, i + 2)
-      i = i + 3
-    elseif DEST_SAFE[c] or c:match("[%w]") then
-      out[#out + 1] = c
-      i = i + 1
-    else
-      out[#out + 1] = string.format("%%%02X", c:byte())
-      i = i + 1
-    end
-  end
-  return table.concat(out)
+  return percent_encode(table.concat(decoded))
 end
 
 -- Decode backslash escapes (ASCII punctuation only) and entity references in a
@@ -1226,7 +1229,7 @@ function M.parse(text, refmap, opts)
       local uri, uend = match_uri_autolink(text, i)
       if uri then
         flush()
-        append(ast.link(uri, uri, "autolink"))
+        append(ast.link(percent_encode(uri), uri, "autolink"))
         i = uend
       else
         local addr, eend = match_email_autolink(text, i)
