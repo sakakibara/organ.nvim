@@ -17,7 +17,10 @@ local ast = require("organ.ast")
 
 local M = {}
 
+-- Split into lines on any CommonMark line ending: a carriage return, a line
+-- feed, or a carriage return + line feed are all normalized to a single break.
 local function split_lines(text)
+  text = text:gsub("\r\n?", "\n")
   local lines = {}
   for line in (text .. "\n"):gmatch("(.-)\n") do
     lines[#lines + 1] = line
@@ -80,10 +83,8 @@ local function drop_cols(s, base, n)
 end
 
 -- Leaf recognisers.  Each inspects the marker-stripped line and, when it begins
--- a block, returns a fresh open-block table (see Block types below); otherwise
--- nil.  The regexes and edge cases are the proven CommonMark behaviour; only the
--- delivery (per-line, returning an open block instead of mutating a parser)
--- differs.
+-- a block, returns a fresh open-block table for the open-blocks stack; otherwise
+-- nil.
 
 -- ATX heading: up to 3 leading spaces, 1-6 '#', then a space or EOL.  Closed
 -- immediately (single-line leaf).
@@ -626,9 +627,7 @@ local function table_data_row(line, ncols)
   return { sep = false, cells = cells }
 end
 
--- Finalising an open block to the AST node the renderer consumes.  These mirror
--- the previous leaf-by-leaf output exactly so the renderer and roundtrip are
--- unchanged.
+-- Finalise an open block into the AST node the renderer consumes.
 
 local function trim_trailing_blank(lines)
   while #lines > 0 and lines[#lines] == "" do
@@ -1230,22 +1229,23 @@ end
 -- Returns true on conversion; otherwise the line is handled normally.
 function Parser:try_table_start(rest, from)
   local tip = self:tip()
-  if #self.stack <= from or tip.type ~= "paragraph" or #tip.lines ~= 1 then
+  if #self.stack <= from or tip.type ~= "paragraph" then
     return false
   end
   local aligns = delimiter_alignments(rest)
   if not aligns then
     return false
   end
-  -- A leading reference definition is recorded and removed before the line can
-  -- serve as a table header; a header that is entirely a definition leaves
-  -- nothing to underline, so no table forms.
+  -- Leading reference definitions are recorded and removed first; what remains
+  -- must be a single header line.  A paragraph that is entirely definitions
+  -- leaves nothing to head the table; one that has more than one content line
+  -- (an embedded newline) is not a lone header either.
   local header = self:extract_para_refs(tip.lines)
   if header:match("^%s*$") then
     self.stack[#self.stack] = nil
     return false
   end
-  if not has_unescaped_pipe(header) then
+  if header:find("\n", 1, true) or not has_unescaped_pipe(header) then
     return false
   end
   local header_cells = table_cells(header)

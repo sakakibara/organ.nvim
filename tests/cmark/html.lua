@@ -84,7 +84,6 @@ local function inline(nodes)
       local t = n.text or ""
       out[#out + 1] = tagfilter_on and tagfilter(t) or t
     end
-    -- later stages: emphasis (bold/italic), link, etc.
   end
   return table.concat(out)
 end
