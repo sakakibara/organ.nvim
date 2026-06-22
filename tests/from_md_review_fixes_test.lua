@@ -31,4 +31,24 @@ eq(
 )
 eq("[x]: /u\n\n[x]\n", '<p><a href="/u">x</a></p>\n', "the leading definition is still recorded")
 
+-- Quadratic-on-nested-brackets regression: a deeply nested bracket run must
+-- parse in linear time (the reference-label normalize is skipped for over-long
+-- labels).  Bounded so an O(n^2) regression fails instead of merely being slow.
+do
+  local n = 16000
+  local input = string.rep("[[", n) .. "x" .. string.rep("]]", n)
+  local start = vim.loop.hrtime()
+  assert(
+    pcall(function()
+      return from_md.parse(input)
+    end),
+    "nested brackets must not throw"
+  )
+  local ms = (vim.loop.hrtime() - start) / 1e6
+  assert(
+    ms < 6000,
+    string.format("nested brackets parsed in %.0f ms (>6000 ms suggests an O(n^2) regression)", ms)
+  )
+end
+
 print("from_md_review_fixes_test: PASS")

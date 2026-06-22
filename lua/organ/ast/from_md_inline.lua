@@ -1237,6 +1237,11 @@ function M.parse(text, refmap, opts)
     -- Inline form failed.  Try the reference forms against refmap.  The label
     -- text is the raw source between the opener bracket and this `]`.
     local label_text = text:sub(opener.text_start, close_pos - 1)
+    -- A link label is at most 999 characters, so a longer link-text label (the
+    -- collapsed/shortcut key) can match no definition; skipping the normalize +
+    -- lookup avoids quadratic work on deeply nested brackets.  999 chars is at
+    -- most 999*4 UTF-8 bytes.
+    local label_fits = #label_text <= 999 * 4
     local entry, after
 
     if text:sub(close_pos + 1, close_pos + 1) == "[" then
@@ -1245,7 +1250,7 @@ function M.parse(text, refmap, opts)
       if inner ~= nil then
         if inner == "" then
           -- COLLAPSED: lookup the link-text label.
-          entry = refmap[normalize_label(label_text)]
+          entry = label_fits and refmap[normalize_label(label_text)] or nil
         else
           -- FULL: lookup the explicit (nonempty) label.
           entry = refmap[normalize_label(inner)]
@@ -1256,7 +1261,7 @@ function M.parse(text, refmap, opts)
       end
     else
       -- SHORTCUT: no following bracket; lookup the link-text label.
-      entry = refmap[normalize_label(label_text)]
+      entry = label_fits and refmap[normalize_label(label_text)] or nil
       if entry then
         after = close_pos + 1
       end
