@@ -52,4 +52,45 @@ assert(
   "regular dest decodes escape"
 )
 
+-- GFM extended autolinks are detected on the RAW source, so a character
+-- reference behaves the way cmark-gfm (what GitHub renders) treats it: a
+-- trailing reference is excluded from the link; an in-URL reference stays raw.
+-- Expected values verified against cmark-gfm 0.29.0.gfm.13.
+local A = { extended_autolinks = true }
+assert(
+  cmark.render(from_md.parse("www.x.com/a&amp;\n", A))
+    == '<p><a href="http://www.x.com/a">www.x.com/a</a>&amp;</p>\n',
+  "trailing &amp; is excluded from an extended autolink"
+)
+assert(
+  cmark.render(from_md.parse("www.x.com/a&copy;b\n", A))
+    == '<p><a href="http://www.x.com/a&amp;copy;b">www.x.com/a&amp;copy;b</a></p>\n',
+  "an in-URL reference stays raw in the link"
+)
+assert(
+  cmark.render(from_md.parse("www.x.com/a&amp;b\n", A))
+    == '<p><a href="http://www.x.com/a&amp;amp;b">www.x.com/a&amp;amp;b</a></p>\n',
+  "an in-URL &amp; stays raw"
+)
+assert(
+  cmark.render(from_md.parse("www.x.com/a;\n", A))
+    == '<p><a href="http://www.x.com/a">www.x.com/a</a>;</p>\n',
+  "a bare trailing semicolon is excluded"
+)
+assert(
+  cmark.render(from_md.parse("www.x.com/a&#38;\n", A))
+    == '<p><a href="http://www.x.com/a&amp;#38">www.x.com/a&amp;#38</a>;</p>\n',
+  "a numeric reference is not an &alpha+; entity: only its semicolon is excluded"
+)
+-- A literal `&amp;` produced by an escaped ampersand is NOT a reference and must
+-- not be decoded by the autolink pass (the escaped & is its own segment).
+assert(
+  cmark.render(from_md.parse("\\&amp;\n", A)) == "<p>&amp;amp;</p>\n",
+  "an escaped ampersand spelling out a reference is not decoded"
+)
+assert(
+  cmark.render(from_md.parse("a\\&amp;b\n", A)) == "<p>a&amp;amp;b</p>\n",
+  "a literal &amp; between text is left raw"
+)
+
 print("commonmark_autolink_enc_test: PASS")

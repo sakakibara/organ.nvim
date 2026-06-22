@@ -861,17 +861,19 @@ local function autolink_trim_path(s, start, stop)
       closes = closes - 1
       stop = stop - 1
     else
-      -- Trailing entity-like reference: &alnum+; (the ';' is `last`).
+      -- A trailing ';' is excluded: as a whole `&alpha+;` entity reference when
+      -- it is one (cmark-gfm walks alphabetic, not alphanumeric, characters),
+      -- otherwise just the bare ';'.  The stripped span holds no parens, so the
+      -- counts are unchanged.
       if last == ";" then
         local amp = stop - 1
-        while amp >= start and s:sub(amp, amp):match("%w") do
+        while amp >= start and s:sub(amp, amp):match("%a") do
           amp = amp - 1
         end
         if amp >= start and s:sub(amp, amp) == "&" and amp < stop - 1 then
-          -- The stripped `&alnum+;` span holds no parens, so counts are unchanged.
           stop = amp - 1
         else
-          break
+          stop = stop - 1
         end
       else
         break
@@ -996,6 +998,9 @@ local function scan_text(s)
       end
       if node and next_i and next_i > i then
         flush_run(i - 1)
+        -- Record the link's byte span in `s` so a caller can map it back to the
+        -- source (used to keep in-URL character references raw).
+        node.span_start, node.span_stop = i, next_i - 1
         nodes[#nodes + 1] = node
         run_start = next_i
         i = next_i
@@ -1015,20 +1020,85 @@ end
 -- Consecutive text nodes are coalesced first so a candidate that straddles an
 -- intraword delimiter split (e.g. `c_d@a.b`, where `_` left a node boundary) is
 -- still recognised.
+--
+-- A character reference is scanned in its RAW `&...;` form (so the GFM
+-- trailing-reference and in-URL rules see it), then a reference the scan leaves
+-- OUTSIDE a link is decoded while one kept inside a link stays raw, matching
+-- cmark-gfm.  A reference node carries its raw source as `.raw`; a literal `&`
+-- (e.g. from `\&amp;`) is an ordinary segment and is never decoded.  The map
+-- from raw to decoded offsets makes this exact, so non-reference text -- even if
+-- it spells out `&amp;` -- is left untouched.
 local function extend_autolinks(nodes)
   local out = {}
-  local run = {}
+  local segs, has_ref = {}, false
   local function flush_run()
-    if #run > 0 then
-      for _, sub in ipairs(scan_text(table.concat(run))) do
+    if #segs == 0 then
+      return
+    end
+    if not has_ref then
+      for _, sub in ipairs(scan_text(table.concat(segs))) do
+        -- The byte-span fields are only needed by the reference path below.
+        sub.span_start, sub.span_stop = nil, nil
         out[#out + 1] = sub
       end
-      run = {}
+    else
+      -- Build the raw scan string and note where each reference STARTS (its byte
+      -- length and decoded value).  Text the scan leaves outside a link is
+      -- decoded by replacing only a reference that begins there and fits wholly
+      -- in that text -- so a literal `&...;` (no reference start) is left as is,
+      -- and a reference the autolink split (its trailing ';' trimmed off) keeps
+      -- both parts raw, matching cmark-gfm.
+      local raw_parts, ref_start = {}, {}
+      local roff = 0
+      for _, seg in ipairs(segs) do
+        if type(seg) == "table" then
+          ref_start[roff + 1] = { len = #seg.raw, dec = seg.dec }
+          raw_parts[#raw_parts + 1] = seg.raw
+          roff = roff + #seg.raw
+        else
+          raw_parts[#raw_parts + 1] = seg
+          roff = roff + #seg
+        end
+      end
+      local raw = table.concat(raw_parts)
+      local function emit_decoded(a, b)
+        if a > b then
+          return
+        end
+        local parts, i = {}, a
+        while i <= b do
+          local rs = ref_start[i]
+          if rs and i + rs.len - 1 <= b then
+            parts[#parts + 1] = rs.dec
+            i = i + rs.len
+          else
+            parts[#parts + 1] = raw:sub(i, i)
+            i = i + 1
+          end
+        end
+        out[#out + 1] = ast.text(table.concat(parts))
+      end
+      local p = 1
+      for _, sub in ipairs(scan_text(raw)) do
+        if sub.kind == "link" then
+          emit_decoded(p, sub.span_start - 1)
+          p = sub.span_stop + 1
+          sub.span_start, sub.span_stop = nil, nil
+          out[#out + 1] = sub
+        end
+      end
+      emit_decoded(p, #raw)
     end
+    segs, has_ref = {}, false
   end
   for _, node in ipairs(nodes) do
     if node.kind == "text" then
-      run[#run + 1] = node.text or ""
+      if node.raw then
+        segs[#segs + 1] = { raw = node.raw, dec = node.text or "" }
+        has_ref = true
+      else
+        segs[#segs + 1] = node.text or ""
+      end
     elseif node.kind == "emphasis" and node.style ~= "code" then
       flush_run()
       node.content = extend_autolinks(node.content or {})
@@ -1502,7 +1572,12 @@ function M.parse(text, refmap, opts)
       local entity, len = match_entity(text, i)
       if entity then
         flush()
-        append(ast.text(entity))
+        local node = ast.text(entity)
+        -- Keep the raw reference so the extended-autolink pass can scan it.
+        if opts and opts.extended_autolinks then
+          node.raw = text:sub(i, i + len - 1)
+        end
+        append(node)
         i = i + len
       else
         buf[#buf + 1] = c
