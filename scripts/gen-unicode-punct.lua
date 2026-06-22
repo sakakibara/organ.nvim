@@ -25,7 +25,7 @@ local cps = {}
 local i = 1
 while i <= #rows do
   local cp, name, cat = rows[i][1], rows[i][2], rows[i][3]
-  if name:match("First>$") then
+  if name:match("First>$") and rows[i + 1] then
     if is_ps(cat) then
       cps[#cps + 1] = { cp, rows[i + 1][1] }
     end

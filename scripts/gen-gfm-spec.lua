@@ -36,7 +36,7 @@ end
 
 local lines = {}
 for line in io.lines(src) do
-  lines[#lines + 1] = line
+  lines[#lines + 1] = (line:gsub("\r$", "")) -- tolerate CRLF source files
 end
 
 local examples = {}

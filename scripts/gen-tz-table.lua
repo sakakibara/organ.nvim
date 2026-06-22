@@ -9,6 +9,7 @@ local out = arg[2] or "lua/organ/todo/timezone_table.lua"
 
 local rows = {}
 for line in io.lines(src) do
+  line = (line:gsub("\r$", "")) -- tolerate CRLF source files
   if line:sub(1, 1) ~= "#" then
     local f = {}
     for field in (line .. "\t"):gmatch("([^\t]*)\t") do
