@@ -15,6 +15,67 @@ for ch in ("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"):gmatch(".") do
   ASCII_PUNCT[ch] = true
 end
 
+local PUNCT_RANGES = require("organ.ast.unicode_punct")
+
+-- Decode the first UTF-8 code point of `s` to a number, or nil if `s` is empty
+-- or a truncated/standalone byte (so a lone byte from a byte-scan is harmless).
+local function decode_cp(s)
+  local b1 = s:byte(1)
+  if not b1 then
+    return nil
+  end
+  if b1 < 0x80 then
+    return b1
+  end
+  local b2 = s:byte(2)
+  if not b2 then
+    return nil
+  end
+  if b1 < 0xE0 then
+    return (b1 - 0xC0) * 64 + (b2 - 0x80)
+  end
+  local b3 = s:byte(3)
+  if not b3 then
+    return nil
+  end
+  if b1 < 0xF0 then
+    return (b1 - 0xE0) * 4096 + (b2 - 0x80) * 64 + (b3 - 0x80)
+  end
+  local b4 = s:byte(4)
+  if not b4 then
+    return nil
+  end
+  return (b1 - 0xF0) * 262144 + (b2 - 0x80) * 4096 + (b3 - 0x80) * 64 + (b4 - 0x80)
+end
+
+-- The full UTF-8 code-point substring starting at byte `i` (or "" past the end).
+local function cp_after(text, i, n)
+  if i > n then
+    return ""
+  end
+  local b = text:byte(i)
+  local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
+  return text:sub(i, math.min(i + len - 1, n))
+end
+
+-- The full UTF-8 code-point substring ending at byte `i` (or "" before the
+-- start) -- walk back over continuation bytes (0x80-0xBF) to the lead byte.
+local function cp_before(text, i)
+  if i < 1 then
+    return ""
+  end
+  local j = i
+  while j > 1 do
+    local b = text:byte(j)
+    if b >= 0x80 and b <= 0xBF then
+      j = j - 1
+    else
+      break
+    end
+  end
+  return text:sub(j, i)
+end
+
 -- U+FFFD replacement character (UTF-8 encoding).
 local REPLACEMENT_CHAR = "\239\191\189"
 
@@ -95,14 +156,54 @@ local function match_entity(text, i)
   end
 end
 
--- Classify a single byte for flanking analysis.  CommonMark treats start/end of
--- text as whitespace; callers pass "" or nil for those positions.
-local function is_ws(ch)
-  return ch == nil or ch == "" or ch == " " or ch == "\t" or ch == "\n" or ch == "\r" or ch == "\f"
+-- CommonMark Unicode whitespace: Zs category plus tab/LF/FF/CR; start/end of
+-- input (nil/"") counts as whitespace for flanking.
+local function is_ws(s)
+  if s == nil or s == "" then
+    return true
+  end
+  local cp = decode_cp(s)
+  if not cp then
+    return false
+  end
+  if cp == 0x20 or cp == 0x09 or cp == 0x0A or cp == 0x0C or cp == 0x0D then
+    return true
+  end
+  return cp == 0xA0
+    or cp == 0x1680
+    or (cp >= 0x2000 and cp <= 0x200A)
+    or cp == 0x202F
+    or cp == 0x205F
+    or cp == 0x3000
 end
 
-local function is_punct(ch)
-  return ch ~= nil and ch ~= "" and ASCII_PUNCT[ch] == true
+-- CommonMark Unicode punctuation: ASCII punctuation, or the Unicode P*/S*
+-- categories (binary search over the generated code-point ranges).
+local function is_punct(s)
+  if s == nil or s == "" then
+    return false
+  end
+  if #s == 1 then
+    return ASCII_PUNCT[s] == true
+  end
+  local cp = decode_cp(s)
+  if not cp then
+    return false
+  end
+  local R = PUNCT_RANGES
+  local lo, hi = 1, #R / 2
+  while lo <= hi do
+    local mid = math.floor((lo + hi) / 2)
+    local rlo, rhi = R[2 * mid - 1], R[2 * mid]
+    if cp < rlo then
+      hi = mid - 1
+    elseif cp > rhi then
+      lo = mid + 1
+    else
+      return true
+    end
+  end
+  return false
 end
 
 -- Normalize code span content per CommonMark spec:
@@ -1167,8 +1268,8 @@ function M.parse(text, refmap, opts)
         i = i + 1
       end
       local run_len = i - run_start
-      local before = run_start > 1 and text:sub(run_start - 1, run_start - 1) or ""
-      local after = i <= n and text:sub(i, i) or ""
+      local before = run_start > 1 and cp_before(text, run_start - 1) or ""
+      local after = i <= n and cp_after(text, i, n) or ""
 
       local before_ws, before_punct = is_ws(before), is_punct(before)
       local after_ws, after_punct = is_ws(after), is_punct(after)
