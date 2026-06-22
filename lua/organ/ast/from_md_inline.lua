@@ -16,6 +16,7 @@ for ch in ("!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~"):gmatch(".") do
 end
 
 local PUNCT_RANGES = require("organ.ast.unicode_punct")
+local CASEFOLD = require("organ.ast.unicode_casefold")
 
 -- Decode the first UTF-8 code point of `s` to a number, or nil if `s` is empty
 -- or a truncated/standalone byte (so a lone byte from a byte-scan is harmless).
@@ -766,12 +767,28 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
   return head
 end
 
+-- Unicode full case fold: replace each code point by its CaseFolding.txt C/F
+-- mapping (or itself).  Used for case-insensitive link-label matching.
+local function casefold(s)
+  local out = {}
+  local i, n = 1, #s
+  while i <= n do
+    local b = s:byte(i)
+    local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
+    local piece = s:sub(i, i + len - 1)
+    local cp = decode_cp(piece)
+    out[#out + 1] = (cp and CASEFOLD[cp]) or piece
+    i = i + len
+  end
+  return table.concat(out)
+end
+
 -- Normalize a link label for reference lookup.  Shared by inline reference
 -- lookups and parse_reference's definition keys, so a definition and its use
 -- normalize to the same key: collapse internal whitespace runs to a single
 -- space, trim a leading/trailing space, case-fold.
 local function normalize_label(label)
-  return (label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", ""):lower())
+  return casefold((label:gsub("%s+", " "):gsub("^ ", ""):gsub(" $", "")))
 end
 
 -- GFM extended autolinks (opt-in post-pass).  These operate on a single flat
