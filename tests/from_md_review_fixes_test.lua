@@ -51,4 +51,37 @@ do
   )
 end
 
+-- Container nesting is bounded, so a pathological single-line marker run parses
+-- in linear time, and the produced AST stays shallow enough for the recursive
+-- renderers (a deep blockquote no longer overflows the renderer stack).
+do
+  local start = vim.loop.hrtime()
+  assert(
+    pcall(function()
+      return from_md.parse(string.rep("> - ", 25000) .. "x")
+    end),
+    "interleaved markers must not throw"
+  )
+  assert(
+    pcall(function()
+      return from_md.parse(string.rep("- ", 25000) .. "x")
+    end),
+    "list markers must not throw"
+  )
+  local ms = (vim.loop.hrtime() - start) / 1e6
+  assert(
+    ms < 6000,
+    string.format(
+      "25000 single-line markers parsed in %.0f ms (>6000 ms suggests an O(n^2) regression)",
+      ms
+    )
+  )
+  assert(
+    pcall(function()
+      return cmark.render(from_md.parse(string.rep("> ", 50000) .. "x\n"))
+    end),
+    "a deep blockquote must render without overflowing the renderer stack"
+  )
+end
+
 print("from_md_review_fixes_test: PASS")

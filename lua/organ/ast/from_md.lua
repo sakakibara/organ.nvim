@@ -17,6 +17,14 @@ local ast = require("organ.ast")
 
 local M = {}
 
+-- Maximum container-nesting depth.  Beyond this, further block-quote / list
+-- nesting is not opened and the markers are kept as content.  It bounds the
+-- open-blocks stack so per-line work stays linear on pathological input (e.g.
+-- thousands of '> - ' on one line) and keeps the produced AST shallow enough
+-- for the recursive renderers.  No real document -- and none of the CommonMark
+-- spec examples -- nests anywhere near this deep.
+local MAX_NESTING = 1000
+
 -- Split into lines on any CommonMark line ending: a carriage return, a line
 -- feed, or a carriage return + line feed are all normalized to a single break.
 local function split_lines(text)
@@ -977,12 +985,16 @@ function Parser:try_starts(line, base, from)
   -- depth does not scale with the number of '>' on a line (a recursive call per
   -- marker would overflow the C stack on pathological '> > > ...' input).
   local bq_rest, bq_base = strip_block_quote_marker(line, base)
-  if bq_rest then
+  if bq_rest and #self.stack < MAX_NESTING then
     from = self:leaf_base(from)
     self:close_below(from)
     repeat
       local quote = { type = "block_quote", children = {} }
       self:push(quote)
+      -- Depth cap: a deeper '>' here keeps the rest of the line as content.
+      if #self.stack >= MAX_NESTING then
+        break
+      end
       local next_rest, next_base = strip_block_quote_marker(bq_rest, bq_base)
       if next_rest == nil then
         break
@@ -1024,7 +1036,7 @@ function Parser:try_starts(line, base, from)
   -- here under an open item naturally opens a nested list (its content was
   -- parsed under #stack with the outer item's indentation stripped).
   local lm = list_marker(line, base)
-  if lm then
+  if lm and #self.stack < MAX_NESTING then
     -- A marker that would START a new list (no matching open same-kind list)
     -- may interrupt a paragraph only when its content is non-empty and, for
     -- ordered lists, only when it starts at 1.  Extending an open same-kind
@@ -1134,7 +1146,9 @@ function Parser:open_list_item(lm, from)
     local base = lm.base
     -- A blank remainder leaves the item open and empty; a thematic break wins
     -- over a further nested marker (the existing precedence).
-    if is_blank(rest) or thematic_break(rest, false) then
+    if is_blank(rest) or thematic_break(rest, false) or #self.stack >= MAX_NESTING then
+      -- Blank/thematic-break end the descent; the depth cap keeps deeper nested
+      -- markers as the item's content rather than opening further sublists.
       lm = nil
     else
       lm = list_marker(rest, base)
