@@ -29,8 +29,14 @@ local MAX_NESTING = 1000
 -- feed, or a carriage return + line feed are all normalized to a single break.
 local function split_lines(text)
   text = text:gsub("\r\n?", "\n")
+  -- Terminate only an unterminated input, so a trailing newline does not
+  -- synthesise a phantom final blank line (which would otherwise show up as
+  -- spurious trailing content in an unclosed fenced code block).
+  if text:sub(-1) ~= "\n" then
+    text = text .. "\n"
+  end
   local lines = {}
-  for line in (text .. "\n"):gmatch("(.-)\n") do
+  for line in text:gmatch("(.-)\n") do
     lines[#lines + 1] = line
   end
   return lines
@@ -156,16 +162,21 @@ end
 -- Fenced code: <=3 space indent, then >=3 backticks or tildes, then an info
 -- string.  Opens a leaf that accumulates body lines until its closing fence.
 local function fenced_code(line)
-  local indent, fence, info = line:match("^( ? ? ?)([`~][`~][`~]+)%s*(.*)$")
+  -- The fence is a run of >= 3 of a SINGLE char (all backticks or all tildes);
+  -- a backtick after a tilde run is the info string, not part of the fence.
+  local indent, fence, info = line:match("^( ? ? ?)(`+)(.*)$")
   if not fence then
+    indent, fence, info = line:match("^( ? ? ?)(~+)(.*)$")
+  end
+  if not fence or #fence < 3 then
     return nil
   end
   local fence_char = fence:sub(1, 1)
-  -- Backtick info strings cannot contain a backtick.
+  -- A backtick info string cannot contain a backtick.
   if fence_char == "`" and info:find("`", 1, true) then
     return nil
   end
-  local lang = info:match("^(%S+)")
+  local lang = info:match("^%s*(%S+)")
   return {
     type = "code_block",
     variant = "fenced",
@@ -182,8 +193,10 @@ end
 -- A fenced code block's closing fence: same char, length >= the opener, <=3
 -- space indent, nothing else but trailing whitespace.
 local function is_closing_fence(block, line)
+  -- The closing fence is a run of the SAME char as the opener (mixed `~~~```
+  -- does not close), at least as long, then only trailing whitespace.
   local close = line:match("^ ? ? ?([`~]+)%s*$")
-  return close and close:sub(1, 1) == block.fence_char and #close >= block.fence_len
+  return close and close == string.rep(block.fence_char, #close) and #close >= block.fence_len
 end
 
 -- Indented code: a line indented >=4 columns that does not continue a paragraph.
@@ -693,11 +706,8 @@ local function finalize(block)
   elseif t == "code_block" then
     local body_lines = block.body
     if block.variant == "fenced" then
-      -- Unclosed fence ran to EOF; the doubled-newline split artifact leaves a
-      -- trailing blank line that is not part of the body.
-      if not block.closed then
-        trim_trailing_blank(body_lines)
-      end
+      -- Fenced code keeps its body verbatim, including trailing blank lines (an
+      -- unclosed fence runs to EOF).
       local body = #body_lines > 0 and (table.concat(body_lines, "\n") .. "\n") or ""
       return ast.code_block(block.lang, body)
     else
