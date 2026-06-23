@@ -496,25 +496,26 @@ end
 -- to be parsed under the item (with the marker + W's worth of spaces removed).
 local function list_marker(line, base)
   base = base or 0
-  -- The marker glyph must be preceded by <=3 columns of leading whitespace and
-  -- followed by a tab/space or end-of-line.  Match the leading whitespace and
-  -- the marker, then handle the post-marker gap with the column model.
-  local lead, marker, after = line:match("^( ? ? ?)([%-%+%*])([ \t].*)$")
-  local ordered, bullet, delim, start
-  if marker then
-    bullet = marker
-  else
-    lead, marker = line:match("^( ? ? ?)([%-%+%*])$") -- marker then EOL
-    if marker then
-      bullet = marker
-      after = ""
-    end
+  -- Up to 3 COLUMNS of leading whitespace may precede the marker (a tab is
+  -- column-expanded from `base`); more than that is too indented to start a list
+  -- here.  The marker must be followed by a space/tab or end-of-line.
+  local lead = line:match("^[ \t]*")
+  local lead_cols = indent_cols(lead, base)
+  if lead_cols > 3 then
+    return nil
   end
-  if not bullet then
+  local body = line:sub(#lead + 1)
+  local ordered, bullet, delim, start, marker, after
+  local m, rest = body:match("^([%-%+%*])([ \t].*)$")
+  if m then
+    bullet, marker, after = m, m, rest
+  elseif body:match("^[%-%+%*]$") then
+    bullet, marker, after = body, body, ""
+  else
     local digits, d
-    lead, digits, d, after = line:match("^( ? ? ?)(%d+)([%.%)])([ \t].*)$")
+    digits, d, after = body:match("^(%d+)([%.%)])([ \t].*)$")
     if not digits then
-      lead, digits, d = line:match("^( ? ? ?)(%d+)([%.%)])$")
+      digits, d = body:match("^(%d+)([%.%)])$")
       if digits then
         after = ""
       end
@@ -527,9 +528,12 @@ local function list_marker(line, base)
     start = tonumber(digits)
     marker = digits .. d
   end
-  -- Absolute column just past the marker glyph (leading whitespace is plain
-  -- spaces, so its column width equals its byte length).
-  local marker_width = #lead + #marker
+  if not marker then
+    return nil
+  end
+  -- Absolute column just past the marker glyph (the marker glyphs are ASCII, so
+  -- their byte width equals their column width).
+  local marker_width = lead_cols + #marker
   local after_base = base + marker_width
   -- Columns and bytes of the whitespace gap after the marker.
   local gap_cols, gap_bytes = indent_cols(after, after_base)
