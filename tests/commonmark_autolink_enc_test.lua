@@ -93,4 +93,57 @@ assert(
   "a literal &amp; between text is left raw"
 )
 
+-- Extended-autolink detection rules, all verified against cmark-gfm
+-- 0.29.0.gfm.13 (the renderer GitHub uses).
+local function eq_ext(md, html, msg)
+  assert(
+    cmark.render(from_md.parse(md, A)) == html,
+    msg
+      .. "\n  expected: "
+      .. vim.inspect(html)
+      .. "\n  got:      "
+      .. vim.inspect(cmark.render(from_md.parse(md, A)))
+  )
+end
+
+-- A scheme URL needs no period in its host (cmark's check_domain allows a short
+-- domain after `://`), and may carry userinfo before the host.
+eq_ext(
+  "http://localhost\n",
+  '<p><a href="http://localhost">http://localhost</a></p>\n',
+  "scheme host needs no dot"
+)
+eq_ext(
+  "http://foo@bar.com\n",
+  '<p><a href="http://foo@bar.com">http://foo@bar.com</a></p>\n',
+  "scheme userinfo stays in the link"
+)
+eq_ext("ftp://x\n", '<p><a href="ftp://x">ftp://x</a></p>\n', "ftp scheme, short host")
+
+-- A www. prefix is case-sensitive (cmark uses memcmp); a domain needs a period.
+eq_ext("WWW.example.com\n", "<p>WWW.example.com</p>\n", "uppercase WWW. is not a www autolink")
+
+-- A `mailto:`/`xmpp:` scheme is kept in the link text instead of an inserted
+-- mailto: href; an email may begin after any non-local-part character.
+eq_ext(
+  "mailto:foo@bar.com\n",
+  '<p><a href="mailto:foo@bar.com">mailto:foo@bar.com</a></p>\n',
+  "mailto: scheme kept"
+)
+eq_ext("xmpp:a@b.com\n", '<p><a href="xmpp:a@b.com">xmpp:a@b.com</a></p>\n', "xmpp: scheme kept")
+eq_ext(
+  "see:foo@bar.com\n",
+  '<p>see:<a href="mailto:foo@bar.com">foo@bar.com</a></p>\n',
+  "email recognised after a colon"
+)
+
+-- A bracket-enclosed run is not scanned for www/scheme autolinks (cmark's
+-- in_bracket check); a `]`/`[` inside a link href is percent-encoded.
+eq_ext("[a http://x.io]\n", "<p>[a http://x.io]</p>\n", "no scheme autolink inside brackets")
+eq_ext(
+  "www.x.com/a]b\n",
+  '<p><a href="http://www.x.com/a%5Db">www.x.com/a]b</a></p>\n',
+  "a `]` in the href is %5D"
+)
+
 print("commonmark_autolink_enc_test: PASS")

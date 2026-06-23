@@ -796,58 +796,71 @@ end
 -- them into `ast.link(..., "autolink")` nodes.  Distinct from the CommonMark
 -- `<uri>`/`<email>` autolinks above (which require angle brackets).
 
--- Valid GFM domain: dot-separated segments of [%w_-], at least one period, and
--- no underscore in either of the last two segments.  Scans s starting at `i`
--- over the [%w_.-] run; a trailing dot (and any path beyond) is excluded from
--- the domain proper and left for the path scan.  Returns the index just past
--- the domain (the first non-domain char), or nil if no valid domain.
-local function autolink_domain_end(s, i, n)
-  local j = i
-  while j <= n and s:sub(j, j):match("[%w_.-]") do
-    j = j + 1
-  end
-  -- j is now one past the last [%w_.-] char.  Trailing dots are not part of the
-  -- domain.  Split the run into dot-separated segments for validation.
-  local run_end = j - 1
-  while run_end >= i and s:sub(run_end, run_end) == "." do
-    run_end = run_end - 1
-  end
-  if run_end < i then
-    return nil
-  end
-  local run = s:sub(i, run_end)
-  local segments = {}
-  for seg in (run .. "."):gmatch("([^.]*)%.") do
-    segments[#segments + 1] = seg
-  end
-  -- Need >= 2 segments (>= 1 period) and every segment non-empty.
-  if #segments < 2 then
-    return nil
-  end
-  for _, seg in ipairs(segments) do
-    if seg == "" then
-      return nil
-    end
-  end
-  -- No underscore in the last two segments.
-  if segments[#segments]:find("_", 1, true) or segments[#segments - 1]:find("_", 1, true) then
-    return nil
-  end
-  return run_end + 1
+-- The following four functions are a faithful port of cmark-gfm's autolink
+-- extension (extensions/autolink.c): is_valid_hostchar / check_domain /
+-- autolink_delim, plus the www/url inline matcher and the email postprocess.
+-- Matching the reference exactly is the whole point -- GitHub renders Markdown
+-- with cmark-gfm, so the importer's extended autolinks must agree with it byte
+-- for byte.
+
+-- A valid host character is any code point that is neither Unicode whitespace
+-- nor Unicode punctuation (cmark's is_valid_hostchar).
+local function valid_hostchar(s, i, n)
+  local c = cp_after(s, i, n)
+  return c ~= "" and not is_ws(c) and not is_punct(c)
 end
 
--- Path validation: given the full match extent s[start..stop] (inclusive),
--- trim trailing chars per GFM until stable.  Returns the inclusive end index
--- of the valid extent.  Trailing
--- `?!.,:*_~` are stripped; a trailing `)` is stripped while closing parens
--- outnumber opening parens across the whole extent; a trailing `&alnum+;`
--- entity reference is stripped.  Running paren counts keep this O(n).
-local function autolink_trim_path(s, start, stop)
-  -- Count parens once across the extent; update incrementally as we trim.
+-- Validate the domain starting at byte `start`.  Returns the index one past the
+-- validated domain (a lower bound the caller extends to the next whitespace),
+-- or nil if invalid.  `\` escapes the next byte (both stay in the domain); `.`
+-- separates segments; `-` is always allowed.  A domain with an underscore in
+-- one of its last two segments is rejected (host names disallow underscores)
+-- unless it is very long (> 10 segments, to avoid quadratic blowup).  Without
+-- `allow_short` a domain needs at least one period (www. links, bare domains);
+-- with it any valid host run is accepted (http://, https://, ftp:// links).
+local function check_domain(s, start, n, allow_short)
+  local np, uscore1, uscore2 = 0, 0, 0
+  local i = start + 1
+  while i <= n - 1 do
+    local c = s:sub(i, i)
+    if c == "\\" and i <= n - 2 then
+      i = i + 1
+      c = s:sub(i, i)
+    end
+    if c == "_" then
+      uscore2 = uscore2 + 1
+    elseif c == "." then
+      uscore1 = uscore2
+      uscore2 = 0
+      np = np + 1
+    elseif not valid_hostchar(s, i, n) and c ~= "-" then
+      break
+    end
+    i = i + 1
+  end
+  if (uscore1 > 0 or uscore2 > 0) and np <= 10 then
+    return nil
+  end
+  if allow_short then
+    return i
+  end
+  return np > 0 and i or nil
+end
+
+-- Trim trailing characters from the matched extent s[start..stop] until stable,
+-- returning the new inclusive end (cmark's autolink_delim).  Trailing
+-- `?!.,:*_~'"` are stripped; a trailing `)` is stripped only while closing
+-- parens outnumber opening ones across the extent; a trailing `&alpha+;` entity
+-- is stripped whole (otherwise just the bare `;`).  A `<` truncates the extent
+-- and bounds the paren count.
+local function autolink_delim(s, start, stop)
   local opens, closes = 0, 0
   for k = start, stop do
     local ch = s:sub(k, k)
-    if ch == "(" then
+    if ch == "<" then
+      stop = k - 1
+      break
+    elseif ch == "(" then
       opens = opens + 1
     elseif ch == ")" then
       closes = closes + 1
@@ -855,54 +868,58 @@ local function autolink_trim_path(s, start, stop)
   end
   while stop >= start do
     local last = s:sub(stop, stop)
-    if last:match("[%?!.,:*_~]") then
-      stop = stop - 1
-    elseif last == ")" and closes > opens then
-      closes = closes - 1
-      stop = stop - 1
-    else
-      -- A trailing ';' is excluded: as a whole `&alpha+;` entity reference when
-      -- it is one (cmark-gfm walks alphabetic, not alphanumeric, characters),
-      -- otherwise just the bare ';'.  The stripped span holds no parens, so the
-      -- counts are unchanged.
-      if last == ";" then
-        local amp = stop - 1
-        while amp >= start and s:sub(amp, amp):match("%a") do
-          amp = amp - 1
-        end
-        if amp >= start and s:sub(amp, amp) == "&" and amp < stop - 1 then
-          stop = amp - 1
-        else
-          stop = stop - 1
-        end
-      else
+    if last == ")" then
+      if closes <= opens then
         break
       end
+      closes = closes - 1
+      stop = stop - 1
+    elseif last:match("[%?!.,:*_~'\"]") then
+      stop = stop - 1
+    elseif last == ";" then
+      local amp = stop - 1
+      while amp >= start and s:sub(amp, amp):match("%a") do
+        amp = amp - 1
+      end
+      if amp >= start and s:sub(amp, amp) == "&" and amp < stop - 1 then
+        stop = amp - 1
+      else
+        stop = stop - 1
+      end
+    else
+      break
     end
   end
   return stop
 end
 
--- Match a www / scheme URL autolink at s[i].  scheme is nil for www. links
--- (the visible text omits the inserted http://) or the literal scheme string.
+-- Match a www. / scheme URL autolink at s[i] (cmark's www_match / url_match).
+-- `www_ok` and `url_ok` gate the two kinds by their distinct boundary rules.
 -- Returns (link_node, next_index) or nil.
-local function match_autolink_url(s, i, n)
-  local lower = s:sub(i):lower()
-  local scheme_len, is_www
-  if lower:sub(1, 4) == "www." then
-    is_www = true
-    scheme_len = 4
-  elseif lower:sub(1, 7) == "http://" then
-    scheme_len = 7
-  elseif lower:sub(1, 8) == "https://" then
-    scheme_len = 8
-  elseif lower:sub(1, 6) == "ftp://" then
-    scheme_len = 6
+local function match_autolink_url(s, i, n, www_ok, url_ok)
+  -- A www. prefix is matched case-sensitively (cmark uses memcmp); a scheme is
+  -- matched case-insensitively (cmark uses strncasecmp).
+  local head = s:sub(i, i + 7):lower()
+  local is_www, scheme_len, allow_short
+  if www_ok and s:sub(i, i + 3) == "www." then
+    is_www, scheme_len, allow_short = true, 4, false
+  elseif url_ok and head:sub(1, 7) == "http://" then
+    scheme_len, allow_short = 7, true
+  elseif url_ok and head:sub(1, 8) == "https://" then
+    scheme_len, allow_short = 8, true
+  elseif url_ok and head:sub(1, 6) == "ftp://" then
+    scheme_len, allow_short = 6, true
   else
     return nil
   end
-  local dom_start = i + scheme_len
-  local dom_end = autolink_domain_end(s, dom_start, n)
+  -- For a www. link the inserted `www.` is part of the domain (so `www.x` is a
+  -- valid two-segment domain); a scheme's domain starts after `://` and must
+  -- open with a valid host char.
+  local dom_start = is_www and i or i + scheme_len
+  if not is_www and not valid_hostchar(s, dom_start, n) then
+    return nil
+  end
+  local dom_end = check_domain(s, dom_start, n, allow_short)
   if not dom_end then
     return nil
   end
@@ -917,101 +934,221 @@ local function match_autolink_url(s, i, n)
     stop = j
     j = j + 1
   end
-  stop = autolink_trim_path(s, i, stop)
-  if stop < dom_end - 1 then
-    -- Trimming ate into the domain; reject.
+  stop = autolink_delim(s, i, stop)
+  if stop < i then
     return nil
   end
   local matched = s:sub(i, stop)
+  -- The visible text is the raw match; the href is percent-encoded (autolinks
+  -- do not decode backslash escapes or entities), so e.g. a `]` becomes %5D.
   local node
   if is_www then
-    node = ast.link("http://" .. matched, matched, "autolink")
+    node = ast.link(percent_encode("http://" .. matched), matched, "autolink")
   else
-    node = ast.link(matched, matched, "autolink")
+    node = ast.link(percent_encode(matched), matched, "autolink")
   end
   return node, stop + 1
 end
 
--- Match an email autolink at s[i].  Returns (link_node, next_index) or nil.
-local function match_autolink_email(s, i, n)
-  -- Local part: [%w.+_-]+
-  local j = i
-  while j <= n and s:sub(j, j):match("[%w.+_-]") do
-    j = j + 1
+-- Find email autolinks in the text region s[lo..hi] (cmark's postprocess_text).
+-- Each `@` is located, the local part is rewound over [%w.+-_] (and a leading
+-- mailto:/xmpp: scheme), the domain is scanned forward requiring a period
+-- before an alphanumeric, then the extent is delim-trimmed.  Appends an ordered
+-- mix of {kind="text"} and {kind="link"} spans to `out`; link nodes carry their
+-- byte span and an explicit mailto: href unless the source already named one.
+local function scan_emails(s, lo, hi, out)
+  local total = hi - lo + 1
+  local start = 0 -- 0-based offset of the current pending-text base within the region
+  local offset = 0
+  while true do
+    local remaining = total - start
+    if offset >= remaining then
+      break
+    end
+    local at = s:find("@", lo + start + offset, true)
+    if not at or at > hi then
+      break
+    end
+    local max_rewind = at - (lo + start + offset)
+    local advanced, emitted = false, false
+    while true do
+      local rewind = 0
+      local auto_mailto, is_xmpp = true, false
+      while rewind < max_rewind do
+        local ci = lo + start + offset + max_rewind - rewind - 1
+        local c = s:sub(ci, ci)
+        if c:match("%w") or c == "." or c == "+" or c == "-" or c == "_" then
+          rewind = rewind + 1
+        elseif c == ":" then
+          -- A `:` only stays in the local part when it closes a mailto:/xmpp:
+          -- scheme bordered on the left by a non-alphanumeric (or the start).
+          local function validate(proto)
+            local len = #proto
+            if len > max_rewind - rewind then
+              return false
+            end
+            local p0 = at - rewind - len
+            if s:sub(p0, p0 + len - 1) ~= proto then
+              return false
+            end
+            if len == max_rewind - rewind then
+              return true
+            end
+            return not s:sub(p0 - 1, p0 - 1):match("%w")
+          end
+          if validate("mailto:") then
+            auto_mailto = false
+            rewind = rewind + 1
+          elseif validate("xmpp:") then
+            auto_mailto, is_xmpp = false, true
+            rewind = rewind + 1
+          else
+            break
+          end
+        else
+          break
+        end
+      end
+      if rewind == 0 then
+        offset = offset + max_rewind + 1
+        advanced = true
+        break
+      end
+      local np = 0
+      local link_end = 1
+      local redo = false
+      while link_end < remaining - offset - max_rewind do
+        local idx = lo + start + offset + max_rewind + link_end
+        local c = s:sub(idx, idx)
+        if c:match("%w") then
+          link_end = link_end + 1
+        elseif c == "@" then
+          offset = offset + max_rewind + 1
+          max_rewind = link_end - 1
+          redo = true
+          break
+        elseif
+          c == "."
+          and link_end < remaining - offset - max_rewind - 1
+          and s:sub(idx + 1, idx + 1):match("%w")
+        then
+          np = np + 1
+          link_end = link_end + 1
+        elseif c == "/" and is_xmpp then
+          link_end = link_end + 1
+        elseif c ~= "-" and c ~= "_" then
+          break
+        else
+          link_end = link_end + 1
+        end
+      end
+      if redo then
+        -- Found another '@'; retry the rewind from the new boundary.
+      else
+        local lastc = s:sub(
+          lo + start + offset + max_rewind + link_end - 1,
+          lo + start + offset + max_rewind + link_end - 1
+        )
+        if link_end < 2 or np == 0 or (not lastc:match("%a") and lastc ~= ".") then
+          offset = offset + max_rewind + link_end
+          advanced = true
+          break
+        end
+        local addr_lo = lo + start + offset + max_rewind
+        local trimmed = autolink_delim(s, addr_lo, addr_lo + link_end - 1)
+        if trimmed < addr_lo then
+          offset = offset + max_rewind + 1
+          advanced = true
+          break
+        end
+        link_end = trimmed - addr_lo + 1
+        local link_lo = lo + start + offset + max_rewind - rewind
+        local link_hi = link_lo + link_end + rewind - 1
+        if link_lo - 1 >= lo + start then
+          out[#out + 1] = { kind = "text", a = lo + start, b = link_lo - 1 }
+        end
+        local addr = s:sub(link_lo, link_hi)
+        local href = (auto_mailto and "mailto:" or "") .. addr
+        local node = ast.link(percent_encode(href), addr, "autolink")
+        out[#out + 1] = { kind = "link", a = link_lo, b = link_hi, node = node }
+        start = start + offset + max_rewind + link_end
+        offset = 0
+        emitted = true
+        break
+      end
+    end
+    if not advanced and not emitted then
+      break
+    end
   end
-  if j == i or s:sub(j, j) ~= "@" then
-    return nil
+  if lo + start <= hi then
+    out[#out + 1] = { kind = "text", a = lo + start, b = hi }
   end
-  j = j + 1
-  local dom_start = j
-  while j <= n and s:sub(j, j):match("[%w._-]") do
-    j = j + 1
-  end
-  local dom_end = j - 1
-  if dom_end < dom_start then
-    return nil
-  end
-  -- Exclude a single trailing '.' (left as following text).
-  if s:sub(dom_end, dom_end) == "." then
-    dom_end = dom_end - 1
-  end
-  if dom_end < dom_start then
-    return nil
-  end
-  -- Validate: at least one period, last char not '-'/'_'.
-  local domain = s:sub(dom_start, dom_end)
-  if not domain:find(".", 1, true) then
-    return nil
-  end
-  local last = domain:sub(-1)
-  if last == "-" or last == "_" then
-    return nil
-  end
-  local addr = s:sub(i, dom_end)
-  return ast.link("mailto:" .. addr, addr, "autolink"), dom_end + 1
 end
 
 -- Split a text literal into text/autolink nodes per the GFM extended-autolinks
--- extension.  A candidate may begin only at a valid boundary: offset 1, or
--- right after whitespace or one of `* _ ~ (`.
+-- extension.  Mirrors cmark-gfm's two phases: www/scheme URLs are matched left
+-- to right (suppressed inside an open `[`/`![` bracket, like cmark's in_bracket
+-- check), then email addresses are found in each remaining text run.  Link
+-- nodes carry their byte span in `s` so a caller can map them back to source.
 local function scan_text(s)
-  local nodes = {}
   local n = #s
+  -- Phase 1: www/url links, recorded as ordered {kind, a, b[, node]} spans.
+  local spans = {}
   local run_start = 1
   local i = 1
-  local function flush_run(upto)
-    if upto >= run_start then
-      nodes[#nodes + 1] = ast.text(s:sub(run_start, upto))
-    end
-  end
+  local bracket_depth = 0
   while i <= n do
-    local boundary = i == 1
-    if not boundary then
-      local prev = s:sub(i - 1, i - 1)
-      boundary = is_ws(prev) or prev == "*" or prev == "_" or prev == "~" or prev == "("
+    local prev = i > 1 and s:sub(i - 1, i - 1) or ""
+    local cur = s:sub(i, i)
+    -- A www. link may begin at the start or after whitespace / one of `* _ ~ (`;
+    -- a scheme link may begin after any non-letter (cmark rewinds the scheme
+    -- over the alphabetic run, so a letter to the left would be part of it).
+    local www_ok = bracket_depth == 0
+      and (i == 1 or is_ws(prev) or prev == "*" or prev == "_" or prev == "~" or prev == "(")
+    local url_ok = bracket_depth == 0 and (i == 1 or not prev:match("%a"))
+    local node, next_i
+    if www_ok or url_ok then
+      node, next_i = match_autolink_url(s, i, n, www_ok, url_ok)
     end
-    local matched = false
-    if boundary then
-      local node, next_i = match_autolink_url(s, i, n)
-      if not node then
-        node, next_i = match_autolink_email(s, i, n)
+    if node then
+      if i - 1 >= run_start then
+        spans[#spans + 1] = { kind = "text", a = run_start, b = i - 1 }
       end
-      if node and next_i and next_i > i then
-        flush_run(i - 1)
-        -- Record the link's byte span in `s` so a caller can map it back to the
-        -- source (used to keep in-URL character references raw).
-        node.span_start, node.span_stop = i, next_i - 1
-        nodes[#nodes + 1] = node
-        run_start = next_i
-        i = next_i
-        matched = true
+      node.span_start, node.span_stop = i, next_i - 1
+      spans[#spans + 1] = { kind = "link", a = i, b = next_i - 1, node = node }
+      run_start = next_i
+      i = next_i
+    else
+      if cur == "[" then
+        bracket_depth = bracket_depth + 1
+      elseif cur == "]" and bracket_depth > 0 then
+        bracket_depth = bracket_depth - 1
       end
-    end
-    if not matched then
       i = i + 1
     end
   end
-  flush_run(n)
+  if run_start <= n then
+    spans[#spans + 1] = { kind = "text", a = run_start, b = n }
+  end
+  -- Phase 2: email addresses within each text span; links pass through.
+  local pieces = {}
+  for _, sp in ipairs(spans) do
+    if sp.kind == "link" then
+      pieces[#pieces + 1] = sp
+    else
+      scan_emails(s, sp.a, sp.b, pieces)
+    end
+  end
+  local nodes = {}
+  for _, p in ipairs(pieces) do
+    if p.kind == "link" then
+      p.node.span_start, p.node.span_stop = p.a, p.b
+      nodes[#nodes + 1] = p.node
+    else
+      nodes[#nodes + 1] = ast.text(s:sub(p.a, p.b))
+    end
+  end
   return nodes
 end
 
