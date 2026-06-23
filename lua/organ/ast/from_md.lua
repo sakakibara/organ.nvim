@@ -543,6 +543,12 @@ end
 -- A single leading and a single trailing edge pipe (with surrounding
 -- whitespace) are optional delimiters, not empty cells.
 local function table_cells(line)
+  -- A lone edge pipe (optionally surrounded by whitespace) is a single edge
+  -- delimiter, not a cell: cmark counts it as zero columns, so a `|` row can
+  -- head no table.  Doubled or content-bearing pipes still yield cells.
+  if line:match("^%s*|%s*$") then
+    return {}
+  end
   local cells = {}
   local buf = {}
   local i = 1
@@ -623,11 +629,10 @@ local function delimiter_alignments(line)
   return aligns
 end
 
--- Build a table data row from `line`, padding with empty cells or truncating to
--- `ncols` columns.  Each cell is a one-element inline list `{ ast.text(raw) }`;
--- the inline pass re-parses the raw text into proper inline nodes.
-local function table_data_row(line, ncols)
-  local raw = table_cells(line)
+-- Build a table data row from a cell list (from table_cells), padding with empty
+-- cells or truncating to `ncols` columns.  Each cell is a one-element inline list
+-- `{ ast.text(raw) }`; the inline pass re-parses the raw text into proper nodes.
+local function table_data_row(raw, ncols)
   local cells = {}
   for i = 1, ncols do
     cells[i] = { ast.text(raw[i] or "") }
@@ -1246,30 +1251,48 @@ function Parser:try_table_start(rest, from)
   if #self.stack <= from or tip.type ~= "paragraph" then
     return false
   end
+  -- cmark gives a paragraph one chance: once a valid delimiter row fails to
+  -- match the header's column count, the paragraph can never become a table
+  -- (its CMARK_NODE__TABLE_VISITED flag), so later delimiter rows are ignored.
+  if tip.table_visited then
+    return false
+  end
   local aligns = delimiter_alignments(rest)
   if not aligns then
     return false
   end
-  -- Leading reference definitions are recorded and removed first; what remains
-  -- must be a single header line.  A paragraph that is entirely definitions
-  -- leaves nothing to head the table; one that has more than one content line
-  -- (an embedded newline) is not a lone header either.
-  local header = self:extract_para_refs(tip.lines)
-  if header:match("^%s*$") then
+  -- A bare run of dashes (no pipe, no colon) is a setext-heading underline,
+  -- which takes precedence over a single-column table.
+  if rest:match("^%s*%-+%s*$") then
+    return false
+  end
+  -- Leading reference definitions are recorded and removed first.  A paragraph
+  -- that is entirely definitions leaves nothing to head the table.
+  local content = self:extract_para_refs(tip.lines)
+  if content:match("^%s*$") then
     self.stack[#self.stack] = nil
     return false
   end
-  if header:find("\n", 1, true) or not has_unescaped_pipe(header) then
-    return false
+  -- The header is the paragraph's LAST line; any earlier lines stay a paragraph
+  -- of their own (cmark splits the table off the paragraph's tail).  A header
+  -- with no pipe is a single-column row.
+  local pre, header = content:match("^(.*)\n([^\n]*)$")
+  if not header then
+    pre, header = nil, content
   end
   local header_cells = table_cells(header)
   if #header_cells ~= #aligns then
+    tip.table_visited = true
     return false
   end
   local ncols = #aligns
-  local rows = { table_data_row(header, ncols), { sep = true, cells = {} } }
-  local n = #self.stack
-  self.stack[n] = nil -- drop the paragraph; the header becomes the first row
+  local rows = { table_data_row(header_cells, ncols), { sep = true, cells = {} } }
+  self.stack[#self.stack] = nil -- drop the paragraph; its tail becomes the header
+  if pre and not pre:match("^%s*$") then
+    -- Re-emit the lines above the header as their own paragraph.
+    local parent = self.stack[#self.stack]
+    parent.children[#parent.children + 1] = ast.paragraph({ ast.text(pre) })
+  end
   self:push({ type = "table", alignments = aligns, ncols = ncols, rows = rows })
   return true
 end
@@ -1338,10 +1361,15 @@ function Parser:add_line(line)
 
   -- An open table absorbs each subsequent non-blank line that does not start a
   -- new block as a data row (padded/truncated to the column count); a blank
-  -- line or a block start closes it (and is reprocessed below).
+  -- line or a block start closes it (and is reprocessed below).  A line with no
+  -- cells (a lone `|`) is not a valid row: it ends the table and is reprocessed.
   if all_matched and tip.type == "table" and not is_blank(rest) and not line_starts_block(rest) then
-    tip.rows[#tip.rows + 1] = table_data_row(rest, tip.ncols)
-    return
+    local cells = table_cells(rest)
+    if #cells > 0 then
+      tip.rows[#tip.rows + 1] = table_data_row(cells, tip.ncols)
+      return
+    end
+    self:close_tip()
   end
 
   if is_blank(rest) then
@@ -1370,13 +1398,6 @@ function Parser:add_line(line)
     return
   end
 
-  -- GFM table start: a delimiter row converts a lone-line header paragraph into
-  -- an open table.  Checked before phase 3 so the delimiter row is not taken as
-  -- a paragraph continuation; only fires when the header's cell count matches.
-  if all_matched and self:try_table_start(rest, last_matched) then
-    return
-  end
-
   -- PHASE 3: new block starts, pushed under the deepest matched container.  A
   -- container opening (block quote, list item) reports its deeper remainder via
   -- the DESCEND sentinel; once descended, the remainder belongs strictly inside
@@ -1388,6 +1409,14 @@ function Parser:add_line(line)
     self:place_content(deep_rest, deep_base, deep_from)
     return
   elseif result then
+    return
+  end
+
+  -- GFM table start: a delimiter row converts a header paragraph's last line into
+  -- an open table.  Checked after phase 3 (so a delimiter that also starts a
+  -- block -- e.g. a `- |...` list item -- is taken as that block, matching cmark)
+  -- but before phase 4 (so the delimiter row is not a paragraph continuation).
+  if all_matched and self:try_table_start(rest, last_matched) then
     return
   end
 
