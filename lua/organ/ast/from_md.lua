@@ -896,6 +896,17 @@ local CONTAINER = {
   list_item = {
     continue = function(block, rest, base)
       if is_blank(rest) then
+        -- "A list item can begin with at most one blank line": an empty item
+        -- that began blank is sealed by a following blank line that does not
+        -- reach its content indent.  A blank indented to the content column (or
+        -- any blank in a non-empty item) is interior and continues it.
+        if
+          block.opened_blank
+          and #block.children == 0
+          and indent_cols(rest, base) < block.indent
+        then
+          return nil
+        end
         return "", base + block.indent
       end
       if indent_cols(rest, base) >= block.indent then
@@ -1412,19 +1423,9 @@ function Parser:add_line(line)
     -- blank actually belongs to is decided later, when content lands after it
     -- (see confirm_list_loose); a trailing blank after the final item -- never
     -- followed by content -- belongs to no list and leaves every list tight.
-    local lm_block = self.stack[last_matched]
-    if
-      lm_block
-      and lm_block.type == "list_item"
-      and #lm_block.children == 0
-      and lm_block.opened_blank
-    then
-      -- A list item can begin with at most one blank line: this empty item
-      -- already started blank, so a second blank seals it and later content is
-      -- not part of it.
-      self:close_below(last_matched - 1)
-      last_matched = last_matched - 1
-    end
+    -- The "empty item begins with at most one blank line" rule is enforced in
+    -- list_item.continue: an under-indented blank does not match the empty item,
+    -- so it is already unmatched (and closed below) by the time we get here.
     self:arm_list_blank(last_matched)
     self:close_below(last_matched)
     return
