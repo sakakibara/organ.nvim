@@ -934,17 +934,22 @@ end
 function Parser:try_starts(line, base, from)
   local tip = self:tip()
   local tip_para = #self.stack > from and tip.type == "paragraph"
-  -- A setext underline forms a heading only when its paragraph is DIRECTLY in the
-  -- matched container; a paragraph reached only by lazy continuation (its
-  -- container marker was missing on this line) cannot be underlined.
-  local setext_applicable = #self.stack == from + 1 and tip.type == "paragraph"
+  -- A block that "cannot interrupt a paragraph" (a setext underline, an empty or
+  -- non-1 list, a type-7 HTML block) is only blocked when the paragraph is
+  -- DIRECTLY in the matched container.  A paragraph reached only by lazy
+  -- continuation (its container marker was missing this line) sits in a deeper,
+  -- unmatched container, so a block opening at `from` joins a different container
+  -- and neither underlines nor is blocked by it.  (Indented code is the lone
+  -- exception: it stays lazy continuation across the boundary, so it keeps the
+  -- broader `tip_para`.)
+  local para_in_matched = #self.stack == from + 1 and tip.type == "paragraph"
 
   -- A marker that extends an already-open same-kind list opens its next item
   -- before the setext / thematic-break checks: a bare '-' under a list's
   -- paragraph ('- foo\n-\n- bar') is that list's empty item, not a setext
   -- underline of "foo".  (A bare marker that would START a list still cannot
   -- interrupt a paragraph; that case is handled by the later list start.)
-  if not thematic_break(line, setext_applicable) then
+  if not thematic_break(line, para_in_matched) then
     local lm = list_marker(line, base)
     if lm and self:extends_list(lm, from) then
       local rest, new_base, deep = self:open_list_item(lm, from)
@@ -957,7 +962,7 @@ function Parser:try_starts(line, base, from)
 
   -- Setext underline converts an open paragraph in place; check before other
   -- starts so "---" under a paragraph becomes an h2 rather than a break.
-  if setext_applicable then
+  if para_in_matched then
     local level = setext_level(line)
     if level then
       local n = #self.stack
@@ -1010,10 +1015,10 @@ function Parser:try_starts(line, base, from)
   end
 
   local block = atx_heading(line)
-    or thematic_break(line, setext_applicable)
+    or thematic_break(line, para_in_matched)
     or fenced_code(line)
     or (not tip_para and indented_code(line, base))
-    or html_block(line, tip_para)
+    or html_block(line, para_in_matched)
   if block then
     from = self:leaf_base(from)
     self:close_below(from)
@@ -1058,7 +1063,7 @@ function Parser:try_starts(line, base, from)
     if
       extends
       or closes_open_list
-      or not (tip_para and (lm.rest == "" or (lm.ordered and lm.start ~= 1)))
+      or not (para_in_matched and (lm.rest == "" or (lm.ordered and lm.start ~= 1)))
     then
       local rest, new_base, deep = self:open_list_item(lm, from)
       if rest then
