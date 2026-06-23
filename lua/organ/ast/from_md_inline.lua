@@ -804,8 +804,15 @@ end
 -- for byte.
 
 -- A valid host character is any code point that is neither Unicode whitespace
--- nor Unicode punctuation (cmark's is_valid_hostchar).
+-- nor Unicode punctuation (cmark's is_valid_hostchar).  cmark scans the domain
+-- byte by byte: a UTF-8 continuation byte fails its decode and is rejected, so a
+-- multibyte character ends the domain scan after its lead byte (the path scan
+-- then re-extends over the rest of it to the next whitespace).
 local function valid_hostchar(s, i, n)
+  local b = s:byte(i)
+  if not b or (b >= 0x80 and b <= 0xBF) then
+    return false
+  end
   local c = cp_after(s, i, n)
   return c ~= "" and not is_ws(c) and not is_punct(c)
 end
@@ -971,11 +978,15 @@ local function scan_emails(s, lo, hi, out)
     end
     local max_rewind = at - (lo + start + offset)
     local advanced, emitted = false, false
+    -- np / auto_mailto / is_xmpp are set once per address and persist across the
+    -- inner '@' retry below, exactly as they do across cmark's `goto found_at`.
+    local auto_mailto, is_xmpp = true, false
+    local np = 0
     while true do
+      local at_pos = lo + start + offset + max_rewind
       local rewind = 0
-      local auto_mailto, is_xmpp = true, false
       while rewind < max_rewind do
-        local ci = lo + start + offset + max_rewind - rewind - 1
+        local ci = at_pos - rewind - 1
         local c = s:sub(ci, ci)
         if c:match("%w") or c == "." or c == "+" or c == "-" or c == "_" then
           rewind = rewind + 1
@@ -987,7 +998,7 @@ local function scan_emails(s, lo, hi, out)
             if len > max_rewind - rewind then
               return false
             end
-            local p0 = at - rewind - len
+            local p0 = at_pos - rewind - len
             if s:sub(p0, p0 + len - 1) ~= proto then
               return false
             end
@@ -1014,7 +1025,6 @@ local function scan_emails(s, lo, hi, out)
         advanced = true
         break
       end
-      local np = 0
       local link_end = 1
       local redo = false
       while link_end < remaining - offset - max_rewind do

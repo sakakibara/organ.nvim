@@ -182,4 +182,33 @@ eq_ext(
 -- bare `www.` is not a one-segment domain).
 eq_ext("www. \n", "<p>www.</p>\n", "trailing space is stripped before the autolink scan")
 
+-- When the email scan retries past an inner `@`, the period count and the
+-- mailto:/xmpp: scheme found before it carry over (cmark keeps them across its
+-- `goto found_at`): the dot in `b.c` makes `b.c@def` a valid address, and the
+-- leading scheme suppresses the inserted mailto: / keeps the xmpp: `/` path.
+eq_ext(
+  "a@b.c@def\n",
+  '<p>a@<a href="mailto:b.c@def">b.c@def</a></p>\n',
+  "period count carries across an inner @"
+)
+eq_ext(
+  "mailto:a@b@c.com\n",
+  '<p>mailto:a@<a href="b@c.com">b@c.com</a></p>\n',
+  "mailto: scheme carries across an inner @"
+)
+eq_ext(
+  "xmpp:a@b@c.d/e\n",
+  '<p>xmpp:a@<a href="b@c.d/e">b@c.d/e</a></p>\n',
+  "xmpp: path carries across an inner @"
+)
+
+-- The domain scan ends at a multibyte character (cmark stops at its UTF-8
+-- continuation byte), so a `_` after one does not reach the underscore rule:
+-- `www.aé_b.c` is a link even though `_b` is in the last segment.
+eq_ext(
+  "www.a\195\169_b.c\n",
+  '<p><a href="http://www.a%C3%A9_b.c">www.a\195\169_b.c</a></p>\n',
+  "a multibyte char ends the domain scan before the underscore rule"
+)
+
 print("commonmark_autolink_enc_test: PASS")
