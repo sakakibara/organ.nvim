@@ -149,12 +149,25 @@ local function thematic_break(line, tip_is_paragraph)
   return { type = "thematic_break", children = {}, closed_immediately = true }
 end
 
--- Remove up to `n` leading spaces from a fenced code body line (a line
--- indented fewer than the opening fence has all of its leading spaces removed).
+-- Remove up to `n` leading columns from a fenced code body line, matching the
+-- opening fence's indent.  A leading tab counts to the next tab stop (width 4);
+-- a tab the strip splits leaves its remaining columns behind as spaces.
 local function strip_fence_indent(line, n)
-  local i = 1
-  while i <= n and line:sub(i, i) == " " do
-    i = i + 1
+  local col, i = 0, 1
+  while i <= #line and col < n do
+    local ch = line:sub(i, i)
+    if ch == " " then
+      col, i = col + 1, i + 1
+    elseif ch == "\t" then
+      local width = 4 - (col % 4)
+      if col + width <= n then
+        col, i = col + width, i + 1
+      else
+        return string.rep(" ", col + width - n) .. line:sub(i + 1)
+      end
+    else
+      break
+    end
   end
   return line:sub(i)
 end

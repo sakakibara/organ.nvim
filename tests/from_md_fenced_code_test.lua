@@ -39,4 +39,13 @@ eq(
   "an unclosed fence keeps one trailing blank line, not zero or two"
 )
 
+-- The fence's indent is stripped from each body line by COLUMN: a leading tab
+-- counts to the next tab stop (width 4), so stripping a one-space fence indent
+-- from a tab leaves three spaces.
+eq(
+  " ```\n\tx\n```\n",
+  "<pre><code>   x\n</code></pre>\n",
+  "a fence's indent is stripped from a tab by column"
+)
+
 print("from_md_fenced_code_test: PASS")
