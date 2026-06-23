@@ -157,7 +157,7 @@ function block(node, out)
     out[#out + 1] = "<hr />\n"
   elseif node.kind == "code_block" then
     local attr = (node.language and node.language ~= "")
-        and (' class="language-' .. node.language .. '"')
+        and (' class="language-' .. escape(node.language) .. '"')
       or ""
     out[#out + 1] = "<pre><code" .. attr .. ">" .. escape(node.body or "") .. "</code></pre>\n"
   elseif node.kind == "block" and node.style == "quote" then
