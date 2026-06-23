@@ -1086,156 +1086,35 @@ local function scan_emails(s, lo, hi, out)
   end
 end
 
--- Split a text literal into text/autolink nodes per the GFM extended-autolinks
--- extension.  Mirrors cmark-gfm's two phases: www/scheme URLs are matched left
--- to right (suppressed inside an open `[`/`![` bracket, like cmark's in_bracket
--- check), then email addresses are found in each remaining text run.  Link
--- nodes carry their byte span in `s` so a caller can map them back to source.
-local function scan_text(s)
-  local n = #s
-  -- Phase 1: www/url links, recorded as ordered {kind, a, b[, node]} spans.
-  local spans = {}
-  local run_start = 1
-  local i = 1
-  local bracket_depth = 0
-  while i <= n do
-    local prev = i > 1 and s:sub(i - 1, i - 1) or ""
-    local cur = s:sub(i, i)
-    -- A www. link may begin at the start or after whitespace / one of `* _ ~ (`;
-    -- a scheme link may begin after any non-letter (cmark rewinds the scheme
-    -- over the alphabetic run, so a letter to the left would be part of it).
-    local www_ok = bracket_depth == 0
-      and (i == 1 or is_ws(prev) or prev == "*" or prev == "_" or prev == "~" or prev == "(")
-    local url_ok = bracket_depth == 0 and (i == 1 or not prev:match("%a"))
-    local node, next_i
-    if www_ok or url_ok then
-      node, next_i = match_autolink_url(s, i, n, www_ok, url_ok)
-    end
-    if node then
-      if i - 1 >= run_start then
-        spans[#spans + 1] = { kind = "text", a = run_start, b = i - 1 }
-      end
-      node.span_start, node.span_stop = i, next_i - 1
-      spans[#spans + 1] = { kind = "link", a = i, b = next_i - 1, node = node }
-      run_start = next_i
-      i = next_i
-    else
-      if cur == "[" then
-        bracket_depth = bracket_depth + 1
-      elseif cur == "]" and bracket_depth > 0 then
-        bracket_depth = bracket_depth - 1
-      end
-      i = i + 1
-    end
-  end
-  if run_start <= n then
-    spans[#spans + 1] = { kind = "text", a = run_start, b = n }
-  end
-  -- Phase 2: email addresses within each text span; links pass through.
-  local pieces = {}
-  for _, sp in ipairs(spans) do
-    if sp.kind == "link" then
-      pieces[#pieces + 1] = sp
-    else
-      scan_emails(s, sp.a, sp.b, pieces)
-    end
-  end
-  local nodes = {}
-  for _, p in ipairs(pieces) do
-    if p.kind == "link" then
-      p.node.span_start, p.node.span_stop = p.a, p.b
-      nodes[#nodes + 1] = p.node
-    else
-      nodes[#nodes + 1] = ast.text(s:sub(p.a, p.b))
-    end
-  end
-  return nodes
-end
-
--- Recursively apply scan_text to text nodes, descending into non-code emphasis;
--- links/images and code spans are left untouched (no autolinks inside).
--- Consecutive text nodes are coalesced first so a candidate that straddles an
--- intraword delimiter split (e.g. `c_d@a.b`, where `_` left a node boundary) is
--- still recognised.
---
--- A character reference is scanned in its RAW `&...;` form (so the GFM
--- trailing-reference and in-URL rules see it), then a reference the scan leaves
--- OUTSIDE a link is decoded while one kept inside a link stays raw, matching
--- cmark-gfm.  A reference node carries its raw source as `.raw`; a literal `&`
--- (e.g. from `\&amp;`) is an ordinary segment and is never decoded.  The map
--- from raw to decoded offsets makes this exact, so non-reference text -- even if
--- it spells out `&amp;` -- is left untouched.
+-- GFM email autolinks: cmark's postprocess pass.  Consecutive text nodes are
+-- coalesced and scanned for `local@domain` addresses, descending into non-code
+-- emphasis; links/images and code spans are left untouched (no autolinks
+-- inside, and an existing autolink's text is not rescanned).  www/scheme URLs
+-- are recognised earlier, during the inline parse, so they are already link
+-- nodes here.  Email runs on the decoded text, matching cmark, which scans the
+-- consolidated text-node literals.
 local function extend_autolinks(nodes)
   local out = {}
-  local segs, has_ref = {}, false
+  local segs = {}
   local function flush_run()
     if #segs == 0 then
       return
     end
-    if not has_ref then
-      for _, sub in ipairs(scan_text(table.concat(segs))) do
-        -- The byte-span fields are only needed by the reference path below.
-        sub.span_start, sub.span_stop = nil, nil
-        out[#out + 1] = sub
+    local s = table.concat(segs)
+    segs = {}
+    local pieces = {}
+    scan_emails(s, 1, #s, pieces)
+    for _, p in ipairs(pieces) do
+      if p.kind == "link" then
+        out[#out + 1] = p.node
+      else
+        out[#out + 1] = ast.text(s:sub(p.a, p.b))
       end
-    else
-      -- Build the raw scan string and note where each reference STARTS (its byte
-      -- length and decoded value).  Text the scan leaves outside a link is
-      -- decoded by replacing only a reference that begins there and fits wholly
-      -- in that text -- so a literal `&...;` (no reference start) is left as is,
-      -- and a reference the autolink split (its trailing ';' trimmed off) keeps
-      -- both parts raw, matching cmark-gfm.
-      local raw_parts, ref_start = {}, {}
-      local roff = 0
-      for _, seg in ipairs(segs) do
-        if type(seg) == "table" then
-          ref_start[roff + 1] = { len = #seg.raw, dec = seg.dec }
-          raw_parts[#raw_parts + 1] = seg.raw
-          roff = roff + #seg.raw
-        else
-          raw_parts[#raw_parts + 1] = seg
-          roff = roff + #seg
-        end
-      end
-      local raw = table.concat(raw_parts)
-      local function emit_decoded(a, b)
-        if a > b then
-          return
-        end
-        local parts, i = {}, a
-        while i <= b do
-          local rs = ref_start[i]
-          if rs and i + rs.len - 1 <= b then
-            parts[#parts + 1] = rs.dec
-            i = i + rs.len
-          else
-            parts[#parts + 1] = raw:sub(i, i)
-            i = i + 1
-          end
-        end
-        out[#out + 1] = ast.text(table.concat(parts))
-      end
-      local p = 1
-      for _, sub in ipairs(scan_text(raw)) do
-        if sub.kind == "link" then
-          emit_decoded(p, sub.span_start - 1)
-          p = sub.span_stop + 1
-          sub.span_start, sub.span_stop = nil, nil
-          out[#out + 1] = sub
-        end
-      end
-      emit_decoded(p, #raw)
     end
-    segs, has_ref = {}, false
   end
   for _, node in ipairs(nodes) do
     if node.kind == "text" then
-      if node.raw then
-        segs[#segs + 1] = { raw = node.raw, dec = node.text or "" }
-        has_ref = true
-      else
-        segs[#segs + 1] = node.text or ""
-      end
+      segs[#segs + 1] = node.text or ""
     elseif node.kind == "emphasis" and node.style ~= "code" then
       flush_run()
       node.content = extend_autolinks(node.content or {})
@@ -1279,6 +1158,11 @@ end
 
 function M.parse(text, refmap, opts)
   text = text or ""
+  -- CommonMark #645: trailing spaces/tabs on a paragraph's final line are not
+  -- significant.  Strip them up front (the newline branch handles interior
+  -- lines) so the scan -- including extended-autolink matching, which runs on
+  -- the raw text -- sees the same bytes cmark does after its block-level strip.
+  text = text:gsub("[ \t]+$", "")
   refmap = refmap or {}
   -- Delimiter stack: entries reference their text node, doubly linked.  Bracket
   -- delimiters (`[`, `![`) ride the same stack; they are inert to the emphasis
@@ -1288,6 +1172,9 @@ function M.parse(text, refmap, opts)
   -- link/image procedure can splice nodes mid-scan.
   local head, tail = nil, nil
   local buf = {}
+  -- Count of open `[`/`![` bracket delimiters on the stack: cmark suppresses
+  -- extended www/url autolinks while any bracket is open (its in_bracket check).
+  local bracket_count = 0
   local n = #text
   local function append(node)
     node.lprev = tail
@@ -1308,6 +1195,7 @@ function M.parse(text, refmap, opts)
 
   -- Unlink a bracket-opener delimiter entry from the stack.
   local function remove_opener(opener)
+    bracket_count = bracket_count - 1
     if opener.prev then
       opener.prev.next = opener.next
     else
@@ -1325,6 +1213,8 @@ function M.parse(text, refmap, opts)
   -- link-text span, splices the node in place of the opener and its span, drops
   -- consumed stack entries, and deactivates earlier link openers for a link.
   local function build_link(opener, dest, title, form)
+    -- The opener (the nearest `[` to this `]`) leaves the bracket stack here.
+    bracket_count = bracket_count - 1
     local is_image = opener.image
     -- Resolve emphasis strictly within the link-text span (above the opener);
     -- the opener bounds the scan so emphasis cannot reach earlier delimiters.
@@ -1612,6 +1502,7 @@ function M.parse(text, refmap, opts)
     -- `[`.  Push a bracket delimiter referencing its text node.
     elseif c == "[" then
       flush()
+      bracket_count = bracket_count + 1
       local tnode = ast.text("[")
       append(tnode)
       local d = {
@@ -1636,6 +1527,7 @@ function M.parse(text, refmap, opts)
     -- Exclamation: `![` is an image opener; a bare `!` is literal text.
     elseif c == "!" and text:sub(i + 1, i + 1) == "[" then
       flush()
+      bracket_count = bracket_count + 1
       local tnode = ast.text("![")
       append(tnode)
       local d = {
@@ -1709,13 +1601,44 @@ function M.parse(text, refmap, opts)
       local entity, len = match_entity(text, i)
       if entity then
         flush()
-        local node = ast.text(entity)
-        -- Keep the raw reference so the extended-autolink pass can scan it.
-        if opts and opts.extended_autolinks then
-          node.raw = text:sub(i, i + len - 1)
-        end
-        append(node)
+        append(ast.text(entity))
         i = i + len
+      else
+        buf[#buf + 1] = c
+        i = i + 1
+      end
+
+    -- A www. or scheme (http/https/ftp) URL begins here: a GFM extended autolink,
+    -- matched on the raw line during inline parsing (cmark's www_match/url_match)
+    -- so backslash escapes and emphasis delimiters stay attached to the URL.  It
+    -- is suppressed inside an open bracket; email autolinks are a later pass.
+    elseif
+      (c == "w" or c == "h" or c == "H" or c == "f" or c == "F")
+      and opts
+      and opts.extended_autolinks
+      and bracket_count == 0
+    then
+      local pb = i > 1 and text:sub(i - 1, i - 1) or ""
+      local www_ok = i == 1
+        or pb == " "
+        or pb == "\t"
+        or pb == "\n"
+        or pb == "\v"
+        or pb == "\f"
+        or pb == "\r"
+        or pb == "*"
+        or pb == "_"
+        or pb == "~"
+        or pb == "("
+      local url_ok = i == 1 or not pb:match("%a")
+      local node, next_i
+      if www_ok or url_ok then
+        node, next_i = match_autolink_url(text, i, n, www_ok, url_ok)
+      end
+      if node then
+        flush()
+        append(node)
+        i = next_i
       else
         buf[#buf + 1] = c
         i = i + 1
@@ -1724,14 +1647,6 @@ function M.parse(text, refmap, opts)
       buf[#buf + 1] = c
       i = i + 1
     end
-  end
-  -- CommonMark #645: trailing spaces on a paragraph's final line are not
-  -- significant and must be stripped.  The newline branch handles interior
-  -- lines; this covers the last line, which reaches end-of-input without a \n.
-  if #buf > 0 then
-    local s = table.concat(buf)
-    local stripped = s:gsub(" +$", "")
-    buf = { stripped }
   end
   flush()
 

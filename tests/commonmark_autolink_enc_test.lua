@@ -146,4 +146,40 @@ eq_ext(
   "a `]` in the href is %5D"
 )
 
+-- Extended autolinks are matched during the inline parse, on the raw line,
+-- before backslash escapes are decoded and emphasis is resolved (cmark matches
+-- www/url inline; only emails are a postprocess pass).  Three consequences:
+
+-- A backslash inside a URL is a literal URL byte, kept in the text and
+-- percent-encoded (%5C) in the href -- it is not an escape.
+eq_ext(
+  "www.x.com/a\\*b\n",
+  '<p><a href="http://www.x.com/a%5C*b">www.x.com/a\\*b</a></p>\n',
+  "a backslash in a URL is literal (href %5C)"
+)
+
+-- An emphasis run can wrap an autolink, but `__`/`_ ` adjacent to a domain are
+-- domain bytes at match time: cmark's check_domain ignores only the very last
+-- byte, so a doubled or non-final trailing underscore invalidates the domain
+-- and the URL is not linked.
+eq_ext(
+  "*www.x.com*\n",
+  '<p><em><a href="http://www.x.com">www.x.com</a></em></p>\n',
+  "emphasis wraps an autolink"
+)
+eq_ext(
+  "__www.foo.com__\n",
+  "<p><strong>www.foo.com</strong></p>\n",
+  "a trailing __ invalidates the domain"
+)
+eq_ext(
+  "a _www.foo.com_ b\n",
+  "<p>a <em>www.foo.com</em> b</p>\n",
+  "a non-final trailing _ invalidates the domain"
+)
+
+-- Trailing spaces/tabs on the final line are stripped before matching (so a
+-- bare `www.` is not a one-segment domain).
+eq_ext("www. \n", "<p>www.</p>\n", "trailing space is stripped before the autolink scan")
+
 print("commonmark_autolink_enc_test: PASS")
