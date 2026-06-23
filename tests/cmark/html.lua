@@ -42,6 +42,16 @@ local function escape(s)
   )
 end
 
+-- Escape an already-percent-encoded href/src for an HTML attribute the way
+-- cmark's houdini_escape_href does: `&` -> `&amp;` and `'` -> `&#x27;` (other
+-- unsafe bytes are percent-encoded by the parser before they reach here).
+local function escape_href(s)
+  return (s:gsub("[&']", {
+    ["&"] = "&amp;",
+    ["'"] = "&#x27;",
+  }))
+end
+
 local function inline(nodes)
   local out = {}
   for _, n in ipairs(nodes or {}) do
@@ -60,13 +70,13 @@ local function inline(nodes)
       out[#out + 1] = "<br />\n"
     elseif n.kind == "link" and n.form == "autolink" then
       out[#out + 1] = '<a href="'
-        .. escape(n.target or "")
+        .. escape_href(n.target or "")
         .. '">'
         .. escape(n.description or "")
         .. "</a>"
     elseif n.kind == "link" then
       out[#out + 1] = '<a href="'
-        .. escape(n.target or "")
+        .. escape_href(n.target or "")
         .. '"'
         .. (n.title and ' title="' .. escape(n.title) .. '"' or "")
         .. ">"
@@ -74,7 +84,7 @@ local function inline(nodes)
         .. "</a>"
     elseif n.kind == "image" then
       out[#out + 1] = '<img src="'
-        .. escape(n.target or "")
+        .. escape_href(n.target or "")
         .. '" alt="'
         .. escape(n.alt or "")
         .. '"'
