@@ -1578,8 +1578,9 @@ function M.parse(text, refmap, opts)
       local ends_backslash = buf_str:sub(-1) == "\\"
 
       if trailing_spaces >= 2 then
-        -- CommonMark: 2+ trailing spaces before \n = hard break.
-        buf = { buf_str:sub(1, #buf_str - trailing_spaces) }
+        -- CommonMark: 2+ trailing spaces before \n = hard break; all trailing
+        -- whitespace (the spaces and any tab before them) is dropped.
+        buf = { (buf_str:gsub("[ \t]+$", "")) }
         flush()
         append(ast.linebreak())
       elseif ends_backslash then
@@ -1588,8 +1589,8 @@ function M.parse(text, refmap, opts)
         flush()
         append(ast.linebreak())
       else
-        -- Soft break: CommonMark strips trailing spaces before a soft break.
-        local stripped = buf_str:gsub(" +$", "")
+        -- Soft break: CommonMark strips trailing spaces and tabs before it.
+        local stripped = buf_str:gsub("[ \t]+$", "")
         buf = { stripped }
         flush()
         append(ast.text("\n"))
