@@ -677,8 +677,11 @@ end
 
 -- Finalise an open block into the AST node the renderer consumes.
 
+-- Drop trailing blank (whitespace-only) lines.  An indented code block's
+-- trailing blanks are not part of it, and a whitespace-only line that was longer
+-- than the strip leaves residual spaces that must go too.
 local function trim_trailing_blank(lines)
-  while #lines > 0 and lines[#lines] == "" do
+  while #lines > 0 and lines[#lines]:match("^%s*$") do
     lines[#lines] = nil
   end
 end
