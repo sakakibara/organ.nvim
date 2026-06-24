@@ -1084,6 +1084,11 @@ function Parser:try_starts(line, base, from)
   if bq_rest and #self.stack < MAX_NESTING then
     from = self:leaf_base(from)
     self:close_below(from)
+    -- A block quote opening as a second child inside an open item, after an
+    -- armed blank, loosens the list that directly contains that item.
+    if self.stack[from] and self.stack[from].type == "list_item" then
+      self:confirm_list_loose(from - 1)
+    end
     repeat
       local quote = { type = "block_quote", children = {} }
       self:push(quote)
