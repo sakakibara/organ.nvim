@@ -1411,7 +1411,12 @@ function M.parse(text, refmap, opts)
       local right_flank = (not before_ws) and ((not before_punct) or after_ws or after_punct)
 
       local can_open, can_close
-      if c == "*" or c == "~" then
+      if c == "~" then
+        -- GFM strikethrough: only a run of one or two tildes is a delimiter; a
+        -- run of three or more is literal text.
+        can_open = left_flank and run_len <= 2
+        can_close = right_flank and run_len <= 2
+      elseif c == "*" then
         can_open = left_flank
         can_close = right_flank
       else
