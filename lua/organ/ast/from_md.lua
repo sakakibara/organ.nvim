@@ -113,13 +113,16 @@ local function atx_heading(line)
   if not hashes or #hashes > 6 then
     return nil
   end
-  -- Strip an optional closing run of '#' (preceded by space) and trim.
-  local content = strip((rest or ""):gsub("%s+#+%s*$", ""))
-  -- A content that is entirely '#' characters (no preceding space, e.g.
-  -- "### ###") is itself a closing run per CommonMark; treat it as empty.
-  if content:match("^#+%s*$") then
+  -- Remove an optional closing run of '#': one preceded by whitespace, or -- when
+  -- the content is nothing but '#'s (e.g. "## ###") -- a run at the very start.
+  -- The second case applies only when no whitespace-preceded run was found, so a
+  -- legitimate '#' left after stripping one (e.g. "## ## ##" -> "##") is kept.
+  local raw = rest or ""
+  local content = raw:gsub("%s+#+%s*$", "")
+  if content == raw and raw:match("^#+%s*$") then
     content = ""
   end
+  content = strip(content)
   return {
     type = "heading",
     level = #hashes,
