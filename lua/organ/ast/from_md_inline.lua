@@ -77,6 +77,28 @@ local function cp_before(text, i)
   return text:sub(j, i)
 end
 
+-- The character before/after a `*`/`_` run, for flanking.  cmark skips adjacent
+-- `~` here: the strikethrough extension registers `~` as an emphasis delimiter
+-- (SKIP_CHARS), so the neighbour that decides flanking is the first non-`~`
+-- character.  (`*`/`_` themselves are NOT skipped.)  This is why a `~` next to a
+-- `*`/`_` run changes that run's flanking -- e.g. `_a_~x` is not emphasis,
+-- because the closing `_` is then between two word characters.  "" (the start or
+-- end of the text) counts as whitespace for flanking.
+local function flank_before(text, run_start)
+  local pos = run_start - 1
+  while pos >= 1 and text:byte(pos) == 126 do -- 126 == '~'
+    pos = pos - 1
+  end
+  return pos >= 1 and cp_before(text, pos) or ""
+end
+
+local function flank_after(text, i, n)
+  while i <= n and text:byte(i) == 126 do -- 126 == '~'
+    i = i + 1
+  end
+  return i <= n and cp_after(text, i, n) or ""
+end
+
 -- U+FFFD replacement character (UTF-8 encoding).
 local REPLACEMENT_CHAR = "\239\191\189"
 
@@ -1397,8 +1419,8 @@ function M.parse(text, refmap, opts)
         i = i + 1
       end
       local run_len = i - run_start
-      local before = run_start > 1 and cp_before(text, run_start - 1) or ""
-      local after = i <= n and cp_after(text, i, n) or ""
+      local before = flank_before(text, run_start)
+      local after = flank_after(text, i, n)
 
       local before_ws, before_punct = is_ws(before), is_punct(before)
       local after_ws, after_punct = is_ws(after), is_punct(after)
