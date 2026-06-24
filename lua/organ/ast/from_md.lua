@@ -467,11 +467,13 @@ end
 -- residual columns as leading spaces on the inner remainder.
 local function strip_block_quote_marker(line, base)
   base = base or 0
-  local lead = line:match("^( ? ? ?)>")
-  if not lead then
+  -- Up to 3 columns of leading whitespace (a tab column-expands from base) may
+  -- precede the '>'.
+  local lead = line:match("^[ \t]*")
+  local lead_cols = indent_cols(lead, base)
+  if lead_cols > 3 or line:sub(#lead + 1, #lead + 1) ~= ">" then
     return nil
   end
-  local lead_cols = #lead
   local after = line:sub(#lead + 2)
   base = base + lead_cols + 1
   -- Consume one optional column of whitespace after '>'.  A space drops one
