@@ -853,10 +853,22 @@ function Parser:arm_list_blank(last_matched)
   if not (deepest and (deepest.type == "list" or deepest.type == "list_item")) then
     return
   end
-  -- A blank before an item's first content (the item began blank and has no
-  -- content yet) is not a separator between two blocks, so it loosens nothing.
-  if deepest.type == "list_item" and not deepest.has_content then
-    return
+  if deepest.type == "list_item" then
+    -- A blank before an item's first content (the item began blank and has no
+    -- content yet) is not a separator between two blocks: it loosens nothing.
+    if not deepest.has_content then
+      return
+    end
+    -- A blank right after a thematic break does not loosen (cmark's
+    -- last-line-blank flag is not set on one).  A heading is NOT exempt.  A
+    -- thematic break closes immediately, so the item's last block is its last
+    -- child unless a later block is still open under it.
+    if last_matched >= #self.stack then
+      local last = deepest.children[#deepest.children]
+      if last and last.kind == "rule" then
+        return
+      end
+    end
   end
   for i = 2, #self.stack do
     if self.stack[i].type == "list" then
