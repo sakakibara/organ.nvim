@@ -994,6 +994,18 @@ end
 -- with the marker count (a recursive call per marker would overflow the C
 -- stack).
 function Parser:try_starts(line, base, from)
+  -- A leading tab worth <= 3 columns is block-start indentation, not indented
+  -- code: expand it to spaces so the recognisers that measure indentation as
+  -- literal spaces (ATX, thematic break, setext) handle a tab left by a
+  -- container marker (e.g. `> \t## `).  A wider indent stays as is so an
+  -- indented code block keeps its body tabs verbatim.
+  local lead = line:match("^[ \t]*")
+  if lead:find("\t", 1, true) then
+    local cols = indent_cols(lead, base)
+    if cols <= 3 then
+      line = string.rep(" ", cols) .. line:sub(#lead + 1)
+    end
+  end
   local tip = self:tip()
   local tip_para = #self.stack > from and tip.type == "paragraph"
   -- A block that "cannot interrupt a paragraph" (a setext underline, an empty or
