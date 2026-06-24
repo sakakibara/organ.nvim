@@ -821,6 +821,14 @@ function Parser:close_to_document()
 end
 
 function Parser:push(block)
+  -- A block pushed under an open item is that item's content; record it so the
+  -- looseness and empty-item-blank rules can tell a still-empty item (begun
+  -- blank, no content yet) from one whose first content is merely still open
+  -- (not yet finalised into `children`).
+  local parent = self.stack[#self.stack]
+  if parent and parent.type == "list_item" then
+    parent.has_content = true
+  end
   self.stack[#self.stack + 1] = block
 end
 
@@ -835,6 +843,11 @@ end
 function Parser:arm_list_blank(last_matched)
   local deepest = self.stack[last_matched]
   if not (deepest and (deepest.type == "list" or deepest.type == "list_item")) then
+    return
+  end
+  -- A blank before an item's first content (the item began blank and has no
+  -- content yet) is not a separator between two blocks, so it loosens nothing.
+  if deepest.type == "list_item" and not deepest.has_content then
     return
   end
   for i = 2, #self.stack do
@@ -896,13 +909,13 @@ local CONTAINER = {
   list_item = {
     continue = function(block, rest, base)
       if is_blank(rest) then
-        -- "A list item can begin with at most one blank line": an empty item
-        -- that began blank is sealed by a following blank line that does not
-        -- reach its content indent.  A blank indented to the content column (or
-        -- any blank in a non-empty item) is interior and continues it.
+        -- "A list item can begin with at most one blank line": an item that
+        -- began blank and has no content yet is sealed by a following blank line
+        -- that does not reach its content indent.  A blank indented to the
+        -- content column (or any blank in an item with content) is interior.
         if
           block.opened_blank
-          and #block.children == 0
+          and not block.has_content
           and indent_cols(rest, base) < block.indent
         then
           return nil
