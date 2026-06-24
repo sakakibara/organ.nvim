@@ -908,22 +908,25 @@ local CONTAINER = {
   -- lines return nil; phase 4 may still lazily continue an open paragraph.
   list_item = {
     continue = function(block, rest, base)
-      if is_blank(rest) then
-        -- "A list item can begin with at most one blank line": an item that
-        -- began blank and has no content yet is sealed by a following blank line
-        -- that does not reach its content indent.  A blank indented to the
-        -- content column (or any blank in an item with content) is interior.
-        if
-          block.opened_blank
-          and not block.has_content
-          and indent_cols(rest, base) < block.indent
-        then
-          return nil
-        end
-        return "", base + block.indent
+      local blank = is_blank(rest)
+      local cols = indent_cols(rest, base)
+      -- "A list item can begin with at most one blank line": an item that began
+      -- blank and has no content yet is sealed by a following blank line that
+      -- does not reach its content indent.  A blank indented to the content
+      -- column (or any blank in an item with content) is interior.
+      if blank and block.opened_blank and not block.has_content and cols < block.indent then
+        return nil
       end
-      if indent_cols(rest, base) >= block.indent then
+      -- Strip exactly the content indent when the line reaches it.  This applies
+      -- to blank lines too, so indentation beyond the content column (e.g. a
+      -- blank line of fenced-code content) is preserved.
+      if cols >= block.indent then
         return drop_cols(rest, base, block.indent), base + block.indent
+      end
+      -- A short blank line still continues the item; any other short line does
+      -- not (phase 4 may lazily continue an open paragraph).
+      if blank then
+        return "", base + block.indent
       end
       return nil
     end,
