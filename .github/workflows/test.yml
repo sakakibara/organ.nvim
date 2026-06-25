@@ -73,6 +73,44 @@ jobs:
           # Fail if the test skipped (binary not found) rather than passing.
           echo "$out" | grep -q "extended_autolink_oracle_test: PASS"
 
+  emphasis-oracle:
+    # Differential check of the emphasis/strikethrough importer against
+    # cmark-gfm over a large deterministic corpus of unbalanced delimiter soup.
+    # The spec.json fixtures cover only well-formed emphasis; the rule-of-3,
+    # openers_bottom barrier, and GFM strikethrough length-equality rules were
+    # developed against this differential.  Runs once (pure Lua, nvim-version
+    # independent).
+    name: emphasis/strikethrough differential (vs cmark-gfm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: install neovim
+        uses: rhysd/action-setup-vim@v1
+        with:
+          neovim: true
+          version: stable
+
+      - name: build cmark-gfm (pinned)
+        run: |
+          set -eux
+          git clone --depth 1 --branch 0.29.0.gfm.13 \
+            https://github.com/github/cmark-gfm /tmp/cmark-gfm
+          cmake -S /tmp/cmark-gfm -B /tmp/cmark-gfm/build -DCMARK_TESTS=OFF
+          cmake --build /tmp/cmark-gfm/build -j
+          bin=/tmp/cmark-gfm/build/src/cmark-gfm
+          test -x "$bin"
+          printf '*a* ~~b~~\n' | "$bin" -e strikethrough   # smoke test
+          echo "ORGAN_CMARK_GFM=$bin" >> "$GITHUB_ENV"
+
+      - name: emphasis/strikethrough differential
+        run: |
+          set -eo pipefail
+          out=$(nvim --headless -l tests/from_md_emphasis_oracle_test.lua </dev/null 2>&1)
+          echo "$out"
+          # Fail if the test skipped (binary not found) rather than passing.
+          echo "$out" | grep -q "from_md_emphasis_oracle_test: PASS"
+
   parity:
     # Regenerates both agenda parity snapshots and asserts neither has
     # drifted from the committed fixtures.  Catches:
