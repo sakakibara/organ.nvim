@@ -42,4 +42,33 @@ assert(
 )
 assert(cmark.render(from_md.parse("Foo\n===\n")) == "<h1>Foo</h1>\n", "setext level 1 still works")
 
+-- A setext underline whose paragraph is entirely link reference definitions has
+-- nothing to underline.  The line was already consumed as a setext candidate, so
+-- it becomes ORDINARY paragraph text -- a `-` run does NOT fall back to a
+-- thematic break, and a lone `-` does NOT open a list.  Verified against
+-- CommonMark 0.31.2 (`cmark`); the bundled spec covers only the `===` variant
+-- (example 216).
+assert(
+  cmark.render(from_md.parse("[a]: /u\n---\n")) == "<p>---</p>\n",
+  "ref-def then '---' is paragraph text, not a thematic break"
+)
+assert(
+  cmark.render(from_md.parse("[a]: /u\n-\n")) == "<p>-</p>\n",
+  "ref-def then lone '-' is paragraph text, not an empty list item"
+)
+assert(
+  cmark.render(from_md.parse("[a]: /u\n-----\n")) == "<p>-----</p>\n",
+  "ref-def then a longer dash run is still paragraph text"
+)
+assert(
+  cmark.render(from_md.parse("[foo]: /url\n===\n[foo]\n")) == '<p>===\n<a href="/url">foo</a></p>\n',
+  "ref-def then '===' is paragraph text (spec example 216), unchanged"
+)
+-- A `*`/`_` run after a ref-def is a pure thematic break (never a setext marker),
+-- so it stays an <hr> -- this path is untouched by the fix.
+assert(
+  cmark.render(from_md.parse("[a]: /u\n***\n")) == "<hr />\n",
+  "ref-def then '***' is still a thematic break"
+)
+
 print("commonmark_setext_test: PASS")

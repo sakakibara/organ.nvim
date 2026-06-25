@@ -1056,12 +1056,16 @@ function Parser:try_starts(line, base, from)
       -- A setext underline applies to what REMAINS after stripping leading
       -- reference definitions from the paragraph.  If the paragraph was entirely
       -- definitions, there is nothing to underline: the defs are recorded, the
-      -- empty paragraph is dropped, and the underline line is reprocessed with no
-      -- paragraph above it (so it becomes ordinary text or a thematic break).
+      -- empty paragraph is dropped, and the underline line becomes ORDINARY
+      -- paragraph text -- not a fresh block start.  The line was already consumed
+      -- as a setext-underline candidate, so a `-` run does NOT fall back to a
+      -- thematic break and a lone `-` does NOT open a list (CommonMark 0.31.2:
+      -- `[a]: /u` + `---` is `<p>---</p>`, not `<hr>`; `===` likewise is text).
+      -- Returning false routes the line into phase 4, which opens that paragraph.
       local remaining = self:extract_para_refs(para.lines)
       self.stack[n] = nil
       if remaining:match("^%s*$") then
-        return self:try_starts(line, base, from)
+        return false
       end
       local parent = self.stack[#self.stack]
       parent.children[#parent.children + 1] = ast.headline({
