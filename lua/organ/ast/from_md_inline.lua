@@ -634,13 +634,18 @@ end
 -- of reach.  Used when resolving emphasis within a link-text span so emphasis
 -- cannot reach across the bracket opener into earlier delimiters.
 local function process_emphasis(head, delim_bottom, stack_bottom)
-  -- openers_bottom[char][closer_can_open][len%3] : the lowest opener we may
-  -- match for a closer with that key.  nil means stack_bottom (or the real
-  -- stack bottom when stack_bottom is nil).
+  -- openers_bottom[char][len%3] : a position floor -- the lowest opener position
+  -- we may still match for a closer of that char and length class.  cmark keys
+  -- this [delim_char][length%3] (no can_open axis), seeds it to the stack bottom,
+  -- and stores the failed closer's own position, so one failed closer bars every
+  -- earlier opener for ALL later closers of the same char/length.  Positions are
+  -- stable integers (a delimiter's never change), so a removed delimiter can no
+  -- longer act as a stale barrier the way a node reference could.
+  local bottom_pos = stack_bottom and stack_bottom.pos or 0
   local openers_bottom = {
-    ["*"] = { [true] = {}, [false] = {} },
-    ["_"] = { [true] = {}, [false] = {} },
-    ["~"] = { [true] = {}, [false] = {} },
+    ["*"] = {},
+    ["_"] = {},
+    ["~"] = {},
   }
 
   -- Walk the delimiter stack from the bottom looking for closers.
@@ -649,38 +654,54 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
     if not closer.can_close then
       closer = closer.next
     else
-      local key_base = openers_bottom[closer.char][closer.can_open]
-      local bottom = key_base[closer.length % 3] or stack_bottom
+      -- Key the floor by the ORIGINAL run length: cmark's delimiter->length is
+      -- fixed at creation and never decremented (only the inline text shrinks as
+      -- chars are consumed), so a partially-consumed closer keeps the same
+      -- openers_bottom bucket -- and floor -- it started in.
+      local key_base = openers_bottom[closer.char]
+      local floor = key_base[closer.orig_len % 3] or bottom_pos
 
-      -- Scan back for the nearest matching opener above openers_bottom.
+      -- Scan back for the nearest matching opener at or above the floor.
       local opener = closer.prev
       local opener_found = false
-      while opener and opener ~= bottom do
+      while opener and opener.pos >= floor do
         if opener.can_open and opener.char == closer.char then
-          if closer.char == "~" then
-            -- GFM strikethrough: a `~` run matches only a run of the SAME
-            -- length (1<->1, 2<->2); the rule of 3 does not apply.
-            if opener.length == closer.length then
-              opener_found = true
-              break
-            end
-          else
-            -- Rule of 3: if either side can both open and close, the sum of the
-            -- ORIGINAL run lengths must not be a multiple of 3 (unless both
-            -- original lengths are multiples of 3).
-            local odd_match = (closer.can_open or opener.can_close)
-              and (opener.orig_len + closer.orig_len) % 3 == 0
-              and not (opener.orig_len % 3 == 0 and closer.orig_len % 3 == 0)
-            if not odd_match then
-              opener_found = true
-              break
-            end
+          -- Rule of 3: if either side can both open and close, the sum of the
+          -- ORIGINAL run lengths must not be a multiple of 3 (unless both
+          -- original lengths are multiples of 3).  This selects the nearest
+          -- candidate opener for `*`/`_` and, exactly as in cmark, for `~` too:
+          -- the strikethrough length-equality rule is enforced at emit time,
+          -- not here, so a `~~` closer first binds to a nearer `~` opener.
+          local odd_match = (closer.can_open or opener.can_close)
+            and (opener.orig_len + closer.orig_len) % 3 == 0
+            and not (opener.orig_len % 3 == 0 and closer.orig_len % 3 == 0)
+          if not odd_match then
+            opener_found = true
+            break
           end
         end
         opener = opener.prev
       end
 
-      if opener_found then
+      if opener_found and closer.char == "~" and opener.length ~= closer.length then
+        -- GFM strikethrough requires equal-length runs.  cmark's nearest-opener
+        -- scan still selected this unequal `~` opener; its `insert` then drops
+        -- BOTH delimiters (opener..closer) without emitting, leaving the tildes
+        -- literal -- which is what stops a farther equal-length run from
+        -- pairing.  Mirror that: splice the whole span out of the stack.
+        local next_closer = closer.next
+        local before, after = opener.prev, closer.next
+        if before then
+          before.next = after
+        end
+        if after then
+          after.prev = before
+        end
+        if opener == delim_bottom then
+          delim_bottom = after
+        end
+        closer = next_closer
+      elseif opener_found then
         -- For `~`, the matched runs are equal-length (GFM): consume the whole
         -- run (1 or 2) and emit a strike node.  For `*`/`_`, consume 2 (strong)
         -- when both sides have >=2, else 1 (em).
@@ -766,10 +787,11 @@ local function process_emphasis(head, delim_bottom, stack_bottom)
         -- If the closer still has length, keep matching it against earlier
         -- openers on the next loop iteration (e.g. *** -> strong then em).
       else
-        -- No match: set openers_bottom to just below this closer, and drop the
-        -- closer's stack entry if it cannot also open.
+        -- No match: raise the floor to this closer's position (no earlier opener
+        -- can serve a later closer of this char/length), and drop the closer's
+        -- stack entry if it cannot also open.
         local next_closer = closer.next
-        key_base[closer.length % 3] = closer.prev
+        key_base[closer.orig_len % 3] = closer.pos
         if not closer.can_open then
           if closer.prev then
             closer.prev.next = closer.next
@@ -1456,6 +1478,7 @@ function M.parse(text, refmap, opts)
         orig_len = run_len,
         can_open = can_open,
         can_close = can_close,
+        pos = (delim_top and delim_top.pos or 0) + 1,
         prev = delim_top,
         next = nil,
       }
@@ -1550,6 +1573,7 @@ function M.parse(text, refmap, opts)
         active = true,
         can_open = false,
         can_close = false,
+        pos = (delim_top and delim_top.pos or 0) + 1,
         prev = delim_top,
         next = nil,
       }
@@ -1575,6 +1599,7 @@ function M.parse(text, refmap, opts)
         active = true,
         can_open = false,
         can_close = false,
+        pos = (delim_top and delim_top.pos or 0) + 1,
         prev = delim_top,
         next = nil,
       }
