@@ -11,8 +11,11 @@
 --
 -- The corpus is fully deterministic (no os.time / os.random), so a failure is
 -- always reproducible.  Its size is fixed, so the test cannot run away.
+-- Bootstrap: add project lua/ to the path so bare `require` works.  from_md is
+-- pure Lua, so this needs neither the tree-sitter grammar nor the runtime deps
+-- that tests/_bootstrap.lua gates on.
 local root = vim.fn.getcwd()
-dofile(root .. "/tests/_bootstrap.lua")
+package.path = root .. "/lua/?.lua;" .. root .. "/lua/?/init.lua;" .. package.path
 
 local from_md = require("organ.ast.from_md")
 local cmark = dofile(root .. "/tests/cmark/html.lua")

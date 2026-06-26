@@ -7,8 +7,11 @@
 -- Opt-in: set ORGAN_CMARK_GFM to a cmark-gfm binary (built with the autolink and
 -- strikethrough extensions).  A run without it -- including the normal `make
 -- test` -- skips.  CI builds a pinned cmark-gfm and sets the variable.
+-- Bootstrap: add project lua/ to the path so bare `require` works.  from_md is
+-- pure Lua, so this needs neither the tree-sitter grammar nor the runtime deps
+-- that tests/_bootstrap.lua gates on.
 local root = vim.fn.getcwd()
-dofile(root .. "/tests/_bootstrap.lua")
+package.path = root .. "/lua/?.lua;" .. root .. "/lua/?/init.lua;" .. package.path
 
 local from_md = require("organ.ast.from_md")
 local cmark = dofile(root .. "/tests/cmark/html.lua")
