@@ -13,7 +13,7 @@ vim.api.nvim_buf_set_lines(b, 0, -1, false, { "| a | b |", "| c | d |" })
 local function has_keymap(lhs, mode)
   local nvim_lhs = vim.fn.keytrans(vim.api.nvim_replace_termcodes(lhs, true, false, true))
   for _, m in ipairs(vim.api.nvim_buf_get_keymap(b, mode)) do
-    if m.lhs == lhs or m.lhs == nvim_lhs then
+    if m.lhs == lhs or vim.fn.keytrans(m.lhsraw or m.lhs) == nvim_lhs then
       return m
     end
   end
@@ -56,7 +56,7 @@ vim.cmd("normal! ,zt") -- assumes localleader = ","; this may vary
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(b, "n")) do
   local nvim_lhs =
     vim.fn.keytrans(vim.api.nvim_replace_termcodes("<LocalLeader>|", true, false, true))
-  if m.lhs == "<LocalLeader>|" or m.lhs == nvim_lhs then
+  if m.lhs == "<LocalLeader>|" or vim.fn.keytrans(m.lhsraw or m.lhs) == nvim_lhs then
     if m.callback then
       m.callback()
     end

@@ -16,7 +16,7 @@ vim.fn.mkdir(tmp, "p")
 local function has_global_keymap(lhs)
   local nvim_lhs = vim.fn.keytrans(vim.api.nvim_replace_termcodes(lhs, true, false, true))
   for _, m in ipairs(vim.api.nvim_get_keymap("n")) do
-    if m.lhs == lhs or m.lhs == nvim_lhs then
+    if m.lhs == lhs or vim.fn.keytrans(m.lhsraw or m.lhs) == nvim_lhs then
       return m
     end
   end

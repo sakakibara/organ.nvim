@@ -25,7 +25,7 @@ local function has_keymap(b, lhs, mode)
   mode = mode or "n"
   local nvim_lhs = vim.fn.keytrans(vim.api.nvim_replace_termcodes(lhs, true, false, true))
   for _, m in ipairs(vim.api.nvim_buf_get_keymap(b, mode)) do
-    if m.lhs == lhs or m.lhs == nvim_lhs then
+    if m.lhs == lhs or vim.fn.keytrans(m.lhsraw or m.lhs) == nvim_lhs then
       return m
     end
   end
