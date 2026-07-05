@@ -25,14 +25,14 @@ local function assert_eq(a, b, msg)
 end
 
 ----------------------------------------------------------------------
--- today() creates the daily file.
+-- today() opens an unsaved daily buffer; the file appears only on save.
 do
   dailies.today()
   local iso = os.date("%Y-%m-%d")
   local path = tmpdir .. "/roam/daily/" .. iso .. ".org"
-  assert(exists(path), "today daily exists at " .. path)
-  -- Default template includes #+title:
-  local lines = vim.fn.readfile(path)
+  assert(not exists(path), "new daily is not written until save")
+  -- Default template (in the buffer) includes #+title:
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local has_title = false
   for _, l in ipairs(lines) do
     if l:find("^#%+title: ") then
@@ -40,6 +40,8 @@ do
     end
   end
   assert(has_title, "default template has #+title:")
+  vim.cmd("write")
+  assert(exists(path), "today daily written on save at " .. path)
 end
 
 ----------------------------------------------------------------------
@@ -58,10 +60,13 @@ do
 end
 
 ----------------------------------------------------------------------
--- for_date creates a specific-date file.
+-- for_date opens a specific-date daily; file appears on save.
 do
   dailies.for_date("2026-12-25")
-  assert(exists(tmpdir .. "/roam/daily/2026-12-25.org"))
+  local path = tmpdir .. "/roam/daily/2026-12-25.org"
+  assert(not exists(path), "specific-date daily unsaved until write")
+  vim.cmd("write")
+  assert(exists(path))
 end
 
 ----------------------------------------------------------------------
@@ -81,7 +86,7 @@ do
   })
   -- Need a fresh date to avoid hitting an existing file.
   dailies.for_date("2030-01-01")
-  local lines = vim.fn.readfile(tmpdir .. "/roam/daily/2030-01-01.org")
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   assert_eq(lines[1], "CUSTOM 2030-01-01")
 end
 

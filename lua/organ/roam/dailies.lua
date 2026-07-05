@@ -18,19 +18,31 @@ end
 
 local function _open_or_create(iso)
   local dir = dailies_dir()
-  vim.fn.mkdir(dir, "p")
   local path = dir .. "/" .. iso .. ".org"
-  if not vim.loop.fs_stat(path) then
+  local existed = vim.loop.fs_stat(path) ~= nil
+  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  local bufnr = vim.api.nvim_get_current_buf()
+  if not existed then
+    -- A brand-new daily opens as an UNSAVED buffer seeded with the
+    -- template; it becomes a file only when the user writes it, so opening
+    -- today's daily and quitting without typing leaves nothing on disk
+    -- (matches Emacs org-roam capture).  Defer the mkdir to the first write
+    -- so the directory doesn't materialize on a peek-and-quit either.
     local cfg = (require("organ.buf_config").read(nil, "roam") or {})
     local tpl = (cfg.dailies or {}).template or default_template
-    local body = tpl(iso)
-    require("organ.path").write_atomic(path, table.concat(body, "\n") .. "\n")
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, tpl(iso))
+    vim.api.nvim_create_autocmd("BufWritePre", {
+      buffer = bufnr,
+      once = true,
+      callback = function()
+        vim.fn.mkdir(dir, "p")
+      end,
+    })
   end
-  vim.cmd("edit " .. vim.fn.fnameescape(path))
   -- Land at the end of the last line -- the seeded `* ` heading for the
   -- default template, so typing continues the heading title.
-  local last = vim.api.nvim_buf_line_count(0)
-  local last_text = vim.api.nvim_buf_get_lines(0, last - 1, last, false)[1] or ""
+  local last = vim.api.nvim_buf_line_count(bufnr)
+  local last_text = vim.api.nvim_buf_get_lines(bufnr, last - 1, last, false)[1] or ""
   vim.api.nvim_win_set_cursor(0, { last, #last_text })
 end
 

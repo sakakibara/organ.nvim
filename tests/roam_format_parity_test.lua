@@ -105,13 +105,14 @@ do
   check("node: no trailing blank lines (exactly 4)", #lines == 4, "#lines=" .. #lines)
 end
 
--- 5. Daily file: header + the `* ` heading org-roam seeds, no extra blank.
+-- 5. Daily buffer: header + the `* ` heading org-roam seeds, no extra
+--    blank.  A new daily opens unsaved, so the content lives in the buffer.
 --    (Runs before any uuidv4 setup so the default v7 isn't masked by
 --    setup()'s cumulative config merge.)
 do
-  local _, dir = setup()
+  setup()
   require("organ.roam.dailies").for_date("2026-06-17")
-  local lines = vim.fn.readfile(dir .. "/daily/2026-06-17.org")
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   check("daily: :PROPERTIES: first", lines[1] == ":PROPERTIES:")
   check(
     "daily: :ID: 7-space + v7",
@@ -135,9 +136,9 @@ end
 
 -- 7. Daily with links.id_method = "uuidv4".
 do
-  local _, dir = setup({ links = { id_method = "uuidv4" } })
+  setup({ links = { id_method = "uuidv4" } })
   require("organ.roam.dailies").for_date("2027-01-02")
-  local id = vim.fn.readfile(dir .. "/daily/2027-01-02.org")[2]:match("^:ID:%s+(%S+)")
+  local id = (vim.api.nvim_buf_get_lines(0, 1, 2, false)[1] or ""):match("^:ID:%s+(%S+)")
   check("daily uuidv4: id is v4 shape", (id or ""):match(V4) ~= nil, id)
 end
 

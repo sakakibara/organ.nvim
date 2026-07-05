@@ -1,14 +1,15 @@
--- Behavioral test: open or create today's roam daily note.
+-- Behavioral test: open today's roam daily note.
 --
--- Configures roam.dir under a tmp directory, runs `:Org
--- roam_daily_today`, and verifies that <roam>/daily/<today>.org gets
--- created with the default template and is the current buffer.
+-- A brand-new daily opens as an UNSAVED buffer seeded with the template --
+-- it becomes a file on disk only when the user saves.  Peeking at today's
+-- daily and quitting without typing leaves nothing behind (matches Emacs
+-- org-roam capture).
 --
 -- Exercises:
 --   :Org roam daily today -> organ.roam.commands.roam_daily_today
 --   organ.roam.dailies.today -> _open_or_create
 --   default_template emission (#+title, :ID:, :PROPERTIES:)
---   atomic write + :edit of the daily file
+--   deferred write: file appears only on :write
 --
 -- Run via: nvim --headless -l tests/behavioral/roam_daily_test.lua
 
@@ -43,24 +44,24 @@ require("organ").setup({
 local today = os.date("%Y-%m-%d")
 local expected_path = roam_dir .. "/daily/" .. today .. ".org"
 
--- Pre-state: file does not yet exist.
 check("pre-state: today's daily does not exist", vim.fn.filereadable(expected_path) == 0)
 
 vim.cmd("filetype plugin on")
 vim.cmd("Org roam daily today")
 
--- Post: file exists, current buffer is editing it.
-check("post: today's daily file created", vim.fn.filereadable(expected_path) == 1)
+-- Post-open: NO file yet -- the daily lives in an unsaved buffer.
+check("post-open: no file written yet", vim.fn.filereadable(expected_path) == 0)
 
 local cur_path = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p")
 check(
-  "post: current buffer is the daily file",
+  "post-open: current buffer is named the daily path",
   cur_path == vim.fn.fnamemodify(expected_path, ":p"),
   cur_path
 )
+check("post-open: buffer is modified (unsaved template)", vim.bo.modified == true)
 
--- Default template content: PROPERTIES + ID + #+title with today's ISO.
-local lines = vim.fn.readfile(expected_path)
+-- The template content is in the BUFFER.
+local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 local has_props, has_id, has_title = false, false, false
 for _, l in ipairs(lines) do
   if l:match("^:PROPERTIES:") then
@@ -73,17 +74,28 @@ for _, l in ipairs(lines) do
     has_title = true
   end
 end
-check("post: file has :PROPERTIES: drawer", has_props, table.concat(lines, "|"))
-check("post: file has an :ID: line", has_id)
-check("post: file has #+title with today's date", has_title)
+check("post-open: buffer has :PROPERTIES: drawer", has_props, table.concat(lines, "|"))
+check("post-open: buffer has an :ID: line", has_id)
+check("post-open: buffer has #+title with today's date", has_title)
 
--- Re-running should not recreate (no error, same content).
-local before_content = vim.fn.readfile(expected_path)
+-- Saving turns the buffer into a file with the same content.
+vim.cmd("write")
+check("post-write: daily file created on save", vim.fn.filereadable(expected_path) == 1)
+check(
+  "post-write: file matches the buffer",
+  table.concat(vim.fn.readfile(expected_path), "\n") == table.concat(lines, "\n")
+)
+
+-- Re-opening the now-existing daily edits it in place (no recreate/overwrite).
+vim.cmd("enew")
 vim.cmd("Org roam daily today")
-local after_content = vim.fn.readfile(expected_path)
+check(
+  "second run edits the existing file",
+  vim.fn.fnamemodify(vim.api.nvim_buf_get_name(0), ":p") == vim.fn.fnamemodify(expected_path, ":p")
+)
 check(
   "second run is idempotent (file unchanged)",
-  table.concat(before_content, "\n") == table.concat(after_content, "\n")
+  table.concat(vim.fn.readfile(expected_path), "\n") == table.concat(lines, "\n")
 )
 
 vim.fn.delete(tmp, "rf")
