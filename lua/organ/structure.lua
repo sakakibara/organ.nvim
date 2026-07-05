@@ -98,68 +98,94 @@ local function resolve(opts)
   return opts.bufnr or vim.api.nvim_get_current_buf(), opts.line or vim.fn.line(".")
 end
 
--- Capture the visual fold state of every headline in `[start_line,
--- end_line]` (1-based, inclusive).  Each entry is `{ line = L, closed =
--- bool }`.  `closed` is true only when L is ITSELF the first line of a
--- closed fold: `foldclosed(L)` returns the first line of the closed fold
--- containing L (or -1), so a heading hidden inside a closed ancestor
--- reports the ancestor's line and records as open -- its own state isn't
--- visible and is reproduced by restoring the ancestor.
-local function capture_fold_state(bufnr, start_line, end_line)
+-- Fold-start lines in `[start_line, end_line]` (1-based, inclusive) with
+-- their fold level, drawn from organ.fold's own fold model so that every
+-- foldable range is covered -- not just headings, but the drawer / block
+-- sub-folds (PROPERTIES, LOGBOOK, src blocks, ...) that nest one level
+-- under their heading.  `build_fold_levels` marks a fold start as ">N";
+-- interior lines carry a bare "N".
+local function fold_starts(bufnr, start_line, end_line)
+  local levels = require("organ.fold")._build_fold_levels(bufnr)
   local out = {}
-  local lines = vim.api.nvim_buf_get_lines(bufnr, start_line - 1, end_line, false)
-  for i, txt in ipairs(lines) do
-    if txt:match("^%*+%s") or txt:match("^%*+$") then
-      local l = start_line + i - 1
-      out[#out + 1] = { line = l, closed = vim.fn.foldclosed(l) == l }
+  for l = start_line, end_line do
+    local n = (levels[l] or ""):match("^>(%d+)")
+    if n then
+      out[#out + 1] = { line = l, level = tonumber(n) }
+    end
+  end
+  return out
+end
+
+-- Capture the visual open/closed state of every fold in `[start_line,
+-- end_line]`.  Each entry is `{ line = L, closed = bool }`.
+--
+-- `foldclosed(L)` returns the first line of the closest CLOSED fold
+-- containing L, so a fold buried inside a closed ancestor reports the
+-- ancestor's line, not its own state -- a plain read would mis-record it
+-- as open and lose the state when the ancestor is later opened.  Probe
+-- shallowest-first instead: a fold's own bit is readable once its
+-- ancestors are open, so record each fold's state and then open it,
+-- exposing its children for the next (deeper) iteration.  This leaves the
+-- range fully expanded on return; the caller's edit + `apply_fold_state`
+-- rebuild the final state, so the transient expansion never redraws.
+local function capture_fold_state(bufnr, start_line, end_line)
+  local starts = fold_starts(bufnr, start_line, end_line)
+  table.sort(starts, function(a, b)
+    if a.level ~= b.level then
+      return a.level < b.level
+    end
+    return a.line < b.line
+  end)
+  local out = {}
+  for _, h in ipairs(starts) do
+    local closed = vim.fn.foldclosed(h.line) == h.line
+    out[#out + 1] = { line = h.line, closed = closed }
+    if closed then
+      pcall(vim.cmd, ("silent! %dfoldopen"):format(h.line))
     end
   end
   return out
 end
 
 -- Whole-buffer capture: promote / demote re-level the fold tree for the
--- entire buffer, so preserving only the touched headings lets vim's
--- recompute flip siblings and ancestors.  Capturing every heading and
+-- entire buffer, so preserving only the touched folds lets vim's
+-- recompute flip siblings and ancestors.  Capturing every fold and
 -- restoring it is the only way to keep visibility stable.
 local function capture_all_fold_state(bufnr)
   return capture_fold_state(bufnr, 1, vim.api.nvim_buf_line_count(bufnr))
 end
 
--- Re-apply a captured fold state.  Each `entry.line` addresses the
--- heading's CURRENT line (callers that move lines remap it first).  Vim
--- keys expr-fold open/closed state by line position, not content, so
--- every structural edit needs an explicit restore.
+-- Re-apply a captured fold state.  Each `entry.line` addresses the fold's
+-- CURRENT start line (callers that move lines remap it first).  Vim keys
+-- expr-fold open/closed state by line position, not content, so every
+-- structural edit needs an explicit restore.
 --
--- Two passes over the heading set, because `:Nfoldclose` on a line that
--- is already buried in a closed ancestor walks UP and collapses the
--- ancestor instead of the target (the same gotcha organ.fold documents
--- for close_all_drawers) -- which is what silently folded whole parents
--- shut after a demote re-nested a heading:
+-- Two passes over the fold set, because `:Nfoldclose` on a line that is
+-- already buried in a closed ancestor walks UP and collapses the ancestor
+-- instead of the target (the same gotcha organ.fold documents for
+-- close_all_drawers) -- which is what silently folded whole parents shut
+-- after a demote re-nested a heading:
 --
---   Pass 1 (reveal): shallowest first, foldopen every heading that is
---     itself a closed fold.  Opening an ancestor exposes its children so
---     they become individually addressable on their own turn.
---   Pass 2 (re-close): deepest first, foldclose every heading whose
---     captured state was closed AND that is currently VISIBLE.  Closing a
---     child while its parent is still open, then closing the parent, nests
+--   Pass 1 (reveal): shallowest first, foldopen every fold that is itself
+--     closed.  Opening an ancestor exposes its children so they become
+--     individually addressable on their own turn.
+--   Pass 2 (re-close): deepest first, foldclose every fold whose captured
+--     state was closed AND that is currently VISIBLE.  Closing a child
+--     while its parent is still open, then closing the parent, nests
 --     correctly; the visible-only guard means a foldclose never walks up.
 --
--- Levels are read fresh from the post-edit buffer so the ordering tracks
--- the new nesting.  A heading buried under a closed ancestor OUTSIDE the
--- entry set is left untouched -- acting on it would disturb a fold the
--- operation never owned.
+-- Levels are read fresh from the post-edit fold model so the ordering
+-- tracks the new nesting.  An entry whose line is no longer a fold start
+-- (the edit dissolved that fold) is dropped; a fold buried under a closed
+-- ancestor OUTSIDE the entry set is left untouched -- acting on it would
+-- disturb a fold the operation never owned.
 local function apply_fold_state(bufnr, entries)
-  local last = vim.api.nvim_buf_line_count(bufnr)
-  for _, e in ipairs(entries) do
-    local txt = (e.line >= 1 and e.line <= last)
-        and (vim.api.nvim_buf_get_lines(bufnr, e.line - 1, e.line, false)[1] or "")
-      or ""
-    e.level = #(txt:match("^(%*+)") or "")
-  end
+  local levels = require("organ.fold")._build_fold_levels(bufnr)
   local ordered = {}
   for _, e in ipairs(entries) do
-    if e.level > 0 then
-      ordered[#ordered + 1] = e
+    local n = (levels[e.line] or ""):match("^>(%d+)")
+    if n then
+      ordered[#ordered + 1] = { line = e.line, closed = e.closed, level = tonumber(n) }
     end
   end
   table.sort(ordered, function(a, b)

@@ -111,6 +111,39 @@ do
   )
 end
 
+-- 4. A folded PROPERTIES drawer inside a moved subtree keeps its folded
+--    state (drawer sub-folds nest one level under the heading and are
+--    just as position-keyed as heading folds).
+do
+  set_up_buf({
+    "* A", -- 1
+    ":PROPERTIES:", -- 2
+    ":ID: x", -- 3
+    ":END:", -- 4
+    "body a", -- 5
+    "* B", -- 6
+    "body b", -- 7
+  })
+  vim.cmd("normal! zX")
+  pcall(vim.cmd, "2foldclose") -- drawer folded
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  structure.move_subtree_down()
+  local drawer_line
+  for i, txt in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+    if txt:match("^:PROPERTIES:") then
+      drawer_line = i
+    end
+  end
+  check(
+    "move_down keeps a folded PROPERTIES drawer folded",
+    drawer_line ~= nil and closed(drawer_line),
+    ("drawer_line=%s closed=%s"):format(
+      tostring(drawer_line),
+      tostring(drawer_line and closed(drawer_line))
+    )
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

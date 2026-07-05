@@ -191,6 +191,63 @@ do
   )
 end
 
+-- 7. A heading closed-and-buried inside a closed ancestor keeps its own
+--    closed state through an unrelated demote: opening the ancestor
+--    afterward must still reveal it folded.  (foldclosed() cannot read a
+--    buried fold, so this exercises the active-probe capture.)
+do
+  set_up_buf({
+    "* Parent", -- 1
+    "** A", -- 2
+    "*** A1", -- 3  <- closed, then buried under closed A
+    "body a1", -- 4
+    "** B", -- 5  <- unrelated demote target
+    "body b", -- 6
+    "** C", -- 7
+    "body c", -- 8
+  })
+  pcall(vim.cmd, "1foldopen") -- Parent open
+  pcall(vim.cmd, "3foldclose") -- A1 closed
+  pcall(vim.cmd, "2foldclose") -- A closed -> A1 now buried & closed
+  vim.api.nvim_win_set_cursor(0, { 5, 0 })
+  structure.demote_headline() -- B: ** -> ***, does not touch A subtree
+  local a_closed_after = vim.fn.foldclosed(2) == 2
+  pcall(vim.cmd, "2foldopen") -- reveal A's children
+  local a1_closed_after = vim.fn.foldclosed(3) == 3
+  check(
+    "buried-closed A1 stays closed through unrelated demote",
+    a_closed_after and a1_closed_after,
+    ("A_closed=%s A1_closed_after_open=%s"):format(
+      tostring(a_closed_after),
+      tostring(a1_closed_after)
+    )
+  )
+end
+
+-- 8. A folded PROPERTIES drawer inside a promoted subtree keeps its
+--    folded state through the star rewrite.
+do
+  set_up_buf({
+    "** A", -- 1  <- promote_subtree target
+    ":PROPERTIES:", -- 2  <- folded drawer, must stay folded
+    ":ID: x", -- 3
+    ":END:", -- 4
+    "body a", -- 5
+    "** B", -- 6
+  })
+  vim.cmd("normal! zX")
+  pcall(vim.cmd, "2foldclose") -- drawer folded
+  local drawer_closed_before = vim.fn.foldclosed(2) == 2
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  structure.promote_subtree() -- ** A -> * A
+  local drawer_closed_after = vim.fn.foldclosed(2) == 2
+  check(
+    "promote_subtree keeps a folded PROPERTIES drawer folded",
+    drawer_closed_before and drawer_closed_after,
+    ("before=%s after=%s"):format(tostring(drawer_closed_before), tostring(drawer_closed_after))
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
