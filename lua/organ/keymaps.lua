@@ -124,6 +124,18 @@ M.defaults = {
   { "<LocalLeader>gI", "Org id get_create", desc = "Ensure :ID: on heading" },
   { "<LocalLeader>ix", "Org inline_task_insert", desc = "Insert inline task" },
 
+  -- export (org -> other formats; Emacs C-c C-e).  Capital E: `\e` is
+  -- set_effort.  Import is NOT here -- it runs from the SOURCE (e.g.
+  -- markdown) buffer, so it lives in the global keymaps (`<Leader>o`).
+  { "<LocalLeader>Em", "Org export markdown", desc = "Export to Markdown" },
+  { "<LocalLeader>Eh", "Org export html", desc = "Export to HTML" },
+  { "<LocalLeader>El", "Org export latex", desc = "Export to LaTeX" },
+  { "<LocalLeader>Ep", "Org export pdf", desc = "Export to PDF" },
+  { "<LocalLeader>Ea", "Org export ascii", desc = "Export to ASCII" },
+  { "<LocalLeader>Eo", "Org export opml", desc = "Export to OPML" },
+  { "<LocalLeader>Eb", "Org export beamer", desc = "Export to Beamer" },
+  { "<LocalLeader>Et", "Org export texinfo", desc = "Export to Texinfo" },
+
   -- backlinks (one-shot for current heading) + roam buffer/graph.
   -- Mirrors Emacs roam: C-c n l (buffer toggle) → \nl, C-c n g (graph)
   -- → \ng. We add \b for the one-shot backlinks view since it's the
@@ -141,6 +153,7 @@ M.defaults = {
 M.groups = {
   { "<LocalLeader>a", group = "archive" },
   { "<LocalLeader>c", group = "clock" },
+  { "<LocalLeader>E", group = "export" },
   { "<LocalLeader>f", group = "footnote" },
   { "<LocalLeader>g", group = "goto / id / image" },
   { "<LocalLeader>i", group = "insert" },

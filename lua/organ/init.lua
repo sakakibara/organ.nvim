@@ -844,6 +844,7 @@ local function setup_global_keymaps()
     find_link = { "Org find link", "Find link" },
     roam = { "Org roam", "Find/insert roam node" },
     roam_daily_today = { "Org roam daily today", "Today's daily note" },
+    import_markdown = { "Org import markdown", "Import markdown to org" },
     clock_in = { "Org clock in", "Clock in" },
     clock_out = { "Org clock out", "Clock out" },
     clock_report = { "Org clock report", "Clock report" },

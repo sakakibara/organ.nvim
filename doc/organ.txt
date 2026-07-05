@@ -2371,6 +2371,7 @@ Registered from any buffer when `setup()` runs.
     `<Leader>ol`     Find link               |:Org-find_link|
     `<Leader>or`     Roam find/insert        |:Org-roam|
     `<Leader>od`     Daily note (today)      |:Org-roam_daily_today|
+    `<Leader>om`     Import markdown to org  |:Org-import_markdown|
     `<Leader>oi`     Clock in                |:Org-clock_in|
     `<Leader>oo`     Clock out               |:Org-clock_out|
     `<Leader>oR`     Clock report            |:Org-clock_report|
@@ -2402,6 +2403,18 @@ Table (|organ-config-table|): ~
 Property (|organ-config-property|): ~
     `<LocalLeader>ps`      Set/update property
     `<LocalLeader>pd`      Delete property
+
+Export (|organ-cmd-export|): ~
+    `<LocalLeader>Em`      Export to Markdown
+    `<LocalLeader>Eh`      Export to HTML
+    `<LocalLeader>El`      Export to LaTeX
+    `<LocalLeader>Ep`      Export to PDF
+    `<LocalLeader>Ea`      Export to ASCII
+    `<LocalLeader>Eo`      Export to OPML
+    `<LocalLeader>Eb`      Export to Beamer
+    `<LocalLeader>Et`      Export to Texinfo
+    Import runs from the source buffer -- see `<Leader>om` in
+    |organ-keymaps-global|.
 
 Inline edit (|organ-config-inline-edit|): ~
     `<C-a>`                Increment value at cursor
@@ -3232,6 +3245,14 @@ Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
     `:Org export ics_all[!] [path]`
     Export entries from EVERY org file under `org_dir` to one
     aggregate `.ics`. Useful for calendar-app subscription.
+
+*:Org-import_markdown*
+    `:Org import markdown[!] [path]`
+    Import Markdown (CommonMark/GFM) into a new org buffer. With a
+    path, convert that file; with no path, convert the CURRENT buffer
+    -- run it straight from the markdown file you want to bring into
+    org. The result opens unsaved (write only on save). Also the
+    default `<Leader>om` global keymap.
 
 ==============================================================================
 LATEX FRAGMENTS                                              *organ-cmd-latex*
