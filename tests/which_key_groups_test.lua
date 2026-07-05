@@ -56,4 +56,19 @@ for _, b in ipairs(km.defaults) do
   end
 end
 
+-- No group prefix may also be a direct command binding.  which-key merges
+-- specs last-wins, so a prefix that is both a group and a command renders
+-- with its Capitalized command desc instead of the lowercase group label
+-- (the "+Narrow to subtree" outlier).  Keep prefixes single-purpose.
+local group_lhs = {}
+for _, g in ipairs(km.groups) do
+  group_lhs[g[1]] = true
+end
+for _, b in ipairs(km.defaults) do
+  assert(
+    not group_lhs[b[1]],
+    b[1] .. " is both a group prefix and a direct command; move the command off the prefix"
+  )
+end
+
 print("which_key_groups_test: PASS")

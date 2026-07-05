@@ -38,7 +38,7 @@ M.defaults = {
   { "<LocalLeader>s", "Org schedule", desc = "Schedule heading" },
   { "<LocalLeader>d", "Org deadline", desc = "Set deadline" },
   { "<LocalLeader>e", "Org set_effort", desc = "Set effort estimate" },
-  { "<LocalLeader>n", "Org narrow_to_subtree", desc = "Narrow to subtree" },
+  { "<LocalLeader>N", "Org narrow_to_subtree", desc = "Narrow to subtree" },
   { "<LocalLeader>w", "Org widen", desc = "Widen" },
   { "<LocalLeader>r", "Org refile", desc = "Refile heading" },
   { "<LocalLeader>j", "Org goto", desc = "Fuzzy goto heading" },
@@ -145,7 +145,7 @@ M.groups = {
   { "<LocalLeader>g", group = "goto / id / image" },
   { "<LocalLeader>i", group = "insert" },
   { "<LocalLeader>l", group = "list" },
-  { "<LocalLeader>n", group = "narrow / roam" },
+  { "<LocalLeader>n", group = "roam" },
   { "<LocalLeader>p", group = "property" },
   { "<LocalLeader>S", group = "subtree clipboard" },
   { "<LocalLeader>v", group = "sparse tree" },
@@ -252,7 +252,9 @@ function M.register_which_key()
   end
   local entries = {}
   -- Group headers (so pressing the prefix shows "+archive", "+clock", etc.
-  -- instead of an unlabeled list).
+  -- instead of an unlabeled list).  No prefix doubles as a direct command,
+  -- so a group's lowercase label never competes with a Capitalized command
+  -- desc (which-key merges last-wins).  which_key_groups_test guards this.
   for _, g in ipairs(M.groups or {}) do
     entries[#entries + 1] = { g[1], group = g.group }
   end
