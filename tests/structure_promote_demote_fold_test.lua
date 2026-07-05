@@ -131,6 +131,66 @@ do
   )
 end
 
+-- 5. Demoting a nested heading must not disturb untouched neighbors:
+--    the open parent stays open and the closed siblings stay closed.
+--    (Regression: demoting `** B` collapsed the whole `* Parent`.)
+do
+  set_up_buf({
+    "* Parent", -- 1
+    "** A", -- 2
+    "body a", -- 3
+    "** B", -- 4  <- demote target
+    "body b", -- 5
+    "** C", -- 6
+    "body c", -- 7
+  })
+  pcall(vim.cmd, "1foldopen") -- Parent open
+  pcall(vim.cmd, "2foldclose") -- A closed
+  pcall(vim.cmd, "4foldclose") -- B closed (the demote target)
+  pcall(vim.cmd, "6foldclose") -- C closed
+  local parent_open_before = vim.fn.foldclosed(1) ~= 1
+  vim.api.nvim_win_set_cursor(0, { 4, 0 })
+  structure.demote_headline()
+  local parent_open_after = vim.fn.foldclosed(1) ~= 1
+  local a_closed_after = vim.fn.foldclosed(2) == 2
+  local c_closed_after = vim.fn.foldclosed(6) == 6
+  check(
+    "demote_headline leaves parent open + siblings closed untouched",
+    parent_open_before and parent_open_after and a_closed_after and c_closed_after,
+    ("parent_before=%s parent_after=%s A_closed=%s C_closed=%s"):format(
+      tostring(parent_open_before),
+      tostring(parent_open_after),
+      tostring(a_closed_after),
+      tostring(c_closed_after)
+    )
+  )
+end
+
+-- 6. promote_subtree must not flip a folded sibling that sits outside the
+--    promoted subtree.
+do
+  set_up_buf({
+    "* Parent", -- 1
+    "** A", -- 2  <- promote_subtree target
+    "body a", -- 3
+    "*** A1", -- 4
+    "** B", -- 5  <- sibling, closed, must stay closed
+    "body b", -- 6
+  })
+  pcall(vim.cmd, "1foldopen") -- Parent open
+  pcall(vim.cmd, "2foldopen") -- A open
+  pcall(vim.cmd, "5foldclose") -- B closed
+  local b_closed_before = vim.fn.foldclosed(5) == 5
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  structure.promote_subtree()
+  local b_closed_after = vim.fn.foldclosed(5) == 5
+  check(
+    "promote_subtree leaves untouched sibling B closed",
+    b_closed_before and b_closed_after,
+    ("B_before=%s B_after=%s"):format(tostring(b_closed_before), tostring(b_closed_after))
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

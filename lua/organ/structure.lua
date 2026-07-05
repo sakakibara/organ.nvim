@@ -98,43 +98,96 @@ local function resolve(opts)
   return opts.bufnr or vim.api.nvim_get_current_buf(), opts.line or vim.fn.line(".")
 end
 
--- Snapshot visual fold state for each headline line in `hls`.
--- foldclosed(L) returns the first line of the closed fold containing L,
--- or -1 if L is not in a closed fold.  Equality with L means L is the
--- start of a currently-collapsed fold (the heading is folded).
-local function snapshot_fold_state(hls)
-  local snap = {}
-  for _, hl in ipairs(hls) do
-    snap[hl] = vim.fn.foldclosed(hl) == hl
-  end
-  return snap
-end
-
--- Restore each headline's visual fold state to match the snapshot.
--- silent! swallows errors when folding is disabled or the line is no
--- longer at a fold boundary; foldclose/foldopen are idempotent so a
--- no-op restore is fine.
-local function restore_fold_state(snap)
-  for hl, was_closed in pairs(snap) do
-    local is_closed = vim.fn.foldclosed(hl) == hl
-    if was_closed and not is_closed then
-      pcall(vim.cmd, ("silent! %dfoldclose"):format(hl))
-    elseif (not was_closed) and is_closed then
-      pcall(vim.cmd, ("silent! %dfoldopen"):format(hl))
-    end
-  end
-end
-
--- Collect every headline line in `[start, end_line]` inclusive that begins
--- with `*+ ` (or bare `*+`).  Used by the subtree variants to snapshot the
--- fold state of every nested heading whose row will see its stars rewritten.
-local function subtree_headline_lines(bufnr, start_line, end_line)
+-- Capture the visual fold state of every headline in `[start_line,
+-- end_line]` (1-based, inclusive).  Each entry is `{ line = L, closed =
+-- bool }`.  `closed` is true only when L is ITSELF the first line of a
+-- closed fold: `foldclosed(L)` returns the first line of the closed fold
+-- containing L (or -1), so a heading hidden inside a closed ancestor
+-- reports the ancestor's line and records as open -- its own state isn't
+-- visible and is reproduced by restoring the ancestor.
+local function capture_fold_state(bufnr, start_line, end_line)
   local out = {}
   local lines = vim.api.nvim_buf_get_lines(bufnr, start_line - 1, end_line, false)
   for i, txt in ipairs(lines) do
     if txt:match("^%*+%s") or txt:match("^%*+$") then
-      out[#out + 1] = start_line + i - 1
+      local l = start_line + i - 1
+      out[#out + 1] = { line = l, closed = vim.fn.foldclosed(l) == l }
     end
+  end
+  return out
+end
+
+-- Whole-buffer capture: promote / demote re-level the fold tree for the
+-- entire buffer, so preserving only the touched headings lets vim's
+-- recompute flip siblings and ancestors.  Capturing every heading and
+-- restoring it is the only way to keep visibility stable.
+local function capture_all_fold_state(bufnr)
+  return capture_fold_state(bufnr, 1, vim.api.nvim_buf_line_count(bufnr))
+end
+
+-- Re-apply a captured fold state.  Each `entry.line` addresses the
+-- heading's CURRENT line (callers that move lines remap it first).  Vim
+-- keys expr-fold open/closed state by line position, not content, so
+-- every structural edit needs an explicit restore.
+--
+-- Two passes over the heading set, because `:Nfoldclose` on a line that
+-- is already buried in a closed ancestor walks UP and collapses the
+-- ancestor instead of the target (the same gotcha organ.fold documents
+-- for close_all_drawers) -- which is what silently folded whole parents
+-- shut after a demote re-nested a heading:
+--
+--   Pass 1 (reveal): shallowest first, foldopen every heading that is
+--     itself a closed fold.  Opening an ancestor exposes its children so
+--     they become individually addressable on their own turn.
+--   Pass 2 (re-close): deepest first, foldclose every heading whose
+--     captured state was closed AND that is currently VISIBLE.  Closing a
+--     child while its parent is still open, then closing the parent, nests
+--     correctly; the visible-only guard means a foldclose never walks up.
+--
+-- Levels are read fresh from the post-edit buffer so the ordering tracks
+-- the new nesting.  A heading buried under a closed ancestor OUTSIDE the
+-- entry set is left untouched -- acting on it would disturb a fold the
+-- operation never owned.
+local function apply_fold_state(bufnr, entries)
+  local last = vim.api.nvim_buf_line_count(bufnr)
+  for _, e in ipairs(entries) do
+    local txt = (e.line >= 1 and e.line <= last)
+        and (vim.api.nvim_buf_get_lines(bufnr, e.line - 1, e.line, false)[1] or "")
+      or ""
+    e.level = #(txt:match("^(%*+)") or "")
+  end
+  local ordered = {}
+  for _, e in ipairs(entries) do
+    if e.level > 0 then
+      ordered[#ordered + 1] = e
+    end
+  end
+  table.sort(ordered, function(a, b)
+    if a.level ~= b.level then
+      return a.level < b.level
+    end
+    return a.line < b.line
+  end)
+  for _, e in ipairs(ordered) do
+    if vim.fn.foldclosed(e.line) == e.line then
+      pcall(vim.cmd, ("silent! %dfoldopen"):format(e.line))
+    end
+  end
+  for i = #ordered, 1, -1 do
+    local e = ordered[i]
+    if e.closed and vim.fn.foldclosed(e.line) == -1 then
+      pcall(vim.cmd, ("silent! %dfoldclose"):format(e.line))
+    end
+  end
+end
+
+-- Shift the `line` of each captured entry by `delta` (a subtree that
+-- moved as a block).  Returns a fresh list so the source capture is left
+-- intact for a second remap.
+local function remap_fold_state(entries, delta)
+  local out = {}
+  for _, e in ipairs(entries) do
+    out[#out + 1] = { line = e.line + delta, closed = e.closed }
   end
   return out
 end
@@ -160,9 +213,9 @@ function M.promote_headline(opts)
   if hl.level - step < 1 then
     return "cannot promote past level-1"
   end
-  local snap = snapshot_fold_state({ hl.line })
+  local snap = capture_all_fold_state(bufnr)
   local err = rewrite_stars(bufnr, hl.line, hl.level - step)
-  restore_fold_state(snap)
+  apply_fold_state(bufnr, snap)
   return err
 end
 
@@ -177,7 +230,7 @@ function M.promote_subtree(opts)
     return "cannot promote past level-1"
   end
   local subtree_end = M._subtree_end(bufnr, hl)
-  local snap = snapshot_fold_state(subtree_headline_lines(bufnr, hl.line, subtree_end))
+  local snap = capture_all_fold_state(bufnr)
   -- Collect headline lines in reverse order so set_lines mutations don't
   -- shift later indexes (each call replaces 1 line with 1 line — same length —
   -- but reverse order keeps the algorithm uniform across operations).
@@ -189,7 +242,7 @@ function M.promote_subtree(opts)
   end
   -- Then the current headline.
   rewrite_stars(bufnr, hl.line, hl.level - step)
-  restore_fold_state(snap)
+  apply_fold_state(bufnr, snap)
   return nil
 end
 
@@ -203,9 +256,9 @@ function M.demote_headline(opts)
   if hl.level + step > 9 then
     return "cannot demote past level 9"
   end
-  local snap = snapshot_fold_state({ hl.line })
+  local snap = capture_all_fold_state(bufnr)
   local err = rewrite_stars(bufnr, hl.line, hl.level + step)
-  restore_fold_state(snap)
+  apply_fold_state(bufnr, snap)
   return err
 end
 
@@ -229,17 +282,13 @@ function M.demote_subtree(opts)
   if deepest + step > 9 then
     return "cannot demote past level 9"
   end
-  local snap_lines = {}
-  for _, h in ipairs(headlines) do
-    snap_lines[#snap_lines + 1] = h.line
-  end
-  local snap = snapshot_fold_state(snap_lines)
+  local snap = capture_all_fold_state(bufnr)
   -- Apply in forward line order; rewrite_stars preserves the line count
   -- (replace 1 line with 1 line) so indexes stay valid as we go.
   for _, h in ipairs(headlines) do
     rewrite_stars(bufnr, h.line, h.level + step)
   end
-  restore_fold_state(snap)
+  apply_fold_state(bufnr, snap)
   return nil
 end
 
@@ -299,17 +348,13 @@ local function shift_region(opts, dir)
       return "cannot demote past level 9"
     end
   end
-  local snap_lines = {}
-  for _, h in ipairs(headings) do
-    snap_lines[#snap_lines + 1] = h.line
-  end
-  local snap = snapshot_fold_state(snap_lines)
+  local snap = capture_all_fold_state(bufnr)
   -- Each rewrite replaces one line in place (no line-count change), so
   -- line indices stay valid regardless of iteration order.
   for _, h in ipairs(headings) do
     rewrite_stars(bufnr, h.line, h.level + step)
   end
-  restore_fold_state(snap)
+  apply_fold_state(bufnr, snap)
   return nil
 end
 
@@ -413,6 +458,13 @@ function M.move_subtree_up(opts)
   local separator = vim.api.nvim_buf_get_lines(bufnr, prev_content_end, hl.line - 1, false)
   local cur_content = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, cur_content_end, false)
   local cur_trailing = vim.api.nvim_buf_get_lines(bufnr, cur_content_end, cur_end, false)
+  -- Fold state follows the content: both subtrees move as blocks, so
+  -- capture each heading's state before the swap and re-apply it at the
+  -- heading's new line afterward (cur -> prev.line, prev shifted down by
+  -- the cur block + separator).  Headings live only in the content
+  -- ranges; separator / trailing are blank.
+  local cur_folds = capture_fold_state(bufnr, hl.line, cur_content_end)
+  local prev_folds = capture_fold_state(bufnr, prev.line, prev_content_end)
   -- Layout AFTER swap: cur_content + separator + prev_content + cur_trailing.
   local combined = {}
   for _, l in ipairs(cur_content) do
@@ -428,6 +480,11 @@ function M.move_subtree_up(opts)
     combined[#combined + 1] = l
   end
   obuf.set_lines(bufnr, prev.line - 1, cur_end, combined)
+  local restored = remap_fold_state(cur_folds, prev.line - hl.line)
+  for _, e in ipairs(remap_fold_state(prev_folds, #cur_content + #separator)) do
+    restored[#restored + 1] = e
+  end
+  apply_fold_state(bufnr, restored)
   -- Cursor follows the moved subtree to its new position (matches Emacs).
   follow_cursor(bufnr, hl.line, prev.line, line)
   return nil
@@ -457,6 +514,10 @@ function M.move_subtree_down(opts)
   local separator = vim.api.nvim_buf_get_lines(bufnr, cur_content_end, nxt.line - 1, false)
   local nxt_content = vim.api.nvim_buf_get_lines(bufnr, nxt.line - 1, nxt_content_end, false)
   local nxt_trailing = vim.api.nvim_buf_get_lines(bufnr, nxt_content_end, nxt_end, false)
+  -- Fold state follows the content (see move_subtree_up): nxt block slides
+  -- up to hl.line, cur block slides down past nxt + separator.
+  local cur_folds = capture_fold_state(bufnr, hl.line, cur_content_end)
+  local nxt_folds = capture_fold_state(bufnr, nxt.line, nxt_content_end)
   -- Layout AFTER swap: nxt_content + separator + cur_content + nxt_trailing.
   local combined = {}
   for _, l in ipairs(nxt_content) do
@@ -472,10 +533,15 @@ function M.move_subtree_down(opts)
     combined[#combined + 1] = l
   end
   obuf.set_lines(bufnr, hl.line - 1, nxt_end, combined)
-  -- Cursor follows the moved subtree to its new position (matches Emacs).
   -- New position of cur subtree: starts at hl.line + (nxt_content_end - nxt.line + 1)
   --                             + (separator size).
   local new_cur_start = hl.line + #nxt_content + #separator
+  local restored = remap_fold_state(cur_folds, new_cur_start - hl.line)
+  for _, e in ipairs(remap_fold_state(nxt_folds, hl.line - nxt.line)) do
+    restored[#restored + 1] = e
+  end
+  apply_fold_state(bufnr, restored)
+  -- Cursor follows the moved subtree to its new position (matches Emacs).
   follow_cursor(bufnr, hl.line, new_cur_start, line)
   return nil
 end
