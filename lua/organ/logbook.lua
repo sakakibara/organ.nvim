@@ -62,23 +62,39 @@ function M.append(bufnr, hl_line, entry_lines)
   local drawer_name = cfg.log_drawer or "LOGBOOK"
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
+  -- Indent every inserted line to the section's planning indent, the same
+  -- way `section.canonicalize` re-renders the drawer -- otherwise a
+  -- format-on-save immediately re-indents the entry the user just logged.
+  local indent = require("organ.section").planning_indent(bufnr, hl_line - 1)
+  local function ind(l)
+    return indent .. l:gsub("^%s*", "")
+  end
+
   if cfg.log_into_drawer == false then
     local pos = drawer.insert_position(lines, hl_line, bufnr)
-    obuf.set_lines(bufnr, pos - 1, pos - 1, entry_lines)
+    local out = {}
+    for _, l in ipairs(entry_lines) do
+      out[#out + 1] = ind(l)
+    end
+    obuf.set_lines(bufnr, pos - 1, pos - 1, out)
     return
   end
 
   local s, _ = drawer.find(lines, hl_line, drawer_name, bufnr)
   if s then
     -- Newest first: insert just after the :DRAWER: line.
-    obuf.set_lines(bufnr, s, s, entry_lines)
+    local out = {}
+    for _, l in ipairs(entry_lines) do
+      out[#out + 1] = ind(l)
+    end
+    obuf.set_lines(bufnr, s, s, out)
   else
     local pos = drawer.insert_position(lines, hl_line, bufnr)
-    local block = { ":" .. drawer_name .. ":" }
+    local block = { ind(":" .. drawer_name .. ":") }
     for _, l in ipairs(entry_lines) do
-      block[#block + 1] = l
+      block[#block + 1] = ind(l)
     end
-    block[#block + 1] = ":END:"
+    block[#block + 1] = ind(":END:")
     obuf.set_lines(bufnr, pos - 1, pos - 1, block)
   end
 end
