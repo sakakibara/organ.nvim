@@ -17,7 +17,8 @@ local function check(label, ok, detail)
   end
 end
 
--- Drawer value alignment: keys padded to longest key + min indent.
+-- Drawer value alignment: each line via Emacs org-property-format
+-- ("%-10s %s"), formatted independently (NOT aligned to the longest key).
 do
   local input = {
     "* H1",
@@ -28,16 +29,20 @@ do
     ":END:",
   }
   local out = fmt.format_lines(input, {
-    drawers = { align_values = true, min_value_indent = 1 },
+    drawers = { align_values = true },
     wrap = { enabled = false },
     headline = { normalize_whitespace = false },
     blanks = { trim_trailing = false, ensure_final_newline = false },
     trim_trailing_whitespace = false,
   })
-  check("drawer: :ID: padded", out[3] == ":ID:            1", "got " .. tostring(out[3]))
-  check("drawer: :CATEGORY: padded", out[4] == ":CATEGORY:      cat", "got " .. tostring(out[4]))
+  check("drawer: :ID: value at col 12", out[3] == ":ID:       1", "got " .. tostring(out[3]))
   check(
-    "drawer: :LONG_KEY_NAME: only min-indent (it's the longest)",
+    "drawer: :CATEGORY: (10 cols) one space",
+    out[4] == ":CATEGORY: cat",
+    "got " .. tostring(out[4])
+  )
+  check(
+    "drawer: :LONG_KEY_NAME: (>10 cols) one space",
     out[5] == ":LONG_KEY_NAME: value",
     "got " .. tostring(out[5])
   )

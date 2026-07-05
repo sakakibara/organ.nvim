@@ -42,7 +42,7 @@ do
   local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(out[2] == "  DEADLINE: <2026-06-17 Wed>", "planning indented (level+1)")
   check(out[3] == "  :PROPERTIES:", "property drawer open indented")
-  check(out[4] == "  :ID: abc", "property line indented")
+  check(out[4] == "  :ID:       abc", "property line indented + org-property-format aligned")
   check(out[5] == "  :END:", "property drawer close indented")
   check(out[6] == "  :LOGBOOK:", "logbook drawer open indented")
   check(out[7] == "  CLOCK: [2026-06-16 Tue 09:00]", "logbook line indented")

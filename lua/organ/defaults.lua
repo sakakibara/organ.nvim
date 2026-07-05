@@ -1377,16 +1377,17 @@ return {
       tags_column = "textwidth",
     },
 
-    -- Drawer value alignment.  After format, all `:KEY: value`
-    -- lines inside a property drawer get their values aligned to
-    -- a common column (one space past the longest key).  Lines
-    -- that don't match `:KEY: value` (e.g. LOGBOOK note lines)
-    -- are left alone.  Set `align_values = false` to skip.
+    -- Drawer value alignment.  After format, every `:KEY: value`
+    -- line inside a drawer is rewritten through Emacs
+    -- `org-property-format` ("%-10s %s"): the key is padded to 10
+    -- columns then one space, so a value follows at column 12 for
+    -- keys up to 10 wide (`:ID:`, `:CATEGORY:`) and one space
+    -- otherwise.  This is the same writer that :ID: insertion and
+    -- roam headers use, so inserted drawers are a format fixpoint.
+    -- Lines that don't match `:KEY: value` (e.g. LOGBOOK note
+    -- lines) are left alone.  Set `align_values = false` to skip.
     drawers = {
       align_values = true,
-      -- Minimum spaces between `:KEY:` and `value` even when keys
-      -- are uniform length.  Most users want at least 1.
-      min_value_indent = 1,
     },
 
     -- Empty-line policy.

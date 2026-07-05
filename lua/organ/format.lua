@@ -477,15 +477,22 @@ M._apply_adapt_indentation = adapt_indentation
 -- Pad `:KEY:` so values inside a property drawer line up past the
 -- longest key.  Lines that don't match `:KEY: value` (LOGBOOK notes
 -- etc.) are left alone.
+-- Re-align `:KEY: value` property lines inside each drawer to Emacs
+-- `org-property-format` ("%-10s %s"), applied per line via the shared
+-- property writer -- the SAME function that roam headers, :ID: insertion,
+-- and org-set-property use.  Sharing the writer is what makes inserted
+-- property drawers a formatter fixpoint (saving a fresh roam file must not
+-- shuffle the `:ID:` column).  Emacs formats each line independently; it
+-- does NOT align every value to the widest key in the drawer, so neither
+-- do we.  `drawers.align_values = false` skips the pass entirely; bare
+-- keys (empty value) and non-property lines (LOGBOOK clocks, ...) pass
+-- through untouched.
 local function align_drawer_values(lines, cfg)
   local dcfg = cfg.drawers or {}
   if dcfg.align_values == false then
     return lines
   end
-  local min_indent = dcfg.min_value_indent or 1
-  if min_indent < 1 then
-    min_indent = 1
-  end
+  local property = require("organ.property")
   local out = {}
   local i, n = 1, #lines
   while i <= n do
@@ -507,19 +514,11 @@ local function align_drawer_values(lines, cfg)
         i = i + 1
       else
         out[#out + 1] = line
-        local max_key = 0
-        for j = body_start, body_end - 1 do
-          local _, key = lines[j]:match("^(%s*)(:[%w_-]+:)%s+%S")
-          if key and #key > max_key then
-            max_key = #key
-          end
-        end
         for j = body_start, body_end - 1 do
           local body_line = lines[j]
           local indent, key, val = body_line:match("^(%s*)(:[%w_-]+:)%s+(.*)$")
           if indent and key and val and val ~= "" then
-            local pad = max_key - #key + min_indent
-            out[#out + 1] = indent .. key .. string.rep(" ", pad) .. val
+            out[#out + 1] = indent .. property.format_line(key:sub(2, -2), val)
           else
             out[#out + 1] = body_line
           end
