@@ -66,7 +66,15 @@ end
 local function trim_trailing_whitespace(lines)
   local out = {}
   for i, l in ipairs(lines) do
-    out[i] = l:gsub("%s+$", "")
+    -- An empty headline is `*+ ` (stars + one space + empty title).  The
+    -- space is structural: strip it and `*` alone is misparsed as prose
+    -- and wrapped into the line above.  Keep exactly one space.
+    local stars = l:match("^(%*+)%s+$")
+    if stars then
+      out[i] = stars .. " "
+    else
+      out[i] = l:gsub("%s+$", "")
+    end
   end
   return out
 end
@@ -257,7 +265,9 @@ local function normalize_headline(line, opts)
     pieces[#pieces + 1] = title
   end
 
-  local left = stars
+  -- Empty-title headline stays `*+ ` (with the structural space), never a
+  -- bare `*+` -- otherwise it is misparsed as prose and wrapped away.
+  local left = stars .. " "
   if #pieces > 0 then
     left = stars .. " " .. table.concat(pieces, " ")
   end
