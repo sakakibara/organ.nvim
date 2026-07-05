@@ -66,6 +66,18 @@ local function on_line(bufnr, winid, row)
   end
 end
 
+-- Display string that replaces a headline's leading `level`-star block:
+-- (level-1) spaces + the trailing star.  Only levels >= 2 are concealed
+-- (a level-1 `* ` keeps its single star), so level 1 returns nil = no
+-- change.  Used by the foldtext renderer -- a closed fold renders
+-- foldtext, which the on_line conceal never reaches.
+function M.star_display(level)
+  if not level or level < 2 then
+    return nil
+  end
+  return string.rep(" ", level - 1) .. "*"
+end
+
 require("organ.decoration").register({
   name = "stars",
   ns = NS,

@@ -780,11 +780,53 @@ end
 -- `config.format.headline.tags_column` so a folded `* TODO Foo :tag:`
 -- renders as `* TODO Foo…                          :tag:` instead of
 -- the tags being shoved past the ellipsis.
+-- The leading-star display for the active hide-stars mode, or nil.  A
+-- closed fold renders foldtext, not the real line, so the conceal/overlay
+-- that modern.bullets / stars.hide place on OPEN headings never reach it;
+-- foldtext has to reproduce their star treatment to match.  Returns
+-- (display_string, level).
+local function star_display_for(bufnr, line)
+  local stars = line:match("^(%*+)%s") or line:match("^(%*+)$")
+  if not stars then
+    return nil
+  end
+  local level = #stars
+  local bc = require("organ.buf_config")
+  if bc.read(bufnr, "modern.bullets") then
+    return require("organ.modern.bullets").star_display(bufnr, level), level
+  end
+  if bc.read(bufnr, "stars.hide") == true then
+    return require("organ.stars").star_display(level), level
+  end
+  return nil
+end
+
+-- Drop the first `n` columns (leading stars -- all ASCII) from a segment
+-- list and prepend `prefix` = { text, hl }.
+local function replace_leading(segments, n, prefix)
+  local out = { prefix }
+  local dropped = 0
+  for _, seg in ipairs(segments) do
+    local text, hl = seg[1], seg[2]
+    if dropped >= n then
+      out[#out + 1] = seg
+    elseif dropped + #text <= n then
+      dropped = dropped + #text
+    else
+      out[#out + 1] = { text:sub(n - dropped + 1), hl }
+      dropped = n
+    end
+  end
+  return out
+end
+
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
   local line = vim.fn.getline(foldstart)
-  local segments = ts_line_segments(vim.api.nvim_get_current_buf(), foldstart)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local star_disp, star_level = star_display_for(bufnr, line)
+  local segments = ts_line_segments(bufnr, foldstart)
   if segments then
     -- Build a fresh result list every call.  Mutating the cached
     -- segments would append the ellipsis on every render, so a fold
@@ -792,6 +834,11 @@ function M.emacs_foldtext()
     local result = {}
     for i, seg in ipairs(segments) do
       result[i] = seg
+    end
+    -- Swap the raw leading stars for the folded-heading bullet / hidden
+    -- stars so a collapsed heading matches an expanded one.
+    if star_disp then
+      result = replace_leading(result, star_level, { star_disp, M.heading_title_hl(line) })
     end
     if not has_real then
       return result
@@ -848,6 +895,9 @@ function M.emacs_foldtext()
       rebuilt[#rebuilt + 1] = result[i]
     end
     return rebuilt
+  end
+  if star_disp then
+    line = star_disp .. line:sub(star_level + 1)
   end
   if not has_real then
     return line

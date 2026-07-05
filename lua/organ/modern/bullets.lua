@@ -218,6 +218,19 @@ function M._apply(bufnr)
   end
 end
 
+-- Display string that replaces a headline's leading `level`-star block:
+-- (level-1) spaces + the per-level glyph.  A closed fold renders foldtext
+-- instead of the real line, so the on_line conceal never reaches it; the
+-- foldtext renderer calls this to show the same bullet on a folded head.
+function M.star_display(bufnr, level)
+  if not level or level < 1 then
+    return nil
+  end
+  local glyphs = get_glyphs(bufnr)
+  local glyph = glyphs[((level - 1) % #glyphs) + 1]
+  return string.rep(" ", level - 1) .. glyph
+end
+
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local winid = vim.api.nvim_get_current_win()
