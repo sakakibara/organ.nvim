@@ -298,4 +298,16 @@ function M.register_buffer_todo_keywords(bufnr)
   end
 end
 
+-- Treesitter-capture highlight group for a heading title at `level`.
+-- Mirrors the per-level `@org.heading.title.N` captures the highlights
+-- query emits (levels > 8 fall back to the unnumbered group).  Shared by
+-- the foldtext renderer and the modern-bullet glyph so a heading's title,
+-- its folded ellipsis, and its bullet all render in one color.
+function M.heading_title_hl(level)
+  if level and level >= 1 and level <= 8 then
+    return "@org.heading.title." .. level .. ".org"
+  end
+  return "@org.heading.title.org"
+end
+
 return M

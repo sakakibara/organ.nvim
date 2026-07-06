@@ -738,11 +738,7 @@ function M.heading_title_hl(line)
   if not stars then
     return "Folded"
   end
-  local level = #stars
-  if level >= 1 and level <= 8 then
-    return "@org.heading.title." .. level .. ".org"
-  end
-  return "@org.heading.title.org"
+  return require("organ.highlights").heading_title_hl(#stars)
 end
 
 -- Resolve `config.format.headline.tags_column` into a placement

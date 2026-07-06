@@ -101,12 +101,13 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
 
-  local function push(row, col, end_col, conceal)
+  local function push(row, col, end_col, conceal, hl)
     if row < topline or row > botline then
       return
     end
     frame_map[row] = frame_map[row] or {}
-    frame_map[row][#frame_map[row] + 1] = { col = col, end_col = end_col, conceal = conceal }
+    frame_map[row][#frame_map[row] + 1] =
+      { col = col, end_col = end_col, conceal = conceal, hl = hl }
   end
 
   -- Headline stars: tree-sitter `(headline) @h` captures, scoped to
@@ -129,7 +130,9 @@ local function on_win(bufnr, _winid, topline, botline)
                 push(sr, sc + i, sc + i + 1, " ")
               end
               local glyph = glyphs[((n - 1) % #glyphs) + 1]
-              push(sr, sc + n - 1, sc + n, glyph)
+              -- Color the bullet like the heading title (matches the
+              -- foldtext bullet); the concealed leading stars stay blank.
+              push(sr, sc + n - 1, sc + n, glyph, require("organ.highlights").heading_title_hl(n))
             end
           end
         end
@@ -182,6 +185,7 @@ local function on_line(bufnr, _winid, row)
     pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.col, {
       end_col = e.end_col,
       conceal = e.conceal,
+      hl_group = e.hl,
       ephemeral = true,
     })
   end
@@ -213,6 +217,7 @@ function M._apply(bufnr)
       pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.col, {
         end_col = e.end_col,
         conceal = e.conceal,
+        hl_group = e.hl,
       })
     end
   end

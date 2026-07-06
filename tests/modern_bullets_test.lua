@@ -58,7 +58,7 @@ end
 
 -- Default glyph cycle: ◉ ○ ◈ ◇ — verify by reading the conceal char of
 -- each row's LAST mark (the trailing-star → glyph one).
-local function last_conceal(row)
+local function last_mark(row)
   local rmarks = by_row[row] or {}
   -- Sort by col so the highest-col mark is the trailing star.
   table.sort(rmarks, function(a, b)
@@ -67,8 +67,11 @@ local function last_conceal(row)
   if #rmarks == 0 then
     return nil
   end
-  local details = rmarks[#rmarks][4] or {}
-  return details.conceal
+  return rmarks[#rmarks][4] or {}
+end
+local function last_conceal(row)
+  local d = last_mark(row)
+  return d and d.conceal
 end
 
 check("row 0 (* Level one): bullet is ◉", last_conceal(0) == "◉")
@@ -77,6 +80,17 @@ check("row 2 (*** Level three): bullet is ◈", last_conceal(2) == "◈")
 check("row 3 (body text): no bullet", last_conceal(3) == nil)
 check("row 4 (**** Level four): bullet is ◇", last_conceal(4) == "◇")
 check("row 5 (***** Level five): bullet cycles to ◉", last_conceal(5) == "◉")
+
+-- The bullet glyph is colored like the heading title (matches the folded
+-- foldtext bullet); the concealed leading stars carry no highlight.
+check(
+  "row 2 bullet uses the level-3 title hl",
+  (last_mark(2) or {}).hl_group == "@org.heading.title.3.org"
+)
+check(
+  "row 0 bullet uses the level-1 title hl",
+  (last_mark(0) or {}).hl_group == "@org.heading.title.1.org"
+)
 
 -- Each non-trailing star concealed as a single space.
 local function leading_count_concealed(row)
