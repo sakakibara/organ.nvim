@@ -950,6 +950,9 @@ function M.setup(opts)
   end
 
   setup_highlights()
+  -- org-babel language spellings -> tree-sitter parser aliases, so
+  -- #+begin_src highlighting resolves names like `sh` / `emacs-lisp` / `js`.
+  require("organ.ts_lang").register()
   setup_compat_listeners()
   -- Queue must be initialised at setup time so BufWritePost / scan callbacks
   -- can enqueue immediately. The DB is opened lazily on first queue drain.

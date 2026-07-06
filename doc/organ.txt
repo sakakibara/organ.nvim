@@ -2315,27 +2315,21 @@ Inside a timestamp, the parts highlight separately:
 SOURCE-BLOCK LANGUAGE INJECTION                          *organ-src-injection*
 
 Tree-sitter injects an embedded language parser into every
-`#+begin_src LANG ... #+end_src` block whose LANG matches one of the
-built-in patterns (the parser must be installed separately, e.g. via
-`nvim-treesitter`):
+`#+begin_src LANG ... #+end_src` block, using LANG directly as the
+language. There is no fixed list: ANY tree-sitter parser installed in
+your Neovim highlights its blocks -- install a parser (e.g. via
+`nvim-treesitter`) and `#+begin_src <that-lang>` lights up, no organ
+configuration required. An unknown LANG falls back to no injection; the
+body still renders as plain block text.
 
-    python, lua, bash (sh / shell / zsh), javascript (js),
-    typescript (ts), rust, go, ruby, c, cpp (c++), java, html, css,
-    yaml (yml), json, toml, markdown (md), sql, elisp (el /
-    emacs-lisp), vim (vimscript), haskell (hs), php, perl, swift,
-    kotlin (kt), scala, r, dot (graphviz), dockerfile, make
-    (makefile).
-
-To extend the list, drop an overlay file at
-`~/.config/nvim/queries/org/injections.scm` adding patterns of the
-form:
-
->
-    ((src_block) @injection.content
-     (#match? @injection.content "^[ \\t]*#\\+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc][ \\t]+[Ee][Ll][Ii][Xx][Ii][Rr]")
-     (#set! injection.language "elixir"))
+organ registers the org-babel spellings that differ from the parser
+name so they resolve too: `sh` / `shell` / `zsh` -> bash, `js` ->
+javascript, `ts` -> typescript, `c++` -> cpp, `emacs-lisp` / `el` ->
+elisp, `py` -> python, `rb` -> ruby, `hs` -> haskell, `kt` -> kotlin,
+`yml` -> yaml, `md` -> markdown, and a few more. For any other name that
+differs from its parser, register it yourself: >lua
+    vim.treesitter.language.register("julia", { "jl" })
 <
-
 Use |:Org-edit_special| to edit a src block in a dedicated buffer with
 its language's full filetype features (LSP, formatters, etc.) and
 write the result back on save.
