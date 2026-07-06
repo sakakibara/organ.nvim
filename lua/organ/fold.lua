@@ -217,6 +217,16 @@ function M.cycle(bufnr, line)
   -- `headline_line == line` is exactly "cursor sits on the headline".
   local heading, headline_line = find_heading_at(bufnr, line)
   if heading and headline_line == line then
+    -- In the CONTENTS global view a heading's body is hidden by a
+    -- conceal_lines extmark, not a fold, so `foldclosed` reads -1 and the
+    -- fold-based cycle mis-detects "subtree" and collapses the heading
+    -- instead of revealing it.  Route to the contents toggle -- the same
+    -- reveal/re-conceal that `za` already performs in this state.
+    local ok, contents = pcall(require, "organ.fold.contents")
+    if ok and contents.is_active(vim.api.nvim_get_current_win()) then
+      contents.toggle_heading(bufnr, headline_line)
+      return true
+    end
     cycle_heading(bufnr, heading, headline_line)
     return true
   end
