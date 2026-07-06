@@ -38,41 +38,34 @@ local function setup_buf()
   return b
 end
 
--- Rounded caps: `* TODO Buy milk` -> left cap on col 1 (space after `*`),
--- body over TODO (cols 2-5), right cap on col 6 (space before title).
--- _apply registers the pill highlight groups (via on_win) as a side effect.
+-- Rounded caps: INLINE at the keyword boundaries so the buffer spaces
+-- around the keyword are preserved (breathing room, not cramped).
 do
   local b = setup_buf()
   pills._apply(b)
 
-  -- Body group: gui reverse actually applied (the bug fix), colored from the
-  -- keyword's semantic bucket.
-  local hl = vim.api.nvim_get_hl(0, { name = "@organ.modern.pill.todo", link = false })
+  local hl = vim.api.nvim_get_hl(0, { name = "@organ.modern.badge.pill.todo", link = false })
   check("body group has gui reverse=true", hl.reverse == true, vim.inspect(hl))
   check("body group colored from actionable bucket (red)", hl.fg == 0xEE1122, vim.inspect(hl))
-  local capg = vim.api.nvim_get_hl(0, { name = "@organ.modern.pillcap.todo", link = false })
+  local capg = vim.api.nvim_get_hl(0, { name = "@organ.modern.badgecap.pill.todo", link = false })
   check("cap group shares the body color, no reverse", capg.fg == 0xEE1122 and not capg.reverse, vim.inspect(capg))
 
   local marks = vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, { details = true })
   local body, left_cap, right_cap
   for _, m in ipairs(marks) do
     local d = m[4]
-    if d.hl_group == "@organ.modern.pill.todo" then
+    if d.hl_group == "@organ.modern.badge.pill.todo" then
       body = m
-    elseif d.virt_text and d.virt_text_pos == "overlay" then
-      if m[3] == 1 then
-        left_cap = d
-      elseif m[3] == 6 then
-        right_cap = d
-      end
+    elseif d.virt_text and d.virt_text_pos == "inline" then
+      if m[3] == 2 then left_cap = d elseif m[3] == 6 then right_cap = d end
     end
   end
   check("body extmark over the keyword", body ~= nil and body[3] == 2 and body[4].end_col == 6)
-  check("left cap overlaid on the space before the keyword", left_cap ~= nil, "no left cap at col 1")
-  check("right cap overlaid on the space after the keyword", right_cap ~= nil, "no right cap at col 6")
+  check("left cap INLINE at keyword start (space before preserved)", left_cap ~= nil, "no inline cap at col 2")
+  check("right cap INLINE at keyword end (space after preserved)", right_cap ~= nil, "no inline cap at col 6")
   check(
     "caps colored like the body",
-    left_cap and left_cap.virt_text[1][2] == "@organ.modern.pillcap.todo",
+    left_cap and left_cap.virt_text[1][2] == "@organ.modern.badgecap.pill.todo",
     left_cap and vim.inspect(left_cap.virt_text)
   )
 end

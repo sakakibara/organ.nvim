@@ -79,7 +79,7 @@ check(
 )
 
 -- Highlight group should be defined with reverse=true (the pill effect).
-local hl = vim.api.nvim_get_hl(0, { name = "@organ.modern.pill.todo" })
+local hl = vim.api.nvim_get_hl(0, { name = "@organ.modern.badge.pill.todo" })
 check("pill hl group has reverse=true", hl.reverse == true, "got " .. vim.inspect(hl))
 
 -- detach() removes them.

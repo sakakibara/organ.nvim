@@ -27,25 +27,6 @@ local NS = vim.api.nvim_create_namespace("organ_modern_pills")
 -- keep the hook symmetric with bullets/blocks).
 M._saved_conceallevel = M._saved_conceallevel or {}
 
--- Rounded pill caps: Nerd Font half-circle glyphs colored like the body,
--- overlaid on the spaces flanking the keyword so the badge reads as a pill
--- rather than a box.  Built from codepoints to keep the source ASCII.
-local DEFAULT_CAP_LEFT = vim.fn.nr2char(0xe0b6) -- left half circle
-local DEFAULT_CAP_RIGHT = vim.fn.nr2char(0xe0b4) -- right half circle
-
--- Resolve the configured caps.  `modern.pill_caps = false` -> box mode (no
--- caps); a table overrides the glyphs.  Returns (left, right) or nil, nil.
-local function pill_caps(bufnr)
-  local cfg = require("organ.buf_config").read(bufnr, "modern.pill_caps")
-  if cfg == false then
-    return nil, nil
-  end
-  if type(cfg) == "table" then
-    return cfg.left or DEFAULT_CAP_LEFT, cfg.right or DEFAULT_CAP_RIGHT
-  end
-  return DEFAULT_CAP_LEFT, DEFAULT_CAP_RIGHT
-end
-
 local PILL_KEYWORDS = {
   "todo",
   "next",
@@ -60,30 +41,15 @@ local PILL_KEYWORDS = {
   "closed",
 }
 
--- Standalone reversed body group + a solid cap group per keyword, both
--- derived from the keyword's resolved @org.todo.<kw> color (set by
--- organ.highlights from its semantic bucket).  These CANNOT link to
--- @org.todo.<kw>: nvim_set_hl drops gui attributes (reverse) when `link`
--- is present, which is why pills used to render as plain text.  So we copy
--- the resolved fg into a fresh group with reverse applied.
+-- Badge body + cap groups per keyword and for timestamps, via the shared
+-- badge primitive which resolves the color and applies reverse without link
+-- (nvim_set_hl drops gui attributes when link is present).
 local function register_pill_highlights()
-  local H = require("organ.highlights")
-  local function pill(name, color, reverse)
-    if color then
-      local attrs = { fg = color, bold = true }
-      if reverse then
-        attrs.reverse = true
-      end
-      vim.api.nvim_set_hl(0, name, attrs)
-    end
-  end
+  local badge = require("organ.modern.badge")
   for _, kw in ipairs(PILL_KEYWORDS) do
-    local color = H.resolved_fg("@org.todo." .. kw)
-    pill("@organ.modern.pill." .. kw, color, true) -- reversed body
-    pill("@organ.modern.pillcap." .. kw, color, false) -- solid cap
+    badge.groups("pill." .. kw, "@org.todo." .. kw)
   end
-  local ts = H.resolved_fg("@org.timestamp") or H.resolved_fg("@org.timestamp.active")
-  pill("@organ.modern.pill.timestamp", ts, true)
+  badge.groups("pill.timestamp", "@org.timestamp")
 end
 
 -- Pill hl groups depend on live colors; re-derive them on colorscheme
@@ -167,45 +133,32 @@ local function todo_keywords_set(bufnr)
 end
 
 -- Frame-local row map: frame_map[row] = { entry, ... }.  An entry is
--- { col, end_col, hl_group } for a timestamp box; a rounded keyword pill
--- also carries cap_hl + left_col + (right_col | right_eol).  Reset each
--- on_win; read by on_line for the same frame.  frame_cap_* hold the
--- resolved cap glyphs for the frame (nil in box mode).
+-- { col, end_col, hl_group } for a timestamp box; a keyword pill also
+-- carries cap_hl so emit() can pass rounded caps via glyphs.get.  Reset
+-- each on_win; read by on_line for the same frame.
 local frame_map = {}
-local frame_cap_left, frame_cap_right
 
--- Place one frame entry's extmarks: the reversed body plus, for keyword
--- pills, the rounded caps overlaid on the flanking spaces.
+-- Place one frame entry's extmarks via the badge primitive: reversed body
+-- over the range, plus INLINE caps at the range boundaries for keyword
+-- entries.  Box mode (modern.pill_caps = false) forces empty caps.
 local function emit(bufnr, row, e, ephemeral)
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.col, {
-    end_col = e.end_col,
-    hl_group = e.hl_group,
-    priority = 200, -- above the base TS highlight
-    ephemeral = ephemeral or nil,
-  })
-  if not e.cap_hl or not frame_cap_left then
-    return
+  local badge = require("organ.modern.badge")
+  local glyphs = require("organ.modern.glyphs")
+  local left, right = "", ""
+  if e.cap_hl then
+    left = glyphs.get("pill.cap.left", bufnr)
+    right = glyphs.get("pill.cap.right", bufnr)
   end
-  pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.left_col, {
-    virt_text = { { frame_cap_left, e.cap_hl } },
-    virt_text_pos = "overlay",
-    priority = 200,
-    ephemeral = ephemeral or nil,
-  })
-  if e.right_col then
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.right_col, {
-      virt_text = { { frame_cap_right, e.cap_hl } },
-      virt_text_pos = "overlay",
-      priority = 200,
-      ephemeral = ephemeral or nil,
-    })
-  elseif e.right_eol then
-    pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, e.end_col, {
-      virt_text = { { frame_cap_right, e.cap_hl } },
-      priority = 200,
-      ephemeral = ephemeral or nil,
-    })
+  if require("organ.buf_config").read(bufnr, "modern.pill_caps") == false then
+    left, right = "", ""
   end
+  badge.emit(NS, bufnr, row, e.col, e.end_col, {
+    body_hl = e.hl_group,
+    cap_hl = e.cap_hl,
+    left_cap = left,
+    right_cap = right,
+    ephemeral = ephemeral,
+  })
 end
 
 local function on_win(bufnr, _winid, topline, botline)
@@ -217,7 +170,6 @@ local function on_win(bufnr, _winid, topline, botline)
     return
   end
   ensure_pill_highlights()
-  frame_cap_left, frame_cap_right = pill_caps(bufnr)
   -- Tree is parsed once per buffer per redraw by organ.decoration; we
   -- just query the cached tree here.  We also need the parser handle
   -- below to walk injected org_inline trees via for_each_tree.
@@ -234,28 +186,19 @@ local function on_win(bufnr, _winid, topline, botline)
     frame_map[row] = frame_map[row] or {}
     frame_map[row][#frame_map[row] + 1] = { col = col, end_col = end_col, hl_group = hl }
   end
-  -- A keyword pill: reversed body + rounded caps.  The left cap overlays the
-  -- space between the stars and the keyword; the right cap overlays the space
-  -- before the title, or sits at line end when the keyword has no title.
+  -- A keyword pill: reversed body + inline rounded caps at the keyword
+  -- boundaries so the surrounding buffer spaces are preserved.
   local function push_pill(row, sc, ec, kw_lower)
     if row < topline or row > botline then
       return
     end
-    local ln = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-    local entry = {
+    frame_map[row] = frame_map[row] or {}
+    frame_map[row][#frame_map[row] + 1] = {
       col = sc,
       end_col = ec,
-      hl_group = "@organ.modern.pill." .. kw_lower,
-      cap_hl = "@organ.modern.pillcap." .. kw_lower,
-      left_col = sc - 1,
+      hl_group = "@organ.modern.badge.pill." .. kw_lower,
+      cap_hl = "@organ.modern.badgecap.pill." .. kw_lower,
     }
-    if ln:sub(ec + 1, ec + 1) == " " then
-      entry.right_col = ec
-    else
-      entry.right_eol = true
-    end
-    frame_map[row] = frame_map[row] or {}
-    frame_map[row][#frame_map[row] + 1] = entry
   end
 
   -- TODO keywords on headlines + timestamp shapes within the title
@@ -278,10 +221,10 @@ local function on_win(bufnr, _winid, topline, botline)
           local ok_text, text = pcall(vim.treesitter.get_node_text, node, bufnr)
           if ok_text and type(text) == "string" then
             for s, e in text:gmatch("()<%d%d%d%d%-%d%d%-%d%d[^<>\n]*>()") do
-              push(sr, sc + s - 1, sc + e - 1, "@organ.modern.pill.timestamp")
+              push(sr, sc + s - 1, sc + e - 1, "@organ.modern.badge.pill.timestamp")
             end
             for s, e in text:gmatch("()%[%d%d%d%d%-%d%d%-%d%d[^%[%]\n]*%]()") do
-              push(sr, sc + s - 1, sc + e - 1, "@organ.modern.pill.timestamp")
+              push(sr, sc + s - 1, sc + e - 1, "@organ.modern.badge.pill.timestamp")
             end
           end
         end
@@ -310,7 +253,7 @@ local function on_win(bufnr, _winid, topline, botline)
         for _, node in q:iter_captures(itree:root(), bufnr, topline, botline + 1) do
           local sr, sc, er, ec = node:range()
           if sr == er then
-            push(sr, sc, ec, "@organ.modern.pill.timestamp")
+            push(sr, sc, ec, "@organ.modern.badge.pill.timestamp")
           end
         end
       end)
