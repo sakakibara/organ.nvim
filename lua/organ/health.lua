@@ -340,6 +340,23 @@ local function check_session_state()
   end
 end
 
+local function check_modern_glyphs()
+  health.start("organ modern glyphs")
+  local offenders = require("organ.modern.glyphs").verify()
+  if #offenders == 0 then
+    health.ok("modern glyphs: all single-cell")
+  else
+    for _, o in ipairs(offenders) do
+      health.warn(("modern glyph %q (%s) is %d cells wide; will misalign"):format(o.name, o.mode, o.width))
+    end
+  end
+end
+
+-- Test-facing: registered modern glyphs that are not single-cell.
+function M._glyph_width_offenders()
+  return require("organ.modern.glyphs").verify()
+end
+
 -- Native CSL processor probe. The processor is pure Lua, so the only
 -- thing to verify is that vim.json is reachable (Neovim 0.10+) since
 -- the CSL-JSON parser depends on it.
@@ -515,6 +532,7 @@ function M.check()
   check_feature_toggles(organ.config)
   check_startup()
   check_session_state()
+  check_modern_glyphs()
   check_citation_processor()
   check_user_config_integration()
 end
