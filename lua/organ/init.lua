@@ -992,6 +992,14 @@ function M.db_handle()
   return require("organ.runtime").db()
 end
 
+-- Parser names used by `#+begin_src` blocks in `bufnr` (default current),
+-- org-babel spellings resolved.  Drive an on-demand parser installer with
+-- this so embedded languages highlight -- a src-block language is not a
+-- filetype and won't trip a filetype-keyed install.  See |organ-src-injection|.
+function M.src_block_parsers(bufnr)
+  return require("organ.ts_lang").src_block_parsers(bufnr)
+end
+
 function M.scan_blocking(dir, timeout_ms)
   start_scan()
   local scan_done = false

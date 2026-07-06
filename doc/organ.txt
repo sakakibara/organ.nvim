@@ -2330,6 +2330,27 @@ elisp, `py` -> python, `rb` -> ruby, `hs` -> haskell, `kt` -> kotlin,
 differs from its parser, register it yourself: >lua
     vim.treesitter.language.register("julia", { "jl" })
 <
+On-demand parser install                                   *organ-src-parsers*
+
+A `#+begin_src` language is embedded, not the buffer's filetype, so a
+parser installer keyed on |FileType| (installs a parser the first time a
+buffer of that ft opens) never sees it: a language you only ever write
+inside org blocks stays uninstalled and unhighlighted.
+
+`require("organ").src_block_parsers(bufnr)` returns the deduped, sorted
+list of tree-sitter parser names the buffer's src blocks use (org-babel
+spellings resolved). organ installs nothing itself; feed the list to your
+installer on org buffer open. With nvim-treesitter (`main`): >lua
+    vim.api.nvim_create_autocmd("FileType", {
+      pattern = "org",
+      callback = function(ev)
+        local want = require("organ").src_block_parsers(ev.buf)
+        if #want > 0 then
+          require("nvim-treesitter").install(want)
+        end
+      end,
+    })
+<
 Use |:Org-edit_special| to edit a src block in a dedicated buffer with
 its language's full filetype features (LSP, formatters, etc.) and
 write the result back on save.
