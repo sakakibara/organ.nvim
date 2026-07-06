@@ -27,7 +27,7 @@ local function check(label, ok, detail)
 end
 
 local pills = require("organ.modern.pills")
-local NS = vim.api.nvim_create_namespace("organ_modern_pills")
+local NS = require("organ.modern.render").ns
 
 local function setup_buf()
   local b = vim.api.nvim_create_buf(true, false)

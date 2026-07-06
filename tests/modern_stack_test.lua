@@ -53,7 +53,9 @@ end
 local NS = vim.api.nvim_get_namespaces()
 local ns_bullets = NS["organ_modern_bullets"]
 local ns_blocks = NS["organ_modern_blocks"]
-local ns_pills = NS["organ_modern_pills"]
+-- Pills render through the persistent engine (organ_modern_render), not the
+-- ephemeral decoration provider, so their marks live in the engine namespace.
+local ns_pills = require("organ.modern.render").ns
 
 check("bullets namespace registered", ns_bullets ~= nil)
 check("blocks  namespace registered", ns_blocks ~= nil)

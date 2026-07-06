@@ -42,8 +42,8 @@ local function check(label, ok, detail)
   end
 end
 
-local NS = vim.api.nvim_get_namespaces()["organ_modern_pills"]
-check("namespace registered", NS ~= nil)
+local NS = require("organ.modern.render").ns
+check("render namespace available", NS ~= nil)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })
 
