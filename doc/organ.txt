@@ -80,6 +80,7 @@ TABLE OF CONTENTS                                                  *organ-toc*
   Babel sessions ......................... |organ-babel-sessions|
   org-modern visual upgrades ............. |organ-modern|
   Star concealment ....................... |organ-stars|
+  Treesitter integration ................. |organ-treesitter|
   Agenda Emacs-parity .................... |organ-agenda-parity|
   Keymaps ................................ |organ-keymaps|
     Global ............................... |organ-keymaps-global|
@@ -3592,6 +3593,72 @@ Emacs `org-hide-leading-stars` equivalent. Off by default. >lua
 Conceals all but the trailing `*` of each headline's leading-star
 block, so `*** Foo` renders as `   * Foo`. Sets the window's
 `'conceallevel'` to 2 on attach (restored on detach).
+
+==============================================================================
+TREESITTER INTEGRATION                                      *organ-treesitter*
+
+organ ships the runtime query files that neighbouring treesitter plugins
+resolve over 'runtimepath'. They activate automatically when the relevant
+plugin is installed; nvim-treesitter itself is not required.
+
+Context header                                      *organ-treesitter-context*
+
+`queries/org/context.scm` feeds nvim-treesitter-context. Because headlines
+nest, the sticky header shows the full ancestor heading chain of the line
+at the top of the window. No configuration is needed.
+
+Textobjects                                     *organ-treesitter-textobjects*
+
+`queries/org/textobjects.scm` (block level) and
+`queries/org_inline/textobjects.scm` (inline) feed
+nvim-treesitter-textobjects. Captures are namespaced `@org.*` rather than
+reusing the code-oriented standard set, since org's structure has no honest
+`@function`/`@class` analog. Blocks additionally carry the standard
+`@block.outer` so existing block keymaps work in org too.
+
+Available captures: >
+    @org.subtree.outer     heading line + body + child subtrees
+    @org.subtree.inner     the heading's own body (no heading line/children)
+    @org.heading.outer     the `* TODO Title :tags:` line
+    @org.heading.inner     just the title text
+    @org.list.outer        a whole list
+    @org.item.outer        one list item (with any nested list)
+    @org.item.inner        a list item's text
+    @org.table.outer       a whole table
+    @org.row.outer         one table row
+    @org.cell.outer        one table cell
+    @org.block.outer       a src/example/verse/export/comment/greater/
+                           dynamic block (also tagged @block.outer)
+    @org.link.outer        a link (inline)
+    @org.link.inner        a link's description text
+    @org.timestamp.outer   an active/inactive/diary/range timestamp
+    @org.emphasis.outer    a bold/italic/code/verbatim/strike/underline span
+<
+src/example block bodies are anonymous in the grammar, so blocks are
+outer-only; textobjects inside a src block come from the injected
+language's own query.
+
+Recommended keymaps (nvim-treesitter-textobjects `main` branch): >lua
+    local sel = require("nvim-treesitter-textobjects.select")
+    local map = function(lhs, capture)
+      vim.keymap.set({ "x", "o" }, lhs, function()
+        sel.select_textobject(capture, "textobjects")
+      end, { buffer = true, desc = capture })
+    end
+    -- in an FileType=org ftplugin or autocmd:
+    map("ah", "@org.subtree.outer")
+    map("ih", "@org.subtree.inner")
+    map("aH", "@org.heading.outer")
+    map("iH", "@org.heading.inner")
+    map("ai", "@org.item.outer")
+    map("ii", "@org.item.inner")
+    map("ab", "@org.block.outer")
+    map("ac", "@org.cell.outer")
+    map("al", "@org.link.outer")
+    map("il", "@org.link.inner")
+<
+On the classic (`master`) branch, list the same capture names under
+`textobjects.select.keymaps` in your nvim-treesitter setup instead.
 
 ==============================================================================
 AGENDA EMACS-PARITY                                      *organ-agenda-parity*
