@@ -30,14 +30,15 @@ assert(
 local prio = vim.api.nvim_get_hl(0, { name = "@org.priority" })
 assert(prio.link == "Special", "got " .. vim.inspect(prio))
 
--- TODO keyword registration.
+-- TODO keyword registration links each keyword to its semantic bucket:
+-- TODO -> actionable, DONE -> done, CANCELLED -> cancelled.
 hl.register_todo_keywords({ "TODO", "NEXT", "|", "DONE", "CANCELLED" })
 local todo = vim.api.nvim_get_hl(0, { name = "@org.todo.todo" })
-assert(todo.link == "WarningMsg", "got " .. vim.inspect(todo))
+assert(todo.link == hl.todo_bucket_link("actionable"), "got " .. vim.inspect(todo))
 local done = vim.api.nvim_get_hl(0, { name = "@org.todo.done" })
-assert(done.link == "Comment", "got " .. vim.inspect(done))
+assert(done.link == hl.todo_bucket_link("done"), "got " .. vim.inspect(done))
 local cancelled = vim.api.nvim_get_hl(0, { name = "@org.todo.cancelled" })
-assert(cancelled.link == "Comment", "got " .. vim.inspect(cancelled))
+assert(cancelled.link == hl.todo_bucket_link("cancelled"), "got " .. vim.inspect(cancelled))
 
 io.write("highlights register ok\n")
 os.exit(0)

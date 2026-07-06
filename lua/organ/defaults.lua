@@ -719,8 +719,13 @@ return {
     bullets = false,
     -- Block frames (#+begin_src / #+end_src). Planned.
     blocks = false,
-    -- TODO state and timestamp pill rendering. Planned.
+    -- TODO keyword + timestamp pills: the keyword renders as a rounded
+    -- badge colored by its semantic bucket (see |organ-config-todo|).
     pills = false,
+    -- Pill cap glyphs (the rounded ends). Default (nil): Nerd Font
+    -- half-circles.  `false` -> box pills (no caps, no Nerd Font needed);
+    -- `{ left = "…", right = "…" }` -> custom cap glyphs.
+    pill_caps = nil,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org

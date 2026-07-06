@@ -595,6 +595,26 @@ TODO                                                       *organ-config-todo*
     Cycling stays within the matched sub-sequence (BUG cycles to
     TRIAGE then FIXED, never to DONE).
 
+                                                    *organ-config-todo-colors*
+    Keyword colors follow org state semantics, mapped onto the theme's
+    diagnostic groups (which every colorscheme tunes to look good). Each
+    keyword lands in a bucket by its position around `|` plus a name
+    heuristic:
+
+        actionable  TODO / NEXT / STARTED / PROJ      DiagnosticError (red)
+        blocked     WAITING / HOLD / BLOCKED /         DiagnosticWarn (yellow)
+                    SOMEDAY / DEFERRED / PENDING
+        done        DONE (and any other done state)    DiagnosticOk (green)
+        cancelled   CANCELLED / CLOSED / ABANDONED /   Comment (grey)
+                    WONTFIX
+
+    Read: red = do it, yellow = waiting on something, green = accomplished,
+    grey = abandoned. Unrecognized names fall back by position (active ->
+    red, done -> green). Override a keyword's color by setting its
+    `@org.todo.<keyword>` highlight group (e.g. `@org.todo.next`). With
+    |organ-modern-pills| these colors become the pill badge; without them,
+    the keyword is bold colored text.
+
                                                *organ-config-todo-annotations*
     Each keyword may carry an Emacs-style annotation suffix in
     parentheses controlling the fast-selection key + log policy:
@@ -3588,11 +3608,15 @@ drawing decoration (`┌── lang ──`, `└──`). Works for src/quote/e
 underlying buffer content unchanged.
 
                                                           *organ-modern-pills*
-`pills` — TODO state keywords and timestamps render with `reverse =
-true + bold` overlay so they look like solid color blocks. Cosmetic
-only (no buffer text changes). The pill background comes from the
-existing fg color of the @org.todo / @org.timestamp groups via vim's
-inverse-video, so a single colorscheme override propagates.
+`pills` — TODO state keywords render as rounded badges: the keyword bytes
+get a `reverse = true` body colored by the keyword's semantic bucket (see
+|organ-config-todo|), capped left and right by Nerd Font half-circle
+glyphs overlaid on the flanking spaces so the badge reads as a pill.
+Timestamps get the same reversed body (box). Cosmetic only -- no buffer
+text changes; the caps overlay existing spaces so nothing shifts.
+
+`pill_caps` tunes the caps: `false` for box pills (no caps, no Nerd Font
+needed), or `{ left = "…", right = "…" }` for custom glyphs.
 
                                                           *organ-modern-table*
 `table` — pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with

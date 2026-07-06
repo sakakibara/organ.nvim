@@ -79,7 +79,9 @@ check(
   n_blocks == 4,
   "got " .. n_blocks
 )
-check("pills produced extmarks (3 TODO kw + 2 timestamps)", n_pills == 5, "got " .. n_pills)
+-- Each keyword pill is a body + two rounded caps (3 marks); timestamps are
+-- plain reverse boxes (1 mark).  3 keywords * 3 + 2 timestamps = 11.
+check("pills produced extmarks (3 TODO kw pills + 2 timestamps)", n_pills == 11, "got " .. n_pills)
 
 -- conceallevel was bumped (bullets + blocks both need it).
 check("conceallevel >= 2 after combined attach", vim.wo.conceallevel >= 2)
