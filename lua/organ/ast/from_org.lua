@@ -721,23 +721,28 @@ emit_section_child = function(node, src)
     return A.footnote_definition(label, { A.paragraph(parse_inline(body)) })
   elseif t == "drawer" then
     -- A generic drawer (:LOGBOOK:, custom). Its `drawer_name` child is
-    -- the bare name; the LAST `:` child sits on the :END: line. Body is
-    -- the verbatim lines strictly between the opener and :END:.
-    local name, end_row
+    -- the bare name. Body is the verbatim lines strictly between the
+    -- opener line and the closing `:END:` line; a drawer truncated by
+    -- a headline or EOF has no `:END:`, so the body then runs to the
+    -- node's last line.
+    local name
     for c in node:iter_children() do
-      local ct = c:type()
-      if ct == "drawer_name" then
+      if c:type() == "drawer_name" then
         name = get_text(c, src)
-      elseif ct == ":" then
-        end_row = c:start()
       end
     end
-    if not name or not end_row then
+    if not name then
       return nil
     end
     local open_row = node:start()
+    local end_row, end_col = node:end_()
+    local last_row = (end_col == 0) and end_row - 1 or end_row
+    local last_line = src[last_row + 1]
+    if last_line and last_line:match("^%s*:[Ee][Nn][Dd]:%s*$") then
+      last_row = last_row - 1
+    end
     local body_lines = {}
-    for r = open_row + 1, end_row - 1 do
+    for r = open_row + 1, last_row do
       body_lines[#body_lines + 1] = src[r + 1] or ""
     end
     return A.drawer(name, table.concat(body_lines, "\n"))
