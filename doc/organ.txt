@@ -1653,7 +1653,11 @@ Roam                                                          *organ-cmd-roam*
 
 *:Org-roam_daily_today*
     `:Org roam daily today`
-    Open today's daily note (creates it if absent).
+    Open today's daily note. A brand-new daily opens as an unsaved buffer
+    seeded from the template (|organ-config-roam-dailies-template|) and
+    becomes a file only when written, so opening it and quitting without
+    typing leaves nothing on disk (matches Emacs org-roam capture). The
+    same holds for the yesterday / tomorrow / date variants below.
 
 *:Org-roam_daily_yesterday*
     `:Org roam daily yesterday`
@@ -3202,7 +3206,7 @@ TABLE EXTRAS                                            *organ-cmd-tables-ext*
 ==============================================================================
 EXPORT BACKENDS                                             *organ-cmd-export*
 
-All eight export backends accept `[!]` to overwrite an existing target,
+All nine export backends accept `[!]` to overwrite an existing target,
 `[path]` to specify the output, and the same option set as
 `:Org export markdown` (see |organ-export|). Without `path`, the output
 lands next to the source file with the appropriate extension.
@@ -3218,6 +3222,15 @@ Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
     Export to a self-contained LaTeX article. Tables become
     `\begin{tabular}` blocks, src blocks become `\begin{minted}` (with
     `minted` package) or `\begin{verbatim}` fallback.
+
+*:Org-export_pdf*
+    `:Org export pdf[!] [path]`
+    Export to PDF. By default (`export.pdf.engine = "lua"`) organ renders
+    the PDF directly with its built-in pure-Lua writer -- no LaTeX or
+    external tool required. Set `export.pdf.engine` to `pdflatex`,
+    `xelatex`, or `lualatex` to route through the LaTeX backend and a
+    local TeX engine instead (the `.tex` source and logs are kept on
+    failure for diagnosis).
 
 *:Org-export_beamer*
     `:Org export beamer[!] [path]`

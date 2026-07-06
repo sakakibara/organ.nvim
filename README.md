@@ -263,7 +263,7 @@ Default global keymaps under `<Leader>o*`:
 | **Tables** | Auto-align, row/col ops, sort, CSV/TSV I/O, native pure-Lua Calc-compatible engine: bignum / rational / IEEE float / units / finance / matrix algebra / symbolic deriv-integ-limit |
 | **Babel** | Built-in: sh / bash / zsh / fish / python / lua / ruby / perl / js / ts / php / R / scheme.  `:session` header keeps a REPL alive across blocks.  Add more via `babel.languages.<lang> = ...` |
 | **Citations** | Native BibTeX + CSL-JSON parsers, APA / Chicago / IEEE styles, completion source (blink.cmp / nvim-cmp), integrated into every export backend |
-| **Export** | 8 native backends: markdown / html / latex / beamer / ascii / texinfo / opml / ics.  Multi-project publish pipeline.  No Emacs or pandoc dependency |
+| **Export** | 9 native backends: markdown / html / latex / pdf / beamer / ascii / texinfo / opml / ics.  PDF renders via a built-in pure-Lua writer (no LaTeX needed) or an opt-in TeX engine.  Multi-project publish pipeline.  No Emacs or pandoc dependency |
 | **Authoring** | Macros, `#+SETUPFILE:` / `#+INCLUDE:` expansion, dynamic blocks, modal SRC-block edit, LaTeX fragment rendering |
 | **Modern UX** | Per-level bullet glyphs (◉ ○ ◈ ◇), block frames (`┌── lang ──` / `└──`), TODO/timestamp pills, star concealment, link conceal, all opt-in |
 | **OS notifications** | macOS / Linux / Windows desktop notifications that fire **even when Neovim is closed**.  Strictly opt-in.  See [Notifications](#native-os-notifications) |
