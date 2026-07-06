@@ -22,12 +22,15 @@ end
 local function fg(name)
   return vim.api.nvim_get_hl(0, { name = name }).fg
 end
--- Paint the 8 heading levels with explicit user colors.  register() links
--- @org.heading.N with `default = true`, so an explicit set wins and the
--- resolved fg is fully under the test's control.
+-- Paint the 8 heading levels.  Real colorschemes define @org.heading.N as a
+-- LINK to a colored group, not a direct fg -- and nvim_get_hl's default
+-- (link = true) returns the link pointer, not the color, for such groups.
+-- Link here (not direct fg) so the collision resolver is exercised the way
+-- it runs in practice; a direct fg would mask a link-resolution bug.
 local function paint_headings(palette)
   for i = 1, 8 do
-    vim.api.nvim_set_hl(0, "@org.heading." .. i, { fg = palette[i] })
+    vim.api.nvim_set_hl(0, "OrgTestHeadSrc" .. i, { fg = palette[i] })
+    vim.api.nvim_set_hl(0, "@org.heading." .. i, { link = "OrgTestHeadSrc" .. i })
   end
 end
 

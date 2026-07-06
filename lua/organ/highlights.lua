@@ -46,15 +46,16 @@ local LEVEL_FALLBACK = {
 -- Returns false for empty groups (`vim.empty_dict`) so we know to
 -- pick a fallback.
 local function hl_is_styled(name)
-  -- nvim_get_hl resolves links by default; pass link = false to see
-  -- the raw definition first.  Use both to detect both an explicit
-  -- definition AND a working link.
-  local raw = vim.api.nvim_get_hl(0, { name = name, link = false })
-  if next(raw) ~= nil then
+  -- link = false resolves the link chain and returns effective attributes;
+  -- the default (link = true) returns the link pointer instead.  Styled if
+  -- it resolves to any attribute, or is a link at all (a link to a group not
+  -- yet loaded still signals intent to style).
+  local effective = vim.api.nvim_get_hl(0, { name = name, link = false })
+  if next(effective) ~= nil then
     return true
   end
-  local resolved = vim.api.nvim_get_hl(0, { name = name })
-  return next(resolved) ~= nil
+  local as_link = vim.api.nvim_get_hl(0, { name = name })
+  return next(as_link) ~= nil
 end
 
 local TODO_DEFAULT_ACTIVE = "WarningMsg"
@@ -92,8 +93,13 @@ M._todo_done_link = TODO_DEFAULT_DONE
 
 -- Resolved foreground (24-bit int) of a highlight group, following link
 -- chains; nil when it has no fg.
+-- Effective foreground of `name`, following any link chain.  `link = false`
+-- is REQUIRED: nvim_get_hl defaults to link = true, which returns the link
+-- pointer ({ link = "X" }, no fg) for a linked group -- and @org.heading.N is
+-- a link in every real colorscheme, so the default would resolve to nil and
+-- the collision check would see no heading colors at all.
 local function resolved_fg(name)
-  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name })
+  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
   return (ok and hl) and hl.fg or nil
 end
 
