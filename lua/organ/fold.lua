@@ -61,14 +61,20 @@ local function apply_state(bufnr, heading, headline_line, state)
 
   local saved = vim.api.nvim_win_get_cursor(0)
 
+  -- CLOSING is directional: a ranged `:{a},{b}foldclose` closes the fold
+  -- at the SHALLOWEST level the range touches, and `heading:end_()` reaches
+  -- the trailing separator blank that `cycle_separator_lines` demotes to
+  -- the PARENT's level -- so a range would collapse the parent (Tab on
+  -- `** L2` folding `* L1`).  Close by the single start line instead, which
+  -- hits only the innermost fold there: this heading's subtree.
+  --
+  -- OPENING needs the range: `:{a},{b}foldopen!` opens the fold at EVERY
+  -- line, so all nested child folds in the subtree open (single-line
+  -- foldopen! would leave them closed).  It's safe -- the shallowest fold
+  -- the range touches is the already-open parent, so re-opening it is a
+  -- no-op and siblings outside `[headline, end]` are never reached.
   if state == "folded" then
-    vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
-    -- NO bang: `:foldclose!` in vim closes parent folds too (zC-like),
-    -- so Tab on `** L2 a` would also collapse its enclosing `* L1`
-    -- subtree -- visually identical to a global S-Tab and not what
-    -- Emacs `org-cycle` does.  Plain `:foldclose` closes only the
-    -- innermost folds inside the given range.
-    pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldclose")
+    pcall(vim.cmd, ("silent! %dfoldclose"):format(headline_line))
   elseif state == "children" then
     vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
     pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldopen!")
