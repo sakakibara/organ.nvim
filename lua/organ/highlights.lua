@@ -60,6 +60,61 @@ end
 local TODO_DEFAULT_ACTIVE = "WarningMsg"
 local TODO_DEFAULT_DONE = "Comment"
 
+-- A TODO keyword must never render in the same color as a heading level --
+-- otherwise a `** TODO Foo` reads exactly like a plain `** Foo` and you
+-- can't tell a task from a sub-heading.  register() resolves every heading
+-- level's color and, when the default TODO link collides with one of them,
+-- swaps it for the first of these "attention" groups whose color is
+-- distinct.  All are groups colorschemes define with a hue outside the
+-- Title / Function / Statement heading family.
+local TODO_ACTIVE_CANDIDATES = {
+  "WarningMsg",
+  "Error",
+  "DiagnosticError",
+  "DiagnosticWarn",
+  "@keyword",
+  "Keyword",
+  "Todo",
+  "Exception",
+}
+local TODO_DONE_CANDIDATES = {
+  "Comment",
+  "NonText",
+  "DiagnosticHint",
+  "Conceal",
+  "@comment",
+}
+
+-- Chosen TODO links, recomputed by register() to avoid heading collisions;
+-- read by register_todo_keywords.  Default to the classic links until then.
+M._todo_active_link = TODO_DEFAULT_ACTIVE
+M._todo_done_link = TODO_DEFAULT_DONE
+
+-- Resolved foreground (24-bit int) of a highlight group, following link
+-- chains; nil when it has no fg.
+local function resolved_fg(name)
+  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name })
+  return (ok and hl) and hl.fg or nil
+end
+
+-- First candidate whose resolved fg is defined, absent from `avoid` (a set
+-- of fg ints), and not equal to `also_avoid`.  Keeps `default` when it
+-- already doesn't collide (least surprising); returns `default` if nothing
+-- qualifies.
+local function pick_noncolliding(default, candidates, avoid, also_avoid)
+  local dfg = resolved_fg(default)
+  if dfg == nil or (not avoid[dfg] and dfg ~= also_avoid) then
+    return default
+  end
+  for _, cand in ipairs(candidates) do
+    local fg = resolved_fg(cand)
+    if fg ~= nil and not avoid[fg] and fg ~= also_avoid then
+      return cand
+    end
+  end
+  return default
+end
+
 local STATIC_LINKS = {
   ["@org.priority"] = "Special",
   ["@org.tag"] = "Identifier",
@@ -195,6 +250,25 @@ function M.register()
   -- progressive-enhancement chain.
   vim.api.nvim_set_hl(0, "@org.keyword.title", { link = title_link or "Title", default = true })
 
+  -- Keep the TODO keyword color out of the heading palette: collect every
+  -- heading level's resolved fg, then pick TODO active / done links whose
+  -- color isn't one of them (and done != active).
+  local heading_fgs = {}
+  for level = 1, 8 do
+    local fg = resolved_fg("@org.heading." .. level)
+    if fg then
+      heading_fgs[fg] = true
+    end
+  end
+  M._todo_active_link =
+    pick_noncolliding(TODO_DEFAULT_ACTIVE, TODO_ACTIVE_CANDIDATES, heading_fgs, nil)
+  M._todo_done_link = pick_noncolliding(
+    TODO_DEFAULT_DONE,
+    TODO_DONE_CANDIDATES,
+    heading_fgs,
+    resolved_fg(M._todo_active_link)
+  )
+
   -- Inline markup faces: explicit bold/italic/etc. defaults so
   -- *bold*, /italic/, _underline_, +strike+ visually render with the
   -- attribute even when the user's colorscheme didn't style
@@ -221,32 +295,32 @@ function M.register()
   vim.api.nvim_set_hl(
     0,
     "@org.todo.active",
-    { link = TODO_DEFAULT_ACTIVE, default = true, bold = true }
+    { link = M._todo_active_link, default = true, bold = true }
   )
   vim.api.nvim_set_hl(
     0,
     "@org.todo.done",
-    { link = TODO_DEFAULT_DONE, default = true, bold = true }
+    { link = M._todo_done_link, default = true, bold = true }
   )
   for _, kw in ipairs(DEFAULT_TODO_KEYWORDS.active) do
     vim.api.nvim_set_hl(
       0,
       "@org.todo." .. kw:lower(),
-      { link = TODO_DEFAULT_ACTIVE, default = true, bold = true }
+      { link = M._todo_active_link, default = true, bold = true }
     )
   end
   for _, kw in ipairs(DEFAULT_TODO_KEYWORDS.done) do
     vim.api.nvim_set_hl(
       0,
       "@org.todo." .. kw:lower(),
-      { link = TODO_DEFAULT_DONE, default = true, bold = true }
+      { link = M._todo_done_link, default = true, bold = true }
     )
   end
 end
 
 -- Register per-keyword TODO groups derived from config.todo.sequence.
--- Active states (before `|`) link to TODO_DEFAULT_ACTIVE; done states
--- (after `|`) link to TODO_DEFAULT_DONE.
+-- Active states (before `|`) use the collision-free active link chosen by
+-- register(); done states (after `|`) use the done link.
 function M.register_todo_keywords(sequence_or_sequences)
   local sequences = require("organ.todo")._normalise_sequences(sequence_or_sequences or {})
   for _, seq in ipairs(sequences) do
@@ -255,7 +329,7 @@ function M.register_todo_keywords(sequence_or_sequences)
       if k == "|" then
         in_done = true
       else
-        local link = in_done and TODO_DEFAULT_DONE or TODO_DEFAULT_ACTIVE
+        local link = in_done and M._todo_done_link or M._todo_active_link
         vim.api.nvim_set_hl(
           0,
           "@org.todo." .. k:lower(),

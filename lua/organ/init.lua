@@ -959,6 +959,14 @@ function M.setup(opts)
     row_chunk = M.config.row_chunk,
   })
   local group = vim.api.nvim_create_augroup("organ", { clear = true })
+  -- Re-derive highlight links whenever the colorscheme changes, so the
+  -- progressive-enhancement heading links AND the TODO/heading
+  -- collision-avoidance track the new palette instead of staying pinned
+  -- to whatever was active at setup() time.
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = group,
+    callback = setup_highlights,
+  })
   setup_watcher(group)
   setup_autocmds(group)
   setup_scan_startup(group)
