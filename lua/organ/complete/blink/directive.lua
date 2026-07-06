@@ -26,6 +26,8 @@ function M:get_completions(_ctx, callback)
     out[#out + 1] = {
       label = it.label,
       insertText = it.insertText,
+      -- Block openers are LSP snippets (${1:...} / $0); 2 = Snippet.
+      insertTextFormat = it.snippet and 2 or 1,
       filterText = it.filterText,
       kind = it.kind or "Keyword",
       detail = it.detail,

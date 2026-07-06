@@ -96,12 +96,15 @@ local function make_simple(spec)
       callback({ items = {} })
       return
     end
-    local kind = require("cmp").lsp.CompletionItemKind[spec.kind_name]
+    local lsp = require("cmp").lsp
+    local kind = lsp.CompletionItemKind[spec.kind_name]
     local items = {}
     for _, it in ipairs(mod.completion_items(p)) do
       items[#items + 1] = {
         label = it.label,
         insertText = it.insertText,
+        -- Block openers carry ${1:...} / $0 snippet syntax.
+        insertTextFormat = it.snippet and lsp.InsertTextFormat.Snippet or nil,
         filterText = it.filterText,
         detail = it.detail,
         kind = kind,

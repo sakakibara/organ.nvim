@@ -378,10 +378,13 @@ handlers["textDocument/completion"] = function(params)
   local col = params.position.character
   local items = {}
 
-  local function add(label, insert, kind, detail, filter)
+  -- `snippet` marks `insert` as LSP snippet syntax (${1:...} / $0) so the
+  -- client expands tab stops; omitted -> plain text (insertTextFormat 1).
+  local function add(label, insert, kind, detail, filter, snippet)
     items[#items + 1] = {
       label = label,
       insertText = insert,
+      insertTextFormat = snippet and 2 or 1,
       filterText = filter or label,
       kind = kind,
       detail = detail,
@@ -414,7 +417,8 @@ handlers["textDocument/completion"] = function(params)
         it.insertText,
         it.kind == "Snippet" and KIND.Constructor or KIND.Keyword,
         it.detail,
-        it.filterText
+        it.filterText,
+        it.snippet
       )
     end
   end

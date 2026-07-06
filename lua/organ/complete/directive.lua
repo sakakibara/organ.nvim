@@ -86,15 +86,20 @@ function M.completion_items(partial)
       or d.name:upper():find(q_upper, 1, true) == 1
       or d.name:lower():find(q_lower, 1, true) == 1
     then
-      local insert
+      local insert, snippet
       if d.block then
-        -- begin_src / begin_quote / etc. — emit the opener AND the
-        -- matching closer with a blank body line in between. Cursor
-        -- ends up on the body line after insertion (caller responsibility).
-        if d.block == "src" or d.block == "export" then
-          insert = string.format("%s ", d.name)
+        -- begin_src / begin_quote / etc. -- emit the opener, the matching
+        -- closer, and a body tab stop as an LSP snippet ($0 = cursor).
+        -- src / export take a language / backend argument first (${1:...}),
+        -- so completing the opener no longer leaves the closer for the user
+        -- to remember.
+        snippet = true
+        if d.block == "src" then
+          insert = string.format("%s ${1:language}\n$0\n#+end_%s", d.name, d.block)
+        elseif d.block == "export" then
+          insert = string.format("%s ${1:backend}\n$0\n#+end_%s", d.name, d.block)
         else
-          insert = string.format("%s\n\n#+end_%s", d.name, d.block)
+          insert = string.format("%s\n$0\n#+end_%s", d.name, d.block)
         end
       else
         insert = d.name .. d.suffix
@@ -105,6 +110,7 @@ function M.completion_items(partial)
         filterText = d.name,
         kind = d.block and "Snippet" or "Keyword",
         detail = d.doc,
+        snippet = snippet,
       }
     end
   end

@@ -130,13 +130,46 @@ with_buffer({ "#+begin_s" }, function(b)
   local p = dir.cursor_partial(b, 1, 9)
   check("directive: 'begin_s' partial", p == "begin_s")
   local items = dir.completion_items(p)
-  local has_src = false
+  local src
   for _, it in ipairs(items) do
     if it.label == "#+begin_src" then
-      has_src = true
+      src = it
     end
   end
-  check("directive: begin_src among matches", has_src)
+  check("directive: begin_src among matches", src ~= nil)
+  -- begin_src is now a snippet that INCLUDES the closer + a language tab stop.
+  check("directive: begin_src is a snippet", src and src.snippet == true)
+  check(
+    "directive: begin_src insert has the closer",
+    src and src.insertText:find("#+end_src", 1, true) ~= nil,
+    src and src.insertText
+  )
+  check(
+    "directive: begin_src insert has a language tab stop",
+    src and src.insertText:find("${1:language}", 1, true) ~= nil,
+    src and src.insertText
+  )
+  check(
+    "directive: begin_src insert has a body cursor stop",
+    src and src.insertText:find("$0", 1, true) ~= nil
+  )
+end)
+
+-- Argument-less blocks are snippets too, closer included, no ${1}.
+with_buffer({ "#+begin_q" }, function(b)
+  local p = dir.cursor_partial(b, 1, 9)
+  local quote
+  for _, it in ipairs(dir.completion_items(p)) do
+    if it.label == "#+begin_quote" then
+      quote = it
+    end
+  end
+  check("directive: begin_quote is a snippet", quote and quote.snippet == true)
+  check(
+    "directive: begin_quote closer included",
+    quote and quote.insertText:find("#+end_quote", 1, true) ~= nil,
+    quote and quote.insertText
+  )
 end)
 
 with_buffer({ "regular text" }, function(b)
