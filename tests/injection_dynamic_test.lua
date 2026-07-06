@@ -56,7 +56,11 @@ do
       only_org = false
     end
   end
-  check("unknown language injects nothing (graceful)", only_org, "saw: " .. vim.inspect(vim.tbl_keys(seen)))
+  check(
+    "unknown language injects nothing (graceful)",
+    only_org,
+    "saw: " .. vim.inspect(vim.tbl_keys(seen))
+  )
 end
 
 -- Alias registration: org-babel spellings map to the parser name.
