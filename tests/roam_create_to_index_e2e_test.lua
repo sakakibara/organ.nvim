@@ -1,9 +1,9 @@
--- E2E: roam.create_node → file written under roam_dir → indexer picks up
--- → query.get_by_id resolves the new ID → query.headlines lists the node.
+-- E2E: roam.create_node opens an unsaved node → save writes it under
+-- roam_dir → indexer picks up → query.files lists it → query.get_by_id.
 --
--- Catches the bug class where create_node writes directly to disk but
--- subsequent operations (insert link, follow link, backlinks) can't find
--- the node because it was never indexed.
+-- Catches the bug class where a saved roam node can't be found by
+-- subsequent operations (insert link, follow link, backlinks) because it
+-- was never indexed.
 --
 -- Run via: nvim --headless -l tests/roam_create_to_index_e2e_test.lua
 
@@ -56,9 +56,10 @@ local function check(label, ok, detail)
   end
 end
 
--- Create the node.
+-- Create the node -- it opens unsaved; write it to reach disk.
 local roam = require("organ.roam")
 roam.create_node("Project Atlas")
+vim.cmd("write")
 
 local matches = vim.fn.glob(roam_dir .. "/*-project_atlas.org", false, true)
 local expected_file = matches[1] or ""

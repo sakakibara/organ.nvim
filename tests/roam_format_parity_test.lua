@@ -88,13 +88,13 @@ local function setup(extra)
   return tmp, tmp .. "/roam"
 end
 
--- 4. Node file: exact 4-line header, default id is v7, no trailing blank.
+-- 4. Node buffer: exact 4-line header, default id is v7, no trailing blank.
+--    A new node opens unsaved, so the content lives in the buffer.
 do
-  local _, dir = setup()
+  setup()
   require("organ.roam").create_node("Hello World!")
-  local path = vim.fn.glob(dir .. "/*-hello_world.org", false, true)[1]
-  local lines = vim.fn.readfile(path)
-  check("node: :PROPERTIES: first", lines[1] == ":PROPERTIES:", path)
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  check("node: :PROPERTIES: first", lines[1] == ":PROPERTIES:", lines[1])
   check(
     "node: :ID: 7-space + v7",
     (lines[2] or ""):match("^:ID:       " .. V7:sub(2)) ~= nil,
@@ -127,10 +127,9 @@ end
 
 -- 6. Node with links.id_method = "uuidv4" -> an Emacs-default-shaped id.
 do
-  local _, dir = setup({ links = { id_method = "uuidv4" } })
+  setup({ links = { id_method = "uuidv4" } })
   require("organ.roam").create_node("V Four")
-  local path = vim.fn.glob(dir .. "/*-v_four.org", false, true)[1]
-  local id = vim.fn.readfile(path)[2]:match("^:ID:%s+(%S+)")
+  local id = (vim.api.nvim_buf_get_lines(0, 1, 2, false)[1] or ""):match("^:ID:%s+(%S+)")
   check("node uuidv4: id is v4 shape", (id or ""):match(V4) ~= nil, id)
 end
 

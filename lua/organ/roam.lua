@@ -12,7 +12,6 @@ function M.create_node(title)
   title = title:gsub("^%s+", ""):gsub("%s+$", "")
   local cfg = require("organ.buf_config").read(nil, "roam") or {}
   local dir = cfg.dir or vim.fn.expand("~/org/roam")
-  vim.fn.mkdir(dir, "p")
   local slug = slugify(title)
 
   local fname
@@ -67,17 +66,10 @@ function M.create_node(title)
     body = default_body
   end
 
-  local ok, werr = require("organ.path").write_atomic(full, table.concat(body, "\n") .. "\n")
-  if not ok then
-    require("organ.notify").error("organ: failed to write " .. full .. ": " .. tostring(werr))
-    return
-  end
-
-  vim.cmd("edit " .. vim.fn.fnameescape(full))
-  -- Land at the end of the last header line (the title for the default
-  -- node, mirroring where org-roam leaves point after the capture head).
-  local last = #body
-  vim.api.nvim_win_set_cursor(0, { last, #(body[last] or "") })
+  -- A brand-new node opens unsaved and becomes a file only on write, so
+  -- creating a node and quitting without typing leaves nothing on disk --
+  -- the same treatment daily notes get.  See organ.roam.note.open_unsaved.
+  require("organ.roam.note").open_unsaved(full, body)
 end
 
 local function capture_ctx()

@@ -143,9 +143,9 @@ do
     watcher = { enabled = false },
     roam = { dir = tmp .. "/roam" },
   })
+  -- A new node opens unsaved, so its seeded content lives in the buffer.
   require("organ.roam").create_node("Fixpoint Note")
-  local path = vim.fn.glob(tmp .. "/roam/*-fixpoint_note.org", false, true)[1]
-  local lines = vim.fn.readfile(path)
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local formatted = fmt.format_lines(vim.deepcopy(lines))
   local same = #trim_trailing_blank(lines) == #trim_trailing_blank(formatted)
   if same then

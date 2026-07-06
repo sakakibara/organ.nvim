@@ -1,6 +1,7 @@
--- roam.create_node(title) writes a file at <dir>/<YYYYMMDDHHMMSS>-<slug>.org
--- (matching Emacs org-roam's default capture template) with :ID:, #+title:,
--- and the cursor positioned at the trailing blank line. Honors file_template.
+-- roam.create_node(title) opens an unsaved buffer for
+-- <dir>/<YYYYMMDDHHMMSS>-<slug>.org (matching Emacs org-roam's default
+-- capture name) seeded with :ID:, #+title:, cursor at the trailing blank
+-- line; the file reaches disk only on write. Honors file_template.
 -- Run via: nvim --headless -l tests/roam_create_test.lua
 
 local root = vim.fn.getcwd()
@@ -23,7 +24,10 @@ require("organ").setup({
 local roam = require("organ.roam")
 
 -- Default file path: <roam_dir>/<YYYYMMDDHHMMSS>-<slug>.org
+-- A fresh node opens unsaved; write it so the on-disk assertions below apply.
 roam.create_node("Hello World!")
+assert(vim.bo.modified, "fresh node should open as an unsaved buffer")
+vim.cmd("write")
 local matches = vim.fn.glob(roam_dir .. "/*-hello_world.org", false, true)
 assert(
   #matches == 1,
@@ -92,6 +96,7 @@ require("organ").setup({
   },
 })
 roam.create_node("Override Me")
+vim.cmd("write")
 assert(
   vim.loop.fs_stat(roam_dir .. "/custom-override_me.org"),
   "expected file_template override path"

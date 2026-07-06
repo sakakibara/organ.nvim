@@ -1645,7 +1645,10 @@ Roam                                                          *organ-cmd-roam*
 
 *:Org-roam*
     `:Org roam`
-    Find a roam node (create on no match).
+    Find a roam node, or create one on no match. A newly created node
+    opens as an unsaved buffer and becomes a file only when written, so
+    creating a node and quitting without typing leaves nothing on disk
+    (the same treatment daily notes get, |:Org-roam_daily_today|).
 
 *:Org-roam_insert*
     `:Org roam insert`
