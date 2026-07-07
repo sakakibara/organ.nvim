@@ -14,6 +14,10 @@ local GLYPHS = {
   ["pill.cap.right"] = { nerd = vim.fn.nr2char(0xe0b4), ascii = "" },
   ["priority.flag"] = { nerd = vim.fn.nr2char(0xf024), ascii = "!" },
   ["tag.sep"] = { nerd = vim.fn.nr2char(0x00b7), ascii = vim.fn.nr2char(0x00b7) },
+  ["cookie.bar.left"] = { nerd = vim.fn.nr2char(0x2590), ascii = "[" },
+  ["cookie.bar.right"] = { nerd = vim.fn.nr2char(0x258c), ascii = "]" },
+  ["cookie.bar.fill"] = { nerd = vim.fn.nr2char(0x2593), ascii = "#" },
+  ["cookie.bar.track"] = { nerd = vim.fn.nr2char(0x2591), ascii = "-" },
 }
 
 M._GLYPHS = GLYPHS

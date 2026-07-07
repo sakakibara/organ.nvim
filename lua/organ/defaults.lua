@@ -733,6 +733,10 @@ return {
     -- Tags: `:work:client:` concealed inline and re-emitted rightmost in
     -- the metadata column as a muted `work . client` run.
     tags = false,
+    -- Statistics / progress cookies: `[1/3]` or `[33%]` concealed inline
+    -- and re-emitted in the metadata column as a mini progress bar +
+    -- fraction, gradient-colored by completion. Table form: { bar_width }.
+    cookies = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
