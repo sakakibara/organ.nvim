@@ -3582,16 +3582,23 @@ runner (no persistence).
 ==============================================================================
 ORG-MODERN VISUAL UPGRADES                                      *organ-modern*
 
-Four composable visual stages that decorate org buffers, all opt-in: >lua
+Composable visual stages that decorate org buffers, all opt-in: >lua
     require("organ").setup({
       modern = {
-        bullets = true,    -- per-level glyphs
-        blocks  = true,    -- block-frame decoration
-        pills   = true,    -- TODO + timestamp pills
-        table   = true,    -- pipe-table conceal + virtual borders
+        bullets  = true,   -- per-level glyphs
+        blocks   = true,   -- block-frame decoration
+        pills    = true,   -- TODO + timestamp pills
+        priority = true,   -- [#A] -> right-column flag + rank
+        tags     = true,   -- :work:client: -> right-column run
+        cookies  = true,   -- [1/3]/[33%] -> right-column progress bar
+        table    = true,   -- pipe-table conceal + virtual borders
       },
     })
 <
+Priority, tags, and cookies share a right-aligned metadata column to the
+right of the headline, composed in a fixed left-to-right order (priority,
+cookies, tags) so multiple items on one line never fight over spacing.
+
                                                         *organ-modern-bullets*
 `bullets` — replaces the trailing `*` of each headline with a level-
 indexed glyph (◉ ○ ◈ ◇ default cycle, repeats for deeper levels) and
@@ -3641,6 +3648,26 @@ Override form: >lua
       },
     }
 <
+                                                       *organ-modern-priority*
+`priority` — a headline priority cookie `[#A]` is concealed in the buffer
+and re-emitted in the right-aligned metadata column as a flag glyph plus
+the rank letter, colored by rank: A -> DiagnosticError, B -> DiagnosticWarn,
+C -> DiagnosticHint, lower ranks muted (Comment). ASCII fallback: `!`.
+
+                                                           *organ-modern-tags*
+`tags` — a headline's `:work:client:` tag list is concealed and re-emitted
+rightmost in the metadata column as a muted run, tags separated by a middle
+dot: `work · client`. Only the default `style = "run"` is implemented; a
+per-tag badge style is planned.
+
+                                                        *organ-modern-cookies*
+`cookies` — a statistics/progress cookie `[1/3]` or `[33%]` is concealed
+and re-emitted in the metadata column as a mini progress bar plus the
+fraction/percent, gradient-colored by completion: empty muted, partial
+DiagnosticWarn, complete DiagnosticOk. Bar width defaults to 6 cells: >lua
+    modern = { cookies = { bar_width = 8 } }
+<
+ASCII fallback renders the bar as `[##----] 1/3`.
 
 ==============================================================================
 STAR CONCEALMENT                                                 *organ-stars*
