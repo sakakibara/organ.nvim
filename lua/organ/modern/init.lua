@@ -32,6 +32,9 @@ function M.attach(bufnr)
   if bc.read(bufnr, "modern.cookies") then
     require("organ.modern.cookies").attach(bufnr)
   end
+  if bc.read(bufnr, "modern.checkboxes") then
+    require("organ.modern.checkboxes").attach(bufnr)
+  end
   if bc.read(bufnr, "modern.table") then
     require("organ.modern.table").attach(bufnr)
   end
@@ -39,7 +42,7 @@ end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "table" }) do
+  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "checkboxes", "table" }) do
     pcall(function()
       require("organ.modern." .. sub).detach(bufnr)
     end)

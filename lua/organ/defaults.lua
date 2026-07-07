@@ -737,6 +737,10 @@ return {
     -- and re-emitted in the metadata column as a mini progress bar +
     -- fraction, gradient-colored by completion. Table form: { bar_width }.
     cookies = false,
+    -- Checkboxes: `- [ ]`/`[X]`/`[-]` conceal to a single-cell state icon
+    -- (nerd) or color the raw box (ascii): unchecked Comment, checked
+    -- DiagnosticOk, partial DiagnosticWarn.
+    checkboxes = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org

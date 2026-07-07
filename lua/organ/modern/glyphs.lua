@@ -18,6 +18,9 @@ local GLYPHS = {
   ["cookie.bar.right"] = { nerd = vim.fn.nr2char(0x258c), ascii = "]" },
   ["cookie.bar.fill"] = { nerd = vim.fn.nr2char(0x2593), ascii = "#" },
   ["cookie.bar.track"] = { nerd = vim.fn.nr2char(0x2591), ascii = "-" },
+  ["checkbox.empty"] = { nerd = vim.fn.nr2char(0xf096), ascii = "" },
+  ["checkbox.checked"] = { nerd = vim.fn.nr2char(0xf046), ascii = "" },
+  ["checkbox.partial"] = { nerd = vim.fn.nr2char(0xf146), ascii = "" },
 }
 
 M._GLYPHS = GLYPHS
