@@ -21,6 +21,7 @@ local GLYPHS = {
   ["checkbox.empty"] = { nerd = vim.fn.nr2char(0xf096), ascii = "" },
   ["checkbox.checked"] = { nerd = vim.fn.nr2char(0xf046), ascii = "" },
   ["checkbox.partial"] = { nerd = vim.fn.nr2char(0xf146), ascii = "" },
+  ["list.bullet"] = { nerd = vim.fn.nr2char(0x2022), ascii = vim.fn.nr2char(0x2022) },
 }
 
 M._GLYPHS = GLYPHS
