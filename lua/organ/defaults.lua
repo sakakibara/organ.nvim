@@ -726,6 +726,10 @@ return {
     -- half-circles.  `false` -> box pills (no caps, no Nerd Font needed);
     -- `{ left = "…", right = "…" }` -> custom cap glyphs.
     pill_caps = nil,
+    -- Priority cookies: `[#A]` concealed inline and re-emitted in the
+    -- right-aligned metadata column as a flag glyph + rank letter, colored
+    -- by rank (A -> error, B -> warn, C -> hint, lower -> muted).
+    priority = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
