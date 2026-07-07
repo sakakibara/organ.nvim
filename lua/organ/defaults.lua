@@ -730,6 +730,9 @@ return {
     -- right-aligned metadata column as a flag glyph + rank letter, colored
     -- by rank (A -> error, B -> warn, C -> hint, lower -> muted).
     priority = false,
+    -- Tags: `:work:client:` concealed inline and re-emitted rightmost in
+    -- the metadata column as a muted `work . client` run.
+    tags = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org

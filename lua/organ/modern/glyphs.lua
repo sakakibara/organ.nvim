@@ -13,6 +13,7 @@ local GLYPHS = {
   ["pill.cap.left"] = { nerd = vim.fn.nr2char(0xe0b6), ascii = "" },
   ["pill.cap.right"] = { nerd = vim.fn.nr2char(0xe0b4), ascii = "" },
   ["priority.flag"] = { nerd = vim.fn.nr2char(0xf024), ascii = "!" },
+  ["tag.sep"] = { nerd = vim.fn.nr2char(0x00b7), ascii = vim.fn.nr2char(0x00b7) },
 }
 
 M._GLYPHS = GLYPHS
