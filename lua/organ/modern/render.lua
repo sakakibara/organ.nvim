@@ -20,6 +20,15 @@ M.ns = NS
 -- name -> render(bufnr, top, bot)
 local renderers = {}
 
+-- Post-render hooks: run once per refresh, AFTER every element renderer.
+-- The right-align composer (layout.lua) flushes here so all elements have
+-- contributed their segments before the single right_align mark is placed.
+local after_hooks = {}
+
+function M.after(fn)
+  after_hooks[#after_hooks + 1] = fn
+end
+
 -- bufnr -> augroup id (attached buffers)
 local groups = {}
 -- bufnr -> debounce timer
@@ -54,6 +63,9 @@ local function do_refresh(bufnr)
   end
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   for _, fn in pairs(renderers) do
+    pcall(fn, bufnr, top, bot)
+  end
+  for _, fn in ipairs(after_hooks) do
     pcall(fn, bufnr, top, bot)
   end
 end
