@@ -1,10 +1,8 @@
--- Regression: #match? predicates auto-prepend `\v` (very-magic) in
--- nvim treesitter; in that mode end-of-word is bare `>`, not `\b`
--- or `\>`.  Patterns using `\b` (bash, javascript, typescript, go,
--- c, cpp, java, html, kotlin, R, dot, dockerfile, makefile) were
--- silently failing — only languages with no boundary (lua, python,
--- rust, ruby, etc.) injected.  Verify by checking that bash gets
--- a language tree on a `#+begin_src bash` block.
+-- A `#+begin_src LANG` block injects the tree-sitter parser named by LANG.
+-- The injection query uses the raw language token; org-babel spellings that
+-- differ from the parser name (sh/shell/zsh -> bash, emacs-lisp -> elisp,
+-- ...) resolve through the aliases organ registers in `organ.ts_lang`. This
+-- verifies a native token (bash) and an aliased token (sh) both inject bash.
 --
 -- Run via: nvim --headless -l tests/injection_src_block_lang_test.lua
 
@@ -12,6 +10,9 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
 vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
+-- Register the org-babel language aliases (sh -> bash, ...) the same way
+-- organ.setup() does, so aliased tokens resolve to their parser.
+require("organ.ts_lang").register()
 
 local function try_lang(name)
   local files = vim.api.nvim_get_runtime_file("parser/" .. name .. ".so", true)
