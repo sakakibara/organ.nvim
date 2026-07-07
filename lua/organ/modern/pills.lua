@@ -1,9 +1,9 @@
--- TODO + timestamp pills (org-modern's inverse-video style, terminal-first).
+-- TODO keyword pills (org-modern's inverse-video style, terminal-first).
 --
 -- A TODO/state keyword renders as a rounded badge: the keyword bytes get a
 -- reversed body (semantic bucket color) plus Nerd Font half-circle caps
 -- inserted inline at the keyword boundaries, so the badge is spaced from
--- the bullet and the title. Timestamps get the reversed body only (a box).
+-- the bullet and the title. Timestamps are rendered by organ.modern.dates.
 --
 -- Rendered through `organ.modern.render` (the persistent-extmark engine),
 -- NOT the ephemeral decoration provider: the caps are inline virt_text,
@@ -34,7 +34,6 @@ local function register_pill_highlights()
   for _, kw in ipairs(PILL_KEYWORDS) do
     badge.groups("pill." .. kw, "@org.todo." .. kw)
   end
-  badge.groups("pill.timestamp", "@org.timestamp")
 end
 
 -- Pill hl groups depend on live colors; re-derive lazily so a ColorScheme
@@ -64,34 +63,12 @@ local function get_headline_query()
     "org",
     [[
       (headline_line todo: (todo) @kw)
-      (headline_line title: (title) @title)
     ]]
   )
   if ok then
     _q_headline = parsed
   end
   return _q_headline
-end
-
-local _q_timestamp
-local function get_timestamp_query()
-  if _q_timestamp then
-    return _q_timestamp
-  end
-  local ok, parsed = pcall(
-    vim.treesitter.query.parse,
-    "org_inline",
-    [[
-      (timestamp_active) @ts
-      (timestamp_inactive) @ts
-      (timestamp_range_active) @ts
-      (timestamp_range_inactive) @ts
-    ]]
-  )
-  if ok then
-    _q_timestamp = parsed
-  end
-  return _q_timestamp
 end
 
 local function todo_keywords_set(bufnr)
@@ -125,16 +102,8 @@ local function emit_pill(bufnr, row, sc, ec, kw_lower)
   })
 end
 
-local function emit_timestamp(bufnr, row, sc, ec)
-  require("organ.modern.badge").emit(require("organ.modern.render").ns, bufnr, row, sc, ec, {
-    body_hl = "@organ.modern.badge.pill.timestamp",
-    left_cap = "",
-    right_cap = "",
-  })
-end
-
--- Engine renderer: place pill marks for headline TODO keywords and
--- timestamps in the [top, bot) row range. Self-gates on modern.pills.
+-- Engine renderer: place pill marks for headline TODO keywords in the
+-- [top, bot) row range. Self-gates on modern.pills.
 local function render(bufnr, top, bot)
   if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= "org" then
     return
@@ -156,47 +125,15 @@ local function render(bufnr, top, bot)
   local kw_set = todo_keywords_set(bufnr)
   local q = get_headline_query()
   if q then
-    for id, node in q:iter_captures(tree:root(), bufnr, top, bot) do
-      local cap = q.captures[id]
+    for _, node in q:iter_captures(tree:root(), bufnr, top, bot) do
       local sr, sc, er, ec = node:range()
-      if cap == "kw" and sr == er then
+      if sr == er then
         local ok_text, text = pcall(vim.treesitter.get_node_text, node, bufnr)
         if ok_text and type(text) == "string" and kw_set[text] then
           emit_pill(bufnr, sr, sc, ec, text:lower())
         end
-      elseif cap == "title" and sr == er then
-        -- Inline grammar isn't injected into headline titles, so scan the
-        -- title node bytes for timestamp shapes (bounded to the title).
-        local ok_text, text = pcall(vim.treesitter.get_node_text, node, bufnr)
-        if ok_text and type(text) == "string" then
-          for s, e in text:gmatch("()<%d%d%d%d%-%d%d%-%d%d[^<>\n]*>()") do
-            emit_timestamp(bufnr, sr, sc + s - 1, sc + e - 1)
-          end
-          for s, e in text:gmatch("()%[%d%d%d%d%-%d%d%-%d%d[^%[%]\n]*%]()") do
-            emit_timestamp(bufnr, sr, sc + s - 1, sc + e - 1)
-          end
-        end
       end
     end
-  end
-
-  local qt = get_timestamp_query()
-  if qt then
-    parser:for_each_tree(function(itree, ltree)
-      if ltree:lang() ~= "org_inline" then
-        return
-      end
-      local rsr, _, rer, _ = itree:root():range()
-      if rer < top or rsr > bot then
-        return
-      end
-      for _, node in qt:iter_captures(itree:root(), bufnr, top, bot) do
-        local sr, sc, er, ec = node:range()
-        if sr == er then
-          emit_timestamp(bufnr, sr, sc, ec)
-        end
-      end
-    end)
   end
 end
 

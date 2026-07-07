@@ -744,6 +744,11 @@ return {
     -- Plain list bullets: `-`/`+` conceal to a single-cell `•` (colored via
     -- @org.list.bullet). Ordered bullets (1./1)) are left as-is.
     list_bullets = false,
+    -- Dates: `<...>`/`[...]` timestamps conceal their brackets, gain a
+    -- calendar (or clock, if timed) glyph, and mute the date text; active
+    -- `<>` reads brighter than inactive `[]`. Replaces the pills timestamp
+    -- box (enable modern.dates for timestamp rendering).
+    dates = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org

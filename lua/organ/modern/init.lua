@@ -38,6 +38,9 @@ function M.attach(bufnr)
   if bc.read(bufnr, "modern.list_bullets") then
     require("organ.modern.list_bullets").attach(bufnr)
   end
+  if bc.read(bufnr, "modern.dates") then
+    require("organ.modern.dates").attach(bufnr)
+  end
   if bc.read(bufnr, "modern.table") then
     require("organ.modern.table").attach(bufnr)
   end
@@ -45,7 +48,7 @@ end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "checkboxes", "list_bullets", "table" }) do
+  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "checkboxes", "list_bullets", "dates", "table" }) do
     pcall(function()
       require("organ.modern." .. sub).detach(bufnr)
     end)

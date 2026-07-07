@@ -59,12 +59,8 @@ check("row 0 (* TODO …): pill mark for TODO", mark_on(0, "pill%.todo$") ~= nil
 check("row 1 (* NEXT …): pill mark for NEXT", mark_on(1, "pill%.next$") ~= nil)
 check("row 2 (* DONE …): pill mark for DONE", mark_on(2, "pill%.done$") ~= nil)
 check(
-  "row 3 (active timestamp <…>): pill mark for timestamp",
-  mark_on(3, "pill%.timestamp$") ~= nil
-)
-check(
-  "row 4 (inactive timestamp […]): pill mark for timestamp",
-  mark_on(4, "pill%.timestamp$") ~= nil
+  "no timestamp pill marks (dates owns timestamps now)",
+  mark_on(3, "pill%.timestamp") == nil and mark_on(4, "pill%.timestamp") == nil
 )
 check("row 5 (no keyword): no pill mark", mark_on(5, "pill") == nil)
 
