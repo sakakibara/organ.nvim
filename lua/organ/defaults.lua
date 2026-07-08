@@ -752,6 +752,9 @@ return {
     -- Horizontal rule: a line of 5+ dashes renders as a dimmed `─` run
     -- spanning the window's text width.
     rule = false,
+    -- Directive lines: `#+KEYWORD:` labels (incl. affiliated #+NAME:/
+    -- #+CAPTION:) dim to a muted color; the value reads normal.
+    directives = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
