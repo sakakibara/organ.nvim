@@ -25,6 +25,7 @@ local GLYPHS = {
   ["date.calendar"] = { nerd = vim.fn.nr2char(0xf073), ascii = "" },
   ["date.clock"] = { nerd = vim.fn.nr2char(0xf017), ascii = "" },
   ["rule.line"] = { nerd = vim.fn.nr2char(0x2500), ascii = vim.fn.nr2char(0x2500) },
+  ["drawer.leaf"] = { nerd = vim.fn.nr2char(0xf105), ascii = "" },
 }
 
 M._GLYPHS = GLYPHS

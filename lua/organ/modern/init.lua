@@ -47,6 +47,9 @@ function M.attach(bufnr)
   if bc.read(bufnr, "modern.directives") then
     require("organ.modern.directives").attach(bufnr)
   end
+  if bc.read(bufnr, "modern.drawers") then
+    require("organ.modern.drawers").attach(bufnr)
+  end
   if bc.read(bufnr, "modern.table") then
     require("organ.modern.table").attach(bufnr)
   end
@@ -54,7 +57,7 @@ end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "checkboxes", "list_bullets", "dates", "rule", "directives", "table" }) do
+  for _, sub in ipairs({ "bullets", "blocks", "pills", "priority", "tags", "cookies", "checkboxes", "list_bullets", "dates", "rule", "directives", "drawers", "table" }) do
     pcall(function()
       require("organ.modern." .. sub).detach(bufnr)
     end)

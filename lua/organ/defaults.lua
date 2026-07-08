@@ -755,6 +755,9 @@ return {
     -- Directive lines: `#+KEYWORD:` labels (incl. affiliated #+NAME:/
     -- #+CAPTION:) dim to a muted color; the value reads normal.
     directives = false,
+    -- Property drawers: `:PROPERTIES:` .. `:END:` (and generic drawers) dim
+    -- to a muted color, with a collapse/leaf glyph on the header.
+    drawers = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
