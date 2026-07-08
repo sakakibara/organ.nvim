@@ -46,7 +46,7 @@ local function check(label, ok, detail)
   end
 end
 
-local NS = vim.api.nvim_get_namespaces()["organ_modern_blocks"]
+local NS = require("organ.modern.render").ns
 check("namespace registered", NS ~= nil)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })
@@ -72,13 +72,13 @@ check(
   m_begin_src and m_begin_src[4] and m_begin_src[4].virt_text ~= nil
 )
 check(
-  "begin_src virt_text contains '┌──'",
+  "begin_src virt_text contains '╭──'",
   (function()
     if not m_begin_src or not m_begin_src[4].virt_text then
       return false
     end
     for _, seg in ipairs(m_begin_src[4].virt_text) do
-      if seg[1]:find("┌──", 1, true) then
+      if seg[1]:find("╭──", 1, true) then
         return true
       end
     end
@@ -102,13 +102,13 @@ check(
 
 local m_end_src = mark_on(2)
 check(
-  "end_src virt_text contains '└──'",
+  "end_src virt_text contains '╰──'",
   (function()
     if not m_end_src or not m_end_src[4].virt_text then
       return false
     end
     for _, seg in ipairs(m_end_src[4].virt_text) do
-      if seg[1]:find("└──", 1, true) then
+      if seg[1]:find("╰──", 1, true) then
         return true
       end
     end

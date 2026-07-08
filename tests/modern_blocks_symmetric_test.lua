@@ -1,8 +1,8 @@
 -- Modern block frame: top and bottom must have the same total visual
 -- width.  Old behavior used a fixed 30-char trailing rule on both
 -- begin and end lines:
---   ┌── python ──────────────────────────────  (4 + 6 + 1 + 30 = 41 cols)
---   └──  ──────────────────────────────         (4 + 1 + 30 = 35 cols)
+--   ╭── python ──────────────────────────────  (4 + 6 + 1 + 30 = 41 cols)
+--   ╰──  ──────────────────────────────         (4 + 1 + 30 = 35 cols)
 -- The bottom was shorter by len(label) + 1.  Pairing begin/end via
 -- a kind-keyed stack lets the bottom recover the matching label
 -- width and produce a same-length rule.
@@ -21,7 +21,7 @@ require("organ").setup({
 })
 vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
 
-local NS = vim.api.nvim_create_namespace("organ_modern_blocks")
+local NS = require("organ.modern.render").ns
 
 local b = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_set_current_buf(b)

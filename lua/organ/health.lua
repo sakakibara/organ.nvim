@@ -322,9 +322,6 @@ local function check_session_state()
       if has_ns_marks("organ_modern_render") then
         on[#on + 1] = "modern (engine)"
       end
-      if has_ns_marks("organ_modern_blocks") then
-        on[#on + 1] = "blocks"
-      end
       if has_ns_marks("organ_stars_hide") then
         on[#on + 1] = "stars-hide"
       end

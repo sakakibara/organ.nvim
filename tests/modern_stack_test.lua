@@ -50,38 +50,25 @@ local function check(label, ok, detail)
   end
 end
 
-local NS = vim.api.nvim_get_namespaces()
-local ns_blocks = NS["organ_modern_blocks"]
--- Bullets and pills both render through the persistent engine, so their
--- marks share one namespace; blocks is still an ephemeral provider.
+-- Bullets, pills, and blocks all render through the persistent engine now,
+-- so their marks share one namespace.
 local ns_engine = require("organ.modern.render").ns
-
-check("engine  namespace registered", ns_engine ~= nil)
-check("blocks  namespace registered", ns_blocks ~= nil)
+check("engine namespace registered", ns_engine ~= nil)
 
 local function count_marks(ns)
   return #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {})
 end
 
-local n_engine = count_marks(ns_engine) -- bullets + pills
-local n_blocks = count_marks(ns_blocks)
+local n_engine = count_marks(ns_engine) -- bullets + pills + block frame
+-- Bullets 6 (1+2+3 stars) + pills 9 (3 kw * 3) + block frame 4
+-- (top + bottom overlay + 1 body line * 2 inline bars) = 19.
+check("engine produced bullets + pills + block marks", n_engine >= 19, "got " .. n_engine)
 
--- Bullets: 1+2+3 star-marks over the three headlines = 6.
--- Pills: 3 keyword pills * (body + 2 caps) = 9. Combined engine marks = 15.
-check("engine produced bullets + pills marks", n_engine >= 15, "got " .. n_engine)
-check(
-  "blocks produced extmarks (1 begin_src + 1 end_src + 1 body × 2 bars = 4)",
-  n_blocks == 4,
-  "got " .. n_blocks
-)
-
--- conceallevel was bumped (bullets + blocks both need it).
+-- conceallevel was bumped (the engine raises it for its conceal marks).
 check("conceallevel >= 2 after combined attach", vim.wo.conceallevel >= 2)
 
--- detach() removes marks from both namespaces.
 modern.detach(bufnr)
 check("engine cleared after combined detach", count_marks(ns_engine) == 0)
-check("blocks  cleared after combined detach", count_marks(ns_blocks) == 0)
 
 if fails > 0 then
   print()
