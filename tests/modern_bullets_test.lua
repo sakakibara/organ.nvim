@@ -43,7 +43,7 @@ local function check(label, ok, detail)
   end
 end
 
-local NS = vim.api.nvim_get_namespaces()["organ_modern_bullets"]
+local NS = require("organ.modern.render").ns
 check("namespace registered", NS ~= nil)
 
 local marks = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })
@@ -74,12 +74,13 @@ local function last_conceal(row)
   return d and d.conceal
 end
 
-check("row 0 (* Level one): bullet is ◉", last_conceal(0) == "◉")
-check("row 1 (** Level two): bullet is ○", last_conceal(1) == "○")
-check("row 2 (*** Level three): bullet is ◈", last_conceal(2) == "◈")
+local G = require("organ.modern.glyphs")
+check("row 0 (* Level one): level-1 glyph", last_conceal(0) == G.get("bullet.1", bufnr))
+check("row 1 (** Level two): level-2 glyph", last_conceal(1) == G.get("bullet.2", bufnr))
+check("row 2 (*** Level three): level-3 glyph", last_conceal(2) == G.get("bullet.3", bufnr))
 check("row 3 (body text): no bullet", last_conceal(3) == nil)
-check("row 4 (**** Level four): bullet is ◇", last_conceal(4) == "◇")
-check("row 5 (***** Level five): bullet cycles to ◉", last_conceal(5) == "◉")
+check("row 4 (**** Level four): level-4 glyph", last_conceal(4) == G.get("bullet.4", bufnr))
+check("row 5 (***** Level five): cycles to level-1 glyph", last_conceal(5) == G.get("bullet.1", bufnr))
 
 -- The bullet glyph is colored like the heading title (matches the folded
 -- foldtext bullet); the concealed leading stars carry no highlight.

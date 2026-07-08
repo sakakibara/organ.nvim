@@ -26,6 +26,10 @@ local GLYPHS = {
   ["date.clock"] = { nerd = vim.fn.nr2char(0xf017), ascii = "" },
   ["rule.line"] = { nerd = vim.fn.nr2char(0x2500), ascii = vim.fn.nr2char(0x2500) },
   ["drawer.leaf"] = { nerd = vim.fn.nr2char(0xf105), ascii = "" },
+  ["bullet.1"] = { nerd = vim.fn.nr2char(0xf111), ascii = vim.fn.nr2char(0x2022) },
+  ["bullet.2"] = { nerd = vim.fn.nr2char(0xf10c), ascii = vim.fn.nr2char(0x2022) },
+  ["bullet.3"] = { nerd = vim.fn.nr2char(0xf192), ascii = vim.fn.nr2char(0x2022) },
+  ["bullet.4"] = { nerd = vim.fn.nr2char(0xf1db), ascii = vim.fn.nr2char(0x2022) },
 }
 
 M._GLYPHS = GLYPHS

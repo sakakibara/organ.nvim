@@ -51,48 +51,37 @@ local function check(label, ok, detail)
 end
 
 local NS = vim.api.nvim_get_namespaces()
-local ns_bullets = NS["organ_modern_bullets"]
 local ns_blocks = NS["organ_modern_blocks"]
--- Pills render through the persistent engine (organ_modern_render), not the
--- ephemeral decoration provider, so their marks live in the engine namespace.
-local ns_pills = require("organ.modern.render").ns
+-- Bullets and pills both render through the persistent engine, so their
+-- marks share one namespace; blocks is still an ephemeral provider.
+local ns_engine = require("organ.modern.render").ns
 
-check("bullets namespace registered", ns_bullets ~= nil)
+check("engine  namespace registered", ns_engine ~= nil)
 check("blocks  namespace registered", ns_blocks ~= nil)
-check("pills   namespace registered", ns_pills ~= nil)
 
 local function count_marks(ns)
   return #vim.api.nvim_buf_get_extmarks(bufnr, ns, 0, -1, {})
 end
 
--- Each stage independently produces its own marks; combined attach
--- should produce > 0 marks per namespace.
-local n_bullets = count_marks(ns_bullets)
+local n_engine = count_marks(ns_engine) -- bullets + pills
 local n_blocks = count_marks(ns_blocks)
-local n_pills = count_marks(ns_pills)
 
-check(
-  "bullets produced extmarks (3 headlines × 1+ marks each)",
-  n_bullets >= 6,
-  "got " .. n_bullets
-)
+-- Bullets: 1+2+3 star-marks over the three headlines = 6.
+-- Pills: 3 keyword pills * (body + 2 caps) = 9. Combined engine marks = 15.
+check("engine produced bullets + pills marks", n_engine >= 15, "got " .. n_engine)
 check(
   "blocks produced extmarks (1 begin_src + 1 end_src + 1 body × 2 bars = 4)",
   n_blocks == 4,
   "got " .. n_blocks
 )
--- Each keyword pill is a body + two rounded caps (3 marks); timestamps now
--- render via the dates element, not pills.  3 keywords * 3 = 9.
-check("pills produced extmarks (3 TODO kw pills)", n_pills == 9, "got " .. n_pills)
 
 -- conceallevel was bumped (bullets + blocks both need it).
 check("conceallevel >= 2 after combined attach", vim.wo.conceallevel >= 2)
 
--- detach() removes ALL three.
+-- detach() removes marks from both namespaces.
 modern.detach(bufnr)
-check("bullets cleared after combined detach", count_marks(ns_bullets) == 0)
+check("engine cleared after combined detach", count_marks(ns_engine) == 0)
 check("blocks  cleared after combined detach", count_marks(ns_blocks) == 0)
-check("pills   cleared after combined detach", count_marks(ns_pills) == 0)
 
 if fails > 0 then
   print()

@@ -12,6 +12,10 @@ require("organ").setup({})
 
 local fold = require("organ.fold")
 
+local G = require("organ.modern.glyphs")
+local g1 = G.get("bullet.1") -- nerd (modern.nerd_font defaults true)
+local g3 = G.get("bullet.3")
+
 local fails = 0
 local function check(label, ok, detail)
   if ok then
@@ -49,13 +53,13 @@ end
 --    raw stars.
 do
   local t = foldtext_of({ "*** Deep", "body 1", "body 2" }, 1, 3, "modern.bullets", true)
-  check("modern.bullets folded shows glyph, no raw stars", t == "  ◈ Deep…", "[" .. t .. "]")
+  check("modern.bullets folded shows glyph, no raw stars", t == "  " .. g3 .. " Deep…", "[" .. t .. "]")
 end
 
 -- 2. modern.bullets level 1 shows the first glyph, no leading spaces.
 do
   local t = foldtext_of({ "* Top", "body" }, 1, 2, "modern.bullets", true)
-  check("modern.bullets level-1 folded shows first glyph", t == "◉ Top…", "[" .. t .. "]")
+  check("modern.bullets level-1 folded shows first glyph", t == g1 .. " Top…", "[" .. t .. "]")
 end
 
 -- 3. stars.hide: a folded deep heading shows (level-1) spaces + one star.
@@ -82,7 +86,7 @@ do
   local t = foldtext_of({ "* Foo :work:", "body" }, 1, 2, "modern.bullets", true)
   check(
     "modern.bullets folded keeps tags",
-    t:match("^◉ Foo") ~= nil and t:match(":work:$") ~= nil,
+    t:match("^" .. vim.pesc(g1) .. " Foo") ~= nil and t:match(":work:$") ~= nil,
     "[" .. t .. "]"
   )
 end
