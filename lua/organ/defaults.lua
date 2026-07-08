@@ -733,7 +733,9 @@ return {
     -- by rank (A -> error, B -> warn, C -> hint, lower -> muted).
     priority = false,
     -- Tags: `:work:client:` concealed inline and re-emitted rightmost in
-    -- the metadata column as a muted `work . client` run.
+    -- the metadata column. Table form `{ style = "run" | "badge" }`: "run"
+    -- (default) is a muted `work . client` run; "badge" wraps each tag in
+    -- guillemets (`‹work› ‹client›`).
     tags = false,
     -- Statistics / progress cookies: `[1/3]` or `[33%]` concealed inline
     -- and re-emitted in the metadata column as a mini progress bar +

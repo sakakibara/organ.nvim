@@ -65,7 +65,12 @@ local function render(bufnr, top, bot)
 
   local ns = require("organ.modern.render").ns
   local layout = require("organ.modern.layout")
-  local sep = require("organ.modern.glyphs").get("tag.sep", bufnr)
+  local glyphs = require("organ.modern.glyphs")
+  local cfg = require("organ.buf_config").read(bufnr, "modern.tags")
+  local badge = type(cfg) == "table" and cfg.style == "badge"
+  local sep = glyphs.get("tag.sep", bufnr)
+  local bl = glyphs.get("tag.badge.left", bufnr)
+  local br = glyphs.get("tag.badge.right", bufnr)
 
   for _, node in q:iter_captures(tree:root(), bufnr, top, bot) do
     local sr, sc, er, ec = node:range()
@@ -83,13 +88,14 @@ local function render(bufnr, top, bot)
             conceal = "",
             priority = 200,
           })
-          -- Build the muted run "a <sep> b <sep> c".
+          -- Muted run "a <sep> b" (default) or badges "<a> <b>".
           local chunks = {}
           for i, name in ipairs(names) do
             if i > 1 then
-              chunks[#chunks + 1] = { " " .. sep .. " ", "@organ.modern.tag" }
+              chunks[#chunks + 1] = { badge and " " or (" " .. sep .. " "), "@organ.modern.tag" }
             end
-            chunks[#chunks + 1] = { name, "@organ.modern.tag" }
+            local label = badge and (bl .. name .. br) or name
+            chunks[#chunks + 1] = { label, "@organ.modern.tag" }
           end
           layout.add(bufnr, sr, layout.SLOT.tags, chunks)
         end
