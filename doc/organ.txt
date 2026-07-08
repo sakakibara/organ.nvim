@@ -3694,7 +3694,8 @@ a single-cell `•`, colored via `@org.list.bullet`. Ordered bullets (`1.`,
 `dates` — a timestamp `<2025-07-06 Sun>` (active) or `[2025-07-06 Sun]`
 (inactive) has its brackets concealed, gains a calendar glyph (a clock glyph
 if the stamp carries a time), and reads in a muted color; active stamps read
-brighter than inactive. Covers body and headline-title timestamps. This
+brighter than inactive. Covers body, headline-title, planning-line
+(`SCHEDULED:` / `DEADLINE:` / `CLOSED:`), and `CLOCK:` timestamps. This
 replaces the timestamp box that `pills` drew previously -- enable
 `modern.dates` for timestamp rendering. ASCII fallback keeps the brackets
 and colors the stamp (no glyph).
