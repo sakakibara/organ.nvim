@@ -832,6 +832,42 @@ local function replace_leading(segments, n, prefix)
   return out
 end
 
+-- Wrap the headline's TODO-keyword segment as its modern pill: the keyword
+-- segment takes the reversed body hl, flanked by inline cap segments. The
+-- keyword is the first segment carrying an `@org.todo.*` highlight (the
+-- runtime highlighter only tags sequence keywords). No-op when pills are off.
+local function wrap_todo_pill(bufnr, segments)
+  local kw_idx
+  for i, seg in ipairs(segments) do
+    if seg[2] and seg[2]:match("^@org%.todo") then
+      kw_idx = i
+      break
+    end
+  end
+  if not kw_idx then
+    return segments
+  end
+  local pieces = require("organ.modern.pills").fold_pieces(bufnr, segments[kw_idx][1])
+  if not pieces then
+    return segments
+  end
+  local out = {}
+  for i, seg in ipairs(segments) do
+    if i == kw_idx then
+      if pieces.left ~= "" then
+        out[#out + 1] = { pieces.left, pieces.cap_hl }
+      end
+      out[#out + 1] = { seg[1], pieces.body_hl }
+      if pieces.right ~= "" then
+        out[#out + 1] = { pieces.right, pieces.cap_hl }
+      end
+    else
+      out[#out + 1] = seg
+    end
+  end
+  return out
+end
+
 function M.emacs_foldtext()
   local foldstart, foldend = vim.v.foldstart, vim.v.foldend
   local has_real = foldend > foldstart and fold_has_real_content(foldstart, foldend)
@@ -852,6 +888,10 @@ function M.emacs_foldtext()
     if star_disp then
       result = replace_leading(result, star_level, { star_disp, M.heading_title_hl(line) })
     end
+    -- Draw the TODO keyword as its modern pill (reversed body + inline caps)
+    -- so a folded heading matches the expanded pill instead of showing the
+    -- raw keyword.
+    result = wrap_todo_pill(bufnr, result)
     if not has_real then
       return result
     end

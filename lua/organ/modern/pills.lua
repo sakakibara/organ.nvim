@@ -151,6 +151,25 @@ function M._apply(bufnr)
   render(bufnr, 0, vim.api.nvim_buf_line_count(bufnr))
 end
 
+-- Foldtext helper. A closed fold renders foldtext, not the real line, so the
+-- pill extmarks never reach it. Given a headline's TODO keyword, return the
+-- cap glyphs + hl groups the foldtext builder needs to draw the same pill, so
+-- a folded heading matches an expanded one. Returns nil when pills are off.
+function M.fold_pieces(bufnr, keyword)
+  if not require("organ.buf_config").read(bufnr, "modern.pills") then
+    return nil
+  end
+  ensure_pill_highlights()
+  local kw = keyword:lower()
+  local left, right = pill_caps(bufnr)
+  return {
+    body_hl = "@organ.modern.badge.pill." .. kw,
+    cap_hl = "@organ.modern.badgecap.pill." .. kw,
+    left = left,
+    right = right,
+  }
+end
+
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   register_pill_highlights()
