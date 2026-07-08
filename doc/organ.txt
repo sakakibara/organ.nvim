@@ -3619,10 +3619,10 @@ DO NOT combine with `stars.hide = true` — both touch the same conceal
 range and the last-applied wins (non-deterministic).
 
                                                          *organ-modern-blocks*
-`blocks` — `#+begin_TYPE [args]` and `#+end_TYPE` lines render as box-
-drawing decoration (`┌── lang ──`, `└──`). Works for src/quote/example
-/verse/export/comment/special/greater. Original text is concealed;
-underlying buffer content unchanged.
+`blocks` — `#+begin_TYPE [args]` and `#+end_TYPE` lines render as a rounded
+box-drawing frame (`╭── lang ──╮`, `╰──╯`) with the body boxed by `│` side
+bars. Works for src/quote/example/verse/export/comment/special/greater.
+Original text is concealed; underlying buffer content unchanged.
 
                                                           *organ-modern-pills*
 `pills` — TODO state keywords render as rounded badges: the keyword bytes
