@@ -83,9 +83,13 @@ local function title_query()
   if _q_title then
     return _q_title
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org",
+    [[
     (headline_line title: (title) @title)
-  ]])
+  ]]
+  )
   if ok then
     _q_title = parsed
   end
@@ -97,12 +101,16 @@ local function inline_query()
   if _q_inline then
     return _q_inline
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org_inline", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org_inline",
+    [[
     (timestamp_active) @ts
     (timestamp_inactive) @ts
     (timestamp_range_active) @ts
     (timestamp_range_inactive) @ts
-  ]])
+  ]]
+  )
   if ok then
     _q_inline = parsed
   end

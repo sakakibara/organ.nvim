@@ -6,7 +6,10 @@ dofile(root .. "/tests/_bootstrap.lua")
 vim.api.nvim_set_hl(0, "DiagnosticWarn", { fg = 0xf9e2af })
 vim.api.nvim_set_hl(0, "DiagnosticOk", { fg = 0xa6e3a1 })
 vim.api.nvim_set_hl(0, "Comment", { fg = 0x6c7086 })
-require("organ").setup({ modern = { cookies = true }, todo = { sequence = { "TODO", "|", "DONE" } } })
+require("organ").setup({
+  modern = { cookies = true },
+  todo = { sequence = { "TODO", "|", "DONE" } },
+})
 
 local render = require("organ.modern.render")
 local cookies = require("organ.modern.cookies")
@@ -38,18 +41,23 @@ for _, m in ipairs(marks) do
     ra = d
   end
 end
-local text = ra and (function()
-  local s = ""
-  for _, c in ipairs(ra.virt_text) do
-    s = s .. c[1]
-  end
-  return s
-end)() or ""
+local text = ra
+    and (function()
+      local s = ""
+      for _, c in ipairs(ra.virt_text) do
+        s = s .. c[1]
+      end
+      return s
+    end)()
+  or ""
 check("the raw [1/3] is concealed inline", conceal ~= nil, "marks=" .. vim.inspect(marks))
 check("a right_align progress segment is emitted", ra ~= nil)
 check("the fraction 1/3 is shown", text:find("1/3") ~= nil, "seg=[" .. text .. "]")
-check("a partial-completion color is used", ra and vim.inspect(ra.virt_text):find("@organ.modern.cookie.partial") ~= nil,
-  ra and vim.inspect(ra.virt_text) or "nil")
+check(
+  "a partial-completion color is used",
+  ra and vim.inspect(ra.virt_text):find("@organ.modern.cookie.partial") ~= nil,
+  ra and vim.inspect(ra.virt_text) or "nil"
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

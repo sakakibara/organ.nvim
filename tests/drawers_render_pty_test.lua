@@ -45,7 +45,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -76,8 +79,11 @@ local function check(label, ok, detail)
   end
 end
 
-check("leaf glyph renders on the drawer header", kv.found_at ~= nil and kv.found_at ~= "nil",
-  "found_at=" .. tostring(kv.found_at))
+check(
+  "leaf glyph renders on the drawer header",
+  kv.found_at ~= nil and kv.found_at ~= "nil",
+  "found_at=" .. tostring(kv.found_at)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

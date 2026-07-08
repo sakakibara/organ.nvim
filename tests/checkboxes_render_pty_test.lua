@@ -48,7 +48,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -80,8 +83,16 @@ local function check(label, ok, detail)
   end
 end
 
-check("checked state icon renders", kv.icon_col ~= nil and kv.icon_col ~= "nil", "line dump: " .. tostring(kv.line))
-check("the raw [X] box is concealed", kv.line and kv.line:find("%[X%]") == nil, "line dump: " .. tostring(kv.line))
+check(
+  "checked state icon renders",
+  kv.icon_col ~= nil and kv.icon_col ~= "nil",
+  "line dump: " .. tostring(kv.line)
+)
+check(
+  "the raw [X] box is concealed",
+  kv.line and kv.line:find("%[X%]") == nil,
+  "line dump: " .. tostring(kv.line)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

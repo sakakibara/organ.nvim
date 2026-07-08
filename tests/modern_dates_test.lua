@@ -53,9 +53,16 @@ end
 
 check("active row conceals both brackets", conceal_count(0) == 2, "got " .. conceal_count(0))
 check("active row prefixes a glyph", glyph_hl(0) ~= nil)
-check("active row uses the active date group", glyph_hl(0) == "@organ.modern.date.active", "hl=" .. tostring(glyph_hl(0)))
-check("inactive row uses the inactive date group", glyph_hl(1) == "@organ.modern.date.inactive",
-  "hl=" .. tostring(glyph_hl(1)))
+check(
+  "active row uses the active date group",
+  glyph_hl(0) == "@organ.modern.date.active",
+  "hl=" .. tostring(glyph_hl(0))
+)
+check(
+  "inactive row uses the inactive date group",
+  glyph_hl(1) == "@organ.modern.date.inactive",
+  "hl=" .. tostring(glyph_hl(1))
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

@@ -29,7 +29,9 @@ pcall(vim.treesitter.start, b, "org")
 blocks._apply(b)
 
 local function has_overlay(row)
-  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(b, render.ns, { row, 0 }, { row, -1 }, { details = true })) do
+  for _, m in
+    ipairs(vim.api.nvim_buf_get_extmarks(b, render.ns, { row, 0 }, { row, -1 }, { details = true }))
+  do
     if m[4].virt_text_pos == "overlay" then
       return true
     end

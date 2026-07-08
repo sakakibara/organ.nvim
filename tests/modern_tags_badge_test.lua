@@ -32,19 +32,33 @@ for _, m in ipairs(vim.api.nvim_buf_get_extmarks(b, render.ns, 0, -1, { details 
     ra = m[4]
   end
 end
-local text = ra and (function()
-  local s = ""
-  for _, c in ipairs(ra.virt_text) do
-    s = s .. c[1]
-  end
-  return s
-end)() or ""
+local text = ra
+    and (function()
+      local s = ""
+      for _, c in ipairs(ra.virt_text) do
+        s = s .. c[1]
+      end
+      return s
+    end)()
+  or ""
 
 local L, R = G.get("tag.badge.left"), G.get("tag.badge.right")
 check("a right_align tag run is emitted", ra ~= nil)
-check("first tag is wrapped as a badge", text:find(L .. "work" .. R, 1, true) ~= nil, "run=[" .. text .. "]")
-check("second tag is wrapped as a badge", text:find(L .. "client" .. R, 1, true) ~= nil, "run=[" .. text .. "]")
-check("no middle-dot separator in badge mode", text:find(vim.fn.nr2char(0x00b7), 1, true) == nil, "run=[" .. text .. "]")
+check(
+  "first tag is wrapped as a badge",
+  text:find(L .. "work" .. R, 1, true) ~= nil,
+  "run=[" .. text .. "]"
+)
+check(
+  "second tag is wrapped as a badge",
+  text:find(L .. "client" .. R, 1, true) ~= nil,
+  "run=[" .. text .. "]"
+)
+check(
+  "no middle-dot separator in badge mode",
+  text:find(vim.fn.nr2char(0x00b7), 1, true) == nil,
+  "run=[" .. text .. "]"
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

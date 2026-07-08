@@ -45,14 +45,18 @@ local function get_block_query()
   if _block_query then
     return _block_query
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org",
+    [[
     (src_block) @b
     (example_block) @b
     (verse_block) @b
     (export_block) @b
     (comment_block) @b
     (greater_block) @b
-  ]])
+  ]]
+  )
   if ok then
     _block_query = parsed
   end

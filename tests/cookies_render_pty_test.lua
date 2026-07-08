@@ -48,7 +48,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -80,10 +83,16 @@ local function check(label, ok, detail)
   end
 end
 
-check("the fraction 1/3 renders near the right edge", kv.right and kv.right:find("1/3") ~= nil,
-  "right dump: " .. tostring(kv.right))
-check("the raw [1/3] is concealed from the left content", kv.left and kv.left:find("%[1/3%]") == nil,
-  "left dump: " .. tostring(kv.left))
+check(
+  "the fraction 1/3 renders near the right edge",
+  kv.right and kv.right:find("1/3") ~= nil,
+  "right dump: " .. tostring(kv.right)
+)
+check(
+  "the raw [1/3] is concealed from the left content",
+  kv.left and kv.left:find("%[1/3%]") == nil,
+  "left dump: " .. tostring(kv.left)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

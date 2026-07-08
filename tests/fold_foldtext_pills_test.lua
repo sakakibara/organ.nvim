@@ -55,28 +55,43 @@ end
 do
   local t = foldtext_of({ "* TODO Buy milk", "  body" }, true)
   local kw = keyword_seg(t, "TODO")
-  check("TODO keyword uses the reversed pill body group",
-    kw ~= nil and kw[2] == "@organ.modern.badge.pill.todo", kw and vim.inspect(kw) or "no TODO seg")
-  check("pill caps are drawn around the keyword",
-    has_hl(t, "@organ.modern.badgecap.pill.todo"), vim.inspect(t))
+  check(
+    "TODO keyword uses the reversed pill body group",
+    kw ~= nil and kw[2] == "@organ.modern.badge.pill.todo",
+    kw and vim.inspect(kw) or "no TODO seg"
+  )
+  check(
+    "pill caps are drawn around the keyword",
+    has_hl(t, "@organ.modern.badgecap.pill.todo"),
+    vim.inspect(t)
+  )
 end
 
 -- DONE keyword too (a done-bucket pill).
 do
   local t = foldtext_of({ "* DONE Ship it", "  body" }, true)
   local kw = keyword_seg(t, "DONE")
-  check("DONE keyword uses its pill body group",
-    kw ~= nil and kw[2] == "@organ.modern.badge.pill.done", kw and vim.inspect(kw) or "no DONE seg")
+  check(
+    "DONE keyword uses its pill body group",
+    kw ~= nil and kw[2] == "@organ.modern.badge.pill.done",
+    kw and vim.inspect(kw) or "no DONE seg"
+  )
 end
 
 -- pills off: the keyword keeps its plain treesitter highlight, no pill group.
 do
   local t = foldtext_of({ "* TODO Buy milk", "  body" }, false)
-  check("pills off leaves the keyword un-pilled",
-    not has_hl(t, "@organ.modern.badge.pill.todo"), vim.inspect(t))
+  check(
+    "pills off leaves the keyword un-pilled",
+    not has_hl(t, "@organ.modern.badge.pill.todo"),
+    vim.inspect(t)
+  )
   local kw = keyword_seg(t, "TODO")
-  check("pills off keeps the todo highlight", kw ~= nil and kw[2]:match("^@org%.todo") ~= nil,
-    kw and vim.inspect(kw) or "no TODO seg")
+  check(
+    "pills off keeps the todo highlight",
+    kw ~= nil and kw[2]:match("^@org%.todo") ~= nil,
+    kw and vim.inspect(kw) or "no TODO seg"
+  )
 end
 
 if fails > 0 then

@@ -64,7 +64,8 @@ function M.verify()
   for name, g in pairs(GLYPHS) do
     for mode, glyph in pairs(g) do
       if glyph ~= "" and vim.api.nvim_strwidth(glyph) ~= 1 then
-        bad[#bad + 1] = { name = name, mode = mode, glyph = glyph, width = vim.api.nvim_strwidth(glyph) }
+        bad[#bad + 1] =
+          { name = name, mode = mode, glyph = glyph, width = vim.api.nvim_strwidth(glyph) }
       end
     end
   end

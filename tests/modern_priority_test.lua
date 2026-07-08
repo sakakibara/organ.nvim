@@ -4,7 +4,10 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
 vim.api.nvim_set_hl(0, "DiagnosticError", { fg = 0xf38ba8 })
-require("organ").setup({ modern = { priority = true }, todo = { sequence = { "TODO", "|", "DONE" } } })
+require("organ").setup({
+  modern = { priority = true },
+  todo = { sequence = { "TODO", "|", "DONE" } },
+})
 
 local render = require("organ.modern.render")
 local priority = require("organ.modern.priority")
@@ -38,10 +41,16 @@ for _, m in ipairs(marks) do
 end
 check("the raw [#A] is concealed inline", conceal ~= nil, "marks=" .. vim.inspect(marks))
 check("a right_align segment is emitted", ra ~= nil)
-check("the segment carries the rank letter A", ra and vim.inspect(ra.virt_text):find("A") ~= nil,
-  ra and vim.inspect(ra.virt_text) or "nil")
-check("the segment uses the rank-A hl group", ra and vim.inspect(ra.virt_text):find("@organ.modern.priority.a") ~= nil,
-  ra and vim.inspect(ra.virt_text) or "nil")
+check(
+  "the segment carries the rank letter A",
+  ra and vim.inspect(ra.virt_text):find("A") ~= nil,
+  ra and vim.inspect(ra.virt_text) or "nil"
+)
+check(
+  "the segment uses the rank-A hl group",
+  ra and vim.inspect(ra.virt_text):find("@organ.modern.priority.a") ~= nil,
+  ra and vim.inspect(ra.virt_text) or "nil"
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

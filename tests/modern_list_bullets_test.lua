@@ -41,9 +41,17 @@ local function conceal_on(row)
   return false
 end
 
-check("dash bullet -> • glyph", glyph_on(0) == vim.fn.nr2char(0x2022), "got " .. tostring(glyph_on(0)))
+check(
+  "dash bullet -> • glyph",
+  glyph_on(0) == vim.fn.nr2char(0x2022),
+  "got " .. tostring(glyph_on(0))
+)
 check("dash bullet concealed", conceal_on(0))
-check("plus bullet -> • glyph", glyph_on(1) == vim.fn.nr2char(0x2022), "got " .. tostring(glyph_on(1)))
+check(
+  "plus bullet -> • glyph",
+  glyph_on(1) == vim.fn.nr2char(0x2022),
+  "got " .. tostring(glyph_on(1))
+)
 check("ordered bullet left untouched (no mark)", glyph_on(2) == nil and not conceal_on(2))
 
 if fails > 0 then

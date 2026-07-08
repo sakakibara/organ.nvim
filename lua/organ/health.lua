@@ -344,7 +344,9 @@ local function check_modern_glyphs()
     health.ok("modern glyphs: all single-cell")
   else
     for _, o in ipairs(offenders) do
-      health.warn(("modern glyph %q (%s) is %d cells wide; will misalign"):format(o.name, o.mode, o.width))
+      health.warn(
+        ("modern glyph %q (%s) is %d cells wide; will misalign"):format(o.name, o.mode, o.width)
+      )
     end
   end
 end

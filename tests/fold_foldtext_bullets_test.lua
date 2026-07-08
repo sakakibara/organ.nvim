@@ -53,7 +53,11 @@ end
 --    raw stars.
 do
   local t = foldtext_of({ "*** Deep", "body 1", "body 2" }, 1, 3, "modern.bullets", true)
-  check("modern.bullets folded shows glyph, no raw stars", t == "  " .. g3 .. " Deep…", "[" .. t .. "]")
+  check(
+    "modern.bullets folded shows glyph, no raw stars",
+    t == "  " .. g3 .. " Deep…",
+    "[" .. t .. "]"
+  )
 end
 
 -- 2. modern.bullets level 1 shows the first glyph, no leading spaces.

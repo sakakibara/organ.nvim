@@ -47,10 +47,21 @@ local function glyph_hl(row)
   return m and m[4].virt_text[1][2]
 end
 
-check("empty row concealed + inline glyph", has_conceal(0) ~= nil and glyph_hl(0) == "@organ.modern.checkbox.empty",
-  "hl=" .. tostring(glyph_hl(0)))
-check("checked row uses checked hl", glyph_hl(1) == "@organ.modern.checkbox.checked", "hl=" .. tostring(glyph_hl(1)))
-check("partial row uses partial hl", glyph_hl(2) == "@organ.modern.checkbox.partial", "hl=" .. tostring(glyph_hl(2)))
+check(
+  "empty row concealed + inline glyph",
+  has_conceal(0) ~= nil and glyph_hl(0) == "@organ.modern.checkbox.empty",
+  "hl=" .. tostring(glyph_hl(0))
+)
+check(
+  "checked row uses checked hl",
+  glyph_hl(1) == "@organ.modern.checkbox.checked",
+  "hl=" .. tostring(glyph_hl(1))
+)
+check(
+  "partial row uses partial hl",
+  glyph_hl(2) == "@organ.modern.checkbox.partial",
+  "hl=" .. tostring(glyph_hl(2))
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

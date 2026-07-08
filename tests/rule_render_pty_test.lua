@@ -43,7 +43,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -75,8 +78,11 @@ local function check(label, ok, detail)
 end
 
 -- The source line has only 5 dashes; a full-width rule fills far more.
-check("the rule fills well past the 5 source dashes", tonumber(kv.dash_run or "0") >= 20,
-  "dash_run=" .. tostring(kv.dash_run))
+check(
+  "the rule fills well past the 5 source dashes",
+  tonumber(kv.dash_run or "0") >= 20,
+  "dash_run=" .. tostring(kv.dash_run)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

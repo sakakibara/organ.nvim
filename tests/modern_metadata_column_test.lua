@@ -41,16 +41,22 @@ for _, m in ipairs(marks) do
     ra = m[4]
   end
 end
-local text = ra and (function()
-  local s = ""
-  for _, c in ipairs(ra.virt_text) do
-    s = s .. c[1]
-  end
-  return s
-end)() or ""
+local text = ra
+    and (function()
+      local s = ""
+      for _, c in ipairs(ra.virt_text) do
+        s = s .. c[1]
+      end
+      return s
+    end)()
+  or ""
 check("exactly one right_align mark for the row", ra_count == 1, "count=" .. ra_count)
 local pa, pc, pt = text:find("A"), text:find("1/3"), text:find("work")
-check("order is priority -> cookies -> tags", pa and pc and pt and pa < pc and pc < pt, "seg=[" .. text .. "]")
+check(
+  "order is priority -> cookies -> tags",
+  pa and pc and pt and pa < pc and pc < pt,
+  "seg=[" .. text .. "]"
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

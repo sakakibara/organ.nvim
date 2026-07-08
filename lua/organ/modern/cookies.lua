@@ -43,9 +43,13 @@ local function query()
   if _q then
     return _q
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org",
+    [[
     (headline_line cookie: (statistics_cookie) @c)
-  ]])
+  ]]
+  )
   if ok then
     _q = parsed
   end

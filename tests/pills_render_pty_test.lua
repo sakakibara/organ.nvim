@@ -62,7 +62,10 @@ vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 -- util-linux: `script -qec CMD /dev/null`; BSD/macOS: `script -q /dev/null CMD`.
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -94,9 +97,21 @@ local function check(label, ok, detail)
   end
 end
 
-check("left cap glyph renders on screen", kv.cap_col ~= nil and kv.cap_col ~= "nil", "dump: " .. vim.inspect(lines))
-check("a space sits between the bullet and the cap", kv.before1 == "[ ]", "cell before cap = " .. tostring(kv.before1))
-check("the bullet precedes that space", kv.before2 == "[*]", "two cells before cap = " .. tostring(kv.before2))
+check(
+  "left cap glyph renders on screen",
+  kv.cap_col ~= nil and kv.cap_col ~= "nil",
+  "dump: " .. vim.inspect(lines)
+)
+check(
+  "a space sits between the bullet and the cap",
+  kv.before1 == "[ ]",
+  "cell before cap = " .. tostring(kv.before1)
+)
+check(
+  "the bullet precedes that space",
+  kv.before2 == "[*]",
+  "two cells before cap = " .. tostring(kv.before2)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

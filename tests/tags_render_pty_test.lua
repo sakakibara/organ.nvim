@@ -47,7 +47,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -79,10 +82,16 @@ local function check(label, ok, detail)
   end
 end
 
-check("a tag name renders near the right edge", kv.right and (kv.right:find("work") ~= nil or kv.right:find("client") ~= nil),
-  "right dump: " .. tostring(kv.right))
-check("the raw :work:client: is concealed from the left content", kv.left and kv.left:find(":work:") == nil,
-  "left dump: " .. tostring(kv.left))
+check(
+  "a tag name renders near the right edge",
+  kv.right and (kv.right:find("work") ~= nil or kv.right:find("client") ~= nil),
+  "right dump: " .. tostring(kv.right)
+)
+check(
+  "the raw :work:client: is concealed from the left content",
+  kv.left and kv.left:find(":work:") == nil,
+  "left dump: " .. tostring(kv.left)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

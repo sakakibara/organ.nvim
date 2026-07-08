@@ -57,7 +57,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -89,11 +92,21 @@ local function check(label, ok, detail)
 end
 
 local top, body, bot = kv.top_right, kv.body_right, kv.bot_right
-check("all three frame right edges rendered", top ~= "nil" and body ~= "nil" and bot ~= "nil",
-  "top=" .. tostring(top) .. " body=" .. tostring(body) .. " bot=" .. tostring(bot))
-check("top ╮ and bottom ╯ align", top == bot, "top=" .. tostring(top) .. " bot=" .. tostring(bot))
-check("body does not overflow the frame right edge", body == top,
-  "body_right=" .. tostring(body) .. " top_right=" .. tostring(top))
+check(
+  "all three frame right edges rendered",
+  top ~= "nil" and body ~= "nil" and bot ~= "nil",
+  "top=" .. tostring(top) .. " body=" .. tostring(body) .. " bot=" .. tostring(bot)
+)
+check(
+  "top ╮ and bottom ╯ align",
+  top == bot,
+  "top=" .. tostring(top) .. " bot=" .. tostring(bot)
+)
+check(
+  "body does not overflow the frame right edge",
+  body == top,
+  "body_right=" .. tostring(body) .. " top_right=" .. tostring(top)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

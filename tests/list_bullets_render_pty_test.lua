@@ -49,7 +49,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -81,7 +84,11 @@ local function check(label, ok, detail)
   end
 end
 
-check("bullet renders as • on the line", kv.found_at ~= nil and kv.found_at ~= "nil", "cells: " .. tostring(kv.cells))
+check(
+  "bullet renders as • on the line",
+  kv.found_at ~= nil and kv.found_at ~= "nil",
+  "cells: " .. tostring(kv.cells)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

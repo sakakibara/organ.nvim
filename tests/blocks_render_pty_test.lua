@@ -54,7 +54,10 @@ vim.cmd("qa!")
 vim.fn.writefile(vim.split(prog, "\n"), inner)
 
 local nvim = vim.v.progpath
-local cmd = ("%s -u NONE --noplugin -S %s"):format(vim.fn.shellescape(nvim), vim.fn.shellescape(inner))
+local cmd = ("%s -u NONE --noplugin -S %s"):format(
+  vim.fn.shellescape(nvim),
+  vim.fn.shellescape(inner)
+)
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
@@ -85,9 +88,16 @@ local function check(label, ok, detail)
   end
 end
 
-check("rounded top corner renders", kv.tl_found ~= nil and kv.tl_found ~= "nil", "tl_found=" .. tostring(kv.tl_found))
-check("inline body side bar renders before the body text", kv.bar_before_print == "true",
-  "bar_before_print=" .. tostring(kv.bar_before_print))
+check(
+  "rounded top corner renders",
+  kv.tl_found ~= nil and kv.tl_found ~= "nil",
+  "tl_found=" .. tostring(kv.tl_found)
+)
+check(
+  "inline body side bar renders before the body text",
+  kv.bar_before_print == "true",
+  "bar_before_print=" .. tostring(kv.bar_before_print)
+)
 
 pcall(vim.fn.delete, out)
 pcall(vim.fn.delete, inner)

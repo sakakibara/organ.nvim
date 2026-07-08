@@ -48,7 +48,11 @@ do
   check("body group has gui reverse=true", hl.reverse == true, vim.inspect(hl))
   check("body group colored from actionable bucket (red)", hl.fg == 0xEE1122, vim.inspect(hl))
   local capg = vim.api.nvim_get_hl(0, { name = "@organ.modern.badgecap.pill.todo", link = false })
-  check("cap group shares the body color, no reverse", capg.fg == 0xEE1122 and not capg.reverse, vim.inspect(capg))
+  check(
+    "cap group shares the body color, no reverse",
+    capg.fg == 0xEE1122 and not capg.reverse,
+    vim.inspect(capg)
+  )
 
   local marks = vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, { details = true })
   local body, left_cap, right_cap
@@ -57,12 +61,24 @@ do
     if d.hl_group == "@organ.modern.badge.pill.todo" then
       body = m
     elseif d.virt_text and d.virt_text_pos == "inline" then
-      if m[3] == 2 then left_cap = d elseif m[3] == 6 then right_cap = d end
+      if m[3] == 2 then
+        left_cap = d
+      elseif m[3] == 6 then
+        right_cap = d
+      end
     end
   end
   check("body extmark over the keyword", body ~= nil and body[3] == 2 and body[4].end_col == 6)
-  check("left cap INLINE at keyword start (space before preserved)", left_cap ~= nil, "no inline cap at col 2")
-  check("right cap INLINE at keyword end (space after preserved)", right_cap ~= nil, "no inline cap at col 6")
+  check(
+    "left cap INLINE at keyword start (space before preserved)",
+    left_cap ~= nil,
+    "no inline cap at col 2"
+  )
+  check(
+    "right cap INLINE at keyword end (space after preserved)",
+    right_cap ~= nil,
+    "no inline cap at col 6"
+  )
   check(
     "caps colored like the body",
     left_cap and left_cap.virt_text[1][2] == "@organ.modern.badgecap.pill.todo",

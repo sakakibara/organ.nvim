@@ -32,18 +32,29 @@ for _, m in ipairs(marks) do
     ra = m[4]
   end
 end
-check("exactly one right_align extmark on the row", #marks == 1 and ra ~= nil, "marks=" .. vim.inspect(marks))
-check("priority (slot 1) chunk precedes tags (slot 3) chunk",
+check(
+  "exactly one right_align extmark on the row",
+  #marks == 1 and ra ~= nil,
+  "marks=" .. vim.inspect(marks)
+)
+check(
+  "priority (slot 1) chunk precedes tags (slot 3) chunk",
   ra and ra.virt_text[1][1] == "A" and ra.virt_text[3][1] == "work",
-  ra and vim.inspect(ra.virt_text) or "no right_align mark")
-check("a single space separates the two segments",
-  ra and ra.virt_text[2][1] == " ", ra and vim.inspect(ra.virt_text) or "nil")
+  ra and vim.inspect(ra.virt_text) or "no right_align mark"
+)
+check(
+  "a single space separates the two segments",
+  ra and ra.virt_text[2][1] == " ",
+  ra and vim.inspect(ra.virt_text) or "nil"
+)
 
 -- flush() must clear the accumulator: a second flush with nothing added emits nothing.
 vim.api.nvim_buf_clear_namespace(b, ns, 0, -1)
 layout.flush(b, ns)
-check("flush clears the accumulator (no marks on empty flush)",
-  #vim.api.nvim_buf_get_extmarks(b, ns, 0, -1, {}) == 0)
+check(
+  "flush clears the accumulator (no marks on empty flush)",
+  #vim.api.nvim_buf_get_extmarks(b, ns, 0, -1, {}) == 0
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

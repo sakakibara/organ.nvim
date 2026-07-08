@@ -38,7 +38,11 @@ check("checkbox element rendered marks", #marks > 0, "got " .. #marks)
 check("engine bumped conceallevel to >= 2", vim.wo.conceallevel >= 2, "got " .. vim.wo.conceallevel)
 
 modern.detach(b)
-check("conceallevel restored to 0 after detach", vim.wo.conceallevel == 0, "got " .. vim.wo.conceallevel)
+check(
+  "conceallevel restored to 0 after detach",
+  vim.wo.conceallevel == 0,
+  "got " .. vim.wo.conceallevel
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

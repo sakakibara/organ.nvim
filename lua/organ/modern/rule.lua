@@ -32,9 +32,13 @@ local function query()
   if _q then
     return _q
   end
-  local ok, parsed = pcall(vim.treesitter.query.parse, "org", [[
+  local ok, parsed = pcall(
+    vim.treesitter.query.parse,
+    "org",
+    [[
     (horizontal_rule) @h
-  ]])
+  ]]
+  )
   if ok then
     _q = parsed
   end

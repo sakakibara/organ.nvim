@@ -26,7 +26,9 @@ pcall(vim.treesitter.start, b, "org")
 directives._apply(b)
 
 local function dim_on(row)
-  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(b, render.ns, { row, 0 }, { row, -1 }, { details = true })) do
+  for _, m in
+    ipairs(vim.api.nvim_buf_get_extmarks(b, render.ns, { row, 0 }, { row, -1 }, { details = true }))
+  do
     if m[4].hl_group == "@organ.modern.directive" then
       return m
     end
@@ -35,8 +37,11 @@ end
 local d0 = dim_on(0)
 check("directive label on #+TITLE line is dimmed", d0 ~= nil)
 -- `#+TITLE: ` is 9 columns; the dim must stop at the value (col 9), not cover it.
-check("dim stops before the value", d0 ~= nil and d0[4].end_col ~= nil and d0[4].end_col <= 9,
-  d0 and ("end_col=" .. tostring(d0[4].end_col)) or "nil")
+check(
+  "dim stops before the value",
+  d0 ~= nil and d0[4].end_col ~= nil and d0[4].end_col <= 9,
+  d0 and ("end_col=" .. tostring(d0[4].end_col)) or "nil"
+)
 check("affiliated keyword (#+CAPTION) is dimmed too", dim_on(1) ~= nil)
 check("no dim on the headline row", dim_on(2) == nil)
 

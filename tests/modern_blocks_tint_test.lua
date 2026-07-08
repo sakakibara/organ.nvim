@@ -20,7 +20,13 @@ local function check(label, ok, detail)
 end
 
 local b = vim.api.nvim_get_current_buf()
-vim.api.nvim_buf_set_lines(b, 0, -1, false, { "#+begin_src lua", "print('hi')", "  more()", "#+end_src" })
+vim.api.nvim_buf_set_lines(
+  b,
+  0,
+  -1,
+  false,
+  { "#+begin_src lua", "print('hi')", "  more()", "#+end_src" }
+)
 vim.bo[b].filetype = "org"
 pcall(vim.treesitter.start, b, "org")
 blocks._apply(b)

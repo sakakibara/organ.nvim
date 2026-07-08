@@ -20,7 +20,13 @@ local function check(label, ok, detail)
 end
 
 local b = vim.api.nvim_get_current_buf()
-vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* Head", "  :PROPERTIES:", "  :ID: abc", "  :END:", "body" })
+vim.api.nvim_buf_set_lines(
+  b,
+  0,
+  -1,
+  false,
+  { "* Head", "  :PROPERTIES:", "  :ID: abc", "  :END:", "body" }
+)
 vim.bo[b].filetype = "org"
 pcall(vim.treesitter.start, b, "org")
 drawers._apply(b)
@@ -37,9 +43,16 @@ for _, m in ipairs(marks) do
   end
 end
 check("a multi-line dim covers the drawer", dim ~= nil and dim[2] == 1, "dim=" .. vim.inspect(dim))
-check("the dim spans past the header row", dim ~= nil and dim[4].end_row >= 3,
-  dim and ("end_row=" .. tostring(dim[4].end_row)) or "nil")
-check("a leaf glyph sits on the header row", glyph ~= nil and glyph[2] == 1, "glyph=" .. vim.inspect(glyph))
+check(
+  "the dim spans past the header row",
+  dim ~= nil and dim[4].end_row >= 3,
+  dim and ("end_row=" .. tostring(dim[4].end_row)) or "nil"
+)
+check(
+  "a leaf glyph sits on the header row",
+  glyph ~= nil and glyph[2] == 1,
+  "glyph=" .. vim.inspect(glyph)
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

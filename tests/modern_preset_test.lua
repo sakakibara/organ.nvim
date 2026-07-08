@@ -24,14 +24,34 @@ local b = vim.api.nvim_get_current_buf()
 vim.bo[b].filetype = "org"
 
 -- A sampling of elements that default off are now on.
-for _, e in ipairs({ "bullets", "checkboxes", "priority", "dates", "rule", "directives", "drawers", "blocks", "pills" }) do
-  check("preset enables " .. e, bc.read(b, "modern." .. e) == true, "got " .. tostring(bc.read(b, "modern." .. e)))
+for _, e in ipairs({
+  "bullets",
+  "checkboxes",
+  "priority",
+  "dates",
+  "rule",
+  "directives",
+  "drawers",
+  "blocks",
+  "pills",
+}) do
+  check(
+    "preset enables " .. e,
+    bc.read(b, "modern." .. e) == true,
+    "got " .. tostring(bc.read(b, "modern." .. e))
+  )
 end
 
-check("explicit table = false is respected", bc.read(b, "modern.table") == false,
-  "got " .. tostring(bc.read(b, "modern.table")))
-check("explicit tags option table survives", bc.read(b, "modern.tags.style") == "badge",
-  "got " .. tostring(bc.read(b, "modern.tags.style")))
+check(
+  "explicit table = false is respected",
+  bc.read(b, "modern.table") == false,
+  "got " .. tostring(bc.read(b, "modern.table"))
+)
+check(
+  "explicit tags option table survives",
+  bc.read(b, "modern.tags.style") == "badge",
+  "got " .. tostring(bc.read(b, "modern.tags.style"))
+)
 check("modern.enabled() true under the preset", modern.enabled(b) == true)
 
 if fails > 0 then

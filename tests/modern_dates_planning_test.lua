@@ -55,20 +55,36 @@ local function glyph_chunk(row)
 end
 
 -- Planning line (SCHEDULED: <...>): active, no time -> calendar glyph.
-check("SCHEDULED timestamp conceals both brackets", conceal_count(1) == 2, "got " .. conceal_count(1))
+check(
+  "SCHEDULED timestamp conceals both brackets",
+  conceal_count(1) == 2,
+  "got " .. conceal_count(1)
+)
 local pg = glyph_chunk(1)
-check("SCHEDULED gets the calendar glyph", pg ~= nil and pg[1] == G.get("date.calendar", b) .. " ",
-  "glyph=" .. (pg and vim.inspect(pg) or "nil"))
-check("SCHEDULED uses the active date group", pg ~= nil and pg[2] == "@organ.modern.date.active",
-  "hl=" .. (pg and tostring(pg[2]) or "nil"))
+check(
+  "SCHEDULED gets the calendar glyph",
+  pg ~= nil and pg[1] == G.get("date.calendar", b) .. " ",
+  "glyph=" .. (pg and vim.inspect(pg) or "nil")
+)
+check(
+  "SCHEDULED uses the active date group",
+  pg ~= nil and pg[2] == "@organ.modern.date.active",
+  "hl=" .. (pg and tostring(pg[2]) or "nil")
+)
 
 -- Clock line (CLOCK: [... 09:00]): inactive, timed -> clock glyph.
 check("CLOCK timestamp conceals both brackets", conceal_count(2) == 2, "got " .. conceal_count(2))
 local cg = glyph_chunk(2)
-check("CLOCK gets the clock glyph (timed)", cg ~= nil and cg[1] == G.get("date.clock", b) .. " ",
-  "glyph=" .. (cg and vim.inspect(cg) or "nil"))
-check("CLOCK uses the inactive date group", cg ~= nil and cg[2] == "@organ.modern.date.inactive",
-  "hl=" .. (cg and tostring(cg[2]) or "nil"))
+check(
+  "CLOCK gets the clock glyph (timed)",
+  cg ~= nil and cg[1] == G.get("date.clock", b) .. " ",
+  "glyph=" .. (cg and vim.inspect(cg) or "nil")
+)
+check(
+  "CLOCK uses the inactive date group",
+  cg ~= nil and cg[2] == "@organ.modern.date.inactive",
+  "hl=" .. (cg and tostring(cg[2]) or "nil")
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

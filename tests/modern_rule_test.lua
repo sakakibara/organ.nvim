@@ -34,11 +34,20 @@ for _, m in ipairs(marks) do
 end
 local text = ov and ov.virt_text[1][1] or ""
 check("overlay mark on the rule row", ov ~= nil, "marks=" .. vim.inspect(marks))
-check("overlay text is a run of box-drawing dashes", #text > 0 and text:gsub(vim.fn.nr2char(0x2500), "") == "",
-  "text=[" .. text .. "]")
-check("uses the @organ.modern.rule group", ov and ov.virt_text[1][2] == "@organ.modern.rule",
-  ov and vim.inspect(ov.virt_text) or "nil")
-check("no overlay on non-rule rows", #vim.api.nvim_buf_get_extmarks(b, render.ns, { 0, 0 }, { 0, -1 }, {}) == 0)
+check(
+  "overlay text is a run of box-drawing dashes",
+  #text > 0 and text:gsub(vim.fn.nr2char(0x2500), "") == "",
+  "text=[" .. text .. "]"
+)
+check(
+  "uses the @organ.modern.rule group",
+  ov and ov.virt_text[1][2] == "@organ.modern.rule",
+  ov and vim.inspect(ov.virt_text) or "nil"
+)
+check(
+  "no overlay on non-rule rows",
+  #vim.api.nvim_buf_get_extmarks(b, render.ns, { 0, 0 }, { 0, -1 }, {}) == 0
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")

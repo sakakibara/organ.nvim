@@ -80,7 +80,10 @@ check("row 1 (** Level two): level-2 glyph", last_conceal(1) == G.get("bullet.2"
 check("row 2 (*** Level three): level-3 glyph", last_conceal(2) == G.get("bullet.3", bufnr))
 check("row 3 (body text): no bullet", last_conceal(3) == nil)
 check("row 4 (**** Level four): level-4 glyph", last_conceal(4) == G.get("bullet.4", bufnr))
-check("row 5 (***** Level five): cycles to level-1 glyph", last_conceal(5) == G.get("bullet.1", bufnr))
+check(
+  "row 5 (***** Level five): cycles to level-1 glyph",
+  last_conceal(5) == G.get("bullet.1", bufnr)
+)
 
 -- The bullet glyph is colored like the heading title (matches the folded
 -- foldtext bullet); the concealed leading stars carry no highlight.

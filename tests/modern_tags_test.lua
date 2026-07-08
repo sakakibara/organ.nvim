@@ -36,18 +36,27 @@ for _, m in ipairs(marks) do
     ra = d
   end
 end
-local text = ra and (function()
-  local s = ""
-  for _, c in ipairs(ra.virt_text) do
-    s = s .. c[1]
-  end
-  return s
-end)() or ""
+local text = ra
+    and (function()
+      local s = ""
+      for _, c in ipairs(ra.virt_text) do
+        s = s .. c[1]
+      end
+      return s
+    end)()
+  or ""
 check("the raw :work:client: is concealed inline", conceal ~= nil, "marks=" .. vim.inspect(marks))
 check("a right_align tag run is emitted", ra ~= nil)
-check("the run names both tags", text:find("work") ~= nil and text:find("client") ~= nil, "run=[" .. text .. "]")
-check("both tag chunks use @organ.modern.tag", ra and vim.inspect(ra.virt_text):find("@organ.modern.tag") ~= nil,
-  ra and vim.inspect(ra.virt_text) or "nil")
+check(
+  "the run names both tags",
+  text:find("work") ~= nil and text:find("client") ~= nil,
+  "run=[" .. text .. "]"
+)
+check(
+  "both tag chunks use @organ.modern.tag",
+  ra and vim.inspect(ra.virt_text):find("@organ.modern.tag") ~= nil,
+  ra and vim.inspect(ra.virt_text) or "nil"
+)
 
 if fails > 0 then
   print("\nFAILED " .. fails .. " checks")
