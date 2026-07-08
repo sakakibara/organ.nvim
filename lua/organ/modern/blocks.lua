@@ -34,7 +34,11 @@ local LBL_TAIL_W = vim.fn.strdisplaywidth(LBL_TAIL)
 local MIN_TRAILING_DASHES = 3
 
 local BEGIN_PAT = "^(%s*)#%+[bB][eE][gG][iI][nN]_([%w]+)(.*)$"
-local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)%s*$"
+-- Match the end line as leniently as the tree-sitter grammar does: it closes
+-- the block on `#+end_TYPE` even with trailing junk (e.g. `#+end_src>`), so
+-- an `$`-anchored pattern here would reject a block the tree (and the folds)
+-- consider valid, leaving it un-framed until the user "fixes" the line.
+local END_PAT = "^(%s*)#%+[eE][nN][dD]_([%w]+)"
 
 local _block_query
 local function get_block_query()
