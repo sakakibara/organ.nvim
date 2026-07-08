@@ -3594,6 +3594,9 @@ Composable visual stages that decorate org buffers, all opt-in: >lua
         checkboxes   = true,   -- - [ ]/[X]/[-] -> state icons
         list_bullets = true,   -- - / + -> •
         dates        = true,   -- <2025-07-06 Sun> -> glyph + muted
+        rule         = true,   -- ----- -> full-width line
+        directives   = true,   -- #+TITLE: label dimmed
+        drawers      = true,   -- :PROPERTIES: dimmed + glyph
         table        = true,   -- pipe-table conceal + virtual borders
       },
     })
@@ -3691,6 +3694,22 @@ brighter than inactive. Covers body and headline-title timestamps. This
 replaces the timestamp box that `pills` drew previously -- enable
 `modern.dates` for timestamp rendering. ASCII fallback keeps the brackets
 and colors the stamp (no glyph).
+
+                                                           *organ-modern-rule*
+`rule` — a line of 5 or more dashes on its own renders as a dimmed `─` run
+spanning the window's text width (NonText color). The run re-sizes when the
+window is resized.
+
+                                                     *organ-modern-directives*
+`directives` — a directive line `#+TITLE:` / `#+OPTIONS:` / `#+CAPTION:`
+etc. has its `#+KEYWORD:` label dimmed to a muted color (Comment); the value
+after the colon reads normal. Structural bookkeeping stays out of the way of
+content.
+
+                                                        *organ-modern-drawers*
+`drawers` — a property drawer `:PROPERTIES:` ... `:END:` (and generic
+`:NAME:` drawers) dims to a muted color, with a small collapse/leaf glyph on
+the header line. Contents dim along with the header.
 
 ==============================================================================
 STAR CONCEALMENT                                                 *organ-stars*
