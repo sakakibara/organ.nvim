@@ -713,6 +713,11 @@ return {
   -- `stars.hide = true`; they touch the same conceal range and the
   -- last-applied wins (non-deterministic). Pick one.
   modern = {
+    -- Master glyph mode. `true` uses Nerd Font glyphs (pill caps, checkbox
+    -- icons, date/drawer/priority glyphs, cookie bar); `false` swaps every
+    -- glyph for a single-cell ASCII fallback. Bullets, list bullets, and the
+    -- rule use plain Unicode either way.
+    nerd_font = true,
     -- Per-level headline bullets. Replaces the trailing `*` with a level-
     -- indexed glyph (`◉ ○ ◈ ◇` cycling) and conceals the leading N-1 stars
     -- as spaces. Use `glyphs = {…}` to override the cycle. Plain list bullets
