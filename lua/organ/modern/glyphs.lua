@@ -24,6 +24,7 @@ local GLYPHS = {
   ["list.bullet"] = { nerd = vim.fn.nr2char(0x2022), ascii = vim.fn.nr2char(0x2022) },
   ["date.calendar"] = { nerd = vim.fn.nr2char(0xf073), ascii = "" },
   ["date.clock"] = { nerd = vim.fn.nr2char(0xf017), ascii = "" },
+  ["rule.line"] = { nerd = vim.fn.nr2char(0x2500), ascii = vim.fn.nr2char(0x2500) },
 }
 
 M._GLYPHS = GLYPHS

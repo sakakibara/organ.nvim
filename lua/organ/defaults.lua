@@ -749,6 +749,9 @@ return {
     -- `<>` reads brighter than inactive `[]`. Replaces the pills timestamp
     -- box (enable modern.dates for timestamp rendering).
     dates = false,
+    -- Horizontal rule: a line of 5+ dashes renders as a dimmed `─` run
+    -- spanning the window's text width.
+    rule = false,
     -- Pipe-table conceal: `|` -> `│`, `-` -> `─`, `+` -> `┼`, with
     -- smart edge corners on rule rows and optional `┌─┬─┐` /
     -- `└─┴─┘` virtual top/bottom borders.  `<l>`/`<r>`/`<c>` org
