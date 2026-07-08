@@ -3606,11 +3606,15 @@ right of the headline, composed in a fixed left-to-right order (priority,
 cookies, tags) so multiple items on one line never fight over spacing.
 
                                                         *organ-modern-bullets*
-`bullets` — replaces the trailing `*` of each headline with a level-
-indexed glyph (◉ ○ ◈ ◇ default cycle, repeats for deeper levels) and
-conceals the leading N-1 stars as spaces. Override the cycle: >lua
+`bullets` — replaces the trailing `*` of each headline with a level-indexed
+glyph (a single-cell Nerd Font circle ramp by default; `•` when
+`nerd_font = false`, repeats for deeper levels) and conceals the leading
+N-1 stars as spaces. Override the cycle: >lua
     modern = { bullets = { glyphs = { "●", "○", "▶", "▷" } } }
 <
+Handles only headline stars. Plain list bullets and checkbox icons are
+separate elements: |organ-modern-list-bullets| and |organ-modern-checkboxes|.
+
 DO NOT combine with `stars.hide = true` — both touch the same conceal
 range and the last-applied wins (non-deterministic).
 
