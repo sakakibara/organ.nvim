@@ -3605,6 +3605,10 @@ Priority, tags, and cookies share a right-aligned metadata column to the
 right of the headline, composed in a fixed left-to-right order (priority,
 cookies, tags) so multiple items on one line never fight over spacing.
 
+Enable everything at once with the preset `modern = "all"` (or
+`modern = { preset = "rich" }`); explicit per-element values still win, so
+`modern = { preset = "rich", table = false }` turns on all but the table.
+
                                                         *organ-modern-bullets*
 `bullets` — replaces the trailing `*` of each headline with a level-indexed
 glyph (a single-cell Nerd Font circle ramp by default; `•` when

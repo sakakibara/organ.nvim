@@ -914,7 +914,24 @@ end
 -- Public API.
 
 function M.setup(opts)
-  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+  opts = opts or {}
+  -- Expand the `modern` preset (`modern = "all"` or `modern.preset =
+  -- "all"|"rich"`) into explicit per-element flags before merging, so an
+  -- unset element turns on while the user's explicit values -- including
+  -- `false` and per-element option tables -- still win.
+  do
+    local m = opts.modern
+    if m == "all" or (type(m) == "table" and (m.preset == "all" or m.preset == "rich")) then
+      m = (m == "all") and { preset = "all" } or vim.deepcopy(m)
+      for _, e in ipairs(require("organ.modern").ELEMENTS) do
+        if m[e] == nil then
+          m[e] = true
+        end
+      end
+      opts = vim.tbl_extend("force", opts, { modern = m })
+    end
+  end
+  M.config = vim.tbl_deep_extend("force", M.config, opts)
   setup_validate_config()
 
   -- Remove subcommands for any feature whose `enabled` flag is false.

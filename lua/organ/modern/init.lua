@@ -20,7 +20,8 @@
 local M = {}
 
 -- The full element set, in attach order. Single source of truth for
--- attach / detach / enabled so a new element is wired in one place.
+-- attach / detach / enabled and the `modern = "all"` preset expansion, so a
+-- new element is wired in one place.
 local ELEMENTS = {
   "bullets",
   "blocks",
@@ -36,6 +37,8 @@ local ELEMENTS = {
   "drawers",
   "table",
 }
+
+M.ELEMENTS = ELEMENTS
 
 -- True when any modern element is enabled on `bufnr`. The ftplugin uses this
 -- to decide whether to attach at all -- gating on a fixed subset would leave
