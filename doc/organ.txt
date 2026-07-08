@@ -3611,13 +3611,14 @@ Enable everything at once with the preset `modern = "all"` (or
 
                                                         *organ-modern-bullets*
 `bullets` — replaces the trailing `*` of each headline with a level-indexed
-glyph (a single-cell Nerd Font circle ramp by default; `•` when
-`nerd_font = false`, repeats for deeper levels) and conceals the leading
-N-1 stars as spaces. Override the cycle: >lua
+glyph (`◉ ○ ◈ ◇` cycling, repeats for deeper levels) and conceals the
+leading N-1 stars as spaces. Override the cycle: >lua
     modern = { bullets = { glyphs = { "●", "○", "▶", "▷" } } }
 <
 Handles only headline stars. Plain list bullets and checkbox icons are
 separate elements: |organ-modern-list-bullets| and |organ-modern-checkboxes|.
+The default glyphs are East-Asian-Ambiguous width; if your terminal sets
+`ambiwidth=double` they render 2 cells -- override with single-cell glyphs.
 
 DO NOT combine with `stars.hide = true` — both touch the same conceal
 range and the last-applied wins (non-deterministic).

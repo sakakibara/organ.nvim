@@ -1,8 +1,8 @@
 -- Per-level headline bullets (org-modern's `org-modern-star`).
 --
 -- Replaces the trailing `*` of each headline's leading-star block with a
--- per-level glyph (a Nerd Font circle ramp by default; `•` in ascii mode),
--- and conceals the leading N-1 stars as spaces:
+-- per-level glyph (org-modern's `◉ ○ ◈ ◇` ramp by default), and conceals
+-- the leading N-1 stars as spaces:
 --
 --   *** Foo   ->     <g3> Foo   (2 spaces of indent)
 --   ** Bar    ->     <g2> Bar   (1 space)

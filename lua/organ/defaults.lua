@@ -714,10 +714,10 @@ return {
   -- last-applied wins (non-deterministic). Pick one.
   modern = {
     -- Per-level headline bullets. Replaces the trailing `*` with a level-
-    -- indexed glyph (Nerd Font circle ramp; `•` in ascii mode) and conceals
-    -- the leading N-1 stars as spaces. Use `glyphs = {…}` to override the
-    -- cycle. Plain list bullets and checkboxes are their own elements now:
-    -- `modern.list_bullets` / `modern.checkboxes`.
+    -- indexed glyph (`◉ ○ ◈ ◇` cycling) and conceals the leading N-1 stars
+    -- as spaces. Use `glyphs = {…}` to override the cycle. Plain list bullets
+    -- and checkboxes are their own elements now: `modern.list_bullets` /
+    -- `modern.checkboxes`.
     bullets = false,
     -- Rounded block frames (#+begin_src / #+end_src) with `│` body side
     -- bars. Table form `{ tint_body = true }` fills the body lines with a

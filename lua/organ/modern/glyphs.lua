@@ -28,10 +28,15 @@ local GLYPHS = {
   ["date.clock"] = { nerd = vim.fn.nr2char(0xf017), ascii = "" },
   ["rule.line"] = { nerd = vim.fn.nr2char(0x2500), ascii = vim.fn.nr2char(0x2500) },
   ["drawer.leaf"] = { nerd = vim.fn.nr2char(0xf105), ascii = "" },
-  ["bullet.1"] = { nerd = vim.fn.nr2char(0xf111), ascii = vim.fn.nr2char(0x2022) },
-  ["bullet.2"] = { nerd = vim.fn.nr2char(0xf10c), ascii = vim.fn.nr2char(0x2022) },
-  ["bullet.3"] = { nerd = vim.fn.nr2char(0xf192), ascii = vim.fn.nr2char(0x2022) },
-  ["bullet.4"] = { nerd = vim.fn.nr2char(0xf1db), ascii = vim.fn.nr2char(0x2022) },
+  -- org-modern's default ramp: filled circle, open circle, filled diamond,
+  -- open diamond. Renders in any Unicode font (unlike Nerd Font PUA) and
+  -- keeps the circle/diamond hierarchy in ascii mode too. These are
+  -- East-Asian-Ambiguous width -- 1 cell normally, 2 cells in terminals set
+  -- to `ambiwidth=double`; such users can override with `{ glyphs = {...} }`.
+  ["bullet.1"] = { nerd = vim.fn.nr2char(0x25c9), ascii = vim.fn.nr2char(0x25c9) },
+  ["bullet.2"] = { nerd = vim.fn.nr2char(0x25cb), ascii = vim.fn.nr2char(0x25cb) },
+  ["bullet.3"] = { nerd = vim.fn.nr2char(0x25c8), ascii = vim.fn.nr2char(0x25c8) },
+  ["bullet.4"] = { nerd = vim.fn.nr2char(0x25c7), ascii = vim.fn.nr2char(0x25c7) },
 }
 
 M._GLYPHS = GLYPHS

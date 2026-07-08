@@ -35,7 +35,7 @@ vim.wo.concealcursor = "nc"
 pcall(vim.treesitter.start, b, "org")
 require("organ.modern.bullets").attach(b)
 vim.cmd("redraw")
-local g1 = vim.fn.nr2char(0xf111)
+local g1 = require("organ.modern.glyphs").get("bullet.1", b)
 local found = "nil"
 local cells = {}
 for c = 1, 20 do
