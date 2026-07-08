@@ -118,8 +118,15 @@ local function decorate_bottom(bufnr, ns, lnum0, leading, inner)
 end
 
 -- `│ ` at the left (inline, pushes body text right) and ` <pad>│` at the line
--- end so the body sits flush inside the corners.
-local function decorate_body(bufnr, ns, lnum0, source, inner)
+-- end so the body sits flush inside the corners. `tint` fills the body line
+-- with a subtle background.
+local function decorate_body(bufnr, ns, lnum0, source, inner, tint)
+  if tint then
+    pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, lnum0, 0, {
+      line_hl_group = "@organ.modern.block_tint",
+      priority = 190,
+    })
+  end
   pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, lnum0, 0, {
     virt_text = { { LSIDE, "@organ.modern.block_frame" } },
     virt_text_pos = "inline",
@@ -139,6 +146,7 @@ end
 local function register_highlights()
   vim.api.nvim_set_hl(0, "@organ.modern.block_frame", { link = "Comment", default = true })
   vim.api.nvim_set_hl(0, "@organ.modern.block_label", { link = "Type", default = true })
+  vim.api.nvim_set_hl(0, "@organ.modern.block_tint", { link = "CursorLine", default = true })
 end
 
 -- Engine renderer: frame every paired block intersecting [top, bot). Inner
@@ -166,6 +174,7 @@ local function render(bufnr, top, bot)
   end
 
   local ns = require("organ.modern.render").ns
+  local tint = require("organ.buf_config").read(bufnr, "modern.blocks.tint_body") and true or false
   local n_lines = vim.api.nvim_buf_line_count(bufnr)
   local pairs_ = {}
 
@@ -235,7 +244,7 @@ local function render(bufnr, top, bot)
         for body_idx, body_line in ipairs(body_lines) do
           local body_row = body_start + body_idx - 1
           if not frame_lines[body_row] then
-            decorate_body(bufnr, ns, body_row, body_line, inner)
+            decorate_body(bufnr, ns, body_row, body_line, inner, tint)
           end
         end
       end

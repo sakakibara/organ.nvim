@@ -719,7 +719,9 @@ return {
     -- cycle. Plain list bullets and checkboxes are their own elements now:
     -- `modern.list_bullets` / `modern.checkboxes`.
     bullets = false,
-    -- Block frames (#+begin_src / #+end_src). Planned.
+    -- Rounded block frames (#+begin_src / #+end_src) with `│` body side
+    -- bars. Table form `{ tint_body = true }` fills the body lines with a
+    -- subtle background (@organ.modern.block_tint, CursorLine by default).
     blocks = false,
     -- TODO keyword + timestamp pills: the keyword renders as a rounded
     -- badge colored by its semantic bucket (see |organ-config-todo|).
