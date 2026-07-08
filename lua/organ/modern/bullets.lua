@@ -14,7 +14,7 @@
 --
 -- Self-contained: do NOT combine with `stars.lua` -- both conceal the same
 -- byte range and the last-applied conceal wins. Pick one (`modern.bullets`
--- or `stars.hide`). Manages `conceallevel` itself (the engine does not).
+-- or `stars.hide`). The engine raises `conceallevel` for its conceal marks.
 
 local M = {}
 
@@ -49,9 +49,6 @@ local function query()
   end
   return _q
 end
-
--- Per-window saved conceallevel so detach() restores rather than nukes.
-M._saved_conceallevel = M._saved_conceallevel or {}
 
 local function render(bufnr, top, bot)
   if not vim.api.nvim_buf_is_valid(bufnr) or vim.bo[bufnr].filetype ~= "org" then
@@ -133,24 +130,12 @@ end
 
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local winid = vim.api.nvim_get_current_win()
-  if M._saved_conceallevel[winid] == nil then
-    M._saved_conceallevel[winid] = vim.wo.conceallevel
-  end
-  if vim.wo.conceallevel < 2 then
-    vim.wo.conceallevel = 2
-  end
   require("organ.modern.render").attach(bufnr)
 end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   require("organ.modern.render").detach(bufnr)
-  local winid = vim.api.nvim_get_current_win()
-  if M._saved_conceallevel[winid] ~= nil then
-    vim.wo.conceallevel = M._saved_conceallevel[winid]
-    M._saved_conceallevel[winid] = nil
-  end
 end
 
 function M.toggle(bufnr)

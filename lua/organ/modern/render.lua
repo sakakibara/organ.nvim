@@ -33,6 +33,29 @@ end
 local groups = {}
 -- bufnr -> debounce timer
 local timers = {}
+-- winid -> conceallevel saved before the engine raised it. Most engine
+-- elements conceal their raw tokens (checkboxes, dates, priority, ...), which
+-- only hide at conceallevel >= 2, so the engine raises it on attach and
+-- restores it on detach.
+local saved_conceallevel = {}
+
+local function raise_conceallevel()
+  local win = vim.api.nvim_get_current_win()
+  if saved_conceallevel[win] == nil then
+    saved_conceallevel[win] = vim.wo[win].conceallevel
+  end
+  if vim.wo[win].conceallevel < 2 then
+    vim.wo[win].conceallevel = 2
+  end
+end
+
+local function restore_conceallevel()
+  local win = vim.api.nvim_get_current_win()
+  if saved_conceallevel[win] ~= nil then
+    vim.wo[win].conceallevel = saved_conceallevel[win]
+    saved_conceallevel[win] = nil
+  end
+end
 
 function M.register(name, fn)
   renderers[name] = fn
@@ -105,6 +128,7 @@ end
 
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  raise_conceallevel()
   if groups[bufnr] then
     M.refresh(bufnr, true)
     return
@@ -140,6 +164,7 @@ function M.detach(bufnr)
   end
   stop_timer(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  restore_conceallevel()
 end
 
 -- Recolor every managed buffer when the colorscheme changes (renderers

@@ -402,9 +402,9 @@ local function setup_visual_stages(bufnr, cfg)
     require("organ.stars").attach(bufnr)
   end
 
-  -- org-modern visual upgrades (bullets, block frames, pills). Each
-  -- stage is independently opt-in via `modern.{bullets,blocks,pills}`.
-  if (cfg.modern or {}).bullets or (cfg.modern or {}).blocks or (cfg.modern or {}).pills then
+  -- org-modern visual upgrades. Each element is independently opt-in via
+  -- its `modern.<element>` flag; attach when any is enabled.
+  if require("organ.modern").enabled(bufnr) then
     require("organ.modern").attach(bufnr)
   end
 end
