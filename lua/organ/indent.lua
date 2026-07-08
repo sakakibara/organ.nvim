@@ -198,6 +198,12 @@ local function place_marks(bufnr)
       virt_text = { { pad, hl } },
       virt_text_pos = "inline",
       right_gravity = false,
+      -- The indent is the outermost virtual left margin, so it must render
+      -- leftmost. Inline virt_text at the same column renders lower priority
+      -- first (further left), so keep this below every decoration that draws
+      -- at column 0 -- notably modern block frames (priority 200), whose `│`
+      -- side bar would otherwise sit left of the pad and push the body out.
+      priority = 1,
     })
   end
 end
