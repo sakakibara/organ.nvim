@@ -197,12 +197,14 @@ function M.normalize_at_cut(bufnr, line, policy)
   end
 end
 
+-- Returns the headline's row after normalization (blanks inserted or
+-- removed above shift it), or nil when `line` holds no headline.
 function M.normalize_around(bufnr, line, policy)
   policy = policy or M.detect(bufnr)
   local total = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, total, false)
   if not is_headline_line(lines[line]) then
-    return -- nothing to normalize
+    return nil -- nothing to normalize
   end
 
   -- Find blank-line spans above + below.
@@ -239,6 +241,7 @@ function M.normalize_around(bufnr, line, policy)
   end
 
   obuf.set_lines(bufnr, above_first - 1, below_last, replacement)
+  return above_first + want_before
 end
 
 return M

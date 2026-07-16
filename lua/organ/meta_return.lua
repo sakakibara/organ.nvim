@@ -152,12 +152,7 @@ function M.dispatch(opts)
     -- buffers behave naturally).
     local spacing = require("organ.spacing")
     local policy = spacing.resolve(bufnr)
-    local pre = vim.api.nvim_buf_line_count(bufnr)
-    local heading_row = end_line + 1
-    spacing.normalize_around(bufnr, heading_row, policy)
-    -- normalize_around may have inserted blanks above the heading;
-    -- shift the cursor target by however many lines the buffer grew.
-    heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+    local heading_row = spacing.normalize_around(bufnr, end_line + 1, policy) or (end_line + 1)
     normalize_following_heading(bufnr, heading_row, policy)
     move_to(heading_row, #stars + 1)
     if enter_insert then
@@ -229,10 +224,7 @@ function M.dispatch(opts)
     set_lines(bufnr, end_line, { stars .. " " })
     local spacing = require("organ.spacing")
     local policy = spacing.resolve(bufnr)
-    local pre = vim.api.nvim_buf_line_count(bufnr)
-    local heading_row = end_line + 1
-    spacing.normalize_around(bufnr, heading_row, policy)
-    heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+    local heading_row = spacing.normalize_around(bufnr, end_line + 1, policy) or (end_line + 1)
     normalize_following_heading(bufnr, heading_row, policy)
     move_to(heading_row, #stars + 1)
     if enter_insert then
@@ -262,10 +254,7 @@ function M.dispatch(opts)
       set_lines(bufnr, total, { "* " })
       local spacing = require("organ.spacing")
       local policy = spacing.resolve(bufnr)
-      local pre = vim.api.nvim_buf_line_count(bufnr)
-      local heading_row = total + 1
-      spacing.normalize_around(bufnr, heading_row, policy)
-      heading_row = heading_row + (vim.api.nvim_buf_line_count(bufnr) - pre)
+      local heading_row = spacing.normalize_around(bufnr, total + 1, policy) or (total + 1)
       move_to(heading_row, 2)
     end
     if enter_insert then
