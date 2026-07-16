@@ -15,7 +15,12 @@ local obuf = require("organ.buf")
 --   counter = numeric value of an ordered bullet, or nil for unordered
 --   content = the body after the bullet
 function M.parse_item(line)
-  local indent, bullet, content = line:match("^(%s*)([%-%+%*])%s+(.*)$")
+  local indent, bullet, content = line:match("^(%s*)([%-%+])%s+(.*)$")
+  if not bullet then
+    -- A `*` bullet requires leading whitespace; unindented `*` is a
+    -- headline.
+    indent, bullet, content = line:match("^(%s+)(%*)%s+(.*)$")
+  end
   if bullet then
     return { indent = indent, bullet = bullet, content = content }
   end
@@ -201,12 +206,50 @@ local function previous_sibling(bufnr, line)
   return nil
 end
 
+-- Last line of the item's subtree beyond the item line itself:
+-- following lines more indented than the item (child items and
+-- continuation text).  A blank line, a headline, or a line at the
+-- item's indent or shallower ends it.
+local function item_subtree_end(bufnr, line, cur_indent)
+  local last = line
+  local total = vim.api.nvim_buf_line_count(bufnr)
+  for j = line + 1, total do
+    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    if text:match("^%s*$") or text:match("^%*+%s") then
+      break
+    end
+    local ws = text:match("^(%s*)")
+    if #ws <= cur_indent then
+      break
+    end
+    last = j
+  end
+  return last
+end
+
+-- Re-indent the item at `line` by `delta` columns; with `tree`, its
+-- child lines shift by the same amount (Emacs org-indent-item-tree).
+local function shift_item(bufnr, line, cur, delta, tree)
+  if delta == 0 then
+    return false
+  end
+  local last = tree and item_subtree_end(bufnr, line, #cur.indent) or line
+  local lines = vim.api.nvim_buf_get_lines(bufnr, line - 1, last, false)
+  for i, text in ipairs(lines) do
+    local ws = text:match("^(%s*)")
+    lines[i] = string.rep(" ", math.max(0, #ws + delta)) .. text:sub(#ws + 1)
+  end
+  obuf.set_lines(bufnr, line - 1, last, lines)
+  return true
+end
+
 -- Demote: indent the list item at `line` to become a sub-item of the
 -- previous sibling.  Indent rule probed against Emacs 30.2:
 --   new_indent = previous_sibling.indent + width(previous_sibling.bullet)
 -- No-op if there's no previous sibling (Emacs raises "Cannot move item"
--- in that case).  Returns true on a change, false otherwise.
-function M.demote(bufnr, line)
+-- in that case).  `opts.tree` carries the item's children along.
+-- Returns true on a change, false otherwise.
+function M.demote(bufnr, line, opts)
   local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
   local cur = M.parse_item(cur_text)
   if not cur then
@@ -216,21 +259,16 @@ function M.demote(bufnr, line)
   if not prev then
     return false
   end
-  local new_indent = string.rep(" ", #prev.indent + prefix_width(prev))
-  local body = cur_text:sub(#cur.indent + 1)
-  local new_line = new_indent .. body
-  if new_line == cur_text then
-    return false
-  end
-  obuf.set_lines(bufnr, line - 1, line, { new_line })
-  return true
+  local new_indent = #prev.indent + prefix_width(prev)
+  return shift_item(bufnr, line, cur, new_indent - #cur.indent, opts and opts.tree)
 end
 
 -- Promote: un-indent the list item at `line` to the nearest ancestor's
 -- indent (becomes a sibling of the ancestor).  Falls back to removing
--- two leading spaces if no strict ancestor is in scope.  Returns true
--- on a change, false if already at indent 0.
-function M.promote(bufnr, line)
+-- two leading spaces if no strict ancestor is in scope.  `opts.tree`
+-- carries the item's children along.  Returns true on a change, false
+-- if already at indent 0.
+function M.promote(bufnr, line, opts)
   local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
   local cur = M.parse_item(cur_text)
   if not cur or #cur.indent == 0 then
@@ -240,22 +278,14 @@ function M.promote(bufnr, line)
     local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
     local item = M.parse_item(text)
     if item and #item.indent < #cur.indent then
-      local body = cur_text:sub(#cur.indent + 1)
-      local new_line = item.indent .. body
-      if new_line == cur_text then
-        return false
-      end
-      obuf.set_lines(bufnr, line - 1, line, { new_line })
-      return true
+      return shift_item(bufnr, line, cur, #item.indent - #cur.indent, opts and opts.tree)
     end
     if text:match("^%*+%s") or text == "" then
       break
     end
   end
   if #cur.indent >= 2 then
-    local body = cur_text:sub(#cur.indent + 1)
-    obuf.set_lines(bufnr, line - 1, line, { cur.indent:sub(3) .. body })
-    return true
+    return shift_item(bufnr, line, cur, -2, opts and opts.tree)
   end
   return false
 end

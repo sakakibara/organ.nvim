@@ -546,6 +546,14 @@ Structure                                             *organ-config-structure*
      `move_subtree_up`   `"gK"` — swap with previous sibling
      `move_subtree_down` `"gJ"` — swap with next sibling
 
+    On a list item the promote / demote chords are context-sensitive
+    like Emacs's meta-arrow bindings: the subtree chords indent /
+    un-indent the item together with its children, the headline-only
+    chords move just the item line (see |:Org-list_demote|).  The
+    bare `<<` / `>>` aliases are the exception: off a headline they
+    keep Vim's native indent, so `>>` on any body or list line still
+    shifts by 'shiftwidth'.
+
     Visual mode: the promote / demote chords also bind in visual
     mode, where they shift the level of EVERY headline in the
     selection by one step (Emacs region M-LEFT / M-RIGHT: "promotion
@@ -1701,18 +1709,26 @@ Structure                                                *organ-cmd-structure*
 *:Org-promote*
     `:Org promote`
     Promote the subtree at cursor (decrease heading level by 1).
+    Context-sensitive like Emacs `org-shiftmetaleft`: on a list item
+    it un-indents the item together with its children instead (see
+    |:Org-list_promote|).
 
 *:Org-demote*
     `:Org demote`
     Demote the subtree at cursor (increase heading level by 1).
+    Context-sensitive like Emacs `org-shiftmetaright`: on a list item
+    it indents the item together with its children instead (see
+    |:Org-list_demote|).
 
 *:Org-promote_headline*
     `:Org promote_headline`
-    Promote only the headline at cursor, not its children.
+    Promote only the headline at cursor, not its children.  On a
+    list item: un-indent only the item line (Emacs `org-metaleft`).
 
 *:Org-demote_headline*
     `:Org demote_headline`
-    Demote only the headline at cursor, not its children.
+    Demote only the headline at cursor, not its children.  On a
+    list item: indent only the item line (Emacs `org-metaright`).
 
 *:Org-move_up*
     `:Org move_up`
@@ -3185,15 +3201,18 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
     `:Org list demote`
     Indent the list item at cursor under the previous sibling
     (becomes the previous item's first child).  Mirrors Emacs
-    `org-shiftmetaright`.  Indent rule probed against Emacs 30.2:
+    `org-metaright` on an item.  Indent rule probed against Emacs
+    30.2:
     `new_indent = previous_sibling.indent + width(its_bullet_prefix)`
     -- so `- one` (prefix width 2) yields 2-space indent, `1. one`
     (width 3) yields 3-space, `10. one` (width 4) yields 4-space.
 
     No-op when not on a list item or when there is no previous
-    sibling at the current depth.  Not bound to a keymap by default
-    (Tab is overloaded with fold-cycle on headlines and indent on
-    body); bind to your preferred chord via `vim.keymap.set`.
+    sibling at the current depth.  The promote / demote keymaps
+    dispatch here when the cursor is on a list item: the subtree
+    chords carry the item's children along (Emacs
+    `org-shiftmetaright`), the headline-only chords move just the
+    item line.
 
     Caveat: numeric-list renumbering after demotion is NOT yet
     automatic -- Emacs renumbers the whole list when demotion
@@ -3204,8 +3223,8 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
     `:Org list promote`
     Un-indent the list item at cursor to its nearest ancestor's
     indent (becomes the ancestor's sibling).  Mirrors Emacs
-    `org-shiftmetaleft`.  No-op when not on a list item or when
-    already at indent 0.
+    `org-metaleft` on an item.  No-op when not on a list item or
+    when already at indent 0.
 
 *:Org-list_to_subtree*
     `:Org list to_subtree`

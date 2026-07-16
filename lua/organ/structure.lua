@@ -579,28 +579,60 @@ local function run_op(name)
   end
 end
 
+-- The promote/demote commands are context-sensitive like Emacs's
+-- meta-arrow bindings: on a list item they indent/outdent the item
+-- (`tree` carries its children, Emacs org-indent-item-tree) instead of
+-- re-leveling the enclosing subtree.  Returns true when the cursor was
+-- on a list item (handled here), false to fall through to the
+-- headline op.
+local function list_shift(dir, tree)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local list = require("organ.list")
+  local text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  if not list.parse_item(text) then
+    return false
+  end
+  local fn = (dir == "promote") and list.promote or list.demote
+  if not fn(bufnr, line, { tree = tree }) then
+    require("organ.notify").warn(
+      dir == "promote" and "cannot outdent: item already at indent 0"
+        or "cannot indent: item has no previous sibling"
+    )
+  end
+  return true
+end
+
 M.commands = {
   promote = {
     fn = function()
-      run_op("promote_subtree")
+      if not list_shift("promote", true) then
+        run_op("promote_subtree")
+      end
     end,
     desc = "Promote the subtree at cursor by one level (Emacs S-M-LEFT)",
   },
   demote = {
     fn = function()
-      run_op("demote_subtree")
+      if not list_shift("demote", true) then
+        run_op("demote_subtree")
+      end
     end,
     desc = "Demote the subtree at cursor by one level (Emacs S-M-RIGHT)",
   },
   promote_headline = {
     fn = function()
-      run_op("promote_headline")
+      if not list_shift("promote", false) then
+        run_op("promote_headline")
+      end
     end,
     desc = "Promote just the current headline (NOT its children)",
   },
   demote_headline = {
     fn = function()
-      run_op("demote_headline")
+      if not list_shift("demote", false) then
+        run_op("demote_headline")
+      end
     end,
     desc = "Demote just the current headline (NOT its children)",
   },
