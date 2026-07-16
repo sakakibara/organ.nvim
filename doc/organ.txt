@@ -1601,7 +1601,11 @@ Find                                                          *organ-cmd-find*
 
 *:Org-follow_link*
     `:Org follow_link`
-    Follow the org link under the cursor.
+    Follow the org link under the cursor: a `[[...]]` / `[[...][...]]`
+    bracket link, a plain link (a bare `https://...`, `mailto:...`,
+    ... with no brackets), or an angle link (`<https://...>`).  Plain
+    and angle links are recognized for the schemes the resolver
+    knows, matching Emacs's registered-link-types rule.
 
 *:Org-hover*
     `:Org hover`

@@ -404,10 +404,82 @@ function M.dispatch(action)
   end
 end
 
+-- Schemes recognized in plain (bare) and angle links.  Emacs limits
+-- `org-link-plain-re` to registered link types the same way, so prose
+-- like `note: this` never becomes a link.
+local PLAIN_SCHEMES = (function()
+  local s = { id = true, file = true, attachment = true }
+  for _, tbl in ipairs({ URL_SCHEMES, SYNTH_URL, SPECIAL_SCHEMES }) do
+    for k in pairs(tbl) do
+      s[k] = true
+    end
+  end
+  return s
+end)()
+
+-- Find the org plain link (`scheme:path` outside brackets) or angle
+-- link (`<scheme:path>`, which may contain spaces) covering 1-based
+-- `col` in `line_text`.  Returns { target, start, ["end"] } or nil.
+function M.plain_link_at(line_text, col)
+  -- Angle links first: explicit boundaries win over the bare matcher.
+  local pos = 1
+  while true do
+    local s, e, target = line_text:find("<(%a[%w+.-]*:[^<>]+)>", pos)
+    if not s then
+      break
+    end
+    local scheme = target:match("^(%a[%w+.-]*):")
+    if PLAIN_SCHEMES[scheme] and col >= s and col <= e then
+      return { target = target, start = s, ["end"] = e }
+    end
+    pos = e + 1
+  end
+  pos = 1
+  while true do
+    local s, e, scheme, path = line_text:find("(%a[%w+.-]*):([^%s%[%]<>]+)", pos)
+    if not s then
+      break
+    end
+    local prev = s > 1 and line_text:sub(s - 1, s - 1) or ""
+    if not prev:match("%w") and PLAIN_SCHEMES[scheme] then
+      -- Trim trailing sentence punctuation; keep a `)` that closes a
+      -- paren opened inside the path (org-link-plain-re semantics).
+      local target = scheme .. ":" .. path
+      while #target > 0 do
+        local last = target:sub(-1)
+        if last:match("[%.,;:!%?'\"]") then
+          target = target:sub(1, -2)
+        elseif last == ")" then
+          local _, opens = target:gsub("%(", "")
+          local _, closes = target:gsub("%)", "")
+          if closes > opens then
+            target = target:sub(1, -2)
+          else
+            break
+          end
+        else
+          break
+        end
+      end
+      local te = s + #target - 1
+      if #target > #scheme + 1 and col >= s and col <= te then
+        return { target = target, start = s, ["end"] = te }
+      end
+      pos = e + 1
+    else
+      -- Rejected match may still contain a valid link further in
+      -- (`x-http://…` hides `http://…`); rescan from the next char.
+      pos = s + 1
+    end
+  end
+  return nil
+end
+
 -- High-level action: follow the link under (`opts.bufnr`, `opts.line`,
 -- `opts.col`).  All keys default to current buffer + cursor.  Walks the
--- line for `[[…]]`/`[[…][…]]` spans, picks the one covering the column,
--- resolves it via `M.open`, and dispatches the resulting action.
+-- line for `[[…]]`/`[[…][…]]` spans plus plain/angle links, picks the
+-- one covering the column, resolves it via `M.open`, and dispatches the
+-- resulting action.
 function M.follow(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -435,6 +507,12 @@ function M.follow(opts)
     if col >= lk.start and col <= lk["end"] then
       target_text = lk.target
       break
+    end
+  end
+  if not target_text then
+    local plain = M.plain_link_at(line_text, col)
+    if plain then
+      target_text = plain.target
     end
   end
   if not target_text then
