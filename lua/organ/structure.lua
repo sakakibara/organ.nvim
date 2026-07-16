@@ -603,6 +603,27 @@ local function list_shift(dir, tree)
   return true
 end
 
+-- move_up/move_down context: on a list item swap it (with children)
+-- with the previous/next sibling (Emacs org-metaup / org-metadown).
+-- Returns true when the cursor was on a list item, false to fall
+-- through to the subtree op.
+local function list_move(dir)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local pos = vim.api.nvim_win_get_cursor(0)
+  local list = require("organ.list")
+  local text = vim.api.nvim_buf_get_lines(bufnr, pos[1] - 1, pos[1], false)[1] or ""
+  if not list.parse_item(text) then
+    return false
+  end
+  local new_line = list.move(bufnr, pos[1], dir)
+  if new_line then
+    pcall(vim.api.nvim_win_set_cursor, 0, { new_line, pos[2] })
+  else
+    require("organ.notify").warn("cannot move this item further " .. dir)
+  end
+  return true
+end
+
 M.commands = {
   promote = {
     fn = function()
@@ -638,13 +659,17 @@ M.commands = {
   },
   move_up = {
     fn = function()
-      run_op("move_subtree_up")
+      if not list_move("up") then
+        run_op("move_subtree_up")
+      end
     end,
     desc = "Swap the subtree at cursor with the previous same-level sibling (Emacs M-UP)",
   },
   move_down = {
     fn = function()
-      run_op("move_subtree_down")
+      if not list_move("down") then
+        run_op("move_subtree_down")
+      end
     end,
     desc = "Swap the subtree at cursor with the next same-level sibling (Emacs M-DOWN)",
   },

@@ -546,12 +546,14 @@ Structure                                             *organ-config-structure*
      `move_subtree_up`   `"gK"` — swap with previous sibling
      `move_subtree_down` `"gJ"` — swap with next sibling
 
-    On a list item the promote / demote chords are context-sensitive
-    like Emacs's meta-arrow bindings: the subtree chords indent /
-    un-indent the item together with its children, the headline-only
-    chords move just the item line (see |:Org-list_demote|).  The
-    bare `<<` / `>>` aliases are the exception: off a headline they
-    keep Vim's native indent, so `>>` on any body or list line still
+    On a list item the promote / demote / move chords are
+    context-sensitive like Emacs's meta-arrow bindings: the subtree
+    chords indent / un-indent the item together with its children,
+    the headline-only chords move just the item line (see
+    |:Org-list_demote|), and the move chords swap the item (with its
+    children) with the previous / next sibling item.  The bare
+    `<<` / `>>` aliases are the exception: off a headline they keep
+    Vim's native indent, so `>>` on any body or list line still
     shifts by 'shiftwidth'.
 
     Visual mode: the promote / demote chords also bind in visual
@@ -1739,11 +1741,15 @@ Structure                                                *organ-cmd-structure*
 
 *:Org-move_up*
     `:Org move_up`
-    Move subtree up — swap with the previous sibling.
+    Move subtree up — swap with the previous sibling.  On a list
+    item: swap the item (with its children) with the previous
+    sibling item; ordered bullets stay positional (Emacs M-UP).
 
 *:Org-move_down*
     `:Org move_down`
-    Move subtree down — swap with the next sibling.
+    Move subtree down — swap with the next sibling.  On a list item:
+    swap the item (with its children) with the next sibling item
+    (Emacs M-DOWN).
 
 ------------------------------------------------------------------------------
 Inline editing                                         *organ-cmd-inline-edit*

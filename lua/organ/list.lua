@@ -311,6 +311,68 @@ function M.promote(bufnr, line, opts)
   return shift_item(bufnr, line, cur, delta, opts and opts.tree)
 end
 
+-- Swap the item at `line` (with its children) with the sibling above/
+-- below at the same indent (Emacs org-metaup / org-metadown on an
+-- item).  Ordered bullets stay positional -- the two items exchange
+-- their bullet numbers (probed against Emacs 30.2: metaup on `2. two`
+-- yields `1. two / 2. one`).  Returns the item's new first line, or
+-- false when there's no same-indent sibling to swap with (Emacs:
+-- "Cannot move this item further up/down").
+function M.move(bufnr, line, dir)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur then
+    return false
+  end
+  local cur_end = item_subtree_end(bufnr, line, #cur.indent)
+  local other_start, other_end, other
+  if dir == "up" then
+    for j = line - 1, 1, -1 do
+      local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+      if text:match("^%s*$") or text:match("^%*+%s") then
+        break
+      end
+      local item = M.parse_item(text)
+      if item then
+        if #item.indent == #cur.indent then
+          other_start, other_end, other = j, line - 1, item
+          break
+        elseif #item.indent < #cur.indent then
+          break
+        end
+      elseif #text:match("^(%s*)") <= #cur.indent then
+        break
+      end
+    end
+  else
+    local nxt = cur_end + 1
+    local text = vim.api.nvim_buf_get_lines(bufnr, nxt - 1, nxt, false)[1] or ""
+    local item = M.parse_item(text)
+    if item and #item.indent == #cur.indent then
+      other_start, other_end, other = nxt, item_subtree_end(bufnr, nxt, #item.indent), item
+    end
+  end
+  if not other_start then
+    return false
+  end
+  local cur_block = vim.api.nvim_buf_get_lines(bufnr, line - 1, cur_end, false)
+  local other_block = vim.api.nvim_buf_get_lines(bufnr, other_start - 1, other_end, false)
+  if cur.counter and other.counter then
+    cur_block[1] = cur.indent .. other.bullet .. " " .. cur.content
+    other_block[1] = other.indent .. cur.bullet .. " " .. other.content
+  end
+  local combined, new_line
+  if dir == "up" then
+    new_line = other_start
+    combined = vim.list_extend(cur_block, other_block)
+  else
+    new_line = line + #other_block
+    combined = vim.list_extend(other_block, cur_block)
+  end
+  obuf.set_lines(bufnr, math.min(line, other_start) - 1, math.max(cur_end, other_end), combined)
+  return new_line
+end
+
 -- Shift every line in [s, e] as a block, one indent level in `dir`
 -- ("promote" or "demote").  The region must start on a list item
 -- (Emacs region org-indent-item: "Region not starting at an item");
