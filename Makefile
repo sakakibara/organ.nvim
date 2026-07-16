@@ -21,7 +21,7 @@ help:
 	@echo "  make test-only       run tests without re-bootstrapping (fast iteration)"
 	@echo "  make test-fold       run only fold-related tests"
 	@echo "  make test-behavioral run only tests/behavioral/ (user-perceptible scenarios)"
-	@echo "  make deps            fetch test-time deps (tablature.nvim, narrow.nvim) into tests/deps/"
+	@echo "  make deps            fetch test-time deps into tests/deps/ (list in scripts/test-deps.sh)"
 	@echo "  make demo-deps       fetch demo-time deps (snacks.nvim, catppuccin) into tests/deps/"
 	@echo "  make grammar         build the tree-sitter grammars"
 	@echo "  make lint            stylua --check on lua/ plugin/ tests/"

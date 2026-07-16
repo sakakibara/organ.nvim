@@ -48,7 +48,7 @@ tests/
   *_test.lua            unit + integration; one file per concern
   behavioral/           user-perceptible scenarios (capture, agenda dispatch, ...)
   fixtures/             read-only test data (org files, parity baselines)
-  deps/                 gitignored runtime deps (tablature.nvim, narrow.nvim)
+  deps/                 gitignored test-time deps (fetched by scripts/test-deps.sh)
 ```
 
 Every test bootstraps via `dofile("tests/_bootstrap.lua")`, which
