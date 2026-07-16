@@ -103,9 +103,17 @@ function M.attach(bufnr)
         local keys = (n > 1 and tostring(n) or "") .. native
         vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(keys, true, false, true), "n", false)
       else
-        -- org-only chord (e.g. <M-h>) with no heading selected: nothing
-        -- to do; just leave visual mode.
+        -- org-only chord with no heading selected: when the selection
+        -- starts on a list item, indent/outdent every selected line as
+        -- a block (Emacs region org-indent-item / org-outdent-item);
+        -- otherwise nothing to do.  Leave visual mode either way.
         vim.api.nvim_feedkeys(esc, "nx", false)
+        local list = require("organ.list")
+        for _ = 1, n do
+          if not list.shift_region(0, s, e, dir) then
+            break
+          end
+        end
       end
     end
   end

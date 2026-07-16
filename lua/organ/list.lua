@@ -243,51 +243,98 @@ local function shift_item(bufnr, line, cur, delta, tree)
   return true
 end
 
--- Demote: indent the list item at `line` to become a sub-item of the
--- previous sibling.  Indent rule probed against Emacs 30.2:
---   new_indent = previous_sibling.indent + width(previous_sibling.bullet)
--- No-op if there's no previous sibling (Emacs raises "Cannot move item"
--- in that case).  `opts.tree` carries the item's children along.
--- Returns true on a change, false otherwise.
-function M.demote(bufnr, line, opts)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
-  if not cur then
-    return false
-  end
+-- Indent delta that nests the item at `line` under its previous
+-- sibling (Emacs 30.2 rule: new_indent = sibling.indent +
+-- width(its_bullet_prefix)).  nil when there's no previous sibling.
+local function demote_delta(bufnr, line, cur)
   local prev = previous_sibling(bufnr, line)
   if not prev then
-    return false
+    return nil
   end
-  local new_indent = #prev.indent + prefix_width(prev)
-  return shift_item(bufnr, line, cur, new_indent - #cur.indent, opts and opts.tree)
+  return #prev.indent + prefix_width(prev) - #cur.indent
 end
 
--- Promote: un-indent the list item at `line` to the nearest ancestor's
--- indent (becomes a sibling of the ancestor).  Falls back to removing
--- two leading spaces if no strict ancestor is in scope.  `opts.tree`
--- carries the item's children along.  Returns true on a change, false
--- if already at indent 0.
-function M.promote(bufnr, line, opts)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
-  if not cur or #cur.indent == 0 then
-    return false
+-- Indent delta that lifts the item at `line` to the nearest ancestor's
+-- indent; falls back to -2 when no strict ancestor is in scope.  nil
+-- when already at indent 0.
+local function promote_delta(bufnr, line, cur)
+  if #cur.indent == 0 then
+    return nil
   end
   for j = line - 1, 1, -1 do
     local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
     local item = M.parse_item(text)
     if item and #item.indent < #cur.indent then
-      return shift_item(bufnr, line, cur, #item.indent - #cur.indent, opts and opts.tree)
+      return #item.indent - #cur.indent
     end
     if text:match("^%*+%s") or text == "" then
       break
     end
   end
   if #cur.indent >= 2 then
-    return shift_item(bufnr, line, cur, -2, opts and opts.tree)
+    return -2
   end
-  return false
+  return nil
+end
+
+-- Demote: indent the list item at `line` to become a sub-item of the
+-- previous sibling.  No-op if there's no previous sibling (Emacs raises
+-- "Cannot move item" in that case).  `opts.tree` carries the item's
+-- children along.  Returns true on a change, false otherwise.
+function M.demote(bufnr, line, opts)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur then
+    return false
+  end
+  local delta = demote_delta(bufnr, line, cur)
+  if not delta then
+    return false
+  end
+  return shift_item(bufnr, line, cur, delta, opts and opts.tree)
+end
+
+-- Promote: un-indent the list item at `line` to the nearest ancestor's
+-- indent (becomes a sibling of the ancestor).  `opts.tree` carries the
+-- item's children along.  Returns true on a change, false if already
+-- at indent 0.
+function M.promote(bufnr, line, opts)
+  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
+  local cur = M.parse_item(cur_text)
+  if not cur then
+    return false
+  end
+  local delta = promote_delta(bufnr, line, cur)
+  if not delta then
+    return false
+  end
+  return shift_item(bufnr, line, cur, delta, opts and opts.tree)
+end
+
+-- Shift every line in [s, e] as a block, one indent level in `dir`
+-- ("promote" or "demote").  The region must start on a list item
+-- (Emacs region org-indent-item: "Region not starting at an item");
+-- the delta comes from that first item.  Blank lines stay empty.
+-- Returns true on a change, false otherwise.
+function M.shift_region(bufnr, s, e, dir)
+  local first = vim.api.nvim_buf_get_lines(bufnr, s - 1, s, false)[1] or ""
+  local cur = M.parse_item(first)
+  if not cur then
+    return false
+  end
+  local delta = (dir == "promote") and promote_delta(bufnr, s, cur) or demote_delta(bufnr, s, cur)
+  if not delta or delta == 0 then
+    return false
+  end
+  local lines = vim.api.nvim_buf_get_lines(bufnr, s - 1, e, false)
+  for i, text in ipairs(lines) do
+    if not text:match("^%s*$") then
+      local ws = text:match("^(%s*)")
+      lines[i] = string.rep(" ", math.max(0, #ws + delta)) .. text:sub(#ws + 1)
+    end
+  end
+  obuf.set_lines(bufnr, s - 1, e, lines)
+  return true
 end
 
 M.commands = {

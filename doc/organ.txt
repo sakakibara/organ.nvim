@@ -560,10 +560,13 @@ Structure                                             *organ-config-structure*
     and demotion work on all headlines in the region").  Selecting
     whole trees therefore promotes / demotes each of them; relative
     structure is preserved because parents and their in-selection
-    children both shift by one.  The bare `<` / `>` aliases stay
+    children both shift by one.  A selection with no headline that
+    STARTS on a list item indents / un-indents every selected line
+    as a block instead (Emacs region `org-indent-item` /
+    `org-outdent-item`).  The bare `<` / `>` aliases stay
     context-aware: when the visual selection contains no headline
     they fall through to Vim's native visual indent, so you can still
-    indent body text / code blocks.
+    indent body text / code blocks / list items the Vim way.
 
 ------------------------------------------------------------------------------
 Table                                                     *organ-config-table*
