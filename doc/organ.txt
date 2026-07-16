@@ -3813,7 +3813,9 @@ Emacs `org-hide-leading-stars` equivalent. Off by default. >lua
 <
 Conceals all but the trailing `*` of each headline's leading-star
 block, so `*** Foo` renders as `   * Foo`. Sets the window's
-`'conceallevel'` to 2 on attach (restored on detach).
+`'conceallevel'` to 2 on attach (restored on detach). The
+nvim-treesitter-context sticky header shows the same hidden-star form
+(see |organ-treesitter-context|).
 
 ==============================================================================
 TREESITTER INTEGRATION                                      *organ-treesitter*
@@ -3827,6 +3829,12 @@ Context header                                      *organ-treesitter-context*
 `queries/org/context.scm` feeds nvim-treesitter-context. Because headlines
 nest, the sticky header shows the full ancestor heading chain of the line
 at the top of the window. No configuration is needed.
+
+The header mirrors the buffer's star treatment: with
+|organ-modern-bullets| enabled its headlines show the per-level glyphs,
+and with |organ-stars| hiding they show the hidden-star form.
+(treesitter-context redraws headline copies in its own buffer, so organ
+re-applies the conceals there.)
 
 Textobjects                                     *organ-treesitter-textobjects*
 

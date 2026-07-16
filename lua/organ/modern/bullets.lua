@@ -107,7 +107,7 @@ require("organ.modern.render").register("bullets", render)
 
 -- Bridge the bullets into nvim-treesitter-context's sticky header (its
 -- extmark copy cannot carry organ's conceals).
-require("organ.modern.ts_context")
+require("organ.ts_context")
 
 function M._apply(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()

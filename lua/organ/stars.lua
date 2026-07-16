@@ -88,6 +88,10 @@ require("organ.decoration").register({
   on_line = on_line,
 })
 
+-- Bridge the hidden stars into nvim-treesitter-context's sticky header
+-- (its extmark copy cannot carry organ's conceals).
+require("organ.ts_context")
+
 -- Test-facing: drive on_win across the full buffer and place
 -- non-ephemeral extmarks so callers asserting via
 -- `nvim_buf_get_extmarks` see them without waiting for a frame.
