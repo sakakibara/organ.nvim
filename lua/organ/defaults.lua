@@ -586,6 +586,10 @@ return {
       -- surrounding context. Single chord; falls back to `OrgMetaReturn`
       -- command for users who'd rather invoke it explicitly.
       meta_return = "<M-CR>",
+      -- TODO variant (Emacs M-S-RET, org-insert-todo-heading): new
+      -- heading with the first active TODO keyword, or unchecked
+      -- checkbox item on a list.
+      insert_todo = "<M-S-CR>",
     },
   },
 

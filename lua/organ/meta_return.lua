@@ -127,7 +127,10 @@ local function renumber(bufnr, start_line, indent, sep, start_n)
   end
 end
 
--- Public entry.
+-- Public entry.  `opts.todo` makes the inserted element a TODO one
+-- (Emacs M-S-RET, org-insert-todo-heading): headings get the first
+-- active keyword of the reference entry's TODO sequence, list items
+-- get an unchecked checkbox.
 function M.dispatch(opts)
   opts = opts or {}
   local enter_insert = opts.enter_insert ~= false
@@ -136,9 +139,23 @@ function M.dispatch(opts)
   local cur_line = cur[1]
   local txt = get_line(bufnr, cur_line)
 
+  -- Keyword for a new TODO heading: head of the sequence containing
+  -- the reference headline's current state (`headline_text` nil for
+  -- "no reference entry" -> first sequence).  nil when opts.todo is
+  -- off.
+  local function todo_keyword(headline_text)
+    if not opts.todo then
+      return nil
+    end
+    local state = headline_text and headline_text:match("^%*+%s+(%S+)")
+    return require("organ.todo").sequence_head(bufnr, state)
+  end
+
   -- 1. Headline → new sibling headline at the end of this subtree.
   local lvl = headline_level(txt)
   if lvl then
+    local kw = todo_keyword(txt)
+    local heading_prefix = string.rep("*", lvl) .. " " .. (kw and (kw .. " ") or "")
     -- Optional Emacs point-splitting (`meta_return.split_headline`):
     -- with the cursor inside the title, break it there -- the tail
     -- becomes a new same-level headline right below, so body and
@@ -149,7 +166,7 @@ function M.dispatch(opts)
     local title_start = (txt:match("^%*+%s+()") or 1) - 1
     if cfg.split_headline and col > title_start and col < #txt then
       local head = txt:sub(1, col)
-      local tail = string.rep("*", lvl) .. " " .. txt:sub(col + 1)
+      local tail = heading_prefix .. txt:sub(col + 1)
       obuf.set_lines(bufnr, cur_line - 1, cur_line, { head, tail })
       move_to(cur_line + 1, math.max(#tail - 1, 0))
       if enter_insert then
@@ -170,8 +187,7 @@ function M.dispatch(opts)
       end
       end_line = i
     end
-    local stars = string.rep("*", lvl)
-    set_lines(bufnr, end_line, { stars .. " " })
+    set_lines(bufnr, end_line, { heading_prefix })
     -- Apply the buffer's empty-line policy around the freshly inserted
     -- heading so it inherits the blank-line style the user already
     -- writes (auto-detect each call, so paste-into-different-style
@@ -180,7 +196,7 @@ function M.dispatch(opts)
     local policy = spacing.resolve(bufnr)
     local heading_row = spacing.normalize_around(bufnr, end_line + 1, policy) or (end_line + 1)
     normalize_following_heading(bufnr, heading_row, policy)
-    move_to(heading_row, #stars + 1)
+    move_to(heading_row, #heading_prefix)
     if enter_insert then
       vim.cmd("startinsert!")
     end
@@ -189,7 +205,9 @@ function M.dispatch(opts)
 
   -- 2. List item → new sibling item.  A description item gets the
   -- ` :: ` skeleton with the cursor in the term slot (Emacs
-  -- org-insert-item on a description list).
+  -- org-insert-item on a description list).  With opts.todo the
+  -- sibling carries an unchecked checkbox, whatever the current
+  -- item's state.
   local bullet = parse_bullet(txt)
   if bullet then
     local prefix
@@ -197,6 +215,9 @@ function M.dispatch(opts)
       prefix = bullet.indent .. bullet.char .. " "
     else
       prefix = bullet.indent .. (bullet.n + 1) .. bullet.sep .. " "
+    end
+    if opts.todo then
+      prefix = prefix .. "[ ] "
     end
     -- Optional Emacs point-splitting (`meta_return.split_item`): with
     -- the cursor inside the item text, break it there.  The tail
@@ -232,8 +253,11 @@ function M.dispatch(opts)
     return
   end
 
-  -- 3. Table row → new row below (mirrors the column count).
-  if is_table_row(txt) then
+  -- 3. Table row → new row below (mirrors the column count).  With
+  -- opts.todo a row makes no sense; fall through to the body-line
+  -- heading behavior instead (Emacs splits the table there, which
+  -- organ's no-split convention deliberately avoids).
+  if is_table_row(txt) and not opts.todo then
     -- Count the number of `|` separators; replicate as empty cells.
     local pipes = 0
     for _ in txt:gmatch("|") do
@@ -255,7 +279,7 @@ function M.dispatch(opts)
   -- content = t` (the common user config): from anywhere inside a
   -- subtree, M-RET produces a new heading at the same level appended
   -- below, never splitting the body line at point.
-  local _, hl_lvl = enclosing_headline(bufnr, cur_line)
+  local hl_line, hl_lvl = enclosing_headline(bufnr, cur_line)
   if hl_lvl then
     local total = vim.api.nvim_buf_line_count(bufnr)
     local end_line = cur_line
@@ -271,13 +295,14 @@ function M.dispatch(opts)
       end
       end_line = i
     end
-    local stars = string.rep("*", hl_lvl)
-    set_lines(bufnr, end_line, { stars .. " " })
+    local kw = todo_keyword(get_line(bufnr, hl_line))
+    local heading_prefix = string.rep("*", hl_lvl) .. " " .. (kw and (kw .. " ") or "")
+    set_lines(bufnr, end_line, { heading_prefix })
     local spacing = require("organ.spacing")
     local policy = spacing.resolve(bufnr)
     local heading_row = spacing.normalize_around(bufnr, end_line + 1, policy) or (end_line + 1)
     normalize_following_heading(bufnr, heading_row, policy)
-    move_to(heading_row, #stars + 1)
+    move_to(heading_row, #heading_prefix)
     if enter_insert then
       vim.cmd("startinsert!")
     end
@@ -298,15 +323,17 @@ function M.dispatch(opts)
     end
   end
   if not has_any_heading then
+    local kw = todo_keyword(nil)
+    local heading_prefix = "* " .. (kw and (kw .. " ") or "")
     if total == 1 and get_line(bufnr, 1) == "" then
-      obuf.set_lines(bufnr, 0, 1, { "* " })
-      move_to(1, 2)
+      obuf.set_lines(bufnr, 0, 1, { heading_prefix })
+      move_to(1, #heading_prefix)
     else
-      set_lines(bufnr, total, { "* " })
+      set_lines(bufnr, total, { heading_prefix })
       local spacing = require("organ.spacing")
       local policy = spacing.resolve(bufnr)
       local heading_row = spacing.normalize_around(bufnr, total + 1, policy) or (total + 1)
-      move_to(heading_row, 2)
+      move_to(heading_row, #heading_prefix)
     end
     if enter_insert then
       vim.cmd("startinsert!")
@@ -315,9 +342,12 @@ function M.dispatch(opts)
   end
 
   -- 6. Fallback (preamble of a file that DOES have headings, no
-  -- list/table context) — open a fresh blank line below like Vim's `o`.
-  set_lines(bufnr, cur_line, { "" })
-  move_to(cur_line + 1, 0)
+  -- list/table context) — open a fresh blank line below like Vim's
+  -- `o`; with opts.todo, a fresh TODO heading instead.
+  local kw = todo_keyword(nil)
+  local new = kw and ("* " .. kw .. " ") or ""
+  set_lines(bufnr, cur_line, { new })
+  move_to(cur_line + 1, #new)
   if enter_insert then
     vim.cmd("startinsert!")
   end
@@ -329,6 +359,12 @@ M.commands = {
       M.dispatch({ enter_insert = false })
     end,
     desc = "Insert a new element appropriate to the cursor context (heading / list item / row / link)",
+  },
+  insert_todo = {
+    fn = function()
+      M.dispatch({ enter_insert = false, todo = true })
+    end,
+    desc = "Insert a new TODO heading / unchecked checkbox item for the cursor context (Emacs M-S-RET)",
   },
 }
 

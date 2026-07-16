@@ -546,6 +546,8 @@ Structure                                             *organ-config-structure*
      `demote_headline`   `<LocalLeader>>` — demote headline only
      `move_subtree_up`   `"gK"` — swap with previous sibling
      `move_subtree_down` `"gJ"` — swap with next sibling
+     `meta_return`       `<M-CR>` — insert element below
+     `insert_todo`       `<M-S-CR>` — insert TODO / checkbox below
 
     On a list item the promote / demote / move chords are
     context-sensitive like Emacs's meta-arrow bindings: the subtree
@@ -1928,6 +1930,22 @@ TODO                                                          *organ-cmd-todo*
     With |organ-config-meta_return-split| enabled, a cursor INSIDE
     the headline title or item text splits it there instead (Emacs
     point-splitting).
+
+*:Org-insert_todo*                                     *organ-cmd-insert-todo*
+    `:Org insert_todo`
+    TODO variant of |:Org-meta_return| (Emacs M-S-RET,
+    `org-insert-todo-heading`), bound to `<M-S-CR>` by default:
+    - On a headline or body line → new sibling heading prefixed with
+      the FIRST ACTIVE keyword of the entry's TODO sequence (never a
+      copy of the current state: below `* DONE x` it inserts
+      `* TODO `; below `* BUG x` under `#+TODO: BUG WIP | FIXED` it
+      inserts `* BUG `).  Buffer-local `#+TODO:` directives win over
+      the global |organ-config-todo| sequence.
+    - On a list item → new sibling with an UNCHECKED checkbox
+      (`- [ ] `), whatever the current item's state; ordered lists
+      renumber and description items keep the ` :: ` skeleton.
+    Table rows and preamble lines fall back to the heading behavior
+    (organ never splits a table the way Emacs M-S-RET does).
 
 ------------------------------------------------------------------------------
 Habits                                                      *organ-cmd-habits*

@@ -209,6 +209,26 @@ function M.effective_sequences(bufnr)
   return M._normalise_sequences(raw)
 end
 
+-- First active keyword of the sequence containing `state` (Emacs
+-- `org-get-todo-sequence-head`): the keyword a fresh TODO entry gets.
+-- With `state` nil or not in any sequence, the first sequence is used.
+function M.sequence_head(bufnr, state)
+  local function sequence_of(state_name, sequences)
+    for _, s in ipairs(sequences) do
+      for _, k in ipairs(s) do
+        if k ~= "|" and strip_annotation(k) == state_name then
+          return s
+        end
+      end
+    end
+    return nil
+  end
+  local sequences = M.effective_sequences(bufnr)
+  local seq = (state and sequence_of(state, sequences)) or sequences[1]
+  local actives = seq and split_seq(seq) or {}
+  return strip_annotation(actives[1] or "TODO")
+end
+
 -- Flat list of all bare keyword names from the user's config (any
 -- shape: single, multi, with or without annotations).  Pipe markers
 -- excluded.  Convenience for consumers that iterate keywords without
