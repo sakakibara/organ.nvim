@@ -589,6 +589,17 @@ return {
     },
   },
 
+  -- Context-aware M-RET insertion.
+  meta_return = {
+    -- Split the headline title / list item text at the cursor when
+    -- M-RET fires inside it (Emacs org-insert-heading /
+    -- org-insert-item point-splitting).  Off: always insert an empty
+    -- sibling (headline: at the end of the subtree; item: below the
+    -- cursor line).
+    split_headline = false,
+    split_item = false,
+  },
+
   stuck = {
     project_filter = { tags = { any = { "project" } } },
     next_states = { "NEXT" },

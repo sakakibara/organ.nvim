@@ -52,22 +52,30 @@ local function enclosing_headline(bufnr, line)
 end
 
 -- Find the bullet style of `line` if it's a list item.  Returns
---   { indent = "  ", style = "literal"|"numeric", char = "-"|"+"|"*", sep = "."|")", n = N }
--- or nil.
+--   { indent = "  ", style = "literal"|"numeric", char = "-"|"+"|"*",
+--     sep = "."|")", n = N, desc = bool }
+-- or nil.  `desc` marks a description item: an unordered bullet whose
+-- text carries a ` :: ` separator (or ends with ` ::`).
 local function parse_bullet(text)
-  local lit_indent, lit_char = text:match("^(%s*)([-+])%s")
-  if lit_indent then
-    return { indent = lit_indent, style = "literal", char = lit_char }
+  local lit_indent, lit_char, lit_rest = text:match("^(%s*)([-+])%s+(.*)$")
+  if not lit_indent then
+    lit_indent, lit_char, lit_rest = text:match("^(%s+)(%*)%s+(.*)$")
   end
-  local star_indent = text:match("^(%s+)%*%s")
-  if star_indent then
-    return { indent = star_indent, style = "literal", char = "*" }
+  if lit_indent then
+    local desc = lit_rest:find(" :: ", 1, true) ~= nil or lit_rest:match(" ::$") ~= nil
+    return { indent = lit_indent, style = "literal", char = lit_char, desc = desc }
   end
   local num_indent, num, sep = text:match("^(%s*)(%d+)([%.%)])%s")
   if num_indent then
     return { indent = num_indent, style = "numeric", n = tonumber(num), sep = sep }
   end
   return nil
+end
+
+-- 0-based column of the first text character after the bullet, or nil.
+local function item_text_col(text)
+  local p = text:match("^%s*[-+*]%s+()") or text:match("^%s*%d+[%.%)]%s+()")
+  return p and (p - 1) or nil
 end
 
 -- Detect whether `text` is a table row (`|`-prefixed).
@@ -131,6 +139,24 @@ function M.dispatch(opts)
   -- 1. Headline → new sibling headline at the end of this subtree.
   local lvl = headline_level(txt)
   if lvl then
+    -- Optional Emacs point-splitting (`meta_return.split_headline`):
+    -- with the cursor inside the title, break it there -- the tail
+    -- becomes a new same-level headline right below, so body and
+    -- children end up attached to the tail.  The split lands before
+    -- the cursor character (the `i` convention).
+    local cfg = require("organ.buf_config").read(nil, "meta_return") or {}
+    local col = cur[2]
+    local title_start = (txt:match("^%*+%s+()") or 1) - 1
+    if cfg.split_headline and col > title_start and col < #txt then
+      local head = txt:sub(1, col)
+      local tail = string.rep("*", lvl) .. " " .. txt:sub(col + 1)
+      obuf.set_lines(bufnr, cur_line - 1, cur_line, { head, tail })
+      move_to(cur_line + 1, math.max(#tail - 1, 0))
+      if enter_insert then
+        vim.cmd("startinsert!")
+      end
+      return
+    end
     -- Walk past every line still inside this subtree: non-headline
     -- lines AND deeper-level child headlines.  Stop on the first
     -- sibling-or-higher headline (sub_lvl <= lvl) or EOF.  Matches
@@ -161,7 +187,9 @@ function M.dispatch(opts)
     return
   end
 
-  -- 2. List item → new sibling item.
+  -- 2. List item → new sibling item.  A description item gets the
+  -- ` :: ` skeleton with the cursor in the term slot (Emacs
+  -- org-insert-item on a description list).
   local bullet = parse_bullet(txt)
   if bullet then
     local prefix
@@ -170,13 +198,36 @@ function M.dispatch(opts)
     else
       prefix = bullet.indent .. (bullet.n + 1) .. bullet.sep .. " "
     end
-    set_lines(bufnr, cur_line, { prefix })
+    -- Optional Emacs point-splitting (`meta_return.split_item`): with
+    -- the cursor inside the item text, break it there.  The tail
+    -- becomes a new sibling right below (children then follow the
+    -- tail); a checkbox stays on the head; a description tail keeps
+    -- the ` :: ` skeleton.  The split lands before the cursor
+    -- character (the `i` convention).
+    local cfg = require("organ.buf_config").read(nil, "meta_return") or {}
+    local col = cur[2]
+    local text_start = item_text_col(txt)
+    if cfg.split_item and text_start and col > text_start and col < #txt then
+      local head = txt:sub(1, col)
+      local tail_text = txt:sub(col + 1)
+      local tail = bullet.desc and (prefix .. " :: " .. tail_text) or (prefix .. tail_text)
+      obuf.set_lines(bufnr, cur_line - 1, cur_line, { head, tail })
+      if bullet.style == "numeric" then
+        renumber(bufnr, cur_line + 1, bullet.indent, bullet.sep, bullet.n + 1)
+      end
+      move_to(cur_line + 1, #prefix)
+      if enter_insert then
+        vim.cmd("startinsert")
+      end
+      return
+    end
+    set_lines(bufnr, cur_line, { bullet.desc and (prefix .. " :: ") or prefix })
     if bullet.style == "numeric" then
       renumber(bufnr, cur_line + 1, bullet.indent, bullet.sep, bullet.n + 1)
     end
     move_to(cur_line + 1, #prefix)
     if enter_insert then
-      vim.cmd("startinsert!")
+      vim.cmd(bullet.desc and "startinsert" or "startinsert!")
     end
     return
   end
