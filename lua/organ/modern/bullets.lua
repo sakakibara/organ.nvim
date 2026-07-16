@@ -105,6 +105,10 @@ end
 
 require("organ.modern.render").register("bullets", render)
 
+-- Bridge the bullets into nvim-treesitter-context's sticky header (its
+-- extmark copy cannot carry organ's conceals).
+require("organ.modern.ts_context")
+
 function M._apply(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then
@@ -115,6 +119,12 @@ function M._apply(bufnr)
   render(bufnr, 0, vim.api.nvim_buf_line_count(bufnr))
 end
 
+-- The glyph shown for a `level`-star headline (per-level cycle).
+function M.glyph(bufnr, level)
+  local glyphs = get_glyphs(bufnr)
+  return glyphs[((level - 1) % #glyphs) + 1]
+end
+
 -- Display string that replaces a headline's leading `level`-star block:
 -- (level-1) spaces + the per-level glyph. A closed fold renders foldtext
 -- instead of the real line, so the conceal never reaches it; the foldtext
@@ -123,9 +133,7 @@ function M.star_display(bufnr, level)
   if not level or level < 1 then
     return nil
   end
-  local glyphs = get_glyphs(bufnr)
-  local glyph = glyphs[((level - 1) % #glyphs) + 1]
-  return string.rep(" ", level - 1) .. glyph
+  return string.rep(" ", level - 1) .. M.glyph(bufnr, level)
 end
 
 function M.attach(bufnr)

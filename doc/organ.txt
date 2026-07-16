@@ -3700,6 +3700,10 @@ separate elements: |organ-modern-list-bullets| and |organ-modern-checkboxes|.
 The default glyphs are East-Asian-Ambiguous width; if your terminal sets
 `ambiwidth=double` they render 2 cells -- override with single-cell glyphs.
 
+The glyphs follow the headline everywhere it is re-rendered outside the
+buffer: closed-fold foldtext and the nvim-treesitter-context sticky header
+show the same per-level bullet.
+
 DO NOT combine with `stars.hide = true` — both touch the same conceal
 range and the last-applied wins (non-deterministic).
 

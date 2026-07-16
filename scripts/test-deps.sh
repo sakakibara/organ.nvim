@@ -20,6 +20,7 @@ clone_or_update() {
 clone_or_update https://github.com/sakakibara/tablature.nvim tests/deps/tablature.nvim
 clone_or_update https://github.com/sakakibara/narrow.nvim    tests/deps/narrow.nvim
 clone_or_update https://github.com/machakann/vim-vimhelplint tests/deps/vim-vimhelplint
+clone_or_update https://github.com/nvim-treesitter/nvim-treesitter-context tests/deps/nvim-treesitter-context
 
 echo "tests/deps populated:"
 ls tests/deps
