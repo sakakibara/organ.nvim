@@ -941,7 +941,8 @@ Archive                                                 *organ-config-archive*
     Set to `false` to suppress all property injection regardless.
 
                                       *organ-config-archive-save_context_info*
-    `archive.save_context_info` (list, default: `{"time","file","olpath","category","todo","itags"}`)
+    `archive.save_context_info` (list, default:
+    `{"time","file","olpath","category","todo","itags"}`)
     Subset of `ARCHIVE_*` properties to inject when
     `add_metadata` is on.  Mirrors Emacs
     `org-archive-save-context-info`.  Property formats match Emacs:
@@ -2197,8 +2198,9 @@ Custom callback: >
         enabled = true,
         lead_minutes = { 30, 5, 0 },
         notify = function(row, lead, fire_ts)
-          -- row.title, row.id, row.scheduled (ISO), row.file_path, row.line_start
-          -- lead is the configured `lead_minutes` slot that triggered.
+          -- row.title, row.id, row.scheduled (ISO), row.file_path,
+          -- row.line_start; lead is the configured `lead_minutes`
+          -- slot that triggered.
           require("notify")("Org due: " .. row.title, "warn")
         end,
       },
@@ -2301,7 +2303,7 @@ Miscellaneous                                                 *organ-cmd-misc*
     `:Org set <path> <value>`
     `:Org toggle <path>`
     `:Org unset <path>`
-    `:Org config [effective|global|buf]`
+    `:Org config [effective | global | buf]`
 
     Per-buffer config override layer.  `set` writes a partial override
     that takes precedence over the global config for THIS buffer only;
@@ -3131,13 +3133,13 @@ guard.
 SCHEDULED, DEADLINE, PROPERTIES, EFFORT                   *organ-cmd-planning*
 
 *:Org-schedule*
-    `:Org schedule [<iso>|today|tomorrow|<spec>]`
+    `:Org schedule [<iso> | today | tomorrow | <spec>]`
     Set or update the SCHEDULED timestamp on the headline at cursor.
     Without arg, opens the calendar popup. With arg, parses common
     spec forms (ISO date, `today`, `tomorrow`, `+1d`, `+1w`, etc.).
 
 *:Org-deadline*
-    `:Org deadline [<iso>|today|tomorrow|<spec>]`
+    `:Org deadline [<iso> | today | tomorrow | <spec>]`
     Same as `:Org schedule` for DEADLINE.
 
 *:Org-set_effort*
