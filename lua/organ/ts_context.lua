@@ -13,8 +13,11 @@
 --   modern.bullets  leading N-1 stars as spaces, last star as the
 --                   per-level glyph
 --   stars.hide      leading N-1 stars as spaces, last star kept
--- The context window inherits `conceallevel` from the parent window, so
--- the conceals render without touching its options.
+-- treesitter-context copies `conceallevel` into the float only when it
+-- CREATES it, so a treatment toggled on after that would never render
+-- there; the provider keeps the float's conceallevel synced to the
+-- parent window's (deferred -- window options must not change
+-- mid-redraw).
 
 local M = {}
 
@@ -32,6 +35,17 @@ local function star_mode(pbuf)
   if bc.read(pbuf, "stars.hide") == true then
     return "stars"
   end
+end
+
+local function sync_conceallevel(winid, pwin)
+  if vim.wo[winid].conceallevel == vim.wo[pwin].conceallevel then
+    return
+  end
+  vim.schedule(function()
+    if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_is_valid(pwin) then
+      vim.wo[winid].conceallevel = vim.wo[pwin].conceallevel
+    end
+  end)
 end
 
 vim.api.nvim_set_decoration_provider(NS, {
@@ -52,6 +66,7 @@ vim.api.nvim_set_decoration_provider(NS, {
     if not mode then
       return false
     end
+    sync_conceallevel(winid, pwin)
     win_parent[winid] = { buf = pbuf, mode = mode }
     return true
   end,
@@ -61,13 +76,13 @@ vim.api.nvim_set_decoration_provider(NS, {
       return
     end
     local line = (vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false) or {})[1] or ""
-    local stars = line:match("^(%*+)%s") or line:match("^(%*+)$")
+    local stars = line:match("^(%*+)%s")
     if not stars then
       return
     end
     local n = #stars
     for i = 0, n - 2 do
-      vim.api.nvim_buf_set_extmark(bufnr, NS, row, i, {
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, i, {
         end_col = i + 1,
         conceal = " ",
         ephemeral = true,
@@ -75,7 +90,7 @@ vim.api.nvim_set_decoration_provider(NS, {
       })
     end
     if parent.mode == "bullets" then
-      vim.api.nvim_buf_set_extmark(bufnr, NS, row, n - 1, {
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, n - 1, {
         end_col = n,
         conceal = require("organ.modern.bullets").glyph(parent.buf, n),
         hl_group = require("organ.highlights").heading_title_hl(n),
