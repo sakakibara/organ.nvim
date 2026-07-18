@@ -1,10 +1,13 @@
--- List operations: repair (re-sequence numbered items), sort, counter
+-- List operations: promote / demote, repair, sort, move, counter
 -- handling for `[@N]` start markers.
 --
--- A "list" is a contiguous block of org list items at the same indent level.
--- We work line-by-line — no tree-sitter dependency — so editing buffers in
--- progress is safe. Nested sub-lists are left untouched (caller decides what
--- to do with deeper levels).
+-- Structure ops use org's list struct model: an item's parent is the
+-- closest item above with smaller indent, siblings share a parent
+-- (indent equality is not required), and every op ends by rewriting
+-- the whole structure -- indentation from each parent's bullet width,
+-- one bullet style per list (the first item's), numbering restarting
+-- at 1 unless an `[@N]` counter overrides.  Line-based -- no
+-- tree-sitter dependency -- so editing buffers in progress is safe.
 
 local M = {}
 
@@ -86,63 +89,295 @@ function M.block_at(bufnr, cursor_line)
   return s, e, center_indent
 end
 
--- Repair: re-sequence numbered items at the cursor's indent level. Honors
--- `[@N]` counter override on the first item — subsequent items follow.
--- Unordered bullets and items at deeper indents are left alone.
-function M.repair(bufnr, cursor_line)
-  local s, e, indent = M.block_at(bufnr, cursor_line)
-  if not s then
-    return 0
+-- Parse the whole list structure around `line` (which must be an item
+-- line): scope bounds, item array (row / indent / bullet / sep /
+-- counter / content, in row order), and the buffer lines.  Scope walks
+-- across items at any indent, item body text (non-item lines indented
+-- past the structure's first item), and single blanks; a headline,
+-- flush-left text, body text at or left of the first item's indent, or
+-- two consecutive blanks end it.
+local function parse_struct(bufnr, line)
+  local buf_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  if not M.parse_item(buf_lines[line] or "") then
+    return nil
   end
-  local lines = vim.api.nvim_buf_get_lines(bufnr, s - 1, e, false)
-  local n_changed = 0
-
-  -- Find the starting counter: explicit `[@N]` override on the first
-  -- top-level numbered item, else 1.
-  local counter
-  for i, ln in ipairs(lines) do
+  -- Up-walk with a descending ceiling: a non-item line at `ws` closes
+  -- every item region at ws or deeper, so items above it belong to the
+  -- cursor's structure only when shallower (a common ancestor); ones at
+  -- or past the ceiling are skipped without extending the scope.
+  local s = line
+  local limit = math.huge
+  for i = line - 1, 1, -1 do
+    local ln = buf_lines[i] or ""
     local p = M.parse_item(ln)
-    if p and #p.indent == indent and p.counter then
-      local override = p.content:match("^%[@(%d+)%]")
-      counter = tonumber(override) or 1
+    if p then
+      if #p.indent < limit then
+        s = i
+      end
+    elseif ln:match("^%s*$") then
+      if i == 1 or (buf_lines[i - 1] or ""):match("^%s*$") then
+        break
+      end
+    elseif ln:match("^%*+%s") or #ln:match("^(%s*)") == 0 then
+      break
+    else
+      limit = math.min(limit, #ln:match("^(%s*)"))
+    end
+  end
+  local top_ind = #M.parse_item(buf_lines[s]).indent
+  local items = {}
+  local e = s
+  for i = s, #buf_lines do
+    local ln = buf_lines[i] or ""
+    local p = M.parse_item(ln)
+    if p then
+      items[#items + 1] = {
+        row = i,
+        ind = #p.indent,
+        bullet = p.bullet,
+        sep = p.sep,
+        counter = p.counter,
+        content = p.content,
+      }
+      e = i
+    elseif ln:match("^%s*$") then
+      if (buf_lines[i + 1] or ""):match("^%s*$") then
+        break
+      end
+    elseif ln:match("^%*+%s") or #ln:match("^(%s*)") <= top_ind then
+      break
+    else
+      e = i
+    end
+  end
+  return { s = s, e = e, top_ind = top_ind, items = items, buf_lines = buf_lines }
+end
+
+-- Build the parent tree and list grouping for a struct.  Walks the
+-- scope rows with a stack of open item regions: an item pops every
+-- open item at its indent or deeper and attaches to the remaining top;
+-- a non-blank non-item line CLOSES every open item at its indent or
+-- deeper (org: an item ends before a line indented at or left of its
+-- bullet), so a paragraph between two sibling runs severs them into
+-- separate lists -- same parent, but numbering and bullet style run
+-- per list, and demoting the first item of the later run has no
+-- sibling to nest under.  `group[i]` identifies the list an item
+-- belongs to.  `use_target` reads the op-adjusted indents (`tind`) so
+-- the post-op tree can be computed before the buffer is rewritten.
+local function analyze(st, use_target)
+  local items = st.items
+  local function ind_of(i)
+    return use_target and (items[i].tind or items[i].ind) or items[i].ind
+  end
+  local by_row = {}
+  for i, it in ipairs(items) do
+    by_row[it.row] = i
+  end
+  local parent, group = {}, {}
+  local stack = {}
+  local last_in = {} -- group id -> last member index
+  local last_child = {} -- parent index (0 = top) -> last child index
+  local gid = 0
+  local pending -- min ws of non-item lines since the last item row
+  for row = st.s, st.e do
+    local i = by_row[row]
+    if i then
+      while #stack > 0 and ind_of(stack[#stack]) >= ind_of(i) do
+        stack[#stack] = nil
+      end
+      parent[i] = stack[#stack]
+      local pk = parent[i] or 0
+      local prev = last_child[pk]
+      local severed = pending ~= nil and pending <= ind_of(i)
+      if prev and not severed then
+        group[i] = group[prev]
+      else
+        gid = gid + 1
+        group[i] = gid
+      end
+      last_child[pk] = i
+      last_in[group[i]] = i
+      stack[#stack + 1] = i
+      pending = nil
+    else
+      local ln = st.buf_lines[row] or ""
+      if not ln:match("^%s*$") then
+        local ws = #ln:match("^(%s*)")
+        pending = math.min(pending or math.huge, ws)
+        while #stack > 0 and ind_of(stack[#stack]) >= ws do
+          stack[#stack] = nil
+        end
+      end
+    end
+  end
+  return parent, group
+end
+
+-- Closest earlier item in i's list (same group), or nil (i is the
+-- first item of its list).
+local function prev_in_group(group, i)
+  for j = i - 1, 1, -1 do
+    if group[j] == group[i] then
+      return j
+    end
+  end
+  return nil
+end
+
+-- Rewrite the structure from its parent tree (Emacs
+-- org-list-write-struct): item indent = parent's indent + parent's new
+-- bullet width + 1 (top level anchors at `st.top_ind`); one bullet
+-- style per list, taken from its first item; ordered lists renumber
+-- from 1, an `[@N]` counter on any member overriding the count there.
+-- Item body lines shift with their owning item.  Returns the number of
+-- changed lines.
+local function write_struct(bufnr, st, parent, group)
+  local items = st.items
+  local new_ind, new_bul = {}, {}
+  local first_of, counters = {}, {}
+  for i, it in ipairs(items) do
+    local gk = group[i]
+    local first = first_of[gk]
+    if not first then
+      first_of[gk] = i
+      first = i
+    end
+    local fit = items[first]
+    new_ind[i] = parent[i] and (new_ind[parent[i]] + #new_bul[parent[i]] + 1) or st.top_ind
+    if fit.counter then
+      local cookie = it.content:match("^%[@(%d+)%]")
+      local n = cookie and tonumber(cookie) or ((counters[gk] or 0) + 1)
+      counters[gk] = n
+      new_bul[i] = tostring(n) .. fit.sep
+    else
+      new_bul[i] = fit.bullet
+    end
+  end
+
+  local by_row = {}
+  for i, it in ipairs(items) do
+    by_row[it.row] = i
+  end
+  local out = {}
+  local changed = 0
+  local cur
+  for row = st.s, st.e do
+    local old = st.buf_lines[row] or ""
+    local new_line = old
+    local i = by_row[row]
+    if i then
+      cur = i
+      new_line = string.rep(" ", new_ind[i]) .. new_bul[i] .. " " .. items[i].content
+    elseif not old:match("^%s*$") and cur then
+      -- Body line: owned by the closest preceding item whose (original)
+      -- indent is smaller than the line's — shift by that item's delta.
+      local ws = #old:match("^(%s*)")
+      local k = cur
+      while k >= 1 and items[k].ind >= ws do
+        k = k - 1
+      end
+      if k >= 1 then
+        local delta = new_ind[k] - items[k].ind
+        if delta ~= 0 then
+          new_line = string.rep(" ", math.max(0, ws + delta)) .. old:sub(ws + 1)
+        end
+      end
+    end
+    if new_line ~= old then
+      changed = changed + 1
+    end
+    out[#out + 1] = new_line
+  end
+  if changed > 0 then
+    obuf.set_lines(bufnr, st.s - 1, st.e, out)
+  end
+  return changed
+end
+
+-- Promote / demote core.  Adjusts the item's (and, with `tree`, its
+-- descendants') target indent in the struct, recomputes the parent
+-- tree, and rewrites the whole structure.  On the structure's first
+-- item the entire list shifts one column instead (Emacs).  Returns
+-- true on change, or false plus a reason.
+local function indent_op(bufnr, line, dir, tree)
+  local st = parse_struct(bufnr, line)
+  if not st then
+    return false
+  end
+  local items = st.items
+  local idx
+  for i, it in ipairs(items) do
+    if it.row == line then
+      idx = i
       break
     end
   end
-  if not counter then
-    return 0
-  end -- no ordered items to repair
+  if not idx then
+    return false
+  end
+  local parent, group = analyze(st)
 
-  for i, ln in ipairs(lines) do
-    local p = M.parse_item(ln)
-    if p and #p.indent == indent and p.counter then
-      local desired = tostring(counter) .. p.sep
-      if p.bullet ~= desired then
-        lines[i] = p.indent .. desired .. " " .. p.content
-        n_changed = n_changed + 1
-        -- A width change (`10.` -> `1.`) moves the text column, so the
-        -- item's descendant lines shift with it to stay aligned under
-        -- the new prefix (Emacs org-list-struct-fix-ind).
-        local dw = #desired - #p.bullet
-        if dw ~= 0 then
-          for j = i + 1, #lines do
-            if not lines[j]:match("^%s*$") then
-              local ws = lines[j]:match("^(%s*)")
-              if #ws <= indent then
-                break
-              end
-              lines[j] = string.rep(" ", math.max(0, #ws + dw)) .. lines[j]:sub(#ws + 1)
-              n_changed = n_changed + 1
-            end
-          end
+  if idx == 1 then
+    if not tree then
+      return false, "at the first item: use the subtree variant to move the whole list"
+    end
+    if dir == "promote" and st.top_ind == 0 then
+      return false, "cannot outdent: list is already flush left"
+    end
+    st.top_ind = st.top_ind + (dir == "demote" and 1 or -1)
+    return write_struct(bufnr, st, parent, group) > 0
+  end
+
+  local target
+  if dir == "demote" then
+    local sib = prev_in_group(group, idx)
+    if not sib then
+      return false, "cannot indent the first item of a sub-list"
+    end
+    target = items[sib].ind + #items[sib].bullet + 1
+  else
+    local par = parent[idx]
+    if not par then
+      return false, "cannot outdent: item has no parent"
+    end
+    if not tree then
+      for i = idx + 1, #items do
+        if parent[i] == idx then
+          return false, "cannot outdent an item without its children"
         end
       end
-      counter = counter + 1
+    end
+    target = items[par].ind
+  end
+
+  local delta = target - items[idx].ind
+  items[idx].tind = target
+  if tree then
+    for i = idx + 1, #items do
+      local k = parent[i]
+      while k and k ~= idx do
+        k = parent[k]
+      end
+      if k == idx then
+        items[i].tind = items[i].ind + delta
+      end
     end
   end
-  if n_changed > 0 then
-    obuf.set_lines(bufnr, s - 1, e, lines)
+  local parent2, group2 = analyze(st, true)
+  return write_struct(bufnr, st, parent2, group2) > 0
+end
+
+-- Repair: normalize the whole structure at the cursor (Emacs
+-- org-list-repair) — indentation, bullet styles, numbering.  Returns
+-- the number of changed lines, plus the structure's line range so a
+-- caller sweeping a buffer can skip past it.
+function M.repair(bufnr, cursor_line)
+  local st = parse_struct(bufnr, cursor_line)
+  if not st then
+    return 0
   end
-  return n_changed
+  local parent, group = analyze(st)
+  return write_struct(bufnr, st, parent, group), st.s, st.e
 end
 
 -- Sort items at the cursor's indent level. Sub-items move with their parent.
@@ -200,61 +435,17 @@ function M.sort(bufnr, cursor_line, comparator)
   return #groups
 end
 
--- Width of the bullet + trailing space, used to compute the indent
--- column where a sub-item starts beneath a parent.  `- ` / `+ ` / `* `
--- are width 2; `1. ` is width 3; `10. ` is width 4, etc.
-local function prefix_width(item)
-  -- `bullet` is "-"/"+"/"*" for unordered (length 1), or "1."/"2)" etc.
-  -- for ordered (length = digits + 1 sep).
-  return #item.bullet + 1
-end
-
--- Walk upward from `line` looking for the previous list-item line that
--- the cursor's item belongs to (same or shallower indent).  Returns the
--- matched item's parse result + its line number, or nil if there isn't
--- one (cursor is the first item, or no list above).
-local function previous_sibling(bufnr, line)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
-  if not cur then
-    return nil
-  end
-  for j = line - 1, 1, -1 do
-    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-    local item = M.parse_item(text)
-    if item and #item.indent <= #cur.indent then
-      return item, j
-    end
-    if not item then
-      if text:match("^%s*$") then
-        -- A single blank keeps a loose list going; two end it.
-        local above = j > 1 and (vim.api.nvim_buf_get_lines(bufnr, j - 2, j - 1, false)[1] or "")
-          or ""
-        if above:match("^%s*$") then
-          return nil
-        end
-      elseif text:match("^%*+%s") or #text:match("^(%s*)") <= #cur.indent then
-        -- A heading, or body text at the item level or shallower, ends
-        -- the list scope; deeper text is an item body — keep scanning.
-        return nil
-      end
-    end
-  end
-  return nil
-end
-
 -- Last line of the item's subtree beyond the item line itself:
 -- following lines more indented than the item (child items and
--- continuation text).  A blank line, a headline, or a line at the
--- item's indent or shallower ends it.
+-- continuation text).  A headline or a line at the item's indent or
+-- shallower ends it; a single blank keeps a loose subtree going, two
+-- consecutive blanks end it.
 local function item_subtree_end(bufnr, line, cur_indent)
   local last = line
   local total = vim.api.nvim_buf_line_count(bufnr)
   for j = line + 1, total do
     local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
     if text:match("^%s*$") then
-      -- A single blank keeps a loose subtree going; two end it (the
-      -- blank itself joins the subtree only when content follows).
       local below = vim.api.nvim_buf_get_lines(bufnr, j, j + 1, false)[1] or ""
       if below:match("^%s*$") then
         break
@@ -272,199 +463,30 @@ local function item_subtree_end(bufnr, line, cur_indent)
   return last
 end
 
--- Remaining-item anchors at the item's current indent, outside its
--- subtree: the nearest item line above and the first below.  Captured
--- BEFORE an indent shift so the level the item leaves can be
--- renumbered afterwards.  Both are needed: a promote out of the middle
--- of a sub-list splits it in two, and each half renumbers on its own
--- (the lower half becomes a sub-list of the promoted item).
-local function level_anchors(bufnr, line, cur)
-  local s, e = M.block_at(bufnr, line)
-  if not s then
-    return nil, nil
-  end
-  local last = item_subtree_end(bufnr, line, #cur.indent)
-  local above, below
-  for j = s, line - 1 do
-    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-    local item = M.parse_item(text)
-    if item and #item.indent == #cur.indent then
-      above = j
-    end
-  end
-  for j = last + 1, e do
-    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-    local item = M.parse_item(text)
-    if item and #item.indent == #cur.indent then
-      below = j
-      break
-    end
-  end
-  return above, below
-end
-
--- "n." / "n)" for ordered bullets, the bullet char itself for
--- unordered — two items share a style iff these compare equal.
-local function bullet_style(item)
-  if item.counter then
-    return "n" .. item.sep
-  end
-  return item.bullet
-end
-
--- Adopt the joined level's bullet style (Emacs org-list-struct-fix-bul:
--- a list's bullet is its first item's).  When the moved item IS the
--- first item at its level — a fresh or split-off sub-list — it keeps
--- its own bullet and defines the style instead.
-local function unify_bullet(bufnr, line)
-  local cur = M.parse_item(vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or "")
-  if not cur then
-    return
-  end
-  local s, e, indent = M.block_at(bufnr, line)
-  if not s then
-    return
-  end
-  for j = s, e do
-    local first = M.parse_item(vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or "")
-    if first and #first.indent == indent then
-      if j ~= line and bullet_style(first) ~= bullet_style(cur) then
-        obuf.set_lines(bufnr, line - 1, line, {
-          cur.indent .. first.bullet .. " " .. cur.content,
-        })
-      end
-      return
-    end
-  end
-end
-
--- Renumber the levels an indent op touched: the level the item joined
--- (recentered on its own line) and the level it left (via the anchors
--- captured before the shift).  Emacs runs the equivalent for every
--- list a structure edit touches, restarting each at 1 unless a `[@N]`
--- counter overrides.  repair() is a no-op on unordered levels.
-local function renumber_after_shift(bufnr, line, above, below)
-  unify_bullet(bufnr, line)
-  M.repair(bufnr, line)
-  if above then
-    M.repair(bufnr, above)
-  end
-  if below then
-    M.repair(bufnr, below)
-  end
-end
-
--- Re-indent the item at `line` by `delta` columns; with `tree`, its
--- child lines shift by the same amount (Emacs org-indent-item-tree).
-local function shift_item(bufnr, line, cur, delta, tree)
-  if delta == 0 then
-    return false
-  end
-  local last = tree and item_subtree_end(bufnr, line, #cur.indent) or line
-  local lines = vim.api.nvim_buf_get_lines(bufnr, line - 1, last, false)
-  for i, text in ipairs(lines) do
-    if not text:match("^%s*$") then
-      local ws = text:match("^(%s*)")
-      lines[i] = string.rep(" ", math.max(0, #ws + delta)) .. text:sub(#ws + 1)
-    end
-  end
-  obuf.set_lines(bufnr, line - 1, last, lines)
-  return true
-end
-
--- Indent delta that nests the item at `line` under its previous
--- sibling (Emacs 30.2 rule: new_indent = sibling.indent +
--- width(its_bullet_prefix)).  nil when there's no previous sibling.
-local function demote_delta(bufnr, line, cur)
-  local prev = previous_sibling(bufnr, line)
-  if not prev then
-    return nil
-  end
-  return #prev.indent + prefix_width(prev) - #cur.indent
-end
-
--- Indent delta that lifts the item at `line` to the nearest ancestor's
--- indent; falls back to -2 when no strict ancestor is in scope.  nil
--- when already at indent 0.
-local function promote_delta(bufnr, line, cur)
-  if #cur.indent == 0 then
-    return nil
-  end
-  for j = line - 1, 1, -1 do
-    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-    local item = M.parse_item(text)
-    if item and #item.indent < #cur.indent then
-      return #item.indent - #cur.indent
-    end
-    if not item then
-      if text:match("^%s*$") then
-        -- A single blank keeps a loose list going; two end it.
-        local above = j > 1 and (vim.api.nvim_buf_get_lines(bufnr, j - 2, j - 1, false)[1] or "")
-          or ""
-        if above:match("^%s*$") then
-          break
-        end
-      elseif text:match("^%*+%s") or #text:match("^(%s*)") == 0 then
-        -- A heading or flush-left body text ends the list; indented
-        -- text is some ancestor's body — keep scanning.
-        break
-      end
-    end
-  end
-  if #cur.indent >= 2 then
-    return -2
-  end
-  return nil
-end
-
--- Demote: indent the list item at `line` to become a sub-item of the
--- previous sibling.  No-op if there's no previous sibling (Emacs raises
--- "Cannot move item" in that case).  `opts.tree` carries the item's
--- children along.  Returns true on a change, false otherwise.
+-- Demote: nest the item at `line` under its previous sibling.
+-- `opts.tree` carries its children along (org-shiftmetaright);
+-- without it the children stay and re-attach by depth (org-metaright).
+-- On the structure's first item the whole list indents one column.
+-- Returns true on a change, or false plus a reason (the first item of
+-- a sub-list cannot be demoted -- it has no sibling to nest under).
 function M.demote(bufnr, line, opts)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
-  if not cur then
-    return false
-  end
-  local delta = demote_delta(bufnr, line, cur)
-  if not delta then
-    return false
-  end
-  local above, below = level_anchors(bufnr, line, cur)
-  if not shift_item(bufnr, line, cur, delta, opts and opts.tree) then
-    return false
-  end
-  renumber_after_shift(bufnr, line, above, below)
-  return true
+  return indent_op(bufnr, line, "demote", opts and opts.tree)
 end
 
--- Promote: un-indent the list item at `line` to the nearest ancestor's
--- indent (becomes a sibling of the ancestor).  `opts.tree` carries the
--- item's children along.  Returns true on a change, false if already
--- at indent 0.
+-- Promote: lift the item at `line` to its parent's level, becoming
+-- the parent's next sibling.  `opts.tree` carries its children along
+-- (org-shiftmetaleft); without it an item that has children refuses
+-- (org-metaleft: "Cannot outdent an item without its children").  On
+-- the structure's first item the whole list outdents one column.
+-- Returns true on a change, or false plus a reason.
 function M.promote(bufnr, line, opts)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
-  if not cur then
-    return false
-  end
-  local delta = promote_delta(bufnr, line, cur)
-  if not delta then
-    return false
-  end
-  local above, below = level_anchors(bufnr, line, cur)
-  if not shift_item(bufnr, line, cur, delta, opts and opts.tree) then
-    return false
-  end
-  renumber_after_shift(bufnr, line, above, below)
-  return true
+  return indent_op(bufnr, line, "promote", opts and opts.tree)
 end
 
 -- Swap the item at `line` (with its children) with the sibling above/
 -- below at the same indent (Emacs org-metaup / org-metadown on an
 -- item).  Ordered bullets stay positional -- the two items exchange
--- their bullet numbers (probed against Emacs 30.2: metaup on `2. two`
+-- their bullet numbers (Emacs: metaup on `2. two`
 -- yields `1. two / 2. one`).  Returns the item's new first line, or
 -- false when there's no same-indent sibling to swap with (Emacs:
 -- "Cannot move this item further up/down").
@@ -526,16 +548,42 @@ end
 -- Shift every line in [s, e] as a block, one indent level in `dir`
 -- ("promote" or "demote").  The region must start on a list item
 -- (Emacs region org-indent-item: "Region not starting at an item");
--- the delta comes from that first item.  Blank lines stay empty.
--- Returns true on a change, false otherwise.
+-- the delta comes from that first item's struct position.  Blank
+-- lines stay empty.  Returns true on a change, false otherwise.
 function M.shift_region(bufnr, s, e, dir)
-  local first = vim.api.nvim_buf_get_lines(bufnr, s - 1, s, false)[1] or ""
-  local cur = M.parse_item(first)
-  if not cur then
+  local st = parse_struct(bufnr, s)
+  if not st then
     return false
   end
-  local delta = (dir == "promote") and promote_delta(bufnr, s, cur) or demote_delta(bufnr, s, cur)
-  if not delta or delta == 0 then
+  local idx
+  for i, it in ipairs(st.items) do
+    if it.row == s then
+      idx = i
+      break
+    end
+  end
+  if not idx then
+    return false
+  end
+  local parent, group = analyze(st)
+  local delta
+  if dir == "demote" then
+    local sib = prev_in_group(group, idx)
+    if not sib then
+      return false
+    end
+    delta = st.items[sib].ind + #st.items[sib].bullet + 1 - st.items[idx].ind
+  else
+    local par = parent[idx]
+    if par then
+      delta = st.items[par].ind - st.items[idx].ind
+    elseif st.items[idx].ind >= 2 then
+      delta = -2
+    else
+      return false
+    end
+  end
+  if delta == 0 then
     return false
   end
   local lines = vim.api.nvim_buf_get_lines(bufnr, s - 1, e, false)
@@ -556,11 +604,11 @@ M.commands = {
       local line = vim.api.nvim_win_get_cursor(0)[1]
       local n = M.repair(bufnr, line)
       require("organ.notify").notify(
-        n > 0 and vim.log.levels.INFO or vim.log.levels.WARN,
-        ("re-sequenced %d item(s)"):format(n)
+        vim.log.levels.INFO,
+        n > 0 and ("normalized %d line(s)"):format(n) or "list already canonical"
       )
     end,
-    desc = "Re-sequence ordered-list numbering (1., 2., 3., ...) starting at the cursor's list",
+    desc = "Normalize the list at cursor: indentation, bullet styles, numbering",
   },
   ["list sort"] = {
     fn = function(cmd)
@@ -580,8 +628,9 @@ M.commands = {
     fn = function()
       local bufnr = vim.api.nvim_get_current_buf()
       local line = vim.api.nvim_win_get_cursor(0)[1]
-      if not M.demote(bufnr, line) then
-        require("organ.notify").warn("cannot demote: not on a list item or no previous sibling")
+      local ok, why = M.demote(bufnr, line)
+      if not ok then
+        require("organ.notify").warn(why or "cannot demote: not on a list item")
       end
     end,
     desc = "Indent the list item under the previous sibling (Emacs Tab-on-empty-bullet)",
@@ -590,8 +639,9 @@ M.commands = {
     fn = function()
       local bufnr = vim.api.nvim_get_current_buf()
       local line = vim.api.nvim_win_get_cursor(0)[1]
-      if not M.promote(bufnr, line) then
-        require("organ.notify").warn("cannot promote: not on a list item or already at indent 0")
+      local ok, why = M.promote(bufnr, line)
+      if not ok then
+        require("organ.notify").warn(why or "cannot promote: not on a list item")
       end
     end,
     desc = "Un-indent the list item to its ancestor's level",

@@ -656,15 +656,14 @@ local function repair_lists(bufnr)
   end
   local total = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, total, false)
-  local seen = {}
+  local skip_to = 0
   for i, l in ipairs(lines) do
-    if l:match("^%s*%d+[%.%)]%s") and not seen[i] then
-      pcall(list_mod.repair, bufnr, i)
-      local indent = (l:match("^(%s*)") or "")
-      local j = i
-      while j <= #lines and lines[j]:match("^" .. indent .. "%S") do
-        seen[j] = true
-        j = j + 1
+    if i > skip_to and l:match("^%s*%d+[%.%)]%s") then
+      -- repair normalizes the whole structure and reports its range;
+      -- everything up to `e` is already canonical.
+      local ok, _, _, e = pcall(list_mod.repair, bufnr, i)
+      if ok and e then
+        skip_to = e
       end
     end
   end

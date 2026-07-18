@@ -1480,9 +1480,9 @@ return {
       realign = true,
     },
 
-    -- Lists.  Re-sequence ordered list numbering (`1.` `2.` `3.`)
-    -- per contiguous block.  Bullet style (`-`/`+`/`*`) is left
-    -- alone; only the `1.`/`1)` numbering is repaired.
+    -- Lists.  Normalize each list structure like `:Org list repair`:
+    -- indentation, one bullet style per list, and ordered numbering
+    -- (`1.` `2.` `3.`, honoring `[@N]` counters).
     lists = {
       repair_numbering = true,
     },

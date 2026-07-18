@@ -3258,36 +3258,37 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
 
 *:Org-list_repair*
     `:Org list repair`
-    Renumber numeric list items consistently (1., 2., 3., …).
+    Normalize the whole list structure at cursor, like Emacs
+    `org-list-repair`: indentation (each item sits at its parent's
+    indent + parent bullet width), one bullet style per list (its
+    first item's), and numbering restarting at 1 unless an `[@N]`
+    counter overrides (honored on any member).
 
 *:Org-list_demote*
     `:Org list demote`
     Indent the list item at cursor under the previous sibling
-    (becomes the previous item's first child).  Mirrors Emacs
-    `org-metaright` on an item.  Indent rule probed against Emacs
-    30.2:
-    `new_indent = previous_sibling.indent + width(its_bullet_prefix)`
-    -- so `- one` (prefix width 2) yields 2-space indent, `1. one`
-    (width 3) yields 3-space, `10. one` (width 4) yields 4-space.
+    (becomes the previous item's child).  Mirrors Emacs
+    `org-metaright` on an item: after the move the whole structure
+    is normalized as in |:Org-list_repair|, so numbering and
+    bullet styles follow the item's new list.  On the structure's
+    first item the entire list indents one column instead.
+    Refuses on the first item of a sub-list (no sibling to nest
+    under).
 
-    No-op when not on a list item or when there is no previous
-    sibling at the current depth.  The promote / demote keymaps
-    dispatch here when the cursor is on a list item: the subtree
-    chords carry the item's children along (Emacs
-    `org-shiftmetaright`), the headline-only chords move just the
-    item line.
-
-    Caveat: numeric-list renumbering after demotion is NOT yet
-    automatic -- Emacs renumbers the whole list when demotion
-    changes which items are siblings; organ indents only.  Follow
-    with `:Org list repair` if you need consistent numbering.
+    The promote / demote keymaps dispatch here when the cursor is
+    on a list item: the subtree chords carry the item's children
+    along (Emacs `org-shiftmetaright`), the headline-only chords
+    move just the item line and its body.
 
 *:Org-list_promote*
     `:Org list promote`
-    Un-indent the list item at cursor to its nearest ancestor's
-    indent (becomes the ancestor's sibling).  Mirrors Emacs
-    `org-metaleft` on an item.  No-op when not on a list item or
-    when already at indent 0.
+    Un-indent the list item at cursor to its parent's level
+    (becomes the parent's next sibling); later siblings become its
+    children.  Mirrors Emacs `org-metaleft` on an item, with the
+    same whole-structure normalization as |:Org-list_demote|.  On
+    the structure's first item the entire list outdents one
+    column.  Refuses on a flush-left top-level item, and -- for
+    the item-only variant -- on an item that has children.
 
 *:Org-list_to_subtree*
     `:Org list to_subtree`

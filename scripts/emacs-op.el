@@ -111,6 +111,18 @@
           ((string= op "list-promote")
            (org-shiftmetaleft)
            (princ (buffer-string)))
+          ;; Item-only variants (M-RIGHT / M-LEFT on an item): the item
+          ;; and its own body move, child items stay.
+          ((string= op "list-demote-item")
+           (org-metaright)
+           (princ (buffer-string)))
+          ((string= op "list-promote-item")
+           (org-metaleft)
+           (princ (buffer-string)))
+          ;; Whole-structure normalization (indent, bullets, numbering).
+          ((string= op "list-repair")
+           (org-list-repair)
+           (princ (buffer-string)))
           ;; ---------------------------------------------------------------
           ;; Heading promote / demote (M-Right / M-Left / `org-demote` /
           ;; `org-promote`).  `org-odd-levels-only` (a buffer-local toggle)

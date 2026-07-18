@@ -138,8 +138,7 @@ end
 
 -- Numeric bullets: demote indents under the previous sibling's prefix
 -- width (`1. ` -> 3 spaces); children follow, and the demoted item is
--- renumbered as the first item of its new sub-list (probed against
--- Emacs 30.2 org-shiftmetaright).
+-- renumbered as the first item of its new sub-list.
 do
   local b = buf_with({
     "1. one",
@@ -266,8 +265,8 @@ do
   )
 end
 
--- First item has no previous sibling: demote is a no-op (Emacs raises
--- "Cannot move item").
+-- Demote on the whole list's first item indents the entire list one
+-- column (Emacs org-shiftmetaright).
 do
   local b = buf_with({
     "- one",
@@ -277,13 +276,42 @@ do
   run_cmd("demote")
   local got = lines_of(b)
   check(
-    "demote command on first item is a no-op",
+    "demote command on the first item indents the whole list",
     eq(got, {
-      "- one",
-      "- two",
+      " - one",
+      " - two",
     }),
     detail(got)
   )
+end
+
+-- A separator line at the items' own indent bounds the structure scope:
+-- an op inside the lower list must neither touch the earlier, deeper
+-- list above the separator nor refuse because the scope leaked into it.
+-- (Emacs's context finder folds even the separator prose into the
+-- struct and reindents it; rewriting non-list prose is where we
+-- deliberately stop following.)
+do
+  local b = buf_with({
+    "  - deep one",
+    "      - child",
+    "",
+    " note at indent 1",
+    "",
+    " - a",
+    " - b",
+  })
+  local ok = list.demote(b, 7, { tree = true })
+  local got = lines_of(b)
+  check("demote below a separator ignores the earlier deeper list", ok == true and eq(got, {
+    "  - deep one",
+    "      - child",
+    "",
+    " note at indent 1",
+    "",
+    " - a",
+    "   - b",
+  }), detail(got))
 end
 
 if fails > 0 then

@@ -594,10 +594,10 @@ local function list_shift(dir, tree)
     return false
   end
   local fn = (dir == "promote") and list.promote or list.demote
-  if not fn(bufnr, line, { tree = tree }) then
+  local ok, why = fn(bufnr, line, { tree = tree })
+  if not ok then
     require("organ.notify").warn(
-      dir == "promote" and "cannot outdent: item already at indent 0"
-        or "cannot indent: item has no previous sibling"
+      why or (dir == "promote" and "cannot outdent this item" or "cannot indent this item")
     )
   end
   return true
