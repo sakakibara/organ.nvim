@@ -108,6 +108,20 @@ function M.repair(bufnr, cursor_line)
       if p.bullet ~= desired then
         lines[i] = p.indent .. desired .. " " .. p.content
         n_changed = n_changed + 1
+        -- A width change (`10.` -> `1.`) moves the text column, so the
+        -- item's descendant lines shift with it to stay aligned under
+        -- the new prefix (Emacs org-list-struct-fix-ind).
+        local dw = #desired - #p.bullet
+        if dw ~= 0 then
+          for j = i + 1, #lines do
+            local ws = lines[j]:match("^(%s*)")
+            if #ws <= indent then
+              break
+            end
+            lines[j] = string.rep(" ", math.max(0, #ws + dw)) .. lines[j]:sub(#ws + 1)
+            n_changed = n_changed + 1
+          end
+        end
       end
       counter = counter + 1
     end
@@ -227,6 +241,52 @@ local function item_subtree_end(bufnr, line, cur_indent)
   return last
 end
 
+-- Remaining-item anchors at the item's current indent, outside its
+-- subtree: the nearest item line above and the first below.  Captured
+-- BEFORE an indent shift so the level the item leaves can be
+-- renumbered afterwards.  Both are needed: a promote out of the middle
+-- of a sub-list splits it in two, and each half renumbers on its own
+-- (the lower half becomes a sub-list of the promoted item).
+local function level_anchors(bufnr, line, cur)
+  local s, e = M.block_at(bufnr, line)
+  if not s then
+    return nil, nil
+  end
+  local last = item_subtree_end(bufnr, line, #cur.indent)
+  local above, below
+  for j = s, line - 1 do
+    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    local item = M.parse_item(text)
+    if item and #item.indent == #cur.indent then
+      above = j
+    end
+  end
+  for j = last + 1, e do
+    local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+    local item = M.parse_item(text)
+    if item and #item.indent == #cur.indent then
+      below = j
+      break
+    end
+  end
+  return above, below
+end
+
+-- Renumber the levels an indent op touched: the level the item joined
+-- (recentered on its own line) and the level it left (via the anchors
+-- captured before the shift).  Emacs runs the equivalent for every
+-- list a structure edit touches, restarting each at 1 unless a `[@N]`
+-- counter overrides.  repair() is a no-op on unordered levels.
+local function renumber_after_shift(bufnr, line, above, below)
+  M.repair(bufnr, line)
+  if above then
+    M.repair(bufnr, above)
+  end
+  if below then
+    M.repair(bufnr, below)
+  end
+end
+
 -- Re-indent the item at `line` by `delta` columns; with `tree`, its
 -- child lines shift by the same amount (Emacs org-indent-item-tree).
 local function shift_item(bufnr, line, cur, delta, tree)
@@ -291,7 +351,12 @@ function M.demote(bufnr, line, opts)
   if not delta then
     return false
   end
-  return shift_item(bufnr, line, cur, delta, opts and opts.tree)
+  local above, below = level_anchors(bufnr, line, cur)
+  if not shift_item(bufnr, line, cur, delta, opts and opts.tree) then
+    return false
+  end
+  renumber_after_shift(bufnr, line, above, below)
+  return true
 end
 
 -- Promote: un-indent the list item at `line` to the nearest ancestor's
@@ -308,7 +373,12 @@ function M.promote(bufnr, line, opts)
   if not delta then
     return false
   end
-  return shift_item(bufnr, line, cur, delta, opts and opts.tree)
+  local above, below = level_anchors(bufnr, line, cur)
+  if not shift_item(bufnr, line, cur, delta, opts and opts.tree) then
+    return false
+  end
+  renumber_after_shift(bufnr, line, above, below)
+  return true
 end
 
 -- Swap the item at `line` (with its children) with the sibling above/

@@ -8,11 +8,10 @@
 -- e.g. `- one` (prefix `- ` width 2) -> `  - `; `1. one` (prefix `1. `
 -- width 3) -> `   1. `.
 --
--- Numeric-list renumbering after indent change is NOT covered here:
--- Emacs renumbers the whole list when demotion changes which items
--- are siblings; our implementation indents only.  TODO when we wire
--- numeric renumbering into demote / promote.  Test cases use literal
--- (`-` / `+`) bullets only for now.
+-- Ordered lists: Emacs renumbers the lists an indent op touches (the
+-- level the item left and the level it joined, each restarting at 1
+-- unless a `[@N]` counter says otherwise), so the numbered cases below
+-- probe renumbering as well as the indent column.
 --
 -- Run via: nvim --headless -l tests/parity_list_indent_test.lua
 
@@ -67,6 +66,14 @@ local cases = {
     label = "demote with content on the item (not just empty bullet)",
     input = "- one\n- <CURSOR>two\n- three\n",
   },
+  {
+    label = "demote ordered item renumbers both levels",
+    input = "1. one\n2. <CURSOR>two\n3. three\n",
+  },
+  {
+    label = "demote under a wide ordered bullet normalizes numbering",
+    input = "10. ten\n11. <CURSOR>eleven\n",
+  },
 }
 
 for _, c in ipairs(cases) do
@@ -99,6 +106,14 @@ local promote_cases = {
   {
     label = "promote nested 4-space indent to 2-space (one level up)",
     input = "- one\n  - two\n    - <CURSOR>three\n",
+  },
+  {
+    label = "promote ordered sub-item renumbers both levels",
+    input = "1. one\n   1. sub one\n   2. <CURSOR>sub two\n2. two\n",
+  },
+  {
+    label = "promote out of the middle splits the sub-list, both halves renumber",
+    input = "1. one\n   1. a\n   2. <CURSOR>b\n   3. c\n2. two\n",
   },
 }
 

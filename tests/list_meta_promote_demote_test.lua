@@ -137,7 +137,9 @@ do
 end
 
 -- Numeric bullets: demote indents under the previous sibling's prefix
--- width (`1. ` -> 3 spaces); children follow.
+-- width (`1. ` -> 3 spaces); children follow, and the demoted item is
+-- renumbered as the first item of its new sub-list (probed against
+-- Emacs 30.2 org-shiftmetaright).
 do
   local b = buf_with({
     "1. one",
@@ -150,7 +152,7 @@ do
     "list.demote tree numeric bullet",
     eq(got, {
       "1. one",
-      "   2. two",
+      "   1. two",
       "      - child",
     }),
     detail(got)
