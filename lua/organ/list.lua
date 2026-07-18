@@ -39,8 +39,11 @@ end
 
 -- Find the contiguous list block (range of 1-based line indices) containing
 -- the line at `cursor_line`. The block is scanned only at the cursor's
--- indent level — items at deeper indents are accepted as continuations,
--- items at shallower indents end the block.
+-- indent level — items at deeper indents and non-item lines indented
+-- past the level (item body text) are accepted as continuations; a
+-- non-item line at the level or shallower ends the block.  A single
+-- blank line keeps the list going (a loose list); two consecutive
+-- blanks end it, per org.
 function M.block_at(bufnr, cursor_line)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local center = M.parse_item(lines[cursor_line] or "")
@@ -50,26 +53,34 @@ function M.block_at(bufnr, cursor_line)
   local center_indent = #center.indent
 
   local s, e = cursor_line, cursor_line
-  -- Walk up: include items at >= center_indent until we hit non-item / shallower.
   for i = cursor_line - 1, 1, -1 do
-    local p = M.parse_item(lines[i] or "")
+    local ln = lines[i] or ""
+    local p = M.parse_item(ln)
     if p and #p.indent >= center_indent then
       s = i
-    elseif (lines[i] or ""):match("^%s*$") then
-      -- blank line breaks a list
-      break
-    else
+    elseif ln:match("^%s*$") then
+      if i == 1 or (lines[i - 1] or ""):match("^%s*$") then
+        break
+      end
+    elseif #ln:match("^(%s*)") <= center_indent then
       break
     end
+    -- deeper non-item line: an item's body text; keep scanning (s stays
+    -- on the last item — a body line always follows its item)
   end
   for i = cursor_line + 1, #lines do
-    local p = M.parse_item(lines[i] or "")
+    local ln = lines[i] or ""
+    local p = M.parse_item(ln)
     if p and #p.indent >= center_indent then
       e = i
-    elseif (lines[i] or ""):match("^%s*$") then
+    elseif ln:match("^%s*$") then
+      if (lines[i + 1] or ""):match("^%s*$") then
+        break
+      end
+    elseif #ln:match("^(%s*)") <= center_indent then
       break
     else
-      break
+      e = i
     end
   end
   return s, e, center_indent
@@ -114,12 +125,14 @@ function M.repair(bufnr, cursor_line)
         local dw = #desired - #p.bullet
         if dw ~= 0 then
           for j = i + 1, #lines do
-            local ws = lines[j]:match("^(%s*)")
-            if #ws <= indent then
-              break
+            if not lines[j]:match("^%s*$") then
+              local ws = lines[j]:match("^(%s*)")
+              if #ws <= indent then
+                break
+              end
+              lines[j] = string.rep(" ", math.max(0, #ws + dw)) .. lines[j]:sub(#ws + 1)
+              n_changed = n_changed + 1
             end
-            lines[j] = string.rep(" ", math.max(0, #ws + dw)) .. lines[j]:sub(#ws + 1)
-            n_changed = n_changed + 1
           end
         end
       end
@@ -212,9 +225,19 @@ local function previous_sibling(bufnr, line)
     if item and #item.indent <= #cur.indent then
       return item, j
     end
-    -- A heading or a blank line ends the list scope.
-    if text:match("^%*+%s") or text == "" then
-      return nil
+    if not item then
+      if text:match("^%s*$") then
+        -- A single blank keeps a loose list going; two end it.
+        local above = j > 1 and (vim.api.nvim_buf_get_lines(bufnr, j - 2, j - 1, false)[1] or "")
+          or ""
+        if above:match("^%s*$") then
+          return nil
+        end
+      elseif text:match("^%*+%s") or #text:match("^(%s*)") <= #cur.indent then
+        -- A heading, or body text at the item level or shallower, ends
+        -- the list scope; deeper text is an item body — keep scanning.
+        return nil
+      end
     end
   end
   return nil
@@ -229,14 +252,22 @@ local function item_subtree_end(bufnr, line, cur_indent)
   local total = vim.api.nvim_buf_line_count(bufnr)
   for j = line + 1, total do
     local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-    if text:match("^%s*$") or text:match("^%*+%s") then
+    if text:match("^%s*$") then
+      -- A single blank keeps a loose subtree going; two end it (the
+      -- blank itself joins the subtree only when content follows).
+      local below = vim.api.nvim_buf_get_lines(bufnr, j, j + 1, false)[1] or ""
+      if below:match("^%s*$") then
+        break
+      end
+    elseif text:match("^%*+%s") then
       break
+    else
+      local ws = text:match("^(%s*)")
+      if #ws <= cur_indent then
+        break
+      end
+      last = j
     end
-    local ws = text:match("^(%s*)")
-    if #ws <= cur_indent then
-      break
-    end
-    last = j
   end
   return last
 end
@@ -296,8 +327,10 @@ local function shift_item(bufnr, line, cur, delta, tree)
   local last = tree and item_subtree_end(bufnr, line, #cur.indent) or line
   local lines = vim.api.nvim_buf_get_lines(bufnr, line - 1, last, false)
   for i, text in ipairs(lines) do
-    local ws = text:match("^(%s*)")
-    lines[i] = string.rep(" ", math.max(0, #ws + delta)) .. text:sub(#ws + 1)
+    if not text:match("^%s*$") then
+      local ws = text:match("^(%s*)")
+      lines[i] = string.rep(" ", math.max(0, #ws + delta)) .. text:sub(#ws + 1)
+    end
   end
   obuf.set_lines(bufnr, line - 1, last, lines)
   return true
@@ -327,8 +360,19 @@ local function promote_delta(bufnr, line, cur)
     if item and #item.indent < #cur.indent then
       return #item.indent - #cur.indent
     end
-    if text:match("^%*+%s") or text == "" then
-      break
+    if not item then
+      if text:match("^%s*$") then
+        -- A single blank keeps a loose list going; two end it.
+        local above = j > 1 and (vim.api.nvim_buf_get_lines(bufnr, j - 2, j - 1, false)[1] or "")
+          or ""
+        if above:match("^%s*$") then
+          break
+        end
+      elseif text:match("^%*+%s") or #text:match("^(%s*)") == 0 then
+        -- A heading or flush-left body text ends the list; indented
+        -- text is some ancestor's body — keep scanning.
+        break
+      end
     end
   end
   if #cur.indent >= 2 then

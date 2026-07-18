@@ -43,7 +43,7 @@ local function our_demote(input)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, lines)
   vim.api.nvim_set_current_buf(b)
   vim.api.nvim_win_set_cursor(0, cursor)
-  list.demote(b, cursor[1])
+  list.demote(b, cursor[1], { tree = true })
   local out_lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   vim.api.nvim_buf_delete(b, { force = true })
   return table.concat(out_lines, "\n") .. "\n"
@@ -74,6 +74,10 @@ local cases = {
     label = "demote under a wide ordered bullet normalizes numbering",
     input = "10. ten\n11. <CURSOR>eleven\n",
   },
+  {
+    label = "demote across a single blank line (loose list stays one list)",
+    input = "1. one\n\n2. <CURSOR>two\n3. three\n",
+  },
 }
 
 for _, c in ipairs(cases) do
@@ -92,7 +96,7 @@ local function our_promote(input)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, lines)
   vim.api.nvim_set_current_buf(b)
   vim.api.nvim_win_set_cursor(0, cursor)
-  list.promote(b, cursor[1])
+  list.promote(b, cursor[1], { tree = true })
   local out_lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   vim.api.nvim_buf_delete(b, { force = true })
   return table.concat(out_lines, "\n") .. "\n"
@@ -114,6 +118,10 @@ local promote_cases = {
   {
     label = "promote out of the middle splits the sub-list, both halves renumber",
     input = "1. one\n   1. a\n   2. <CURSOR>b\n   3. c\n2. two\n",
+  },
+  {
+    label = "promote item with continuation text renumbers the sibling after it",
+    input = "1. one\n   1. a\n   2. <CURSOR>b\n      cont text\n2. two\n",
   },
 }
 
