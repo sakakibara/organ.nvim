@@ -78,6 +78,22 @@ local cases = {
     label = "demote across a single blank line (loose list stays one list)",
     input = "1. one\n\n2. <CURSOR>two\n3. three\n",
   },
+  {
+    label = "demote ordered item into unordered sub-list adopts its bullet",
+    input = "1. one\n   - a\n2. <CURSOR>two\n",
+  },
+  {
+    label = "demote unordered item into ordered sub-list adopts numbering",
+    input = "1. one\n   1. a\n- <CURSOR>two\n",
+  },
+  {
+    label = "demote `+` item into `-` sub-list adopts the dash",
+    input = "- one\n  - a\n+ <CURSOR>two\n",
+  },
+  {
+    label = "demote `.` item into `)` sub-list adopts the separator",
+    input = "1. one\n   1) a\n2. <CURSOR>two\n",
+  },
 }
 
 for _, c in ipairs(cases) do
@@ -122,6 +138,10 @@ local promote_cases = {
   {
     label = "promote item with continuation text renumbers the sibling after it",
     input = "1. one\n   1. a\n   2. <CURSOR>b\n      cont text\n2. two\n",
+  },
+  {
+    label = "promote unordered item into ordered outer list adopts numbering",
+    input = "1. one\n   - <CURSOR>sub\n2. two\n",
   },
 }
 

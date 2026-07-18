@@ -303,12 +303,48 @@ local function level_anchors(bufnr, line, cur)
   return above, below
 end
 
+-- "n." / "n)" for ordered bullets, the bullet char itself for
+-- unordered — two items share a style iff these compare equal.
+local function bullet_style(item)
+  if item.counter then
+    return "n" .. item.sep
+  end
+  return item.bullet
+end
+
+-- Adopt the joined level's bullet style (Emacs org-list-struct-fix-bul:
+-- a list's bullet is its first item's).  When the moved item IS the
+-- first item at its level — a fresh or split-off sub-list — it keeps
+-- its own bullet and defines the style instead.
+local function unify_bullet(bufnr, line)
+  local cur = M.parse_item(vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or "")
+  if not cur then
+    return
+  end
+  local s, e, indent = M.block_at(bufnr, line)
+  if not s then
+    return
+  end
+  for j = s, e do
+    local first = M.parse_item(vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or "")
+    if first and #first.indent == indent then
+      if j ~= line and bullet_style(first) ~= bullet_style(cur) then
+        obuf.set_lines(bufnr, line - 1, line, {
+          cur.indent .. first.bullet .. " " .. cur.content,
+        })
+      end
+      return
+    end
+  end
+end
+
 -- Renumber the levels an indent op touched: the level the item joined
 -- (recentered on its own line) and the level it left (via the anchors
 -- captured before the shift).  Emacs runs the equivalent for every
 -- list a structure edit touches, restarting each at 1 unless a `[@N]`
 -- counter overrides.  repair() is a no-op on unordered levels.
 local function renumber_after_shift(bufnr, line, above, below)
+  unify_bullet(bufnr, line)
   M.repair(bufnr, line)
   if above then
     M.repair(bufnr, above)
