@@ -175,7 +175,6 @@ local function analyze(st, use_target)
   end
   local parent, group = {}, {}
   local stack = {}
-  local last_in = {} -- group id -> last member index
   local last_child = {} -- parent index (0 = top) -> last child index
   local gid = 0
   local pending -- min ws of non-item lines since the last item row
@@ -196,7 +195,6 @@ local function analyze(st, use_target)
         group[i] = gid
       end
       last_child[pk] = i
-      last_in[group[i]] = i
       stack[#stack + 1] = i
       pending = nil
     else
