@@ -663,27 +663,48 @@ local function collect_all_inline_links(doc_parser, src, yield_fn)
   return links
 end
 
-local function collect_links(heading_node, all_links)
-  if not all_links then
-    return {}
-  end
+local function collect_links(heading_node, all_links, src)
+  local out = {}
+  -- planning/property_drawer sit as siblings of `section`, not inside it
+  -- (grammar moved them out) -- a link in a property VALUE still belongs
+  -- to this heading, so bucket by the union of all three ranges.
   local section_start, section_end
   for c in heading_node:iter_children() do
-    if c:type() == "section" then
+    local t = c:type()
+    if t == "planning" or t == "property_drawer" or t == "section" then
       local sr, _, er, _ = c:range()
-      section_start = sr
-      section_end = er
-      break
+      if not section_start or sr < section_start then
+        section_start = sr
+      end
+      if not section_end or er > section_end then
+        section_end = er
+      end
+    end
+    -- property_value is a flat unparsed leaf -- the org_inline injection
+    -- never covers it, so a whole-value bracket link has to be pulled
+    -- directly off the node rather than found in `all_links`.
+    if t == "property_drawer" and src then
+      for np in c:iter_children() do
+        if np:type() == "node_property" then
+          local val_n = np:field("value") and np:field("value")[1] or nil
+          if val_n then
+            local trimmed = (get_text(val_n, src) or ""):match("^%s*(.-)%s*$")
+            local parsed = parse_link_text(trimmed)
+            if parsed then
+              local row = val_n:range()
+              out[#out + 1] = { target = parsed.target, description = parsed.description, line = row + 1 }
+            end
+          end
+        end
+      end
     end
   end
-  if not section_start then
-    return {}
-  end
-  local out = {}
-  for _, lk in ipairs(all_links) do
-    local row = lk.line - 1
-    if row >= section_start and row < section_end then
-      out[#out + 1] = lk
+  if section_start and all_links then
+    for _, lk in ipairs(all_links) do
+      local row = lk.line - 1
+      if row >= section_start and row < section_end then
+        out[#out + 1] = lk
+      end
     end
   end
   return out
@@ -947,7 +968,7 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
       commented = parsed.commented and 1 or 0,
       tags = parsed.tags,
       properties = props,
-      links = collect_links(hnode, all_inline_links),
+      links = collect_links(hnode, all_inline_links, src_for_text),
       clocks = collect_clocks(hnode, src_for_text),
       habit_completions = collect_habit_completions(hnode, src_for_text, src_lines),
       state_changes = collect_state_changes(hnode, src_for_text, src_lines),
