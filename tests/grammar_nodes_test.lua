@@ -69,7 +69,7 @@ end
 
 -- ── headline_line full decomposition ──────────────────────────────────
 do
-  local b, nodes = parse_and_walk("* TODO COMMENT [#A] Task title [33%] :work:urgent:\n")
+  local b, nodes = parse_and_walk("* TODO [#A] COMMENT Task title [33%] :work:urgent:\n")
   local hl = nodes.headline_line and nodes.headline_line[1]
   check("headline_line: present", hl ~= nil)
   if hl then
@@ -229,8 +229,8 @@ do
   check("planning_entry: 2 (combined line)", #entries == 2)
   if entries[1] then
     check(
-      "planning_entry[1]: keyword=SCHEDULED",
-      field_text(entries[1], "keyword", b) == "SCHEDULED"
+      "planning_entry[1]: keyword token is `[ws]*SCHEDULED:`",
+      (field_text(entries[1], "keyword", b) or ""):match("^%s*([%w_%-]+):$") == "SCHEDULED"
     )
   end
   vim.api.nvim_buf_delete(b, { force = true })
