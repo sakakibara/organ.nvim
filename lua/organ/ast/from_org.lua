@@ -694,12 +694,8 @@ emit_section_child = function(node, src)
   elseif t == "verse_block" then
     return A.block("verse", { body = block_body(node, src) })
   elseif t == "export_block" then
-    local backend
-    for c in node:iter_children() do
-      if c:type() == "src_block_language" then
-        backend = get_text(c, src)
-      end
-    end
+    local format_node = node:field("format")[1]
+    local backend = format_node and get_text(format_node, src)
     return A.block("export", { body = block_body(node, src), backend = backend })
   elseif t == "table" then
     return parse_table(node, src)
