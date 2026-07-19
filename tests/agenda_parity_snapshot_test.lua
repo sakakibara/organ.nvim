@@ -197,6 +197,34 @@ check(
   end)()
 )
 
+-- Donate is a `.+1w` habit last scheduled 3 days before the pinned
+-- "today" (2026-05-04): Emacs shows it BOTH as an overdue carryover
+-- on today ("Sched. 3x:") AND on its next in-window occurrence day
+-- ("Scheduled:") -- not one row swallowing the other.
+check(
+  "Overdue habit shows an overdue carryover row ('Sched. Nx:')",
+  (function()
+    for _, l in ipairs(lines) do
+      if l:find("Donate", 1, true) and l:find("Sched%.%s*%dx:") then
+        return true
+      end
+    end
+    return false
+  end)()
+)
+
+check(
+  "Overdue habit ALSO shows its own future 'Scheduled:' occurrence",
+  (function()
+    for _, l in ipairs(lines) do
+      if l:find("Donate", 1, true) and l:find("Scheduled:", 1, true) then
+        return true
+      end
+    end
+    return false
+  end)()
+)
+
 check(
   "Footer help bar present at end",
   (function()

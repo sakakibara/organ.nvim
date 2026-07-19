@@ -253,13 +253,6 @@ local function sched_label_for(r, today)
   local has_dead = r.deadline_date and r.deadline_date ~= ""
   local sched_d = has_sched and dates.days_diff(today, r.scheduled_date) or nil
   local dead_d = has_dead and dates.days_diff(today, r.deadline_date) or nil
-  -- Habit rows projected forward to a future cycle (`_synthetic_repeater`)
-  -- get NO sched-label, matching Emacs's style: only the carryover
-  -- (Sched.Nx) and the row's own scheduled-day get a label, every
-  -- other in-window cycle just shows `TODO Foo`.
-  if r.is_habit and r._synthetic_repeater and sched_d == 0 then
-    return ""
-  end
 
   -- Priority order for the sched-label (matches Emacs's
   -- org-agenda-format priority -- overdue-scheduled wins over
@@ -278,25 +271,11 @@ local function sched_label_for(r, today)
     return "Deadline:"
   end
   if has_sched and sched_d and sched_d < 0 then
-    -- Overdue: Emacs shows "Sched.Nx" -- N is repeat cycles late for
-    -- habit-style rows, raw days late otherwise.  Falls through to
-    -- the cycle-computation logic below.
-    local d = sched_d
-    local cycles = -d
-    if r.is_habit and r.scheduled and r.scheduled ~= "" then
-      local ok, rep_mod = pcall(require, "organ.todo.repeater")
-      if ok then
-        local rep = rep_mod.parse(r.scheduled)
-        local ok_h, habit = pcall(require, "organ.habit")
-        if rep and ok_h and habit.period_days then
-          local period = habit.period_days(rep)
-          if period and period > 0 then
-            cycles = math.max(1, math.floor(-d / period))
-          end
-        end
-      end
-    end
-    return string.format("Sched.%2dx:", cycles)
+    -- Overdue: Emacs shows "Sched.Nx" with N = raw days late, for
+    -- habit-style rows and ordinary scheduled rows alike -- verified
+    -- against real Emacs 30.1 (a `.+1w` habit 3 days overdue reads
+    -- "Sched. 3x:", not a repeat-cycle count).
+    return string.format("Sched.%2dx:", -sched_d)
   end
   -- Future cases after the overdue check has fallen through.
   if has_dead then

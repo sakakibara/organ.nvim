@@ -149,27 +149,26 @@ local function expand_repeaters(rows, block)
           cursor = bump_calendar(cursor, rep.value, rep.unit)
         end
       end
-      -- If origin is BEFORE the window, the first in-window clone
-      -- represents an overdue carryover.  Emit it with the
-      -- ORIGINAL scheduled_date so `sched_label_for` shows
-      -- `Sched. Nx:` (for habits the cycle count, otherwise
-      -- days late) -- matching Emacs.  The bucket-day is set via
-      -- `_bucket_date` so the row lands on `from_ts` regardless.
+      -- If origin is BEFORE the window, emit an EXTRA overdue-carryover
+      -- row bucketed on `from_ts`'s day, keeping the ORIGINAL
+      -- scheduled_date so `sched_label_for` shows the real `Sched. Nx:`
+      -- days-late count -- matching Emacs. This is additional to (not a
+      -- substitute for) the walked occurrence below: the repeater's
+      -- next in-window date (e.g. a week later) still gets its own
+      -- normal `Scheduled:` row on its own day.
       local origin_pre_window = origin_ts < from_ts
-      local first = true
+      if origin_pre_window then
+        emit_clones = true
+        local carryover = vim.deepcopy(r)
+        carryover._bucket_date = os.date("%Y-%m-%d", from_ts)
+        expanded[#expanded + 1] = carryover
+      end
       while cursor <= to_ts do
         emit_clones = true
         local clone = vim.deepcopy(r)
-        if first and origin_pre_window then
-          -- Carryover row: keep original scheduled_date, but
-          -- bucket on the today (cursor) day.
-          clone._bucket_date = os.date("%Y-%m-%d", cursor)
-        else
-          clone.scheduled_date = os.date("%Y-%m-%d", cursor) .. time_part
-          clone._synthetic_repeater = (cursor ~= origin_ts)
-        end
+        clone.scheduled_date = os.date("%Y-%m-%d", cursor) .. time_part
+        clone._synthetic_repeater = (cursor ~= origin_ts)
         expanded[#expanded + 1] = clone
-        first = false
         if sec_period then
           cursor = cursor + sec_period
         else
