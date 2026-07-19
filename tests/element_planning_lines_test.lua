@@ -1,6 +1,9 @@
--- Regression: element.planning_lines's REGEX FALLBACK (parser not loaded)
--- must find planning keywords placed AFTER a property drawer (org-habit
--- layout), matching the tree-sitter path. Run:
+-- Regression: element.planning_lines is a tolerant line scan (per Emacs
+-- org-add-planning-info) -- the sole implementation, by design, not a
+-- fallback for a stricter tree-sitter path (strict TS readers live
+-- elsewhere). It must find planning keywords placed AFTER a property
+-- drawer (org-habit layout), and must NOT mistake body prose or an
+-- unrelated keyword (RESCHEDULED) for planning. Run:
 --   nvim --headless -l tests/element_planning_lines_test.lua
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -17,8 +20,8 @@ end
 
 local element = require("organ.element")
 
--- Stub out the parser so element.parser_loaded() returns false, forcing
--- the regex fallback path (mirrors the missing_parser_test approach).
+-- Stub out the parser (mirrors the missing_parser_test approach) so these
+-- checks run with no tree-sitter involvement at all.
 local orig_get_parser = vim.treesitter.get_parser
 local function no_parser()
   error("simulated: parser not available")
@@ -95,6 +98,46 @@ do
   local pl = element.planning_lines(b, 0)
   check(
     "unterminated drawer does not leak sibling planning",
+    pl.scheduled == nil,
+    "got " .. tostring(pl.scheduled)
+  )
+end
+
+-- Body prose that merely contains a planning keyword as a substring must
+-- NOT register as planning -- section.set_planning does a whole-line
+-- replacement keyed on these entries, so a false hit here would destroy
+-- the prose line.
+do
+  local b = noparser_buf({
+    "* TODO Water plants",
+    "  Meeting DEADLINE: is strict, see notes",
+  })
+  vim.treesitter.get_parser = no_parser
+  element.invalidate(b)
+  local pl = element.planning_lines(b, 0)
+  vim.treesitter.get_parser = orig_get_parser
+  element.invalidate(b)
+  check(
+    "prose containing 'DEADLINE:' is not registered as planning",
+    pl.deadline == nil,
+    "got " .. tostring(pl.deadline)
+  )
+end
+
+-- RESCHEDULED: is a distinct keyword, not SCHEDULED: with a prefix --
+-- the word-frontier anchor must reject it.
+do
+  local b = noparser_buf({
+    "* TODO Water plants",
+    "  RESCHEDULED: <2026-08-01 Sat>",
+  })
+  vim.treesitter.get_parser = no_parser
+  element.invalidate(b)
+  local pl = element.planning_lines(b, 0)
+  vim.treesitter.get_parser = orig_get_parser
+  element.invalidate(b)
+  check(
+    "RESCHEDULED: is not registered as scheduled",
     pl.scheduled == nil,
     "got " .. tostring(pl.scheduled)
   )
