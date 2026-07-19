@@ -35,10 +35,10 @@ end
 -- 2. End-to-end: buffer with one SCHEDULED, one DEADLINE.
 local out = ics.export([[
 * TODO Standup :work:
+  SCHEDULED: <2026-05-04 Mon 09:00-09:15>
   :PROPERTIES:
   :ID: standup-uuid
   :END:
-  SCHEDULED: <2026-05-04 Mon 09:00-09:15>
 * TODO Project :work:
   DEADLINE: <2026-05-15 Fri>
 ]])
