@@ -229,6 +229,22 @@ do
   )
 end
 
+do
+  -- No-space discriminator: the priority-cookie scan runs once, right
+  -- after TODO. Since "[#A]" here follows COMMENT (not TODO), it is
+  -- never seen as a cookie -- it stays raw title text glued to "Title"
+  -- with zero whitespace between them, so normalize_whitespace has
+  -- nothing to collapse. The old parse order (cookie scanned after
+  -- COMMENT was stripped) would have matched "[#A]" as a phantom cookie
+  -- here and reassembled with an inserted join space.
+  local got = format_input({ "* TODO COMMENT [#A]Title" })
+  check(
+    "no-space 'COMMENT [#A]Title' passes through verbatim under default config",
+    got[1] == "* TODO COMMENT [#A]Title",
+    vim.inspect(got)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
