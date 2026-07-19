@@ -11,51 +11,52 @@ Monday      4 May 2026 W19
   Tasks:      17:00...... Scheduled:  NEXT Weekly review                  :gtd:
               18:00...... ----------------
               20:00...... ----------------
+  Habits:     Sched. 3x:  TODO Donate                                   :habit:
   Tasks:      Sched. 3x:  NEXT Pay rent                                   :gtd:
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
+  Habits:     Scheduled:  NEXT Long run (10km+)                         :habit:
   playground: Scheduled:  TODO Task with tag           :playground:test:urgent:
   Tasks:      Scheduled:  NEXT Pick up dry cleaning               :gtd:@errand:
   Tasks:      Scheduled:  NEXT Water plants                               :gtd:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
-  Habits:     NEXT Long run (10km+)                                     :habit:
   playground: In   6 d.:  WAIT Task with deadline             :playground:test:
 Tuesday     5 May 2026
   playground: 14:00...... Scheduled:  NEXT Sync with Anil on infra capacity :@office:
   playground: Scheduled:  NEXT Task with priority [#A] :playground:test:@office:
   Tasks:      Scheduled:  NEXT [#A] Submit expense report       :gtd:@computer:
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
   Tasks:      Scheduled:  NEXT Take out trash                             :gtd:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
 Wednesday   6 May 2026
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
   playground: Scheduled:  NEXT Marketing alignment                     :@email:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
 Thursday    7 May 2026
   Tasks:      NEXT [#A] Submit expense report                   :gtd:@computer:
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
   Tasks:      Scheduled:  NEXT Water plants                               :gtd:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
-  Habits:     PROJ Strength training                                    :habit:
+  Habits:     Scheduled:  PROJ Strength training                        :habit:
 Friday      8 May 2026
+  Habits:     Scheduled:  TODO Donate                                   :habit:
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
   Tasks:      Scheduled:  NEXT Draft Q4 OKR proposal         :gtd:@office:deep:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
-  Habits:     TODO Donate                                               :habit:
   Tasks:      NEXT Draft Q4 OKR proposal                     :gtd:@office:deep:
 Saturday    9 May 2026
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
 Sunday     10 May 2026
+  Habits:     Scheduled:  TODO Morning walk                             :habit:
+  Habits:     Scheduled:  TODO Read for 30 minutes                      :habit:
+  Habits:     Scheduled:  TODO Stretch                                  :habit:
   Tasks:      Scheduled:  NEXT Water plants                               :gtd:
-  Habits:     TODO Morning walk                                         :habit:
-  Habits:     TODO Read for 30 minutes                                  :habit:
-  Habits:     TODO Stretch                                              :habit:
-  Habits:     PROJ Strength training                                    :habit:
+  Habits:     Scheduled:  PROJ Strength training                        :habit:
   playground: Deadline:   WAIT Task with deadline             :playground:test:
 
