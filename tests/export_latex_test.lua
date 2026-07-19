@@ -82,12 +82,14 @@ Cost is 50% & $\alpha$ uses literal $.
   assert_contains(out, "$\\alpha$")
 end
 
--- 6. List + ordered list (separated by blank line so the grammar splits them).
+-- 6. List + ordered list (two blank lines end a list per Emacs; one
+-- blank line keeps following items in the same list).
 do
   local out = tex.export([[
 * H
 - one
 - two
+
 
 1. first
 2. second
@@ -98,6 +100,25 @@ do
   assert_contains(out, "\\begin{enumerate}")
   assert_contains(out, "\\item first")
   assert_contains(out, "\\end{enumerate}")
+end
+
+-- 6b. Mixed bullets after a single blank line stay ONE list; the first
+-- item decides the environment (Emacs org-list-get-list-type).
+do
+  local out = tex.export([[
+* H
+- one
+- two
+
+1. first
+2. second
+]])
+  assert_contains(out, "\\begin{itemize}")
+  assert_contains(out, "\\item first")
+  assert(
+    not out:find("\\begin{enumerate}", 1, true),
+    "mixed list after one blank line must not split into enumerate:\n" .. out
+  )
 end
 
 -- 7. Table → tabular.

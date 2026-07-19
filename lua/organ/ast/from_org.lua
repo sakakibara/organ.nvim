@@ -593,7 +593,7 @@ emit_section_child = function(node, src)
     return A.code_block(lang, table.concat(body_lines, "\n"), params)
   elseif t == "list" or t == "plain_list" then
     local items = {}
-    local ordered = false
+    local ordered = nil
     for c in node:iter_children() do
       if c:type() == "list_item" then
         local marker, counter, checkbox, tag
@@ -602,8 +602,10 @@ emit_section_child = function(node, src)
           local it = ic:type()
           if it == "bullet" then
             marker = get_text(ic, src):gsub("^%s+", ""):gsub("%s+$", "")
-            if marker:match("^%d") then
-              ordered = true
+            if ordered == nil then
+              -- Emacs org-list-get-list-type: the FIRST item decides the
+              -- list type; later bullets never flip it.
+              ordered = marker:match("^%d") ~= nil
             end
           elseif it == "counter" then
             counter = get_text(ic, src):match("%[@(.-)%]")
@@ -642,7 +644,7 @@ emit_section_child = function(node, src)
         })
       end
     end
-    return A.list(ordered, items)
+    return A.list(ordered or false, items)
   elseif t == "keyword" then
     -- Tree-sitter `keyword` is `#+NAME: value`. Get the raw line and
     -- split on the first `:`.

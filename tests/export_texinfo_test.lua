@@ -75,12 +75,14 @@ a@b uses {brace}.
   assert_contains(out, "@{brace@}")
 end
 
--- 6. Lists.
+-- 6. Lists (two blank lines end a list per Emacs; one blank line keeps
+-- following items in the same list).
 do
   local out = texi.export([[
 * H
 - one
 - two
+
 
 1. first
 2. second
