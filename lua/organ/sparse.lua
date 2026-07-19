@@ -89,38 +89,32 @@ function M._compute_visible(buf_lines, predicate, bufnr)
       return out
     end
     for child in h._node:iter_children() do
-      if child:type() == "section" then
-        for c in child:iter_children() do
-          if c:type() == "property_drawer" then
-            for np in c:iter_children() do
-              if np:type() == "node_property" then
-                local kn, vn
-                for f in np:iter_children() do
-                  local t = f:type()
-                  if t == "property_name" then
-                    kn = f
-                  elseif t == "property_value" then
-                    vn = f
-                  end
-                end
-                if kn then
-                  local sr, sc, _, ec = kn:range()
-                  local k = vim.api.nvim_buf_get_text(bufnr, sr, sc, sr, ec, {})[1]
-                  local v = ""
-                  if vn then
-                    local vr, vc, _, vec = vn:range()
-                    v = vim.api.nvim_buf_get_text(bufnr, vr, vc, vr, vec, {})[1] or ""
-                  end
-                  if k then
-                    out[k] = v
-                  end
-                end
+      if child:type() == "property_drawer" then
+        for np in child:iter_children() do
+          if np:type() == "node_property" then
+            local kn, vn
+            for f in np:iter_children() do
+              local t = f:type()
+              if t == "property_name" then
+                kn = f
+              elseif t == "property_value" then
+                vn = f
               end
             end
-            return out
+            if kn then
+              local sr, sc, _, ec = kn:range()
+              local k = vim.api.nvim_buf_get_text(bufnr, sr, sc, sr, ec, {})[1]
+              local v = ""
+              if vn then
+                local vr, vc, _, vec = vn:range()
+                v = vim.api.nvim_buf_get_text(bufnr, vr, vc, vr, vec, {})[1] or ""
+              end
+              if k then
+                out[k] = v
+              end
+            end
           end
         end
-        return out
       end
     end
     return out

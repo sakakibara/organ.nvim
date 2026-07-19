@@ -61,4 +61,25 @@ do
   assert_eq(s.visible[2], nil)
 end
 
+----------------------------------------------------------------------
+-- property predicate via the tree-sitter path: the drawer is a DIRECT
+-- child of headline in the grammar.
+do
+  vim.treesitter.language.add("org", { path = require("organ.defaults").parser_path })
+  local b = mk_buf({
+    "* One",
+    ":PROPERTIES:",
+    ":KIND: keep",
+    ":END:",
+    "* Two",
+  })
+  sparse.apply(b, function(h)
+    return (h.properties or {}).KIND == "keep"
+  end)
+  local s = vim.b[b].organ_sparse
+  assert(s, "state set (ts property path)")
+  assert_eq(s.visible[1], true, "TS property match visible")
+  assert_eq(s.visible[5], nil, "TS property non-match hidden")
+end
+
 io.write("sparse buffer ok\n")
