@@ -82,6 +82,11 @@ local function clean_title(line, todo_keywords)
   if priority then
     line = line:gsub("^%[#%w%]%s*", "")
   end
+  -- Strip COMMENT keyword (org-element: not part of the title). Requires
+  -- trailing whitespace so "COMMENTARY..." is left untouched.
+  if line:match("^COMMENT%s+") then
+    line = line:gsub("^COMMENT%s+", "")
+  end
   -- Strip trailing tags `:a:b:`.
   local tags_str = line:match("%s+(:[%w_:@]+:)%s*$")
   local tags

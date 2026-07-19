@@ -167,6 +167,32 @@ do
   check("properties nil when absent", h.properties == nil)
 end
 
+-- ---- COMMENT keyword is not part of the title (org-element order:
+-- todo -> priority -> COMMENT -> title) -----------------------------
+do
+  local lines = vim.split("* TODO [#A] COMMENT Title text\n", "\n", { plain = true })
+  local ast = from_org.from_lines(lines)
+  local h = ast.children[1]
+  check(
+    "COMMENT stripped from title",
+    h.title[1] and h.title[1].text == "Title text",
+    "got: " .. vim.inspect(h.title)
+  )
+end
+
+-- ---- "COMMENTARY..." is not the COMMENT keyword (strict equality
+-- followed by whitespace only) ---------------------------------------
+do
+  local lines = vim.split("* TODO COMMENTARY notes\n", "\n", { plain = true })
+  local ast = from_org.from_lines(lines)
+  local h = ast.children[1]
+  check(
+    "'COMMENTARY...' is not stripped as COMMENT",
+    h.title[1] and h.title[1].text == "COMMENTARY notes",
+    "got: " .. vim.inspect(h.title)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
