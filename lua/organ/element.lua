@@ -14,8 +14,12 @@
 --       stars: (stars)
 --       todo: (todo)?
 --       priority: (priority)?
+--       comment: (comment_marker)?
 --       title: (title)?
+--       cookie: (statistics_cookie)?
 --       tag_list: (tag_list (tag) (tag) ...)?)
+--     (planning (planning_line (planning_entry ...) ...))?
+--     (property_drawer (node_property ...) ...)?
 --     (section ...)?
 --     (headline ...)*)
 --
@@ -719,15 +723,11 @@ function M.property_drawer_range(bufnr, headline_row)
     local h = M.headline_at(bufnr, headline_row)
     if h and h.node then
       for child in h.node:iter_children() do
-        if child:type() == "section" then
-          for c in child:iter_children() do
-            if c:type() == "property_drawer" then
-              local sr, _, er = c:range()
-              -- TS end_row is the row AFTER the closing `:END:` line.
-              -- Convert to 1-based inclusive.
-              return { start_line = sr + 1, end_line = er }
-            end
-          end
+        if child:type() == "property_drawer" then
+          local sr, _, er = child:range()
+          -- TS end_row is the row AFTER the closing `:END:` line.
+          -- Convert to 1-based inclusive.
+          return { start_line = sr + 1, end_line = er }
         end
       end
       return nil
@@ -774,16 +774,9 @@ function M.planning_end_line(bufnr, headline_row)
     local h = M.headline_at(bufnr, headline_row)
     if h and h.node then
       for child in h.node:iter_children() do
-        if child:type() == "section" then
-          for c in child:iter_children() do
-            if c:type() == "planning" then
-              local _, _, er = c:range()
-              return er + 1 -- TS er is exclusive; +1 → 1-based next line
-            end
-          end
-          -- No planning under section.
-          local _, _, _ = child:range()
-          return headline_row + 2 -- right after headline
+        if child:type() == "planning" then
+          local _, _, er = child:range()
+          return er + 1 -- TS er is exclusive; +1 -> 1-based next line
         end
       end
       return headline_row + 2
@@ -807,46 +800,16 @@ end
 -- planning entries under the headline at `headline_row` (0-based) as
 -- `{ scheduled = N|nil, deadline = N|nil, closed = N|nil }`.  When a
 -- single line carries multiple keywords each entry shares that line.
+--
+-- Deliberately a line scan, not a walk of the grammar's `planning` node:
+-- the grammar (like org-element) only models planning DIRECTLY under the
+-- headline, but writers and the canonicalizer must also FIND misplaced
+-- planning (after a drawer, org-habit layout) to repair or update it --
+-- the same tolerant-find / canonical-insert split Emacs uses in
+-- `org-add-planning-info`.
 function M.planning_lines(bufnr, headline_row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local out = {}
-  if M.parser_loaded(bufnr) then
-    local h = M.headline_at(bufnr, headline_row)
-    if h and h.node then
-      for child in h.node:iter_children() do
-        if child:type() == "section" then
-          for c in child:iter_children() do
-            if c:type() == "planning" then
-              local function walk_entries(n)
-                if n:type() == "planning_entry" then
-                  local kn = field_first(n, "keyword")
-                  if kn then
-                    local kw = node_text(kn, bufnr):upper()
-                    local row = (n:range())
-                    if kw == "SCHEDULED" then
-                      out.scheduled = row + 1
-                    elseif kw == "DEADLINE" then
-                      out.deadline = row + 1
-                    elseif kw == "CLOSED" then
-                      out.closed = row + 1
-                    end
-                  end
-                end
-                for cc in n:iter_children() do
-                  walk_entries(cc)
-                end
-              end
-              walk_entries(c)
-              return out
-            end
-          end
-          return out
-        end
-      end
-      return out
-    end
-  end
-  -- Regex fallback.
   local total = vim.api.nvim_buf_line_count(bufnr)
   local i = headline_row + 2
   while i <= total do
@@ -908,25 +871,20 @@ function M.properties_under(bufnr, headline_row)
     local h = M.headline_at(bufnr, headline_row)
     if h and h.node then
       for child in h.node:iter_children() do
-        if child:type() == "section" then
-          for c in child:iter_children() do
-            if c:type() == "property_drawer" then
-              local out = {}
-              for np in c:iter_children() do
-                if np:type() == "node_property" then
-                  local kn = field_first(np, "name")
-                  local vn = field_first(np, "value")
-                  if kn then
-                    local k = node_text(kn, bufnr)
-                    local v = vn and node_text(vn, bufnr):gsub("%s+$", "") or ""
-                    out[k] = v
-                  end
-                end
+        if child:type() == "property_drawer" then
+          local out = {}
+          for np in child:iter_children() do
+            if np:type() == "node_property" then
+              local kn = field_first(np, "name")
+              local vn = field_first(np, "value")
+              if kn then
+                local k = node_text(kn, bufnr)
+                local v = vn and node_text(vn, bufnr):gsub("%s+$", "") or ""
+                out[k] = v
               end
-              return out
             end
           end
-          return {}
+          return out
         end
       end
       return {}
