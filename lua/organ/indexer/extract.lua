@@ -238,13 +238,6 @@ local function find_planning_node(heading_node)
     if c:type() == "planning" then
       return c
     end
-    if c:type() == "section" then
-      for sc in c:iter_children() do
-        if sc:type() == "planning" then
-          return sc
-        end
-      end
-    end
   end
   return nil
 end
@@ -259,10 +252,12 @@ local function extract_planning(heading_node, src)
   local function take_entry(entry)
     local kw_n = entry:field("keyword") and entry:field("keyword")[1] or nil
     local ts_n = entry:field("timestamp") and entry:field("timestamp")[1] or nil
-    local kw = kw_n and get_text(kw_n, src) or nil
+    -- planning_keyword covers `[ws]*KEYWORD:` (case-insensitive external
+    -- token); strip the whitespace + colon before classifying.
+    local kw = kw_n and (get_text(kw_n, src) or ""):match("([%w_%-]+):?%s*$") or nil
     local ts = ts_n and get_text(ts_n, src) or nil
     if kw and ts then
-      local field = PLANNING_KW[kw]
+      local field = PLANNING_KW[kw:upper()]
       if field and not out[field] then
         out[field] = ts
       end
@@ -275,8 +270,6 @@ local function extract_planning(heading_node, src)
           take_entry(entry)
         end
       end
-    elseif line:type() == "planning_entry" then
-      take_entry(line) -- direct child for legacy/single-line case
     end
   end
   return out
@@ -929,17 +922,6 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
       if c:type() == "property_drawer" then
         drawer_node = c
         break
-      end
-      if c:type() == "section" then
-        for sc in c:iter_children() do
-          if sc:type() == "property_drawer" then
-            drawer_node = sc
-            break
-          end
-        end
-        if drawer_node then
-          break
-        end
       end
     end
     local props = extract_properties(drawer_node, src_for_text)
