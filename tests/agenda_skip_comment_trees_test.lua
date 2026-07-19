@@ -35,6 +35,8 @@ f:write([[
 * TODO Visible task
 * TODO COMMENT Suppressed-via-todo-comment
 * TODO [#A] COMMENT Canonical-order
+* TODO COMMENT [#A] Reversed-order
+* TODO COMMENTARY-ish title
 ]])
 f:close()
 
@@ -70,6 +72,16 @@ check(
 check(
   "priority cookie before COMMENT still parsed",
   by_title["Canonical-order"] and by_title["Canonical-order"].priority == "A"
+)
+check(
+  "reversed `* TODO COMMENT [#A] Foo` drops priority, keeps the cookie text in title",
+  by_title["[#A] Reversed-order"]
+    and by_title["[#A] Reversed-order"].commented == 1
+    and by_title["[#A] Reversed-order"].priority == nil
+)
+check(
+  "`* TODO COMMENTARY-ish title` is not flagged commented (strict-equality guard)",
+  by_title["COMMENTARY-ish title"] and (by_title["COMMENTARY-ish title"].commented or 0) == 0
 )
 
 -- ---------------------------------------------------------------------------
