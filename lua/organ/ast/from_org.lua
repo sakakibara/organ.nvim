@@ -368,7 +368,7 @@ local function extract_planning(planning_node, src)
           local kw_node = entry:field("keyword")[1]
           local ts_node = entry:field("timestamp")[1]
           if kw_node and ts_node then
-            local kw = get_text(kw_node, src):upper()
+            local kw = ((get_text(kw_node, src) or ""):match("([%w_%-]+):?%s*$") or ""):upper()
             local ts = get_text(ts_node, src)
             if kw == "SCHEDULED" then
               out.scheduled = ts
@@ -415,17 +415,17 @@ local function extract_properties(drawer_node, src)
 end
 
 -- Process a `section` node's children into a list of AST blocks, plus
--- hoisted planning / properties. The single place section body is
--- assembled (shared by emit_headline and from_lines), so affiliated-
--- keyword and #+TBLFM association can live here.
+-- the hoisted file-level properties (zeroth section); under a headline,
+-- planning and the property drawer are direct headline children handled
+-- by emit_headline. The single place section body is assembled (shared
+-- by emit_headline and from_lines), so affiliated-keyword and #+TBLFM
+-- association can live here.
 local function emit_section_children(section_node, src)
-  local planning, properties
+  local properties
   local items = {}
   for sc in section_node:iter_children() do
     local sct = sc:type()
-    if sct == "planning" then
-      planning = planning or extract_planning(sc, src)
-    elseif sct == "property_drawer" then
+    if sct == "property_drawer" then
       properties = properties or extract_properties(sc, src)
     elseif sct == "affiliated_keyword" then
       local name_node = sc:field("name")[1]
@@ -481,7 +481,7 @@ local function emit_section_children(section_node, src)
   for _, a in ipairs(pending) do
     blocks[#blocks + 1] = A.directive(a.name, a.value)
   end
-  return blocks, planning, properties
+  return blocks, properties
 end
 
 local function emit_headline(node, src, todo_kws)
@@ -493,10 +493,12 @@ local function emit_headline(node, src, todo_kws)
   for c in node:iter_children() do
     if c:type() == "headline" then
       children_blocks[#children_blocks + 1] = emit_headline(c, src, todo_kws)
+    elseif c:type() == "planning" then
+      planning = planning or extract_planning(c, src)
+    elseif c:type() == "property_drawer" then
+      properties = properties or extract_properties(c, src)
     elseif c:type() == "section" then
-      local body, pl, pr = emit_section_children(c, src)
-      planning = planning or pl
-      properties = properties or pr
+      local body = emit_section_children(c, src)
       for _, b in ipairs(body) do
         children_blocks[#children_blocks + 1] = b
       end
@@ -516,9 +518,9 @@ end
 
 -- Convert a single TS node inside a `section` into an AST block (or
 -- a list of blocks for special cases).  Returns nil for node types we
--- don't yet model, which drop silently.  `planning` and
--- `property_drawer` are handled by emit_headline directly and never
--- reach this function.
+-- don't yet model, which drop silently.  planning and property_drawer
+-- are direct headline children (emit_headline handles them); a
+-- file-level property drawer is hoisted by emit_section_children.
 emit_section_child = function(node, src)
   local t = node:type()
   if t == "paragraph" then
