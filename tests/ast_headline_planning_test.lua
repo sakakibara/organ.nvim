@@ -109,10 +109,10 @@ do
   local lines = vim.split(
     [[
 * TODO Combined
+SCHEDULED: <2026-05-04>
 :PROPERTIES:
 :ID: xyz
 :END:
-SCHEDULED: <2026-05-04>
 Body paragraph here.
 ]],
     "\n",
