@@ -414,20 +414,19 @@ local function extract_properties(drawer_node, src)
   return out
 end
 
--- Process a `section` node's children into a list of AST blocks, plus
--- the hoisted file-level properties (zeroth section); under a headline,
--- planning and the property drawer are direct headline children handled
--- by emit_headline. The single place section body is assembled (shared
--- by emit_headline and from_lines), so affiliated-keyword and #+TBLFM
--- association can live here.
+-- Process a `section` node's children into a list of AST blocks; under a
+-- headline, planning and the property drawer are direct headline children
+-- handled by emit_headline. The single place section body is assembled
+-- (shared by emit_headline and from_lines), so affiliated-keyword and
+-- #+TBLFM association can live here. A property_drawer met in section
+-- content (the zeroth-section/file-level case) is dropped from the AST --
+-- the indexer's extract_file_level handles that case separately;
+-- AST-level modeling of it is a future decision.
 local function emit_section_children(section_node, src)
-  local properties
   local items = {}
   for sc in section_node:iter_children() do
     local sct = sc:type()
-    if sct == "property_drawer" then
-      properties = properties or extract_properties(sc, src)
-    elseif sct == "affiliated_keyword" then
+    if sct == "affiliated_keyword" then
       local name_node = sc:field("name")[1]
       local value_node = sc:field("value")[1]
       items[#items + 1] = {
@@ -481,7 +480,7 @@ local function emit_section_children(section_node, src)
   for _, a in ipairs(pending) do
     blocks[#blocks + 1] = A.directive(a.name, a.value)
   end
-  return blocks, properties
+  return blocks
 end
 
 local function emit_headline(node, src, todo_kws)
@@ -518,9 +517,10 @@ end
 
 -- Convert a single TS node inside a `section` into an AST block (or
 -- a list of blocks for special cases).  Returns nil for node types we
--- don't yet model, which drop silently.  planning and property_drawer
--- are direct headline children (emit_headline handles them); a
--- file-level property drawer is hoisted by emit_section_children.
+-- don't yet model, which drop silently -- including property_drawer:
+-- under a headline it is a direct child handled by emit_headline, and a
+-- file-level one simply drops here (the indexer's extract_file_level
+-- covers that case separately).
 emit_section_child = function(node, src)
   local t = node:type()
   if t == "paragraph" then
