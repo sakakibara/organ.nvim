@@ -76,6 +76,28 @@ CLOSED: [2026-05-01 Fri 12:00]
   )
 end
 
+-- ---- lowercase keyword: line-level recognition, no date binding ------
+-- Emacs (org-element) recognizes a lowercase 'scheduled:' line as a
+-- planning element but binds no :scheduled property to it -- only
+-- exact-uppercase keywords bind dates.
+do
+  local lines = vim.split(
+    [[
+* TODO Water plants
+scheduled: <2026-05-06 Wed>
+]],
+    "\n",
+    { plain = true }
+  )
+  local ast = from_org.from_lines(lines)
+  local h = ast.children[1]
+  check(
+    "lowercase 'scheduled:' binds no date",
+    h.planning == nil or h.planning.scheduled == nil,
+    "got: " .. vim.inspect(h.planning)
+  )
+end
+
 -- ---- property_drawer --------------------------------------------------
 do
   local lines = vim.split(

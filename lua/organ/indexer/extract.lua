@@ -252,11 +252,14 @@ local function extract_planning(heading_node, src)
     local kw_n = entry:field("keyword") and entry:field("keyword")[1] or nil
     local ts_n = entry:field("timestamp") and entry:field("timestamp")[1] or nil
     -- planning_keyword covers `[ws]*KEYWORD:` (case-insensitive external
-    -- token); strip the whitespace + colon before classifying.
+    -- token, so a lowercase line still parses as planning); strip the
+    -- whitespace + colon before classifying. Emacs (org-element) only
+    -- binds a date property for the exact-uppercase keyword, so this
+    -- match stays case-sensitive.
     local kw = kw_n and (get_text(kw_n, src) or ""):match("([%w_%-]+):?%s*$") or nil
     local ts = ts_n and get_text(ts_n, src) or nil
     if kw and ts then
-      local field = PLANNING_KW[kw:upper()]
+      local field = PLANNING_KW[kw]
       if field and not out[field] then
         out[field] = ts
       end

@@ -368,7 +368,11 @@ local function extract_planning(planning_node, src)
           local kw_node = entry:field("keyword")[1]
           local ts_node = entry:field("timestamp")[1]
           if kw_node and ts_node then
-            local kw = ((get_text(kw_node, src) or ""):match("([%w_%-]+):?%s*$") or ""):upper()
+            -- planning_keyword is a case-insensitive external token (so a
+            -- lowercase line still parses as planning), but Emacs
+            -- (org-element) only binds a date property for the
+            -- exact-uppercase keyword -- no upper-folding here.
+            local kw = (get_text(kw_node, src) or ""):match("([%w_%-]+):?%s*$") or ""
             local ts = get_text(ts_node, src)
             if kw == "SCHEDULED" then
               out.scheduled = ts
