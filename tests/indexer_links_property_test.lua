@@ -40,5 +40,31 @@ assert(a[1].target == "id:beta-id" and a[1].description == "ref", vim.inspect(a 
 local b = links_by_title["Beta"]
 assert(b and #b == 0, "Beta should carry no links, got " .. tostring(b and #b))
 
+-- parse_link_text anchors the whole trimmed value with ^...$, so a
+-- property value holding TWO whole links back to back matches neither
+-- the single-link nor the two-link pattern and extracts zero links.
+-- This locks that known limitation rather than the desired behavior.
+local src_two = table.concat({
+  "* Gamma",
+  "  :PROPERTIES:",
+  "  :ID:       gamma-id",
+  "  :LINKS:    [[id:a][x]] [[id:b][y]]",
+  "  :END:",
+  "",
+}, "\n")
+
+local headlines_two = indexer.extract(src_two, "prop-link-two.org", parser_path)
+local links_by_title_two = {}
+for _, hl in ipairs(headlines_two) do
+  links_by_title_two[hl.title] = hl.links or {}
+end
+
+local g = links_by_title_two["Gamma"]
+assert(
+  g and #g == 0,
+  "Gamma with two whole links in one value should extract zero links (known limitation), got "
+    .. tostring(g and #g)
+)
+
 io.write("indexer links property ok\n")
 os.exit(0)
