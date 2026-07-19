@@ -243,17 +243,17 @@ local function normalize_headline(line, opts)
   end
   do
     local sub = body:sub(cursor)
-    local kw, after = sub:match("^(COMMENT)%s+()")
-    if kw then
-      pieces[#pieces + 1] = kw
+    local cookie, after = sub:match("^(%[#[%u%d]%])%s*()")
+    if cookie then
+      pieces[#pieces + 1] = cookie
       cursor = cursor + (after - 1)
     end
   end
   do
     local sub = body:sub(cursor)
-    local cookie, after = sub:match("^(%[#[%u%d]%])%s*()")
-    if cookie then
-      pieces[#pieces + 1] = cookie
+    local kw, after = sub:match("^(COMMENT)%s+()")
+    if kw then
+      pieces[#pieces + 1] = kw
       cursor = cursor + (after - 1)
     end
   end

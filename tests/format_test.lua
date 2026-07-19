@@ -201,6 +201,34 @@ do
   check("Emacs parity E: wraps wider lines at width", #got >= 2, vim.inspect(got))
 end
 
+-- ---------------------------------------------------------------------------
+-- Headline normalizer field order: todo -> priority -> COMMENT, matching
+-- the indexer's parse_heading_line (org-element order).
+-- ---------------------------------------------------------------------------
+do
+  local got = format_input({ "* TODO [#A] COMMENT Title" })
+  check(
+    "canonical order '* TODO [#A] COMMENT Title' round-trips unchanged",
+    got[1] == "* TODO [#A] COMMENT Title",
+    vim.inspect(got)
+  )
+end
+
+do
+  -- With normalize_whitespace off, only RECOGNIZED fields get collapsed to
+  -- a single join space; unrecognized text is passed through verbatim.
+  -- Reversed order (COMMENT before the cookie) must NOT recognize "[#A]"
+  -- as a priority cookie -- it is only valid immediately after TODO -- so
+  -- it stays part of the raw title, whitespace and all.
+  local cfg = { headline = { normalize_whitespace = false, tags_column = 40 } }
+  local got = fmt.format_lines({ "* TODO COMMENT [#A]  Title" }, cfg)
+  check(
+    "reversed 'COMMENT [#A]' keeps '[#A]  Title' as untouched title text",
+    got[1] == "* TODO COMMENT [#A]  Title",
+    vim.inspect(got)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
