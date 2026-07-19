@@ -104,16 +104,6 @@ local function parse_heading_line(line, todo_keywords)
     result.todo = first_word
     rest = after_first
   end
-  -- COMMENT keyword (Emacs `org-comment-string`).  Comes immediately
-  -- after the stars or after the TODO state — `* COMMENT foo` and
-  -- `* TODO COMMENT foo` both mark the entire subtree commented.
-  -- Strict equality on the literal token (not a prefix match — a
-  -- title beginning with "COMMENTARY" must not be flagged).
-  local cw, after_comment = rest:match("^(%S+)%s*(.*)$")
-  if cw == "COMMENT" then
-    result.commented = true
-    rest = after_comment
-  end
   -- Emacs `org-priority-regexp` accepts `[A-Z0-9]` and treats the
   -- trailing space as optional ("\\] ?"), so `[#1]Stretch` (no space,
   -- numeric priority) is also valid.
@@ -121,6 +111,15 @@ local function parse_heading_line(line, todo_keywords)
   if pri then
     result.priority = pri
     rest = after_pri
+  end
+  -- COMMENT keyword (Emacs `org-comment-string`), parsed after the
+  -- priority cookie — org-element order is todo, priority, COMMENT.
+  -- Strict equality on the literal token (not a prefix match — a
+  -- title beginning with "COMMENTARY" must not be flagged).
+  local cw, after_comment = rest:match("^(%S+)%s*(.*)$")
+  if cw == "COMMENT" then
+    result.commented = true
+    rest = after_comment
   end
   result.title = rest
   return result

@@ -34,6 +34,7 @@ f:write([[
 ** TODO Suppressed child
 * TODO Visible task
 * TODO COMMENT Suppressed-via-todo-comment
+* TODO [#A] COMMENT Canonical-order
 ]])
 f:close()
 
@@ -61,6 +62,14 @@ check(
     and (by_title["Active task"].commented or 0) == 0
     and by_title["Visible task"]
     and (by_title["Visible task"].commented or 0) == 0
+)
+check(
+  "indexer flags canonical `* TODO [#A] COMMENT Foo`",
+  by_title["Canonical-order"] and by_title["Canonical-order"].commented == 1
+)
+check(
+  "priority cookie before COMMENT still parsed",
+  by_title["Canonical-order"] and by_title["Canonical-order"].priority == "A"
 )
 
 -- ---------------------------------------------------------------------------
