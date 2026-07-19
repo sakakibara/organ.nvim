@@ -47,7 +47,9 @@ deps:
 demo-deps:
 	@bash scripts/demo-deps.sh
 
-# Build the bundled tree-sitter grammars into <stdpath data>/organ/parser/.
+# Fetch + build the tree-sitter grammars into <stdpath data>/organ/parser/.
+# Nothing is vendored: grammar_install clones tree-sitter-organ and
+# tree-sitter-organ-inline from GitHub and compiles them locally.
 # Skips work when the .so is already up to date.
 grammar:
 	@$(NVIM) --headless --cmd "set rtp+=$(PWD)" \

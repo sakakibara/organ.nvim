@@ -1,11 +1,11 @@
 -- lua/organ/indexer/extract.lua
 --
--- Walks the tree-sitter-org block grammar (with org_inline injection)
+-- Walks the tree-sitter-organ block grammar (with org_inline injection)
 -- to extract heading + planning + property + drawer metadata for the
 -- SQLite index.
 --
 -- Inline structure (links, timestamps, heading sub-fields) is provided
--- by the injected tree-sitter-org-inline grammar; this module walks
+-- by the injected tree-sitter-organ-inline grammar; this module walks
 -- those subtrees natively via vim.treesitter.
 --
 -- Heading nesting is reconstructed via a Lua-side level-based stack
@@ -819,7 +819,7 @@ local function extract_file_level(root_node, src, file_path)
   }
 end
 
--- Register the org + org_inline languages from the bundled parser dir.
+-- Register the org + org_inline languages from the installed parser dir.
 -- Idempotent; both extract and the async indexer call it before parsing.
 function M.ensure_languages(parser_path)
   local ipath = inline_parser_path(parser_path)
