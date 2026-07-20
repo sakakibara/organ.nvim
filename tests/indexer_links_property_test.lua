@@ -31,10 +31,7 @@ for _, hl in ipairs(headlines) do
 end
 
 local a = links_by_title["Alpha"]
-assert(
-  a and #a == 1,
-  "Alpha should carry the property-drawer link, got " .. tostring(a and #a)
-)
+assert(a and #a == 1, "Alpha should carry the property-drawer link, got " .. tostring(a and #a))
 assert(a[1].target == "id:beta-id" and a[1].description == "ref", vim.inspect(a and a[1]))
 
 local b = links_by_title["Beta"]

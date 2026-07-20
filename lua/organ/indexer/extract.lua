@@ -692,7 +692,8 @@ local function collect_links(heading_node, all_links, src)
             local parsed = parse_link_text(trimmed)
             if parsed then
               local row = val_n:range()
-              out[#out + 1] = { target = parsed.target, description = parsed.description, line = row + 1 }
+              out[#out + 1] =
+                { target = parsed.target, description = parsed.description, line = row + 1 }
             end
           end
         end

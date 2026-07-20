@@ -21,7 +21,10 @@ local headlines = indexer.extract(src, "lowercase-planning.org", parser_path)
 assert(#headlines == 1, "expected 1 headline, got " .. #headlines)
 local hl = headlines[1]
 
-assert(hl.scheduled == nil, "lowercase 'scheduled:' must not bind :scheduled -- got " .. tostring(hl.scheduled))
+assert(
+  hl.scheduled == nil,
+  "lowercase 'scheduled:' must not bind :scheduled -- got " .. tostring(hl.scheduled)
+)
 assert(
   hl.scheduled_date == nil,
   "lowercase 'scheduled:' must not bind scheduled_date -- got " .. tostring(hl.scheduled_date)
