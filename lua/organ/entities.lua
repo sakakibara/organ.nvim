@@ -198,6 +198,17 @@ function M.attach(bufnr)
         end
       end)
     end,
+    -- A buffer reload drops any listener that doesn't define
+    -- `on_reload`, firing `on_detach` instead, which would leave the
+    -- buffer open with entity conceals frozen at their pre-reload
+    -- positions.  Stay attached and redecorate the whole buffer.
+    on_reload = function(_, b)
+      require("organ.errors").schedule("organ.entities", function()
+        if vim.api.nvim_buf_is_valid(b) then
+          decorate_buffer(b)
+        end
+      end)
+    end,
     on_detach = function(_, b)
       attached[b] = nil
     end,

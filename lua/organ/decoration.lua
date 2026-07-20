@@ -292,6 +292,17 @@ function M.attach(bufnr)
       end
       dispatch_on_lines(b, first, last_old, last_new)
     end,
+    -- A buffer reload drops any listener that doesn't define
+    -- `on_reload`, firing `on_detach` instead -- which would tear this
+    -- buffer's whole provider dispatch down while the buffer stays
+    -- open.  Stay attached and re-populate: the reload replaced every
+    -- line, so the cached tree is stale and each provider needs a full
+    -- pass.
+    on_reload = function(_, b)
+      _tree_cache[b] = nil
+      local n = vim.api.nvim_buf_line_count(b)
+      dispatch_on_lines(b, 0, n, n)
+    end,
     on_detach = function(_, b)
       attached_buffers[b] = nil
       warn_once[b] = nil

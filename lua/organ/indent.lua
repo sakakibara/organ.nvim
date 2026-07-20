@@ -309,6 +309,18 @@ function M.attach(bufnr)
         end
       end
     end,
+    -- nvim drops a buffer listener that doesn't define `on_reload` when
+    -- the buffer's contents are reloaded -- autoread / `:checktime`
+    -- picking up an on-disk rewrite, or undoing back across the entry
+    -- that reload recorded -- and fires its `on_detach` instead.
+    -- Without this callback the module concluded the buffer had
+    -- detached while `indent.enabled` was still true, so every refresh
+    -- path short-circuited on `M._attached` and the pads placed before
+    -- the reload were neither cleared nor recomputed.  A reload swaps
+    -- the whole buffer, so rebuild every pad.
+    on_reload = function(_, b)
+      M.refresh(b)
+    end,
     on_detach = function(_, b)
       M._attached[b] = nil
       _last_refresh_tick[b] = nil
