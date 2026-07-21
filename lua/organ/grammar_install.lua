@@ -148,6 +148,21 @@ local function run(cmd, cwd)
   return true
 end
 
+-- Current checked-out commit of a git working tree, or nil if `dir`
+-- isn't a clone / git is unavailable.  Best-effort: callers treat nil
+-- as "can't tell" and stay quiet.
+local function git_head(dir)
+  local res = vim.system({ "git", "-C", dir, "rev-parse", "HEAD" }, { text = true }):wait()
+  if res.code ~= 0 then
+    return nil
+  end
+  return (res.stdout or ""):gsub("%s+$", "")
+end
+
+local function manifest_path()
+  return vim.fn.stdpath("data") .. "/organ/parser/.build-manifest.json"
+end
+
 local function clone_or_pull(url, dest)
   -- Case 1: dest is a managed git clone — hard-sync to remote tip.
   -- This is a managed clone (organ owns the directory, not the user),
@@ -295,17 +310,26 @@ function M.install()
   vim.fn.mkdir(src_root, "p")
   vim.fn.mkdir(parser_dir, "p")
 
+  -- Records the source revision each parser was BUILT from, keyed by
+  -- grammar file.  Written only after a fully successful install, so a
+  -- later `check_stale()` can tell "installed parser is behind the
+  -- source clone" -- which is exactly what happens when a subsequent
+  -- update pulls a new grammar revision but its build fails.
+  local manifest = {}
+
   for _, grammar in ipairs({
     {
       url = REPO_BLOCK,
       dir_name = "tree-sitter-organ",
       built = "build/" .. plat .. "/org.so",
+      file = "org.so",
       out = parser_dir .. "/org.so",
     },
     {
       url = REPO_INLINE,
       dir_name = "tree-sitter-organ-inline",
       built = "build/" .. plat .. "/org_inline.so",
+      file = "org_inline.so",
       out = parser_dir .. "/org_inline.so",
     },
   }) do
@@ -325,7 +349,16 @@ function M.install()
       notify_err(grammar.dir_name .. " install failed: " .. err)
       return false, err
     end
+    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(src_dir) }
     progress("installed " .. grammar.dir_name .. " → " .. grammar.out)
+  end
+
+  do
+    local fd = io.open(manifest_path(), "w")
+    if fd then
+      fd:write(vim.json.encode(manifest))
+      fd:close()
+    end
   end
 
   progress("grammars ready under " .. data_root)
@@ -335,6 +368,61 @@ function M.install()
   -- inspect what happened.
   summary_notify("grammars installed (org.so + org_inline.so under " .. data_root .. ")")
   return true
+end
+
+-- Warn once per session when an installed parser is older than the
+-- source revision the build hook last fetched.  `clone_or_pull` advances
+-- the source clone to the new tip BEFORE building, so a failed build
+-- leaves the clone ahead of the still-old parser -- a silent, indefinite
+-- degradation (the user runs a month-old grammar and never knows).  This
+-- turns that into a visible, actionable prompt, using only local git
+-- (no network): the build manifest's recorded revision vs the clone's
+-- current HEAD.
+--
+-- Silent no-op when there's nothing to compare: no manifest (installed
+-- before this existed, or via a prebuilt/nvim-treesitter path), no source
+-- clone, or git unavailable.
+local _stale_warned = false
+function M.check_stale()
+  if _stale_warned then
+    return
+  end
+  local ok = pcall(function()
+    local fd = io.open(manifest_path(), "r")
+    if not fd then
+      return
+    end
+    local raw = fd:read("*a")
+    fd:close()
+    local ok_json, manifest = pcall(vim.json.decode, raw)
+    if not ok_json or type(manifest) ~= "table" then
+      return
+    end
+    local src_root = vim.fn.stdpath("data") .. "/organ/src"
+    local stale = {}
+    for file, entry in pairs(manifest) do
+      if type(entry) == "table" and entry.repo and entry.rev then
+        local head = git_head(src_root .. "/" .. entry.repo)
+        if head and head ~= entry.rev then
+          stale[#stale + 1] = file
+        end
+      end
+    end
+    if #stale > 0 then
+      _stale_warned = true
+      table.sort(stale)
+      summary_notify(
+        ("%s out of date -- a grammar update fetched a newer revision but its build did not complete. "):format(
+          table.concat(stale, " + ")
+        )
+          .. "Re-run the build hook (`:Lazy build organ.nvim`, or "
+          .. '`:lua require("organ.grammar_install").install()`). Full log: '
+          .. log_path(),
+        vim.log.levels.WARN
+      )
+    end
+  end)
+  return ok
 end
 
 -- Resolve a parser path under the data dir. Returns the path string

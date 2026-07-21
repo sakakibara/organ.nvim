@@ -1002,6 +1002,9 @@ function M.setup(opts)
     pcall(function()
       require("organ.alarms").start()
     end)
+    pcall(function()
+      require("organ.grammar_install").check_stale()
+    end)
   end)
 end
 
