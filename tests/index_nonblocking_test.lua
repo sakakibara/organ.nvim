@@ -40,8 +40,9 @@ local function big_file(n_headings)
   return l
 end
 
--- One large file (~600 headings ~5000 lines) -- a synchronous extract of
--- this blocks ~150ms; sliced, no single slice should come close.
+-- One large file (~600 headings ~5000 lines): a synchronous extract of
+-- this blocks ~90-150ms; sliced, its largest slice is the (unchunkable)
+-- DB-write transaction, a fraction of that.
 vim.fn.writefile(big_file(600), tmp .. "/big.org")
 
 local organ = require("organ")
@@ -51,37 +52,77 @@ organ.setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   db_path = tmp .. "/organ.db",
+  -- Disable the mtime/hash short-circuits so re-enqueuing the same file
+  -- genuinely re-indexes it: this test indexes it twice (a synchronous
+  -- baseline, then the cooperative path) and needs both to do real work.
+  incremental = false,
+  mtime_skip = false,
+  hash_skip = false,
 })
 
-organ._index_stats.max_slice_ms = 0
-organ._index_stats.slices = 0
-
 local queue = require("organ.queue")
-queue.enqueue_background(tmp .. "/big.org")
 
-assert(
-  vim.wait(30000, function()
-    return queue.is_empty()
-  end, 10),
-  "indexing did not finish"
-)
+-- Index big.org once at the given walk-slice budget and return the largest
+-- main-thread slice and the slice count.  `write_body` deletes the file's
+-- prior rows first, so re-indexing is idempotent (headline count stays 600).
+local function index_once(budget_ms)
+  organ.config.scan_budget_ms = budget_ms
+  organ._index_stats.max_slice_ms = 0
+  organ._index_stats.slices = 0
+  queue.enqueue_background(tmp .. "/big.org")
+  assert(
+    vim.wait(30000, function()
+      return queue.is_empty()
+    end, 10),
+    "indexing did not finish"
+  )
+  return organ._index_stats.max_slice_ms, organ._index_stats.slices
+end
 
-local stats = organ._index_stats
+-- Baseline: a huge budget makes the extract walk never yield, so the whole
+-- walk runs as one synchronous slice -- the blocking cost we're guarding
+-- against, measured on THIS machine right now.
+local sync_ms, sync_slices = index_once(1e9)
+-- Cooperative: the real 8ms budget splits the walk into many slices.
+local coop_ms, coop_slices = index_once(8)
+
 print(
-  string.format("max main-thread slice: %.1fms over %d slices", stats.max_slice_ms, stats.slices)
+  string.format(
+    "synchronous: %.1fms / %d slices    cooperative: %.1fms / %d slices    ratio %.2f",
+    sync_ms,
+    sync_slices,
+    coop_ms,
+    coop_slices,
+    coop_ms / sync_ms
+  )
 )
 
--- The big file must be split into many cooperative slices, not indexed in
--- one blocking call.
-check("indexing was chunked into many slices", stats.slices >= 5, "slices = " .. stats.slices)
-
--- No single slice should approach a synchronous extract (~150ms). 60ms is
--- generous headroom over the observed ~20-40ms (DB write is the largest
--- slice) while still catching a regression to synchronous extraction.
+-- The cooperative walk must produce many more slices than the synchronous
+-- one (which is parse + one walk slice + DB write).
 check(
-  "no main-thread slice >= 60ms",
-  stats.max_slice_ms < 60,
-  string.format("max slice = %.1fms", stats.max_slice_ms)
+  "cooperative indexing splits the walk into many slices",
+  coop_slices >= 5 and coop_slices > sync_slices,
+  string.format("cooperative=%d, synchronous=%d", coop_slices, sync_slices)
+)
+
+-- Self-calibrating headroom check: the cooperative path's largest slice must
+-- stay well below a synchronous index of the same file on the same runner.
+-- Observed ratio is ~0.4 (the unchunkable DB-write transaction vs the whole
+-- walk); a regression to synchronous extraction drives it to ~1.0.  Both
+-- measurements share the runner, so load inflates them together and the
+-- ratio -- not an absolute millisecond ceiling -- is what's asserted, which
+-- is why this no longer flakes on a loaded CI box.
+local MAX_RATIO = 0.7
+check(
+  "cooperative slicing keeps the max slice well below a synchronous index",
+  coop_ms < sync_ms * MAX_RATIO,
+  string.format(
+    "cooperative %.1fms vs synchronous %.1fms (ratio %.2f, limit %.2f)",
+    coop_ms,
+    sync_ms,
+    coop_ms / sync_ms,
+    MAX_RATIO
+  )
 )
 
 -- Correctness: the file was actually indexed. Query by the canonical
