@@ -1353,6 +1353,18 @@ Indent                                                   *organ-config-indent*
     `shift_per_level` spaces, so nested content shifts right
     visually without modifying the underlying buffer text.
 
+    Note: with `'wrap'` on, only the first screen row of a body
+    line is indented; the wrapped continuation rows return to
+    column 0 instead of aligning under the pad.  This is a
+    Neovim limitation, not an organ one: the pad is inline
+    virtual text, and Neovim has no per-line virtual wrap-prefix
+    (Emacs org-indent uses the `wrap-prefix` text property, which
+    has no Neovim equivalent).  `'breakindent'` cannot stand in --
+    it repeats a line's real leading whitespace, which body lines
+    do not have, and `'breakindentopt'` `shift` is a single
+    window-wide value that cannot match the per-level pad widths.
+    nvim-orgmode's virtual indent has the same limitation.
+
                                          *organ-config-indent-shift_per_level*
     `indent.shift_per_level` (number, default: `2`)
     Spaces added per outline level.
