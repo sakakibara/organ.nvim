@@ -61,9 +61,7 @@ require("organ").setup({
 })
 require("organ").scan_blocking(org_dir, 5000)
 
--- ---------------------------------------------------------------------------
 -- Step 1: the keymap is installed at setup time.
--- ---------------------------------------------------------------------------
 local maps = vim.api.nvim_get_keymap("n")
 local oa
 for _, m in ipairs(maps) do
@@ -81,9 +79,7 @@ if oa then
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Step 2: firing the keymap actually opens an agenda buffer.
--- ---------------------------------------------------------------------------
 local pre_bufs = {}
 for _, b in ipairs(vim.api.nvim_list_bufs()) do
   pre_bufs[b] = true

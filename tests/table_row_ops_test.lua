@@ -24,7 +24,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- insert_row_below adds empty row at row+1.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -40,7 +39,6 @@ do
   assert(lines[3]:find("c"), "row 3 has 'c': " .. lines[3])
 end
 
-----------------------------------------------------------------------
 -- insert_row_above adds empty row at row.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -53,7 +51,6 @@ do
   assert(lines[3]:find("c"))
 end
 
-----------------------------------------------------------------------
 -- delete_row removes cursor's row.
 do
   local b = mk_buf({ "| a | b |", "| c | d |", "| e | f |" })
@@ -65,7 +62,6 @@ do
   assert(lines[2]:find("e"))
 end
 
-----------------------------------------------------------------------
 -- move_row_up swaps with previous row.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -76,7 +72,6 @@ do
   assert(lines[2]:find("a"))
 end
 
-----------------------------------------------------------------------
 -- move_row_up at first row is a no-op (returns false).
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -87,7 +82,6 @@ do
   assert(lines[1]:find("a"))
 end
 
-----------------------------------------------------------------------
 -- move_row_down swaps with next row.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })

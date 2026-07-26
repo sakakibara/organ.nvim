@@ -19,7 +19,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Open with initial: state stored, cursor at selected day's row.
 do
   local got
@@ -38,7 +37,6 @@ do
   assert_eq(got, nil, "cancelled")
 end
 
-----------------------------------------------------------------------
 -- h decrements selection by 1 day.
 do
   local got
@@ -50,7 +48,6 @@ do
   assert_eq(got, "2026-04-25")
 end
 
-----------------------------------------------------------------------
 -- l past month-end rolls into next month.
 do
   local got
@@ -62,7 +59,6 @@ do
   assert_eq(got, "2026-05-01")
 end
 
-----------------------------------------------------------------------
 -- <CR> calls callback with selected_iso once.
 do
   local calls = 0
@@ -76,7 +72,6 @@ do
   assert_eq(got, "2026-04-15")
 end
 
-----------------------------------------------------------------------
 -- <Esc> calls callback with nil once.
 do
   local calls = 0
@@ -90,7 +85,6 @@ do
   assert_eq(got, nil)
 end
 
-----------------------------------------------------------------------
 -- Window closes after confirm/cancel.
 do
   cal.pick({ initial = "2026-04-15" }, function() end)

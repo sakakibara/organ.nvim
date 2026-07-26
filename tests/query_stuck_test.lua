@@ -59,21 +59,18 @@ local function assert_titles(rows, expected)
   end
 end
 
-----------------------------------------------------------------------
 -- Default: Proj2 (TODO child) and Proj3 (no children) are stuck. Proj1 has NEXT.
 do
   local stuck = query.stuck_projects()
   assert_titles(stuck, { "Proj2", "Proj3" })
 end
 
-----------------------------------------------------------------------
 -- next_states = {NEXT, TODO}: only Proj3 is stuck.
 do
   local stuck = query.stuck_projects({ next_states = { "NEXT", "TODO" } })
   assert_titles(stuck, { "Proj3" })
 end
 
-----------------------------------------------------------------------
 -- project_filter overridden to level=1: all 4 level-1 minus those with NEXT child.
 do
   local stuck = query.stuck_projects({ project_filter = { level = 1 }, next_states = { "NEXT" } })

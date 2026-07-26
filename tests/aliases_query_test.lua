@@ -47,28 +47,24 @@ local function assert_eq_list(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Default match_aliases=true: search "alt" matches via alias.
 do
   local rows = query.headlines({ title_match = "alt" })
   assert_eq_list(titles(rows), { "Real Title" })
 end
 
-----------------------------------------------------------------------
 -- Quoted alias also matches.
 do
   local rows = query.headlines({ title_match = "alt name" })
   assert_eq_list(titles(rows), { "Real Title" })
 end
 
-----------------------------------------------------------------------
 -- Disable match_aliases: "alt" no longer matches.
 do
   local rows = query.headlines({ title_match = "alt", match_aliases = false })
   assert_eq_list(titles(rows), {})
 end
 
-----------------------------------------------------------------------
 -- Title substring still matches with default.
 do
   local rows = query.headlines({ title_match = "Real" })

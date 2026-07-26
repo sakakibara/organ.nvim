@@ -10,7 +10,6 @@ local styles = require("organ.cite.styles")
 local render = require("organ.cite.render")
 local cite = require("organ.cite")
 
--- ---------------------------------------------------------------------------
 -- BibTeX parser
 
 do
@@ -94,7 +93,6 @@ do
   assert(n.family == "King" and n.given == "Martin Luther" and n.suffix == "Jr.")
 end
 
--- ---------------------------------------------------------------------------
 -- CSL-JSON parser
 
 do
@@ -119,7 +117,6 @@ do
   assert(entries[1].fields.publisher == "Addison-Wesley")
 end
 
--- ---------------------------------------------------------------------------
 -- Render: APA
 
 do
@@ -198,7 +195,6 @@ do
   assert(bib[3]:match("^%[3%]"), "third is [3]")
 end
 
--- ---------------------------------------------------------------------------
 -- render_text: scan a buffer + emit citations + bibliography
 
 do
@@ -213,7 +209,6 @@ do
   assert(#bib == 2, "two bib entries")
 end
 
--- ---------------------------------------------------------------------------
 -- Unknown style falls back to APA without crashing
 
 do
@@ -225,7 +220,6 @@ do
   assert(cited:match("X, 2020"), "fallback to apa: " .. cited)
 end
 
--- ---------------------------------------------------------------------------
 -- Per-key prefix / suffix from org-cite syntax flow through into renderers.
 
 do
@@ -251,7 +245,6 @@ do
   assert(out == "(see Doe, 2020)", "APA cite with prefix: " .. out)
 end
 
--- ---------------------------------------------------------------------------
 -- Year disambiguation: two entries with same author+year get a/b suffixes.
 
 do
@@ -276,7 +269,6 @@ do
   assert(bib[3]:match("2021"), "bib line 3: " .. bib[3])
 end
 
--- ---------------------------------------------------------------------------
 -- noauthor / author / year cite styles
 
 do
@@ -293,7 +285,6 @@ do
   assert(out == "Doe & Smith", "author: " .. out)
 end
 
--- ---------------------------------------------------------------------------
 -- Backend italic substitution
 
 do
@@ -319,7 +310,6 @@ do
   assert(not bib_plain[1]:match("\1"), "no control bytes leaked: " .. bib_plain[1])
 end
 
--- ---------------------------------------------------------------------------
 -- Conference proceedings + thesis bibliography formatting
 
 do
@@ -343,7 +333,6 @@ do
   assert(thesis_line:match("Doctoral dissertation, MIT"), "thesis bib: " .. thesis_line)
 end
 
--- ---------------------------------------------------------------------------
 -- Bibliography directive discovery
 
 do
@@ -361,7 +350,6 @@ Body text [cite:@x].
   assert(paths[2] == "~/library.json")
 end
 
--- ---------------------------------------------------------------------------
 -- #+cite_export discovery
 
 do
@@ -375,7 +363,6 @@ do
   assert(s == "apa" and p == nil)
 end
 
--- ---------------------------------------------------------------------------
 -- High-level cite.process() — full pipeline
 
 do
@@ -389,7 +376,6 @@ do
   assert(#bib == 1)
 end
 
--- ---------------------------------------------------------------------------
 -- :Org cite bibliography — replace #+print_bibliography in the buffer
 
 do
@@ -433,7 +419,6 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- Export pipeline integration: cite_native = true on every backend
 
 do
@@ -488,7 +473,6 @@ do
   os.remove(bib_path)
 end
 
--- ---------------------------------------------------------------------------
 -- IEEE numeric cites round-trip through markdown export
 
 do
@@ -521,7 +505,6 @@ do
   os.remove(bib_path)
 end
 
--- ---------------------------------------------------------------------------
 -- Cite-key trigger detection at cursor
 
 do
@@ -561,7 +544,6 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- Completion items + mtime-aware cache
 
 do

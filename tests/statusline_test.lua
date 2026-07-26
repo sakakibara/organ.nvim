@@ -18,10 +18,8 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Element accessors return "" / "0" for non-organ buffers — the cond
 --    gates in lualine components rely on these being safe.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(b)
@@ -32,9 +30,7 @@ do
   check("non-organ: buffer_kind returns ''", sl.buffer_kind() == "")
 end
 
--- ---------------------------------------------------------------------------
 -- 2. With organ-agenda state \(buffer-local\), accessors return live values.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(b)
@@ -55,9 +51,7 @@ do
   check("agenda: buffer_kind returns 'Agenda'", sl.buffer_kind() == "Agenda")
 end
 
--- ---------------------------------------------------------------------------
 -- 3. Default composers produce well-formed strings.
--- ---------------------------------------------------------------------------
 do
   local s = sl.agenda_winbar()
   check(
@@ -69,10 +63,8 @@ do
   check("agenda_winbar: contains filter", s:find("tag:work", 1, true) ~= nil)
 end
 
--- ---------------------------------------------------------------------------
 -- 4. lualine components: each returns a table with [1]=function + cond.
 --    Components don't render in non-organ buffers (cond returns false).
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true) -- no organ state
   vim.api.nvim_set_current_buf(b)
@@ -115,10 +107,8 @@ do
   check("lualine.kind(opts): merges user opts", with_icon.icon == "")
 end
 
--- ---------------------------------------------------------------------------
 -- 5. resolve(): false → nil, true/nil → default expr, string → literal,
 --    function → invoked with bufnr.
--- ---------------------------------------------------------------------------
 do
   local r1 = sl.resolve(false, "agenda_winbar", 1)
   check("resolve(false): returns nil (disabled)", r1 == nil)
@@ -150,10 +140,8 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 6. apply(): never touches the global vim.o.{winbar,statusline}.
 --    The sole side-effect should be on the WINDOW-local options.
--- ---------------------------------------------------------------------------
 do
   -- Use scope=global to check the GLOBAL value (vim.o.* falls back to
   -- window-local when global is unset, masking whether we leaked).
@@ -227,9 +215,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 7. apply with winbar=false: WINDOW-local winbar should NOT be mutated.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(b)

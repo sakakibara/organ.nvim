@@ -18,7 +18,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. Single-page document: structural dicts and refs line up.
 
 do
@@ -50,7 +49,6 @@ do
   check("trailer /Root 1 0 R", bytes:find("/Root 1 0 R", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 2. Custom page size.
 
 do
@@ -63,7 +61,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 3. Multiple pages: count, kids, and consistent /Parent.
 
 do
@@ -93,7 +90,6 @@ do
   check("A4 MediaBox emitted", bytes:find("/MediaBox [ 0 0 595 842 ]", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 4. Document.new exists and add_page returns a ref table.
 
 do
@@ -102,7 +98,6 @@ do
   check("add_page returns ref-shaped table", type(r) == "table" and type(r.num) == "number")
 end
 
-----------------------------------------------------------------------
 -- 5. Smoke-write to /tmp to confirm reasonable size.
 
 do
@@ -118,8 +113,6 @@ do
     f:close()
   end
 end
-
-----------------------------------------------------------------------
 
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then

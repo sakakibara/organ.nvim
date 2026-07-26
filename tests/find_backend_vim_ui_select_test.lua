@@ -26,9 +26,7 @@ require("organ").setup({
 
 local backend = require("organ.find.backends.vim_ui_select")
 
--- ---------------------------------------------------------------------------
 -- 1. Empty items → vim.ui.select NOT called (early return).
--- ---------------------------------------------------------------------------
 local select_called = false
 local saved = vim.ui.select
 vim.ui.select = function()
@@ -41,10 +39,8 @@ check("empty items: vim.ui.select skipped", not select_called)
 backend.pick(nil, { default_action = "jump" })
 check("nil items: vim.ui.select skipped", not select_called)
 
--- ---------------------------------------------------------------------------
 -- 2. Items + format_item: each item formatted via display > match >
 --    title > text > file fallback chain.
--- ---------------------------------------------------------------------------
 local captured = nil
 vim.ui.select = function(items, opts, on_choice)
   captured = { items = items, opts = opts, on_choice = on_choice }
@@ -74,10 +70,8 @@ check(
   type(captured.opts.format_item(items[6])) == "string"
 )
 
--- ---------------------------------------------------------------------------
 -- 3. on_choice: invokes the configured default_action with the
 --    picked item.
--- ---------------------------------------------------------------------------
 local jumped_to = nil
 local picked_item = { title = "picked" }
 backend.pick({ picked_item }, {
@@ -94,9 +88,7 @@ backend.pick({ picked_item }, {
 captured.on_choice(picked_item)
 check("default_action 'jump' invoked", jumped_to == picked_item)
 
--- ---------------------------------------------------------------------------
 -- 4. on_choice with nil (user cancelled): action NOT invoked.
--- ---------------------------------------------------------------------------
 local action_fired = false
 backend.pick({ picked_item }, {
   default_action = "jump",
@@ -109,9 +101,7 @@ backend.pick({ picked_item }, {
 captured.on_choice(nil)
 check("cancelled pick: action not invoked", not action_fired)
 
--- ---------------------------------------------------------------------------
 -- 5. Unknown default_action: pick still completes without error.
--- ---------------------------------------------------------------------------
 backend.pick({ picked_item }, {
   default_action = "no_such_action",
   actions = { jump = function() end },

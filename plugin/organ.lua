@@ -96,7 +96,6 @@ end)
 -- vim.treesitter.start() finds the parser through the standard mechanism.
 vim.opt.runtimepath:prepend(vim.fn.stdpath("data") .. "/organ")
 
--- ---------------------------------------------------------------------------
 -- :Org subcommand registry.
 --
 -- One user command (`:Org`) with snake_case subcommands, modeled on
@@ -107,7 +106,6 @@ vim.opt.runtimepath:prepend(vim.fn.stdpath("data") .. "/organ")
 --
 -- To add a new :Org subcommand: add the entry to the relevant
 -- domain's M.commands and append the module here.
--- ---------------------------------------------------------------------------
 local DOMAIN_MODULES = {
   "organ.agenda",
   "organ.archive",
@@ -428,7 +426,6 @@ local subcommands = {
   },
 }
 
--- ---------------------------------------------------------------------------
 -- Subcommand registry: tree (for dispatch + completion) and flat
 -- mirror (legacy snake_case lookup for tests / external API).
 --
@@ -446,7 +443,6 @@ local subcommands = {
 -- token: it lives at the root with `_` preserved in the user-facing
 -- form (`:Org set_property`).  Use space-separated keys when you want
 -- the dispatcher to take a sub-action argument.
--- ---------------------------------------------------------------------------
 
 -- Tree node shape: { fn?, desc?, nargs?, complete?, range?, bang?, children? }
 -- Internal nodes have `children` (a table of child nodes by name) and
@@ -522,9 +518,7 @@ require("organ").cmd = function(path)
   return node
 end
 
--- ---------------------------------------------------------------------------
 -- :Org user command — single dispatcher.
--- ---------------------------------------------------------------------------
 
 -- Walk the tree greedily: consume tokens that match a child at each
 -- level, stop when the next token isn't a child OR the current node

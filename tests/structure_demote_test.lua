@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- demote_headline level-1 -> level-2.
 do
   local b = mk_buf({ "* A", "** B" })
@@ -33,7 +32,6 @@ do
   assert_eq(get_lines(b)[2], "** B", "B unchanged")
 end
 
-----------------------------------------------------------------------
 -- demote_headline at level-9 errors.
 do
   local b = mk_buf({ "********* deep", "**** other" })
@@ -41,7 +39,6 @@ do
   assert(err and err:find("level 9"), "got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- demote_subtree increments current + descendants.
 do
   local b = mk_buf({
@@ -60,7 +57,6 @@ do
   assert_eq(out[5], "* Other", "sibling untouched")
 end
 
-----------------------------------------------------------------------
 -- demote_subtree where deepest descendant is at level 9 errors atomically.
 do
   local b = mk_buf({

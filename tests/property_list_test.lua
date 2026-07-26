@@ -19,7 +19,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- No drawer: returns empty list.
 do
   local b = mk_buf({ "* A", "  body" })
@@ -28,7 +27,6 @@ do
   assert_eq(#out, 0)
 end
 
-----------------------------------------------------------------------
 -- With drawer: returns parsed entries in order.
 do
   local b = mk_buf({
@@ -47,7 +45,6 @@ do
   assert_eq(out[2].value, "work")
 end
 
-----------------------------------------------------------------------
 -- Cursor in body resolves up to headline.
 do
   local b = mk_buf({ "* A", ":PROPERTIES:", ":KEY: v", ":END:", "  body" })
@@ -56,7 +53,6 @@ do
   assert_eq(out[1].key, "KEY")
 end
 
-----------------------------------------------------------------------
 -- No headline returns nil.
 do
   local b = mk_buf({ "before any heading", "" })
@@ -64,7 +60,6 @@ do
   assert_eq(out, nil)
 end
 
-----------------------------------------------------------------------
 -- After planning lines, drawer still found.
 do
   local b = mk_buf({

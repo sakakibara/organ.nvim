@@ -18,7 +18,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- _parse_org_ts ---------------------------------------------------
+-- _parse_org_ts
 do
   local p = to_ics._parse_org_ts("<2026-05-02 Sat>")
   check("parse all-day date", p and p.all_day and p.date == "20260502", "got: " .. vim.inspect(p))
@@ -45,7 +45,7 @@ do
   )
 end
 
--- ---- _fold_line ------------------------------------------------------
+-- _fold_line
 do
   local short = to_ics._fold_line("SHORT")
   check("short line untouched", short == "SHORT", "got: " .. short)
@@ -58,7 +58,7 @@ do
   )
 end
 
--- ---- empty / nil ast -------------------------------------------------
+-- Empty / nil ast
 do
   local out = to_ics.render(A.document({}))
   check("empty doc has VCALENDAR begin", out:find("BEGIN:VCALENDAR", 1, true) ~= nil)
@@ -72,7 +72,7 @@ do
   check("empty doc produces no VEVENT", n == 0, "got " .. n)
 end
 
--- ---- two planned headlines -------------------------------------------
+-- Two planned headlines
 do
   local doc = A.document({
     A.headline({
@@ -125,7 +125,7 @@ do
   )
 end
 
--- ---- headlines without planning are skipped --------------------------
+-- Headlines without planning are skipped
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Plain") } }),
@@ -143,7 +143,7 @@ do
   check("no VEVENT without planning", n == 0, "got " .. n)
 end
 
--- ---- nested headlines walked correctly -------------------------------
+-- Nested headlines walked correctly
 do
   local doc = A.document({
     A.headline({
@@ -183,7 +183,7 @@ do
   )
 end
 
--- ---- emphasis stripped from summary ---------------------------------
+-- Emphasis stripped from summary
 do
   local doc = A.document({
     A.headline({

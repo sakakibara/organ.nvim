@@ -49,7 +49,6 @@ local function assert_eq_list(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Unquoted aliases.
 do
   local path = write_file(
@@ -60,7 +59,6 @@ do
   assert_eq_list(aliases_for(path), { "alt", "one_word" })
 end
 
-----------------------------------------------------------------------
 -- Quoted aliases with spaces.
 do
   local path = write_file(
@@ -71,7 +69,6 @@ do
   assert_eq_list(aliases_for(path), { "alt name", "other" })
 end
 
-----------------------------------------------------------------------
 -- Re-index with reduced aliases drops the old set (CASCADE on headline rewrite).
 do
   local path = write_file(

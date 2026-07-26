@@ -55,35 +55,30 @@ local function assert_titles(rows, expected)
   end
 end
 
-----------------------------------------------------------------------
 -- inherit = true matches Parent (direct) AND Child (inherited from Parent).
 do
   local rows = query.headlines({ tags = { any = { "urgent" }, inherit = true } })
   assert_titles(rows, { "Child", "Parent" })
 end
 
-----------------------------------------------------------------------
 -- inherit = false matches only Parent (direct).
 do
   local rows = query.headlines({ tags = { any = { "urgent" }, inherit = false } })
   assert_titles(rows, { "Parent" })
 end
 
-----------------------------------------------------------------------
 -- inherit = true + filetag matches all three (file inherits to all).
 do
   local rows = query.headlines({ tags = { any = { "project" }, inherit = true } })
   assert_titles(rows, { "Child", "Other", "Parent" })
 end
 
-----------------------------------------------------------------------
 -- inherit = false + filetag matches none (filetags not direct).
 do
   local rows = query.headlines({ tags = { any = { "project" }, inherit = false } })
   assert_titles(rows, {})
 end
 
-----------------------------------------------------------------------
 -- Default config inherit=true: query without explicit inherit field
 -- behaves as inherit=true.
 do
@@ -91,7 +86,6 @@ do
   assert_titles(rows, { "Child", "Parent" })
 end
 
-----------------------------------------------------------------------
 -- tags.none with inherit = true excludes Child if any ancestor has the tag.
 do
   local rows = query.headlines({ tags = { none = { "urgent" }, inherit = true } })

@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- realign rewrites the table block; outside lines untouched.
 do
   local b = mk_buf({
@@ -40,7 +39,6 @@ do
   assert_eq(lines[4], "after")
 end
 
-----------------------------------------------------------------------
 -- Indent preserved.
 do
   local b = mk_buf({ "  |a|b|", "  |c|d|" })
@@ -48,7 +46,6 @@ do
   assert_eq(get_lines(b)[1], "  | a | b |")
 end
 
-----------------------------------------------------------------------
 -- realign on non-table line is a no-op.
 do
   local b = mk_buf({ "no pipes here" })

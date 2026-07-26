@@ -18,7 +18,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local out = to_opml.render(A.document({}))
   check(
@@ -34,7 +34,7 @@ do
   )
 end
 
--- ---- title from #+TITLE: directive ----------------------------------
+-- Title from #+TITLE: directive
 do
   local doc = A.document({
     A.directive("TITLE", "My Outline"),
@@ -48,7 +48,7 @@ do
   )
 end
 
--- ---- nested headlines + _note ----------------------------------------
+-- Nested headlines + _note
 do
   local doc = A.document({
     A.headline({
@@ -86,7 +86,7 @@ do
   check("4 closing outline tags", n_close == 4, "got " .. n_close)
 end
 
--- ---- TODO + tags stripped from title attribute -----------------------
+-- TODO + tags stripped from title attribute
 -- In the AST, todo / tags are SEPARATE fields on the headline node; they
 -- don't pollute node.title.  This verifies that property end-to-end.
 do
@@ -112,7 +112,7 @@ do
   )
 end
 
--- ---- XML special chars escaped ---------------------------------------
+-- XML special chars escaped
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text('A & B <test> "q"') } }),
@@ -123,7 +123,7 @@ do
   check('" escaped to &quot;', out:find("&quot;q&quot;", 1, true) ~= nil)
 end
 
--- ---- _note source: emphasis stripped --------------------------------
+-- _note source: emphasis stripped
 do
   local doc = A.document({
     A.headline({

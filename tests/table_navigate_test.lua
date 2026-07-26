@@ -24,7 +24,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Tab from cell 1 of row 1 → cell 2 of row 1.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -40,7 +39,6 @@ do
   assert(pos[2] >= 6, "cursor advanced past cell 1")
 end
 
-----------------------------------------------------------------------
 -- Tab from last cell of row 1 → cell 1 of row 2.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -51,7 +49,6 @@ do
   assert_eq(pos[1], 2, "moved to row 2")
 end
 
-----------------------------------------------------------------------
 -- Tab from last cell of last row → new empty row created.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -64,7 +61,6 @@ do
   assert_eq(vim.api.nvim_win_get_cursor(0)[1], 3)
 end
 
-----------------------------------------------------------------------
 -- shift_tab from cell 1 of row 1 returns false (caller falls through).
 do
   local b = mk_buf({ "| a | b |" })
@@ -73,7 +69,6 @@ do
   assert_eq(moved, false, "no prev cell → false (fallthrough)")
 end
 
-----------------------------------------------------------------------
 -- Tab on a non-table line returns false.
 do
   local b = mk_buf({ "no table" })

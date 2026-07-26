@@ -54,9 +54,7 @@ local function run_capture(opts)
   return vim.fn.readfile(path)
 end
 
--- ---------------------------------------------------------------------------
 -- Case 1: default (nil/nil) → no blanks before or after.
--- ---------------------------------------------------------------------------
 do
   local out = run_capture({
     initial = { "* Existing", "  body" },
@@ -68,9 +66,7 @@ do
   check("default: line 3 = captured headline", out[3] == "* TODO Captured")
 end
 
--- ---------------------------------------------------------------------------
 -- Case 2: before=1 → one blank before captured content.
--- ---------------------------------------------------------------------------
 do
   local out = run_capture({
     initial = { "* Existing" },
@@ -82,9 +78,7 @@ do
   check("before=1: captured at line 3", out[3] == "* TODO Captured")
 end
 
--- ---------------------------------------------------------------------------
 -- Case 3: after=1 → one blank after captured content.
--- ---------------------------------------------------------------------------
 do
   local out = run_capture({
     initial = { "* Existing" },
@@ -100,9 +94,7 @@ do
   check("after=1: blank at line 3", out[3] == "")
 end
 
--- ---------------------------------------------------------------------------
 -- Case 4: before=2 + after=1 → 2 above + 1 below.
--- ---------------------------------------------------------------------------
 do
   local out = run_capture({
     initial = { "* Existing" },
@@ -117,10 +109,8 @@ do
   check("trailing blank at line 5", out[5] == "")
 end
 
--- ---------------------------------------------------------------------------
 -- Case 5: file_headline + before=0 + parent has no body
 --   → child lands directly under parent (no fold artifact blank).
--- ---------------------------------------------------------------------------
 do
   local out = run_capture({
     initial = { "#+TITLE: Inbox", "", "* Inbox" },

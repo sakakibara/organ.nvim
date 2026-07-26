@@ -80,7 +80,6 @@ local FC_QUERY = {
   mono = ":spacing=mono",
 }
 
-----------------------------------------------------------------------
 -- OS detection. Returns a list of directories to scan in order.
 
 local function home()
@@ -114,7 +113,6 @@ local function os_font_dirs()
   end
 end
 
-----------------------------------------------------------------------
 -- Helpers.
 
 local function file_exists(path)
@@ -184,7 +182,6 @@ local function walk(dir, depth, cb)
   return false
 end
 
-----------------------------------------------------------------------
 -- Strategy 1: explicit path override.
 
 local function try_explicit(opts)
@@ -198,7 +195,6 @@ local function try_explicit(opts)
   return nil, ("explicit path does not exist: %s"):format(p), true
 end
 
-----------------------------------------------------------------------
 -- Strategy 2: fc-match.
 
 local function try_fc_match(style)
@@ -219,7 +215,6 @@ local function try_fc_match(style)
   return nil
 end
 
-----------------------------------------------------------------------
 -- Strategy 3: recursive directory walk.
 
 local function try_dir_walk(style, dirs)
@@ -263,7 +258,6 @@ local function try_dir_walk(style, dirs)
   return best_path or fallback
 end
 
-----------------------------------------------------------------------
 -- Public surface.
 
 function M.find(opts)

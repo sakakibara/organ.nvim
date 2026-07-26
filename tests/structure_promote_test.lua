@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- promote_headline level-2 -> level-1.
 do
   local b = mk_buf({ "* A", "** B", "*** C" })
@@ -34,7 +33,6 @@ do
   assert_eq(get_lines(b)[3], "*** C")
 end
 
-----------------------------------------------------------------------
 -- promote_headline at level-1 errors.
 do
   local b = mk_buf({ "* A" })
@@ -43,7 +41,6 @@ do
   assert_eq(get_lines(b)[1], "* A", "buffer unchanged on error")
 end
 
-----------------------------------------------------------------------
 -- promote_subtree decrements current + descendants.
 do
   local b = mk_buf({
@@ -66,7 +63,6 @@ do
   assert_eq(out[1], "* Root")
 end
 
-----------------------------------------------------------------------
 -- promote_subtree at level-1 errors.
 do
   local b = mk_buf({ "* A", "** B" })
@@ -76,7 +72,6 @@ do
   assert_eq(get_lines(b)[2], "** B")
 end
 
-----------------------------------------------------------------------
 -- Cursor not on a headline returns error.
 do
   local b = mk_buf({ "before", "* A" })

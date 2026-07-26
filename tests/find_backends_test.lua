@@ -67,9 +67,7 @@ package.loaded["organ.query"] = {
 require("organ").setup({ org_dir = "/tmp" })
 local find = require("organ.find")
 
--- ---------------------------------------------------------------------------
 -- Capturing mock for snacks.picker
--- ---------------------------------------------------------------------------
 local snacks_call
 package.loaded["snacks.picker"] = {
   pick = function(opts)
@@ -91,9 +89,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- snacks: source = "files"
--- ---------------------------------------------------------------------------
 do
   reset()
   find.pick({ source = "files", default_action = "jump", backend = "snacks" })
@@ -127,9 +123,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- snacks: source = "headlines"
--- ---------------------------------------------------------------------------
 do
   reset()
   find.pick({ source = "headlines", default_action = "jump", backend = "snacks" })
@@ -156,9 +150,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- snacks: actions table
--- ---------------------------------------------------------------------------
 do
   reset()
   find.pick({ source = "files", default_action = "jump", backend = "snacks" })
@@ -179,9 +171,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- telescope mock
--- ---------------------------------------------------------------------------
 local telescope_call
 package.loaded["telescope.finders"] = {
   new_table = function(t)
@@ -234,9 +224,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- fzf-lua mock
--- ---------------------------------------------------------------------------
 local fzf_call
 package.loaded["fzf-lua"] = {
   fzf_exec = function(lines, opts)
@@ -267,12 +255,10 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- Action-execution tests: invoking confirm/actions actually opens the file
 -- (or runs the right command). This is the layer above shape — catches
 -- bugs like the snacks close-order issue where the action fired but the
 -- buffer didn't change.
--- ---------------------------------------------------------------------------
 
 -- Capture vim.cmd / nvim_win_set_cursor calls so we can assert side effects.
 local cmd_log
@@ -438,8 +424,6 @@ do
     )
   end
 end
-
--- ---------------------------------------------------------------------------
 
 if fails > 0 then
   print()

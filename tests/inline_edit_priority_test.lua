@@ -31,7 +31,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Cycle A -> B -> C -> none -> A.
 do
   local b = mk_buf({ "* TODO [#A] Task" })
@@ -44,7 +43,6 @@ do
   assert_eq(get_line(b, 1), "* TODO Task", "[#C] -> none removes cookie")
 end
 
-----------------------------------------------------------------------
 -- Reverse cycle on an existing cookie: A -> none -> ...
 do
   local b = mk_buf({ "* TODO [#A] Task" })
@@ -53,7 +51,6 @@ do
   assert_eq(get_line(b, 1), "* TODO Task", "[#A] -> none on dec")
 end
 
-----------------------------------------------------------------------
 -- Cursor in headline title region (no priority cookie) cycles TODO,
 -- NOT inserts a priority cookie.  Inserting silently was the bug:
 -- pressing <C-a> on a heading was supposed to advance the TODO state
@@ -69,7 +66,6 @@ do
   assert_eq(get_line(b, 1), "* TODO Task", "<C-x> on title cycles TODO backward")
 end
 
-----------------------------------------------------------------------
 -- Cursor on the TODO keyword itself also cycles TODO (covers both
 -- the keyword-region and the title-region branches landing on the
 -- same handler).
@@ -79,7 +75,6 @@ do
   assert_eq(get_line(b, 1), "* NEXT Task", "<C-a> on TODO keyword cycles forward")
 end
 
-----------------------------------------------------------------------
 -- Boundary scan: cursor on `[`, `#`, the letter, `]`, AND the
 -- trailing space all cycle the cookie.  Each call hits a different
 -- branch of find_priority_at's range check.
@@ -97,7 +92,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- B -> A on dec (skipped above: only A and C edges are tested).
 do
   local b = mk_buf({ "* TODO [#B] Task" })
@@ -105,7 +99,6 @@ do
   assert_eq(get_line(b, 1), "* TODO [#A] Task", "B -> A on dec")
 end
 
-----------------------------------------------------------------------
 -- Multi-letter TODO keywords (NEXT) cycle from any title-region cursor.
 do
   require("organ").config.todo = { sequence = { "TODO", "NEXT", "WAIT", "|", "DONE" } }
@@ -115,7 +108,6 @@ do
   assert_eq(get_line(b, 1), "* WAIT Long task title", "NEXT -> WAIT on inc")
 end
 
-----------------------------------------------------------------------
 -- Heading with NO TODO keyword: <C-a> on title region inserts the
 -- first active TODO state (whatever todo.cycle does for a stateless
 -- headline).  We assert that *something* changed and the title is
@@ -132,7 +124,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Heading with priority cookie AND title region: cursor on the
 -- cookie cycles priority, cursor in title region cycles TODO.
 do
@@ -156,7 +147,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Cursor in body text does NOT match priority context.
 -- Verify by ensuring fallback runs (number increments).
 do

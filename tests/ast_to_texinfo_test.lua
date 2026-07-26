@@ -20,7 +20,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local out = to_texinfo.render(A.document({}))
   check(
@@ -37,7 +37,7 @@ do
   check("@bye terminates document", out:find("@bye", 1, true) ~= nil)
 end
 
--- ---- title from TITLE directive --------------------------------------
+-- Title from TITLE directive
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),
@@ -48,7 +48,7 @@ do
   check("@title from TITLE", out:find("@title My Doc", 1, true) ~= nil)
 end
 
--- ---- author from AUTHOR directive ------------------------------------
+-- Author from AUTHOR directive
 do
   local doc = A.document({
     A.directive("TITLE", "Doc"),
@@ -58,7 +58,7 @@ do
   check("@author from AUTHOR", out:find("@author Sho", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- AUTHOR absent: no @author line ----------------------------------
+-- AUTHOR absent: no @author line
 do
   local doc = A.document({
     A.directive("TITLE", "Doc"),
@@ -67,7 +67,7 @@ do
   check("no @author when AUTHOR absent", out:find("@author", 1, true) == nil, "got: " .. out)
 end
 
--- ---- filename default: title with spaces -> _ ------------------------
+-- Filename default: title with spaces -> _
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),
@@ -80,7 +80,7 @@ do
   )
 end
 
--- ---- filename: FILENAME directive overrides --------------------------
+-- Filename: FILENAME directive overrides
 do
   local doc = A.document({
     A.directive("TITLE", "Doc"),
@@ -94,7 +94,7 @@ do
   )
 end
 
--- ---- body_only=true: no preamble / no @bye --------------------------
+-- body_only=true: no preamble / no @bye
 do
   local doc = A.document({
     A.paragraph({ A.text("just body") }),
@@ -109,7 +109,7 @@ do
   check("body_only still emits body", out:find("just body", 1, true) ~= nil)
 end
 
--- ---- headlines: L1..L4 ----------------------------------------------
+-- Headlines: L1..L4
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Top") } }),
@@ -124,7 +124,7 @@ do
   check("L4 -> @subsubsection", out:find("@subsubsection Deeper", 1, true) ~= nil)
 end
 
--- ---- headline level >=5 clamps to @subsubsection --------------------
+-- Headline level >=5 clamps to @subsubsection
 do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
@@ -137,7 +137,7 @@ do
   )
 end
 
--- ---- @node emitted before section command ---------------------------
+-- @node emitted before section command
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Intro") } }),
@@ -152,7 +152,7 @@ do
   )
 end
 
--- ---- paragraph: inline then blank line ------------------------------
+-- Paragraph: inline then blank line
 do
   local doc = A.document({
     A.paragraph({ A.text("Hello world.") }),
@@ -165,7 +165,7 @@ do
   )
 end
 
--- ---- emphasis: 6 styles ---------------------------------------------
+-- Emphasis: 6 styles
 do
   local doc = A.document({
     A.paragraph({
@@ -191,7 +191,7 @@ do
   check("code -> @code{}", out:find("@code{C}", 1, true) ~= nil)
 end
 
--- ---- link with description -> @uref{TARGET, DESC} ------------------
+-- Link with description -> @uref{TARGET, DESC}
 do
   local doc = A.document({
     A.paragraph({
@@ -206,7 +206,7 @@ do
   )
 end
 
--- ---- bare link -> @uref{TARGET} -------------------------------------
+-- Bare link -> @uref{TARGET}
 do
   local doc = A.document({
     A.paragraph({
@@ -221,7 +221,7 @@ do
   )
 end
 
--- ---- math: inline + display both -> @math{} -------------------------
+-- Math: inline + display both -> @math{}
 do
   local doc = A.document({
     A.paragraph({
@@ -236,7 +236,7 @@ do
   check("display math -> @math{\\int}", out:find("@math{\\int}", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- linebreak -> @* ------------------------------------------------
+-- Linebreak -> @*
 do
   local doc = A.document({
     A.paragraph({
@@ -249,7 +249,7 @@ do
   check("linebreak emits @*", out:find("first@*second", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- escape: @ { } -------------------------------------------------
+-- Escape: @ { }
 do
   local doc = A.document({
     A.paragraph({ A.text("email@example {brace} end}") }),
@@ -260,7 +260,7 @@ do
   check("} -> @}", out:find("end@}", 1, true) ~= nil)
 end
 
--- ---- inline image dropped ------------------------------------------
+-- Inline image dropped
 do
   local doc = A.document({
     A.paragraph({
@@ -278,7 +278,7 @@ do
   check("surrounding text preserved", out:find("see  here", 1, true) ~= nil)
 end
 
--- ---- list (unordered) ----------------------------------------------
+-- List (unordered)
 do
   local doc = A.document({
     A.list(false, {
@@ -293,7 +293,7 @@ do
   check("item two", out:find("@item two", 1, true) ~= nil)
 end
 
--- ---- list (ordered) ------------------------------------------------
+-- List (ordered)
 do
   local doc = A.document({
     A.list(true, {
@@ -307,7 +307,7 @@ do
   check("ordered item first", out:find("@item first", 1, true) ~= nil)
 end
 
--- ---- list (nested) -------------------------------------------------
+-- List (nested)
 do
   local doc = A.document({
     A.list(false, {
@@ -328,7 +328,7 @@ do
   check("inner item rendered", out:find("@item inner", 1, true) ~= nil)
 end
 
--- ---- list (checkbox literal prefix) -------------------------------
+-- List (checkbox literal prefix)
 do
   local doc = A.document({
     A.list(false, {
@@ -343,7 +343,7 @@ do
   check("part checkbox -> [-]", out:find("@item [-] c", 1, true) ~= nil)
 end
 
--- ---- code_block -----------------------------------------------------
+-- code_block
 do
   local doc = A.document({
     A.code_block("python", 'print("hi")'),
@@ -364,7 +364,7 @@ do
   check("code_block line 2", out:find("print(x)", 1, true) ~= nil)
 end
 
--- ---- block: example ------------------------------------------------
+-- Block: example
 do
   local doc = A.document({
     A.block("example", { body = "raw text\nline 2" }),
@@ -378,7 +378,7 @@ do
   check("example body line 1", out:find("raw text", 1, true) ~= nil)
 end
 
--- ---- block: verse --------------------------------------------------
+-- Block: verse
 do
   local doc = A.document({
     A.block("verse", { body = "verse 1\nverse 2" }),
@@ -389,7 +389,7 @@ do
   check("verse line 2", out:find("verse 2", 1, true) ~= nil)
 end
 
--- ---- block: quote --------------------------------------------------
+-- Block: quote
 do
   local doc = A.document({
     A.block("quote", {
@@ -408,7 +408,7 @@ do
   )
 end
 
--- ---- block: export dropped -----------------------------------------
+-- Block: export dropped
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -423,7 +423,7 @@ do
   )
 end
 
--- ---- table (basic) -------------------------------------------------
+-- Table (basic)
 do
   local doc = A.document({
     {
@@ -446,7 +446,7 @@ do
   check("multitable end", out:find("@end multitable", 1, true) ~= nil)
 end
 
--- ---- table separator rows dropped ---------------------------------
+-- Table separator rows dropped
 do
   local doc = A.document({
     {
@@ -469,7 +469,7 @@ do
   )
 end
 
--- ---- column fractions sum to ~1 -----------------------------------
+-- Column fractions sum to ~1
 do
   local doc = A.document({
     {
@@ -497,7 +497,7 @@ do
   )
 end
 
--- ---- cell content escaped ----------------------------------------
+-- Cell content escaped
 do
   local doc = A.document({
     {
@@ -512,7 +512,7 @@ do
   check("cell content escaped @ -> @@", out:find("@item a@@b", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- block-level image ----------------------------------------------
+-- Block-level image
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -528,14 +528,14 @@ do
   )
 end
 
--- ---- block-level image with no alt --------------------------------
+-- Block-level image with no alt
 do
   local doc = A.document({ { kind = "image", target = "x.png" } })
   local out = to_texinfo.render(doc, { body_only = true })
   check("@image{x.png} when no alt", out:find("@image{x.png}", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- horizontal rule ----------------------------------------------
+-- Horizontal rule
 do
   local doc = A.document({
     A.paragraph({ A.text("above") }),
@@ -546,7 +546,7 @@ do
   check("rule emits @page", out:find("@page", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- footnote_definition ------------------------------------------
+-- footnote_definition
 do
   local doc = A.document({
     A.paragraph({
@@ -561,7 +561,7 @@ do
   check("footnote_definition emits [1] body", out:find("[1] the body", 1, true) ~= nil)
 end
 
--- ---- multi-paragraph footnote ------------------------------------
+-- Multi-paragraph footnote
 do
   local doc = A.document({
     A.footnote_definition("note", {
@@ -578,7 +578,7 @@ do
   check("multi-para footnote: second paragraph rendered", out:find("second", 1, true) ~= nil)
 end
 
--- ---- directive dropped --------------------------------------------
+-- Directive dropped
 do
   local doc = A.document({
     A.directive("AUTHOR", "Jane"),

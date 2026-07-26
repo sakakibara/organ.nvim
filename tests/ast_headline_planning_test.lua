@@ -17,7 +17,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- SCHEDULED only ---------------------------------------------------
+-- SCHEDULED only
 do
   local lines = vim.split(
     [[
@@ -38,7 +38,7 @@ SCHEDULED: <2026-05-04 Mon 09:00-09:15>
   check("planning.deadline absent", h.planning and h.planning.deadline == nil)
 end
 
--- ---- DEADLINE only ----------------------------------------------------
+-- DEADLINE only
 do
   local lines = vim.split(
     [[
@@ -57,7 +57,7 @@ DEADLINE: <2026-05-15 Fri>
   )
 end
 
--- ---- CLOSED -----------------------------------------------------------
+-- CLOSED
 do
   local lines = vim.split(
     [[
@@ -76,7 +76,7 @@ CLOSED: [2026-05-01 Fri 12:00]
   )
 end
 
--- ---- lowercase keyword: line-level recognition, no date binding ------
+-- Lowercase keyword: line-level recognition, no date binding
 -- Emacs (org-element) recognizes a lowercase 'scheduled:' line as a
 -- planning element but binds no :scheduled property to it -- only
 -- exact-uppercase keywords bind dates.
@@ -98,7 +98,7 @@ scheduled: <2026-05-06 Wed>
   )
 end
 
--- ---- property_drawer --------------------------------------------------
+-- property_drawer
 do
   local lines = vim.split(
     [[
@@ -126,7 +126,7 @@ do
   )
 end
 
--- ---- combined planning + properties + body ---------------------------
+-- Combined planning + properties + body
 do
   local lines = vim.split(
     [[
@@ -158,7 +158,7 @@ Body paragraph here.
   check("body paragraph present in headline children", has_body)
 end
 
--- ---- headline without planning/properties has nil fields -------------
+-- Headline without planning/properties has nil fields
 do
   local lines = vim.split("* Just a heading\nbody.\n", "\n", { plain = true })
   local ast = from_org.from_lines(lines)
@@ -167,8 +167,8 @@ do
   check("properties nil when absent", h.properties == nil)
 end
 
--- ---- COMMENT keyword is not part of the title (org-element order:
--- todo -> priority -> COMMENT -> title) -----------------------------
+-- COMMENT keyword is not part of the title (org-element order:
+-- todo -> priority -> COMMENT -> title)
 do
   local lines = vim.split("* TODO [#A] COMMENT Title text\n", "\n", { plain = true })
   local ast = from_org.from_lines(lines)
@@ -180,8 +180,8 @@ do
   )
 end
 
--- ---- "COMMENTARY..." is not the COMMENT keyword (strict equality
--- followed by whitespace only) ---------------------------------------
+-- "COMMENTARY..." is not the COMMENT keyword (strict equality
+-- followed by whitespace only)
 do
   local lines = vim.split("* TODO COMMENTARY notes\n", "\n", { plain = true })
   local ast = from_org.from_lines(lines)

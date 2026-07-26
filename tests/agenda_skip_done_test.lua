@@ -103,7 +103,7 @@ local function render()
   return table.concat(vim.api.nvim_buf_get_lines(b, 0, -1, false), "\n")
 end
 
--- ---- defaults: nothing skipped ----
+-- Defaults: nothing skipped
 require("organ").config.agenda.skip_scheduled_if_done = false
 require("organ").config.agenda.skip_deadline_if_done = false
 local body = render()
@@ -112,7 +112,7 @@ check("default: 'Done scheduled' present", body:find("Done scheduled", 1, true) 
 check("default: 'Done deadline' present", body:find("Done deadline", 1, true) ~= nil)
 check("default: 'Done both' present", body:find("Done both", 1, true) ~= nil)
 
--- ---- skip_scheduled_if_done = true ----
+-- skip_scheduled_if_done = true
 require("organ").config.agenda.skip_scheduled_if_done = true
 require("organ").config.agenda.skip_deadline_if_done = false
 body = render()
@@ -127,7 +127,7 @@ check(
   body:find("Done both", 1, true) ~= nil
 )
 
--- ---- skip_deadline_if_done = true ----
+-- skip_deadline_if_done = true
 require("organ").config.agenda.skip_scheduled_if_done = false
 require("organ").config.agenda.skip_deadline_if_done = true
 body = render()

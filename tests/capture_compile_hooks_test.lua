@@ -30,7 +30,7 @@ end
 
 local capture = require("organ.capture")
 
--- ---- Test 1: compile_hooks rewrite content before insertion ----
+-- Test 1: compile_hooks rewrite content before insertion
 do
   local target = tmp .. "/inbox.org"
   vim.fn.writefile({ "* Inbox" }, target)
@@ -97,7 +97,7 @@ do
   )
 end
 
--- ---- Test 2: whole_file mode replaces the entire file ----
+-- Test 2: whole_file mode replaces the entire file
 do
   local target = tmp .. "/journal.org"
   vim.fn.writefile({ "OLD CONTENT 1", "OLD CONTENT 2" }, target)

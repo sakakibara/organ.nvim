@@ -33,7 +33,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Inc on TODO keyword cycles forward.
 do
   local b = mk_buf({ "* TODO Item" })
@@ -41,7 +40,6 @@ do
   assert_eq(get_line(b, 1), "* NEXT Item")
 end
 
-----------------------------------------------------------------------
 -- Dec on TODO keyword cycles backward.
 do
   local b = mk_buf({ "* NEXT Item" })
@@ -49,7 +47,6 @@ do
   assert_eq(get_line(b, 1), "* TODO Item")
 end
 
-----------------------------------------------------------------------
 -- Compute prev state directly (unit test for the helper).
 do
   local todo = require("organ.todo")

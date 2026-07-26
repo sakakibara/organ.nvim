@@ -19,9 +19,7 @@ end
 
 local fmt = require("organ.format")
 
--- ---------------------------------------------------------------------------
 -- (a) Headlines never wrap, even when longer than textwidth.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 40
@@ -38,9 +36,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- (b) Plain prose paragraph rewraps to textwidth.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 30
@@ -61,9 +57,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- (c) Drawer contents pass through verbatim.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 20
@@ -84,10 +78,8 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- (d) Source block contents pass through verbatim (would be invalid
 -- code if wrapped).
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 20
@@ -105,9 +97,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- (e) List item rewraps continuation under bullet indent.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 30
@@ -129,11 +119,9 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- (f) format_range exercises the same code path as formatexpr but
 -- without the v:lnum/v:count ceremony (those are read-only outside
 -- a real `gq` invocation).
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 25
@@ -146,13 +134,11 @@ do
   check("format_range: rewrapped line 2", #lines >= 2 and #lines[2] <= 25, vim.inspect(lines))
 end
 
--- ---------------------------------------------------------------------------
 -- Emacs-parity: `\\` at end of line is org's hard line-break syntax.
 -- Verified against GNU Emacs 30.2 `org-mode` + `fill-paragraph`.  Lines
 -- ending in `\\` (optional trailing whitespace) MUST stay split; other
 -- consecutive non-blank lines reflow into one paragraph.  Trailing
 -- spaces alone (markdown convention) have no meaning in org.
--- ---------------------------------------------------------------------------
 local function format_input(input, cfg)
   return fmt.format_lines(input, cfg or { wrap = { width = 80 } })
 end
@@ -201,10 +187,8 @@ do
   check("Emacs parity E: wraps wider lines at width", #got >= 2, vim.inspect(got))
 end
 
--- ---------------------------------------------------------------------------
 -- Headline normalizer field order: todo -> priority -> COMMENT, matching
 -- the indexer's parse_heading_line (org-element order).
--- ---------------------------------------------------------------------------
 do
   local got = format_input({ "* TODO [#A] COMMENT Title" })
   check(

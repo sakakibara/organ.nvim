@@ -17,9 +17,7 @@ end
 local todo = require("organ.todo")
 local parse = todo._parse_keyword
 
--- ---------------------------------------------------------------------------
 -- Annotation parser.
--- ---------------------------------------------------------------------------
 local p = parse("TODO")
 check("bare: name=TODO", p.name == "TODO" and p.key == nil)
 
@@ -54,9 +52,7 @@ check(
   p.name == "DONE" and p.key == nil and p.on_enter == "note" and p.on_exit == "time"
 )
 
--- ---------------------------------------------------------------------------
 -- Log policy resolution.
--- ---------------------------------------------------------------------------
 local cfg = {
   sequence = { "TODO(t)", "WAIT(w@)", "|", "DONE(d!)" },
 }
@@ -92,9 +88,7 @@ check(
   todo._resolve_log_policy("TODO", "DONE", cfg_override) == nil
 )
 
--- ---------------------------------------------------------------------------
 -- Metadata map.
--- ---------------------------------------------------------------------------
 local meta = todo._build_metadata({ "TODO(t)", "WAIT(w@)", "|", "DONE(d!)" })
 check("metadata: TODO key=t", meta.TODO and meta.TODO.key == "t")
 check("metadata: WAIT on_enter=note", meta.WAIT and meta.WAIT.on_enter == "note")
@@ -109,9 +103,7 @@ local meta_multi = todo._build_metadata({
 check("multi-seq metadata: TODO + BUG both indexed", meta_multi.TODO and meta_multi.BUG)
 check("multi-seq metadata: FIXED on_enter=note", meta_multi.FIXED.on_enter == "note")
 
--- ---------------------------------------------------------------------------
 -- Cycling still works with annotated config (annotations don't break it).
--- ---------------------------------------------------------------------------
 check(
   "cycling with annotations: TODO -> WAIT",
   todo._compute_next_state("TODO", { "TODO(t)", "WAIT(w@)", "|", "DONE(d!)" }) == "WAIT"

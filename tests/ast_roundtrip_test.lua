@@ -142,7 +142,7 @@ end
 find_code(doc2)
 check("round-trip preserves a python code block", found_code)
 
--- ---------- directive (#+TITLE, #+AUTHOR, #+DATE, other) ----------
+-- Directive (#+TITLE, #+AUTHOR, #+DATE, other)
 do
   local INPUT = {
     "#+TITLE: My Document",
@@ -186,7 +186,7 @@ do
   )
 end
 
--- ---------- rule (horizontal rule) ----------
+-- Rule (horizontal rule)
 do
   local INPUT = {
     "Above the line.",
@@ -216,7 +216,7 @@ do
   check("rule: survives round-trip", has_rule2)
 end
 
--- ---------- block (quote / verse / example / export) ----------
+-- Block (quote / verse / example / export)
 do
   local INPUT = {
     "#+begin_quote",
@@ -274,7 +274,7 @@ do
   check("block: export survives round-trip", seen2.export ~= nil)
 end
 
--- ---------- table ----------
+-- Table
 do
   local INPUT = {
     "| name  | age |",
@@ -324,7 +324,7 @@ do
   check("table: survives round-trip", tbl2 ~= nil and #tbl2.rows == 4)
 end
 
--- ---------- image (free-standing block) ----------
+-- Image (free-standing block)
 do
   local INPUT = {
     "Some text before.",
@@ -370,7 +370,7 @@ do
   check("image: survives round-trip", has_img)
 end
 
--- ---------- math (inline + display) ----------
+-- Math (inline + display)
 do
   local INPUT = {
     "Inline math: $x^2 + y^2 = z^2$ here.",
@@ -430,7 +430,7 @@ do
   check("math: 4 nodes survive round-trip", #maths2 == 4, "got " .. #maths2)
 end
 
--- ---------- footnotes (inline ref + block definition) ----------
+-- Footnotes (inline ref + block definition)
 do
   local INPUT = {
     "Some claim[fn:1] in the text.",
@@ -494,7 +494,7 @@ do
   check("footnote: 2 definitions survive round-trip", defs2 == 2, "got " .. defs2)
 end
 
--- ---------- headline tag-block alignment (`config.format.headline.tags_column`) ----------
+-- Headline tag-block alignment (`config.format.headline.tags_column`)
 -- The to_org emitter right-aligns tags to `tags_column` (default 77),
 -- using the same `format.align_tag_block` helper as `:Org format` and
 -- `tag_writer`.  Verify the rendered headline line has correct padding.

@@ -153,7 +153,7 @@ Write-Output "AUMID set on $shortcut"
   )
 end
 
--- One-time install ----------------------------------------------------------
+-- One-time install
 
 local function ensure_install()
   if vim.fn.filereadable(marker_path()) == 1 then
@@ -203,7 +203,7 @@ local function ensure_install()
   return true
 end
 
--- Schedule helpers ----------------------------------------------------------
+-- Schedule helpers
 
 local function uuid()
   local r = math.random
@@ -214,7 +214,7 @@ local function ps_quote(s)
   return "'" .. tostring(s or ""):gsub("'", "''") .. "'"
 end
 
--- Public --------------------------------------------------------------------
+-- Public
 
 -- Test/diagnostic accessors. Underscore-prefixed; not part of the stable API.
 M._ps_quote = ps_quote

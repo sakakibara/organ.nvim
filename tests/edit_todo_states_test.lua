@@ -37,9 +37,7 @@ vim.ui.input = function(opts, on_choice)
   on_choice(input_value)
 end
 
--- ---------------------------------------------------------------------------
 -- (a) Buffer with no #+TODO line: the command INSERTS one near top.
--- ---------------------------------------------------------------------------
 local b1 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b1, 0, -1, false, {
   "#+TITLE: My doc",
@@ -61,9 +59,7 @@ end
 check("insert: #+TODO directive added when absent", found_todo, vim.inspect(lines1))
 check("insert: prompt was shown", captured_prompt == "TODO states: ")
 
--- ---------------------------------------------------------------------------
 -- (b) Buffer with existing #+TODO: replaces in place.
--- ---------------------------------------------------------------------------
 local b2 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b2, 0, -1, false, {
   "#+TITLE: Doc",
@@ -87,9 +83,7 @@ check(
   lines2[1] == "#+TITLE: Doc" and lines2[3] == "" and lines2[4] == "* TODO foo"
 )
 
--- ---------------------------------------------------------------------------
 -- (c) :Org edit_tags — same flow.
--- ---------------------------------------------------------------------------
 local b3 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b3, 0, -1, false, { "* TODO foo" })
 vim.api.nvim_set_current_buf(b3)
@@ -105,9 +99,7 @@ for _, l in ipairs(lines3) do
 end
 check("OrgEditTags: #+TAGS directive added when absent", got_tags, vim.inspect(lines3))
 
--- ---------------------------------------------------------------------------
 -- (d) Cancellation (nil from input) is a no-op.
--- ---------------------------------------------------------------------------
 local b4 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b4, 0, -1, false, { "#+TITLE: x", "* TODO y" })
 vim.api.nvim_set_current_buf(b4)

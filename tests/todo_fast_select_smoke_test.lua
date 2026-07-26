@@ -47,9 +47,7 @@ local function with_input(bufnr, line, code)
   return vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1]
 end
 
--- ---------------------------------------------------------------------------
 -- Press the matching key -> headline state changes.
--- ---------------------------------------------------------------------------
 local b = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* TODO Pick a state" })
 vim.bo[b].buftype = "nofile"
@@ -62,30 +60,22 @@ check("press 'c' -> headline becomes CANCELED", with_input(b, 1, "c") == "* CANC
 
 check("press 't' -> headline becomes TODO", with_input(b, 1, "t") == "* TODO Pick a state")
 
--- ---------------------------------------------------------------------------
 -- <Space> clears the state.
--- ---------------------------------------------------------------------------
 check("press '<Space>' -> headline state cleared", with_input(b, 1, " ") == "* Pick a state")
 
--- ---------------------------------------------------------------------------
 -- <Esc> cancels (no change).
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* TODO Cancel test" })
 check("press '<Esc>' -> headline unchanged", with_input(b, 1, "\27") == "* TODO Cancel test")
 
--- ---------------------------------------------------------------------------
 -- Unknown key: error notify, headline unchanged.
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* TODO Unknown key" })
 check("press 'q' (unknown) -> headline unchanged", with_input(b, 1, "q") == "* TODO Unknown key")
 
 vim.api.nvim_buf_delete(b, { force = true })
 
--- ---------------------------------------------------------------------------
 -- No-annotation auto-derive: when sequence has no `(KEY)` suffixes,
 -- fast_select still works -- access keys are auto-derived from each
 -- keyword's first available char.  TODO -> t, DONE -> d.
--- ---------------------------------------------------------------------------
 require("organ").config.todo.sequence = { "TODO", "|", "DONE" }
 
 local b2 = vim.api.nvim_create_buf(false, true)
@@ -123,11 +113,9 @@ check("no-annotation auto-derive: 't' -> TODO", with_input2(b2, 1, "t") == "* TO
 vim.ui.select = saved_select
 vim.api.nvim_buf_delete(b2, { force = true })
 
--- ---------------------------------------------------------------------------
 -- Auto-derive with first-char collision: WAITING and HOLD both want
 -- their first char (`w` / `h`); DOING wants `d` but DONE already has
 -- `d` annotated, so DOING falls through to its next available char.
--- ---------------------------------------------------------------------------
 require("organ").config.todo.sequence = { "TODO", "DOING", "|", "DONE(d)" }
 
 local b3 = vim.api.nvim_create_buf(false, true)

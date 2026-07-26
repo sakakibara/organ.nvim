@@ -33,9 +33,7 @@ vim.api.nvim_set_current_buf(b)
 vim.bo[b].filetype = "org"
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "5" })
 
--- ---------------------------------------------------------------------------
 -- (a) No dial, no user callback → native <C-a> increments to 6.
--- ---------------------------------------------------------------------------
 require("organ").config.inline_edit.fallback_increment = nil
 require("organ").config.inline_edit.fallback_decrement = nil
 package.loaded["dial.map"] = nil
@@ -44,9 +42,7 @@ vim.api.nvim_win_set_cursor(0, { 1, 0 })
 inline_edit.dispatch("inc")
 check("native fallback: 5 → 6", vim.api.nvim_buf_get_lines(b, 0, 1, false)[1] == "6")
 
--- ---------------------------------------------------------------------------
 -- (b) dial.nvim mocked: dispatch routes through dial.map.inc_normal().
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "5" })
 local dial_calls = { inc = 0, dec = 0 }
 package.loaded["dial.map"] = {
@@ -66,9 +62,7 @@ check("dial.nvim auto-detected: inc_normal() called", dial_calls.inc == 1)
 inline_edit.dispatch("dec")
 check("dial.nvim auto-detected: dec_normal() called", dial_calls.dec == 1)
 
--- ---------------------------------------------------------------------------
 -- (c) `use_dial = false` opts out even when dial is installed.
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "5" })
 require("organ").config.inline_edit.use_dial = false
 local dial_baseline = dial_calls.inc
@@ -79,9 +73,7 @@ check(
   vim.api.nvim_buf_get_lines(b, 0, 1, false)[1] == "6"
 )
 
--- ---------------------------------------------------------------------------
 -- (d) User callback wins over dial when both are configured.
--- ---------------------------------------------------------------------------
 require("organ").config.inline_edit.use_dial = true
 local user_calls = 0
 require("organ").config.inline_edit.fallback_increment = function()

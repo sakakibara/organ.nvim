@@ -24,7 +24,6 @@ assert(e2:match("syntax error") or e2:match("near"), "unexpected error msg: " ..
 h:close()
 os.remove(path)
 
-----------------------------------------------------------------------
 -- Prepared statement roundtrip.
 
 do
@@ -62,7 +61,6 @@ do
   os.remove(path2)
 end
 
-----------------------------------------------------------------------
 -- Transactions.
 
 do
@@ -99,7 +97,6 @@ do
   os.remove(path3)
 end
 
-----------------------------------------------------------------------
 -- PRAGMA apply + user_version bootstrap.
 
 do
@@ -135,7 +132,6 @@ do
   os.remove(path4)
 end
 
-----------------------------------------------------------------------
 -- Corruption detection: opening garbage file returns a typed error.
 
 do

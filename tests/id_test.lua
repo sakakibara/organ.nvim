@@ -30,7 +30,6 @@ local function is_uuid_v7(s)
       ~= nil
 end
 
-----------------------------------------------------------------------
 -- 1. Headline without :ID: → new UUID written to :PROPERTIES: drawer; returns UUID.
 do
   local b = mk_buf({ "* Task", "  body" })
@@ -45,7 +44,6 @@ do
   assert_eq(lines[5], "  body")
 end
 
-----------------------------------------------------------------------
 -- 2. Headline with existing :ID: → returns existing; no buffer change.
 do
   local existing_id = "01234567-89ab-7cde-8abc-0123456789ab"
@@ -66,7 +64,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- 3. Cursor in body resolves to containing headline.
 do
   local b = mk_buf({ "* Task", "  first body", "  second body" })

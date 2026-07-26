@@ -16,7 +16,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Apr 2026 (Apr 1 is Wed) with week_start=mon places day 1 at col index 2.
 do
   local out = cal._render_month(2026, 4, "2026-04-26", "2026-04-15", "mon")
@@ -27,7 +26,6 @@ do
   assert_eq(cell.col_start, 8, "Wed column with mon-start: index 2 × 4-char cell")
 end
 
-----------------------------------------------------------------------
 -- Apr 2026 with week_start=sun: Wed is index 3 → col_start = 3 * 4 = 12.
 do
   local out = cal._render_month(2026, 4, "2026-04-26", nil, "sun")
@@ -35,7 +33,6 @@ do
   assert_eq(cell.col_start, 12)
 end
 
-----------------------------------------------------------------------
 -- February leap year (Feb 2024 has 29).
 do
   local out = cal._render_month(2024, 2, nil, nil, "mon")
@@ -43,7 +40,6 @@ do
   assert_eq(find_cell(out.day_cells, 30), nil, "Feb 30 doesn't exist")
 end
 
-----------------------------------------------------------------------
 -- February non-leap (Feb 2025).
 do
   local out = cal._render_month(2025, 2, nil, nil, "mon")
@@ -51,7 +47,6 @@ do
   assert_eq(find_cell(out.day_cells, 29), nil, "Feb 29 doesn't exist in 2025")
 end
 
-----------------------------------------------------------------------
 -- today + selected + holiday extmarks present on correct days.
 do
   local holidays = { ["2026-04-10"] = true, ["2026-04-26"] = true }
@@ -92,7 +87,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- _move_selection (pure): advance day forward / backward.
 do
   local s = { selected_iso = "2026-04-15", year = 2026, month = 4, week_start = "mon" }
@@ -110,7 +104,6 @@ do
   assert_eq(s4.year, 2026)
 end
 
-----------------------------------------------------------------------
 -- _move_month: advance with day clamp.
 do
   local s = { selected_iso = "2026-01-31", year = 2026, month = 1, week_start = "mon" }

@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Set creates drawer when absent.
 do
   local b = mk_buf({ "* A", "  body" })
@@ -36,7 +35,6 @@ do
   assert_eq(lines[5], "  body")
 end
 
-----------------------------------------------------------------------
 -- Set existing key updates value in place.
 do
   local b = mk_buf({ "* A", ":PROPERTIES:", ":ID: old", ":END:" })
@@ -47,7 +45,6 @@ do
   assert_eq(#lines, 4)
 end
 
-----------------------------------------------------------------------
 -- Set new key appends before :END:.
 do
   local b = mk_buf({ "* A", ":PROPERTIES:", ":ID: a", ":END:" })
@@ -59,7 +56,6 @@ do
   assert_eq(lines[5], ":END:")
 end
 
-----------------------------------------------------------------------
 -- Set creates drawer correctly placed: after planning, before LOGBOOK.
 do
   local b = mk_buf({
@@ -80,7 +76,6 @@ do
   assert_eq(lines[6], ":LOGBOOK:")
 end
 
-----------------------------------------------------------------------
 -- Invalid key (contains ":") errors, no buffer change.
 do
   local b = mk_buf({ "* A" })
@@ -90,7 +85,6 @@ do
   assert_eq(#get_lines(b), 1)
 end
 
-----------------------------------------------------------------------
 -- Empty value stored as a bare ':KEY:' (Emacs `org-property-format` writes
 -- no padding or trailing space when the value is empty).
 do
@@ -100,7 +94,6 @@ do
   assert_eq(lines[3], "  :FOO:")
 end
 
-----------------------------------------------------------------------
 -- Set with no headline returns error.
 do
   local b = mk_buf({ "before", "" })
@@ -108,7 +101,6 @@ do
   assert(err and err:find("not on a headline"), "got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- Newline in value is rejected (would corrupt the property drawer parse
 -- on round-trip — `:KEY: line1\nline2` becomes two malformed lines).
 do
@@ -122,7 +114,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Carriage return in value also rejected.
 do
   local b = mk_buf({ "* A" })

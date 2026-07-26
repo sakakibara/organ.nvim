@@ -34,9 +34,7 @@ require("organ").setup({
   watcher = { enabled = false },
 })
 
--- ---------------------------------------------------------------------------
 -- (a) attach.id_dir_layout: "flat" vs "two_three"
--- ---------------------------------------------------------------------------
 local attach = require("organ.attach")
 local id = "abcdef0123456789-uuid"
 
@@ -48,9 +46,7 @@ require("organ").config.attach.id_dir_layout = "flat"
 d = attach.dir_for_id("/base", id)
 check("id_dir_layout=flat: <full-id>", d == "/base/" .. id, d)
 
--- ---------------------------------------------------------------------------
 -- (b) archive.default_command: "set_archive_tag" tags in place
--- ---------------------------------------------------------------------------
 local b = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_set_current_buf(b)
 vim.bo[b].filetype = "org"
@@ -82,9 +78,7 @@ check(
 
 vim.api.nvim_buf_delete(b, { force = true })
 
--- ---------------------------------------------------------------------------
 -- (c) clock.idle_resolution: "keep" / "subtract" / "discard" skip the prompt
--- ---------------------------------------------------------------------------
 local idle = require("organ.clock.idle")
 local clock = require("organ.clock")
 

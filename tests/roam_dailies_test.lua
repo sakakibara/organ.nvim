@@ -24,7 +24,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- today() opens an unsaved daily buffer; the file appears only on save.
 do
   dailies.today()
@@ -44,7 +43,6 @@ do
   assert(exists(path), "today daily written on save at " .. path)
 end
 
-----------------------------------------------------------------------
 -- today() called twice opens same file (no overwrite).
 do
   local iso = os.date("%Y-%m-%d")
@@ -59,7 +57,6 @@ do
   assert(lines[1] == "MARKER", "no overwrite on second open")
 end
 
-----------------------------------------------------------------------
 -- for_date opens a specific-date daily; file appears on save.
 do
   dailies.for_date("2026-12-25")
@@ -69,7 +66,6 @@ do
   assert(exists(path))
 end
 
-----------------------------------------------------------------------
 -- Custom template honored.
 do
   require("organ").setup({

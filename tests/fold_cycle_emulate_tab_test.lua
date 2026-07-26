@@ -34,11 +34,9 @@ local function make(lines)
   return b
 end
 
--- ---------------------------------------------------------------------------
 -- Default (emulate_tab = true): <Tab> on a body line must NOT fold, and must
 -- report "not handled" so the keymap can pass through to native <Tab>/<C-i>.
 -- Emacs scenario C: buffer + folding unchanged.
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Top", "Body of top.", "** Sub", "sub body" })
   vim.api.nvim_win_set_cursor(0, { 2, 0 })
@@ -56,10 +54,8 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- emulate_tab = false: <Tab> on a body line folds the ENCLOSING subtree.
 -- Emacs scenario H: the whole `* Top` subtree folds.
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Top", "Body of top.", "** Sub", "sub body" })
   buf_config.set(b, "fold.cycle_emulate_tab", false)
@@ -76,10 +72,8 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- On a headline line: 3-state cycle is unaffected by the emulate knob and
 -- reports "handled".
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Top", "Body of top.", "** Sub", "sub body" })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
@@ -91,11 +85,9 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Leaf headline (body, no children): Emacs is a 2-state visible toggle
 -- FOLDED <-> SUBTREE (scenario B).  organ's children==subtree collapse for
 -- childless headings must reproduce that toggle.
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Leaf", "Line one.", "Line two.", "* Next" })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
@@ -110,11 +102,9 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Empty entry (heading, no body, no children): Emacs prints "EMPTY ENTRY"
 -- and hides nothing (scenario E).  <Tab> must not error and must not hide
 -- the following heading.
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Empty", "* Next" })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
@@ -126,10 +116,8 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Drawer line: <Tab> toggles that drawer (Emacs scenario G) and reports
 -- "handled" -- the emulate refactor must not regress the drawer branch.
--- ---------------------------------------------------------------------------
 do
   local b = make({ "* Top", ":PROPERTIES:", ":ID: x", ":END:", "Body." })
   vim.api.nvim_win_set_cursor(0, { 2, 0 })

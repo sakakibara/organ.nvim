@@ -6,7 +6,6 @@ dofile(root .. "/tests/_bootstrap.lua")
 
 local expand = require("organ.expand")
 
--- ---------------------------------------------------------------------------
 -- Basic user-defined macro
 
 do
@@ -94,7 +93,6 @@ Hello{{{sig}}}
   assert(out:match("Hello%-%-signed"), "no-arg macro: " .. out)
 end
 
--- ---------------------------------------------------------------------------
 -- INCLUDE: verbatim, line-range, type wrappers, headline search
 
 do
@@ -153,7 +151,6 @@ B2
   os.remove(incl)
 end
 
--- ---------------------------------------------------------------------------
 -- SETUPFILE: chain pulls macros + keywords from external file
 
 do
@@ -222,7 +219,6 @@ do
   os.remove(outer)
 end
 
--- ---------------------------------------------------------------------------
 -- Edge cases: missing macro, recursive expansion limit
 
 do
@@ -240,7 +236,6 @@ do
   assert(ok, "self-recursive macro should terminate")
 end
 
--- ---------------------------------------------------------------------------
 -- Markdown export with expand=true picks up macros + INCLUDE
 
 do

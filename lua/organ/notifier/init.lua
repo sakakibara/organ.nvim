@@ -44,7 +44,7 @@ local function load_backend()
   return backend, nil, platform
 end
 
--- Public --------------------------------------------------------------------
+-- Public
 
 -- Replace the previously scheduled batch with `entries`. Cancels every old
 -- handle from the state file, schedules each entry that is still in the

@@ -25,9 +25,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- macOS: XML escaping + plist payload
--- ---------------------------------------------------------------------------
 local mac = require("organ.notifier.macos")
 
 do
@@ -102,9 +100,7 @@ do
   check("mac notify script: shebang present", mac._notify_script:sub(1, 2) == "#!")
 end
 
--- ---------------------------------------------------------------------------
 -- Linux: shell quoting + notify-send command
--- ---------------------------------------------------------------------------
 local lin = require("organ.notifier.linux")
 
 do
@@ -181,9 +177,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- Windows: PowerShell single-quote escaping
--- ---------------------------------------------------------------------------
 local win = require("organ.notifier.windows")
 
 do

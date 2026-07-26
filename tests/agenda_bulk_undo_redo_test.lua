@@ -94,7 +94,7 @@ end
 check("baseline: a.org has 'Alpha two'", file_has_heading(FILE_A, "Alpha two"))
 check("baseline: b.org has 'Beta two'", file_has_heading(FILE_B, "Beta two"))
 
--- ---- bulk_delete_apply ----
+-- bulk_delete_apply
 -- Build "marked rows" referring to "Alpha two" (file_a:3) and
 -- "Beta two" (file_b:2). Use absolute file paths via bufadd.
 local buf_a = vim.fn.bufadd(FILE_A)
@@ -151,7 +151,7 @@ local state = vim.b[agenda_bufnr].organ_agenda
 local hist = (type(state) == "table" and state.delete_history) or {}
 check("delete_history has 1 entry after the delete", #hist == 1)
 
--- ---- undo_last_delete ----
+-- undo_last_delete
 local restored = agenda.undo_last_delete(agenda_bufnr)
 check("undo_last_delete returned the snapshot", restored ~= nil and #restored == 2)
 check(
@@ -184,7 +184,7 @@ local r_hist = (type(state) == "table" and state.redo_history) or {}
 check("after undo: delete_history empty", #d_hist == 0)
 check("after undo: redo_history has 1", #r_hist == 1)
 
--- ---- redo_last_delete ----
+-- redo_last_delete
 local re_snap = agenda.redo_last_delete(agenda_bufnr)
 check("redo_last_delete returned the snapshot", re_snap ~= nil and #re_snap == 2)
 check("after redo: a.org no longer has 'Alpha two'", not (function()
@@ -196,7 +196,7 @@ check("after redo: a.org no longer has 'Alpha two'", not (function()
   return false
 end)())
 
--- ---- empty-stack behavior ----
+-- Empty-stack behavior
 agenda.undo_last_delete(agenda_bufnr) -- empties delete_history again (the snapshot we just redid)
 local nothing = agenda.undo_last_delete(agenda_bufnr)
 check("undo on empty stack returns nil", nothing == nil)

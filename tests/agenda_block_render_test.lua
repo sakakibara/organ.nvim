@@ -36,7 +36,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Two labeled blocks, disjoint rows.
 do
   local r1 = { mk("a", "T1", "TODO", "A", "2026-04-26", nil, nil, {}, "/a.org", 1) }
@@ -59,7 +58,6 @@ do
   assert_eq(out.block_starts[i2], 2)
 end
 
-----------------------------------------------------------------------
 -- Empty block renders header + (nothing) placeholder.
 do
   local out = agenda.render({
@@ -72,7 +70,6 @@ do
   assert(pi == hi + 1, "(nothing) line directly under header")
 end
 
-----------------------------------------------------------------------
 -- Labelless block (wrapped-flat case): no block-header line.
 do
   local r = { mk("a", "T", "TODO", "A", "2026-04-26", nil, nil, {}, "/a.org", 1) }
@@ -88,7 +85,6 @@ do
   assert_eq(next(out.block_starts), nil, "block_starts empty for labelless single block")
 end
 
-----------------------------------------------------------------------
 -- Per-block include_overdue: bucket appears INSIDE the block, not at buffer top.
 do
   local overdue = mk("od", "Old", "TODO", "A", nil, "2026-04-01", nil, {}, "/a.org", 1)
@@ -108,7 +104,6 @@ do
   assert(oi > pi, "Overdue appears AFTER the Past block header (i.e. inside Past, not at top)")
 end
 
-----------------------------------------------------------------------
 -- Mixed group_by: block A flat (none), block B day-grouped.
 do
   local r1 = { mk("a", "T1", "TODO", "A", nil, nil, nil, {}, "/a.org", 1) }
@@ -134,7 +129,6 @@ do
   assert(has_day, "Days block has a date header")
 end
 
-----------------------------------------------------------------------
 -- line_index spans rows across blocks; header / (nothing) lines have no entry.
 do
   local r1 = { mk("a", "T1", "TODO", "A", "2026-04-26", nil, nil, {}, "/a.org", 11) }
@@ -155,7 +149,6 @@ do
   assert_eq(count, 2, "two row entries total")
 end
 
-----------------------------------------------------------------------
 -- Calling render twice with different `opts.now` does not pin the
 -- block to the first call's now. Regression for #now-mutation bug.
 do
@@ -175,7 +168,6 @@ do
   assert_eq(block.now, nil, "render must still not write opts.now into block")
 end
 
-----------------------------------------------------------------------
 -- Labelless empty block produces no output (no (nothing) placeholder
 -- without a label to anchor it). Preserves flat-view byte-equivalence.
 do
@@ -187,7 +179,6 @@ do
   assert_eq(next(out.block_starts), nil, "no block_starts entries")
 end
 
-----------------------------------------------------------------------
 -- Per-block query error: failing block renders error line, sibling unaffected.
 do
   local good = mk("a", "T", "TODO", "A", "2026-04-26", nil, nil, {}, "/a.org", 1)

@@ -25,7 +25,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- Helpers: synthesize JPEG-shaped byte sequences. SOF0 body is
 -- precision(1) | height(2 BE) | width(2 BE) | nc(1) | per-component
 -- block (3 bytes * nc); the trailing component blocks aren't read by
@@ -54,7 +53,6 @@ local function write_tmp(bytes)
   return path
 end
 
-----------------------------------------------------------------------
 -- 1. Non-JPEG inputs are rejected.
 
 do
@@ -67,7 +65,6 @@ do
   check("non-JPEG carries error", type(err) == "string" and err:find("SOI", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 2. Missing file returns nil + error.
 
 do
@@ -76,7 +73,6 @@ do
   check("missing file carries error", type(err) == "string")
 end
 
-----------------------------------------------------------------------
 -- 3. Truncated / empty file rejected.
 
 do
@@ -88,7 +84,6 @@ do
   check("tiny file rejected", img == nil and type(err) == "string")
 end
 
-----------------------------------------------------------------------
 -- 4. 8x8 RGB: parses width/height/components correctly.
 
 do
@@ -104,7 +99,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- 5. Non-square 200x100 RGB: dimensions distinguish width vs height.
 
 do
@@ -114,7 +108,6 @@ do
   check("200x100 height correct", img.height == 100, "got " .. tostring(img.height))
 end
 
-----------------------------------------------------------------------
 -- 6. Embed an 8x8 RGB JPEG into a writer.
 
 do
@@ -147,7 +140,6 @@ do
   check("stream ends with EOI before endstream", bytes:find("\xFF\xD9\nendstream", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 7. Grayscale (1 component) -> /DeviceGray.
 
 do
@@ -167,7 +159,6 @@ do
   check("grayscale does NOT emit /DeviceRGB", bytes:find("/ColorSpace /DeviceRGB", 1, true) == nil)
 end
 
-----------------------------------------------------------------------
 -- 8. CMYK (4 components) -> /DeviceCMYK.
 
 do
@@ -183,7 +174,6 @@ do
   check("CMYK -> /ColorSpace /DeviceCMYK", bytes:find("/ColorSpace /DeviceCMYK", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 9. SOF2 (progressive) is accepted, not just SOF0.
 
 do
@@ -202,7 +192,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- 10. APP0 / DQT segments before SOF are skipped.
 
 do
@@ -233,7 +222,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- 11. JPEG with no SOF segment is rejected.
 
 do
@@ -247,8 +235,6 @@ do
   check("no-SOF rejected", img == nil)
   check("no-SOF error mentions SOF", type(err) == "string" and err:find("SOF", 1, true) ~= nil)
 end
-
-----------------------------------------------------------------------
 
 if fails > 0 then
   print(("\n%d failure(s)"):format(fails))

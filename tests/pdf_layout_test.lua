@@ -51,7 +51,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- Standard page/margin set re-used across cases.
 
 local function new_layout(opts)
@@ -69,7 +68,6 @@ local function new_layout(opts)
   })
 end
 
-----------------------------------------------------------------------
 -- 1. Empty layout.
 
 local L0 = new_layout()
@@ -80,7 +78,6 @@ check(
   ("got %d pages"):format(#r0.pages)
 )
 
-----------------------------------------------------------------------
 -- 2. One short paragraph fits on one page.
 
 local L1 = new_layout()
@@ -114,7 +111,6 @@ check(
   ("got y=%s"):format(tostring(first_line.y))
 )
 
-----------------------------------------------------------------------
 -- 3. Long paragraph wraps onto multiple lines on the same page.
 
 local L2 = new_layout()
@@ -168,7 +164,6 @@ check(
   ("last line tail = %q"):format(last_text)
 )
 
-----------------------------------------------------------------------
 -- 4. Very long paragraph triggers pagination.
 
 local L3 = new_layout()
@@ -192,7 +187,6 @@ check(
 )
 check("page 2 first line x == margin_left", p2_first.x == 72)
 
-----------------------------------------------------------------------
 -- 5. Headings emit the documented sizes.
 
 local LH = new_layout()
@@ -220,7 +214,6 @@ check("L2 heading font_size == 16", h2 and h2.font_size == 16)
 check("L3 heading font_size == 14", h3 and h3.font_size == 14)
 check("L4 heading font_size == 12", h4 and h4.font_size == 12)
 
-----------------------------------------------------------------------
 -- 6. Code block: one input line -> one output line, verbatim, no wrap.
 
 local LC = new_layout()
@@ -247,7 +240,6 @@ end
 check("code block emits each input line verbatim", same_text)
 check("code block lines use the requested font_size (10)", code_lines[1].font_size == 10)
 
-----------------------------------------------------------------------
 -- 7. Blank line advances cursor without producing a line entry.
 
 local LB = new_layout()
@@ -267,7 +259,6 @@ check(
   ("got drop=%.4f"):format(l_first.y - l_second.y)
 )
 
-----------------------------------------------------------------------
 -- 8. UTF-8 width: 日本 measures wider than aa.
 
 local w_aa = layout._measure(f, 11, "aa")
@@ -289,7 +280,6 @@ else
   print(("INFO  font lacks CJK glyphs; width('aa')=%.3f, width(jp)=%.3f"):format(w_aa, w_jp))
 end
 
-----------------------------------------------------------------------
 -- 9. Empty paragraph is a no-op.
 
 local LE = new_layout()
@@ -301,8 +291,6 @@ check(
   #rE.pages == 0,
   ("got %d pages"):format(#rE.pages)
 )
-
-----------------------------------------------------------------------
 
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then

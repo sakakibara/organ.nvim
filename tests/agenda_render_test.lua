@@ -22,7 +22,6 @@ local function mk(id, title, todo, prio, sched, dead, closed, tags, file, line)
   }
 end
 
-----------------------------------------------------------------------
 -- Default view (group_by = "day", include_overdue = true).
 do
   local rows = {
@@ -73,7 +72,6 @@ do
   assert(any_mapped, "line_index should have entries")
 end
 
-----------------------------------------------------------------------
 -- group_by = "none" produces a flat list.
 do
   local rows = {

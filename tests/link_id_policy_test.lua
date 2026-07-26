@@ -44,11 +44,9 @@ local store = require("organ.link_store")
 vim.cmd("edit " .. vim.fn.fnameescape(tmp))
 local bufnr = vim.api.nvim_get_current_buf()
 
--- ---------------------------------------------------------------------------
 -- (a) Default "use-existing": uses :ID: when present, falls back to
 -- file::*Headline when missing — and does NOT mutate the buffer to
 -- add a new :ID:.
--- ---------------------------------------------------------------------------
 require("organ").config.links.id_link_policy = "use-existing"
 
 store.clear()
@@ -81,9 +79,7 @@ check(
   ("before=%d after=%d"):format(before_lines, after_lines)
 )
 
--- ---------------------------------------------------------------------------
 -- (b) "create": auto-assigns :ID: on the headline-without-:ID: row.
--- ---------------------------------------------------------------------------
 require("organ").config.links.id_link_policy = "create"
 
 store.clear()
@@ -103,9 +99,7 @@ check(
   ("before=%d after=%d"):format(lines_before, lines_after)
 )
 
--- ---------------------------------------------------------------------------
 -- (c) `false`: never use id; always emit file_headline.
--- ---------------------------------------------------------------------------
 require("organ").config.links.id_link_policy = false
 
 store.clear()

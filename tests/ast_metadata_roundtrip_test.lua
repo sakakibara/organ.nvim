@@ -67,7 +67,7 @@ local function head(lines)
   return from_org.from_lines(lines).children[1]
 end
 
--- planning ------------------------------------------------------------
+-- Planning
 do
   local src = {
     "* TODO Task",
@@ -82,7 +82,7 @@ do
   assert_roundtrip(src, "planning: round-trips")
 end
 
--- properties ----------------------------------------------------------
+-- Properties
 do
   local src = {
     "* H",
@@ -99,7 +99,7 @@ do
   assert_roundtrip(src, "properties: round-trips")
 end
 
--- generic drawers -----------------------------------------------------
+-- Generic drawers
 do
   local src = {
     "* H",
@@ -129,7 +129,7 @@ do
   assert_roundtrip(src, "drawer: custom :NOTES: round-trips")
 end
 
--- comments ------------------------------------------------------------
+-- Comments
 do
   -- Line comments at top level (before any headline) flow through the
   -- same emit_section_child path.
@@ -160,7 +160,7 @@ do
   assert_roundtrip(src, "comment: comment block round-trips")
 end
 
--- combined + ordering -------------------------------------------------
+-- Combined + ordering
 do
   local src = {
     "* TODO Project :work:",
@@ -195,7 +195,7 @@ do
   assert_roundtrip(src, "combined: non-canonical section order is AST-stable")
 end
 
--- drawer edge shapes --------------------------------------------------
+-- Drawer edge shapes
 do
   -- Empty drawer (no inner lines) round-trips with an empty body.
   local src = { "* H", ":LOGBOOK:", ":END:", "", "Body." }
@@ -216,7 +216,7 @@ do
   assert_roundtrip(src, "drawer: interior blank line preserved")
 end
 
--- regression: pre-existing constructs still round-trip ----------------
+-- Regression: pre-existing constructs still round-trip
 do
   assert_roundtrip(
     { "Para with *bold* and [[https://x][a link]].", "", "Next." },
@@ -228,7 +228,7 @@ do
   )
 end
 
--- table separators ----------------------------------------------------
+-- Table separators
 do
   -- Tree-sitter splits a table into one grammar node per separator line;
   -- merging the segments must not duplicate the separator (which would
@@ -239,7 +239,7 @@ do
   )
 end
 
--- src header-args -----------------------------------------------------
+-- src header-args
 do
   local src = { "#+begin_src python :exports code :tangle no", "print(1)", "#+end_src", "", "x" }
   local doc = from_org.from_lines(src)
@@ -254,7 +254,7 @@ do
   assert_roundtrip(src, "src: header-args round-trip")
 end
 
--- export backend -----------------------------------------------------
+-- Export backend
 do
   local src = { "#+begin_export html", "<b>x</b>", "#+end_export", "", "y" }
   local doc = from_org.from_lines(src)
@@ -269,7 +269,7 @@ do
   assert_roundtrip(src, "export: backend round-trip")
 end
 
--- table alignment cookies ---------------------------------------------
+-- Table alignment cookies
 do
   local src = { "| <l> | <r> |", "| a | 1 |", "", "x" }
   local doc = from_org.from_lines(src)
@@ -287,7 +287,7 @@ do
   assert_roundtrip(src, "table: alignment cookie row round-trips")
 end
 
--- affiliated keywords -------------------------------------------------
+-- Affiliated keywords
 do
   local src = {
     "#+NAME: fig1",
@@ -337,7 +337,7 @@ do
   assert_roundtrip(src, "affiliated: dangling keyword round-trips")
 end
 
--- table formula -------------------------------------------------------
+-- Table formula
 do
   local src = { "| a | b |", "| 1 | 2 |", "#+TBLFM: $3=$1+$2", "", "x" }
   local doc = from_org.from_lines(src)
@@ -357,7 +357,7 @@ do
   assert_roundtrip(src, "tblfm: standalone formula round-trips")
 end
 
--- combined + regression -----------------------------------------------
+-- Combined + regression
 do
   local src = {
     "#+NAME: snippet",
@@ -377,7 +377,7 @@ do
   assert_roundtrip({ "Para *bold* [[https://x][l]].", "", "n" }, "regression: A inline")
 end
 
--- EOF: a construct that is the last line with no trailing content -----
+-- EOF: a construct that is the last line with no trailing content
 do
   -- Without a terminating newline the grammar parses the final line as an
   -- ERROR node and drops it; a directive at EOF must still be captured.

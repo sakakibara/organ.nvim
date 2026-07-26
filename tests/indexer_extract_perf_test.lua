@@ -53,7 +53,7 @@ local function build_fixture(n_headings)
   return table.concat(lines, "\n") .. "\n"
 end
 
--- ---- correctness sanity check (run before timing) -------------------
+-- Correctness sanity check (run before timing)
 do
   local src = build_fixture(5)
   local headlines = indexer.extract(src, "perf-fixture.org", parser_path)
@@ -74,7 +74,7 @@ do
   )
 end
 
--- ---- perf budget on a 5000-line fixture -----------------------------
+-- Perf budget on a 5000-line fixture
 -- Pre-fix baseline: ~800ms.  Post-fix on the same machine: ~100ms.
 -- The 400ms ceiling here is 2x the post-fix headroom -- enough to
 -- absorb CI noise / slower machines, tight enough to catch a real

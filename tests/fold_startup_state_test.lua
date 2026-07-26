@@ -106,7 +106,7 @@ end
 --   12 * L1 beta
 --   13 body of beta
 
--- #+STARTUP: overview --------------------------------------------------------
+-- #+STARTUP: overview
 do
   local winid, bufnr = open_with_startup("overview")
   -- OVERVIEW: only L=1 headings visible (collapsed into foldtext).
@@ -139,7 +139,7 @@ do
   )
 end
 
--- #+STARTUP: content ---------------------------------------------------------
+-- #+STARTUP: content
 do
   local winid, bufnr = open_with_startup("content")
   -- CONTENTS: every heading visible (L=1, L=2, L=3), every body line
@@ -161,7 +161,7 @@ do
   )
 end
 
--- #+STARTUP: showall ---------------------------------------------------------
+-- #+STARTUP: showall
 do
   local _, bufnr = open_with_startup("showall")
   -- SHOW_ALL: every heading + body visible; drawers stay closed
@@ -173,7 +173,7 @@ do
   check("showall: deep body visible", visible(bufnr, 10))
 end
 
--- #+STARTUP: showeverything --------------------------------------------------
+-- #+STARTUP: showeverything
 do
   local _, bufnr = open_with_startup("showeverything")
   -- SHOW_EVERYTHING: same as SHOW_ALL for this fixture (no drawers

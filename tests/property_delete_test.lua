@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Delete existing key removes the line.
 do
   local b = mk_buf({
@@ -42,7 +41,6 @@ do
   assert_eq(#lines, 4)
 end
 
-----------------------------------------------------------------------
 -- Delete last property removes the entire drawer.
 do
   local b = mk_buf({
@@ -60,7 +58,6 @@ do
   assert_eq(#lines, 2)
 end
 
-----------------------------------------------------------------------
 -- Delete non-existent key returns error.
 do
   local b = mk_buf({ "* A", ":PROPERTIES:", ":ID: a", ":END:" })
@@ -70,7 +67,6 @@ do
   assert_eq(get_lines(b)[3], ":ID: a")
 end
 
-----------------------------------------------------------------------
 -- Delete from no-drawer headline returns error.
 do
   local b = mk_buf({ "* A" })
@@ -78,7 +74,6 @@ do
   assert(err and err:find("not set"), "got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- Delete preserves order of other properties.
 do
   local b = mk_buf({

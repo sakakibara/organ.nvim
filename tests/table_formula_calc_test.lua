@@ -24,7 +24,6 @@ local function close(a, b)
   return math.abs(a - b) < 1e-12
 end
 
--- ---------------------------------------------------------------------------
 -- comparison operators
 
 assert(eval_expr("1 < 2") == 1, "1 < 2")
@@ -40,7 +39,6 @@ assert(eval_expr("4 != 5") == 1, "4 != 5")
 assert(eval_expr("1 + 2 < 3 + 4") == 1, "1+2 < 3+4")
 assert(eval_expr("2 * 3 == 6") == 1, "2*3 == 6")
 
--- ---------------------------------------------------------------------------
 -- exponent
 
 assert(eval_expr("2 ^ 10") == 1024, "2 ^ 10")
@@ -48,7 +46,6 @@ assert(eval_expr("2 ^ 3 ^ 2") == 512, "right-assoc: 2 ^ (3^2)")
 -- unary minus binds looser than ^ (matches Lua / Calc / Python convention).
 assert(eval_expr("-2 ^ 2") == -4, "-2^2 = -(2^2) = -4")
 
--- ---------------------------------------------------------------------------
 -- conditional (if)
 
 assert(eval_expr("if(1, 2, 3)") == 2, "if true → then-branch")
@@ -56,7 +53,6 @@ assert(eval_expr("if(0, 2, 3)") == 3, "if false → else-branch")
 assert(eval_expr("if(2 > 1, 100, 200)") == 100)
 assert(eval_expr("if(0, 1/0, 42)") == 42, "else branch evaluated only — no div-by-zero error")
 
--- ---------------------------------------------------------------------------
 -- logical (and / or / not)
 
 assert(eval_expr("and(1, 1)") == 1)
@@ -66,7 +62,6 @@ assert(eval_expr("or(0, 5)") == 1)
 assert(eval_expr("not(0)") == 1)
 assert(eval_expr("not(5)") == 0)
 
--- ---------------------------------------------------------------------------
 -- exact rational arithmetic, surfaced via eval_calc
 
 do
@@ -80,7 +75,6 @@ do
   assert(C.to_string(v) == "18446744073709551616", "2^64 exact: got " .. C.to_string(v))
 end
 
--- ---------------------------------------------------------------------------
 -- new aggregations: vmedian, vsdev, vvar, vproduct, vmaxabs
 
 do
@@ -114,7 +108,6 @@ do
   assert(eval_expr("vmaxabs(@1..@3)", ctx) == 5, "max-abs of {-5,3,-1} = 5")
 end
 
--- ---------------------------------------------------------------------------
 -- new scalar functions: cbrt, sinh, cosh, tanh, factorial, ln, trunc
 
 assert(close(eval_expr("cbrt(27)"), 3))
@@ -126,7 +119,6 @@ assert(close(eval_expr("ln(e)"), 1))
 assert(eval_expr("trunc(3/2)") == 1)
 assert(eval_expr("trunc(-3/2)") == -1)
 
--- ---------------------------------------------------------------------------
 -- new binary functions: gcd, lcm, binomial
 
 assert(eval_expr("gcd(12, 18)") == 6)

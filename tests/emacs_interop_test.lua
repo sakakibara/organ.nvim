@@ -48,9 +48,7 @@ end
 
 local query = require("organ.query")
 
--- ---------------------------------------------------------------------------
 -- Headlines
--- ---------------------------------------------------------------------------
 local all = query.headlines({})
 check("indexed multiple headlines", #all >= 4, "got " .. #all)
 
@@ -64,9 +62,7 @@ check("First child indexed", by_title["First child"] ~= nil)
 check("Second child indexed", by_title["Second child"] ~= nil)
 check("Second-level child indexed", by_title["Second-level child"] ~= nil)
 
--- ---------------------------------------------------------------------------
 -- TODO state from the buffer-local #+TODO sequence
--- ---------------------------------------------------------------------------
 check(
   "First child carries TODO state from #+TODO sequence",
   by_title["First child"] and by_title["First child"].todo_state == "TODO",
@@ -81,9 +77,7 @@ check(
   by_title["Second child"] and by_title["Second child"].todo_state == "NEXT"
 )
 
--- ---------------------------------------------------------------------------
 -- Priority cookies
--- ---------------------------------------------------------------------------
 check(
   "First child priority parsed as A",
   by_title["First child"] and by_title["First child"].priority == "A"
@@ -93,9 +87,7 @@ check(
   by_title["Second child"] and by_title["Second child"].priority == "B"
 )
 
--- ---------------------------------------------------------------------------
 -- Tags (inherited file-level + headline-local)
--- ---------------------------------------------------------------------------
 local function has_tag(h, tag)
   if not h or not h.tags then
     return false
@@ -116,17 +108,14 @@ check(
 check("Top-level headline tags include project", has_tag(by_title["Top-level node"], "project"))
 check("First child tags include hard", has_tag(by_title["First child"], "hard"))
 
--- ---------------------------------------------------------------------------
 -- ID lookup (UUID v4 as Emacs would write)
--- ---------------------------------------------------------------------------
 local id1 = "11111111-1111-1111-1111-111111111111"
 local idn = query.get_by_id(id1)
 check("get_by_id resolves a v4-shape UUID written by Emacs", idn ~= nil, vim.inspect(idn))
 check("get_by_id returns the right title", idn and idn.title == "First child")
 
--- ---------------------------------------------------------------------------
 -- Property drawer: ROAM_ALIASES, ROAM_REFS, EFFORT, STYLE, ARCHIVE_*
--- ---------------------------------------------------------------------------
+
 -- query.headlines doesn't take an `id` filter; fetch all-with-
 -- properties once and look up by id.
 local _all_with_props
@@ -172,9 +161,7 @@ check(
 )
 check("ARCHIVE_OLPATH property captured", arc_props.ARCHIVE_OLPATH ~= nil)
 
--- ---------------------------------------------------------------------------
 -- Planning: SCHEDULED, DEADLINE, CLOSED with repeaters and times
--- ---------------------------------------------------------------------------
 check(
   "SCHEDULED parsed on First child",
   by_title["First child"] and by_title["First child"].scheduled_date,
@@ -192,9 +179,7 @@ check(
     and (by_title["Second-level child"].closed_date or by_title["Second-level child"].properties)
 )
 
--- ---------------------------------------------------------------------------
 -- Links: id / file / file-heading / *Title / http all indexed
--- ---------------------------------------------------------------------------
 local from_top = query.links_from((by_title["Top-level node"] or {}).id) or {}
 local link_targets = {}
 for _, l in ipairs(from_top) do
@@ -214,9 +199,7 @@ check(
   "got " .. #incoming
 )
 
--- ---------------------------------------------------------------------------
 -- Title-form `[[*Heading]]` references picked up.
--- ---------------------------------------------------------------------------
 local title_refs = query.title_refs("Top-level node") or {}
 check(
   "title_refs([[*Top-level node]]) finds at least one ref",

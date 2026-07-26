@@ -21,7 +21,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Lex sort ascending, header preserved.
 do
   local b = mk_buf({
@@ -43,7 +42,6 @@ do
   assert(lines[5]:find("zoe"))
 end
 
-----------------------------------------------------------------------
 -- Lex sort descending.
 do
   local b = mk_buf({
@@ -60,7 +58,6 @@ do
   assert(lines[4]:find("alice"))
 end
 
-----------------------------------------------------------------------
 -- Numeric sort: all-numeric column sorts as numbers, not strings.
 do
   local b = mk_buf({
@@ -78,7 +75,6 @@ do
   assert(lines[4]:find("100"))
 end
 
-----------------------------------------------------------------------
 -- Sort outside a table is a no-op.
 do
   local b = mk_buf({ "no table here" })

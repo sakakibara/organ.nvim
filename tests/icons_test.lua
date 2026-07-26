@@ -27,9 +27,7 @@ end
 
 local icons = require("organ.icons")
 
--- ---------------------------------------------------------------------------
 -- (a) Neither provider loaded → icons.get returns nil.
--- ---------------------------------------------------------------------------
 package.loaded["mini.icons"] = nil
 package.loaded["nvim-web-devicons"] = nil
 icons._reset_cache()
@@ -40,9 +38,7 @@ check("no provider: icons.get returns nil", ic == nil and hl == nil)
 local seg = icons.segment("/tmp/foo.org")
 check("no provider: icons.segment returns nil", seg == nil)
 
--- ---------------------------------------------------------------------------
 -- (b) mini.icons mocked → icons.get routes through it.
--- ---------------------------------------------------------------------------
 local mini_calls = 0
 package.loaded["mini.icons"] = {
   get = function(category, path)
@@ -63,9 +59,7 @@ check(
   seg2 and vim.inspect(seg2)
 )
 
--- ---------------------------------------------------------------------------
 -- (c) When mini.icons is absent, nvim-web-devicons is the fallback.
--- ---------------------------------------------------------------------------
 package.loaded["mini.icons"] = nil
 local dev_calls = 0
 package.loaded["nvim-web-devicons"] = {

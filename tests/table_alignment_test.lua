@@ -10,7 +10,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Right alignment: <r> in row 2 right-pads cells in that column.
 do
   local rows = {
@@ -28,7 +27,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Center alignment: <c>.
 do
   local rows = {
@@ -42,7 +40,6 @@ do
   assert(out[3]:match("|%s+x%s+|"), "x centered: " .. out[3])
 end
 
-----------------------------------------------------------------------
 -- Alignment row preserved literally.
 do
   local rows = {
@@ -54,7 +51,6 @@ do
   assert(out[2]:find("<r>"), "alignment row preserved: " .. out[2])
 end
 
-----------------------------------------------------------------------
 -- No marker row → behavior unchanged from M2-1.
 do
   local rows = {

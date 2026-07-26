@@ -44,9 +44,7 @@ local function bench(fn, samples)
   return (elapsed_ns / samples) / 1e6 -- ms
 end
 
--- ---------------------------------------------------------------------------
 -- Synth dataset
--- ---------------------------------------------------------------------------
 local NUM_ROWS = 100
 local rows = {}
 for i = 1, NUM_ROWS do
@@ -99,9 +97,7 @@ require("organ").setup({
   todo = { sequence = { "TODO", "NEXT", "|", "DONE" } },
 })
 
--- ---------------------------------------------------------------------------
 -- 1. Agenda full render: 100 rows, cold start.
--- ---------------------------------------------------------------------------
 local agenda = require("organ.agenda")
 
 local ms_open = bench(function()
@@ -111,9 +107,7 @@ end, 5)
 print(string.format("       agenda.open(100 rows): %.2f ms", ms_open))
 check("perf: agenda.open with 100 rows < 80ms", ms_open < 80, string.format("got %.2f ms", ms_open))
 
--- ---------------------------------------------------------------------------
 -- 2. Identical refresh: no rows changed → must short-circuit.
--- ---------------------------------------------------------------------------
 agenda.open({ name = "perf" })
 local agenda_buf = vim.api.nvim_get_current_buf()
 
@@ -127,9 +121,7 @@ check(
   string.format("got %.2f ms", ms_identical)
 )
 
--- ---------------------------------------------------------------------------
 -- 3. Single-row toggle refresh: change one row's todo state.
--- ---------------------------------------------------------------------------
 local toggle_idx = 1
 local ms_toggle = bench(function()
   toggle_idx = toggle_idx + 1
@@ -145,9 +137,7 @@ check(
   string.format("got %.2f ms", ms_toggle)
 )
 
--- ---------------------------------------------------------------------------
 -- 4. Find backend item shaping (snacks): 500 rows.
--- ---------------------------------------------------------------------------
 local big_rows = {}
 for i = 1, 500 do
   big_rows[i] = {
@@ -176,9 +166,7 @@ check(
   string.format("got %.2f ms", ms_find)
 )
 
--- ---------------------------------------------------------------------------
 -- 5. Cite parse: 200 cites in a paragraph. Hot path during export.
--- ---------------------------------------------------------------------------
 local cite = require("organ.cite")
 local big_text = {}
 for i = 1, 200 do
@@ -192,10 +180,8 @@ end, 5)
 print(string.format("       cite.scan(200 cites): %.2f ms", ms_cite))
 check("perf: cite.scan 200 cites < 25ms", ms_cite < 25, string.format("got %.2f ms", ms_cite))
 
--- ---------------------------------------------------------------------------
 -- 6. Indexer single-file extract: 100-headline org file. Hot path on every
 --    save — must be fast enough that the user doesn't feel the lag.
--- ---------------------------------------------------------------------------
 local parser_path = require("organ.defaults").parser_path
 if vim.fn.filereadable(parser_path) == 1 then
   local doc_lines = {}
@@ -222,10 +208,8 @@ else
   print("       (indexer perf skipped: parser not installed)")
 end
 
--- ---------------------------------------------------------------------------
 -- 7. Query.headlines on a stub-backed dataset of 1000 rows. The pure
 --    iteration / row-shaping cost — DB cost is on top in real use.
--- ---------------------------------------------------------------------------
 local query_rows = {}
 for i = 1, 1000 do
   query_rows[i] = {

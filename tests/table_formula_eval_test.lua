@@ -19,7 +19,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Eval $2 * $3 in a row.
 do
   local rows = rows_from({ { "", "3", "4", "" } })
@@ -28,7 +27,6 @@ do
   assert_eq(v, 12)
 end
 
-----------------------------------------------------------------------
 -- Eval vsum($2..$3).
 do
   local rows = rows_from({ { "", "3", "4", "" } })
@@ -37,7 +35,6 @@ do
   assert_eq(v, 7)
 end
 
-----------------------------------------------------------------------
 -- Division by zero returns nil.
 do
   local rows = rows_from({ { "1", "0" } })
@@ -46,7 +43,6 @@ do
   assert_eq(v, nil)
 end
 
-----------------------------------------------------------------------
 -- Empty cell ref returns nil.
 do
   local rows = rows_from({ { "1", "" } })
@@ -55,7 +51,6 @@ do
   assert_eq(v, nil)
 end
 
-----------------------------------------------------------------------
 -- vmean over a column.
 do
   local rows = rows_from({ { "10" }, { "20" }, { "30" } })
@@ -64,7 +59,6 @@ do
   assert_eq(v, 20)
 end
 
-----------------------------------------------------------------------
 -- vmax / vmin / vlen.
 do
   local rows = rows_from({ { "1" }, { "5" }, { "" }, { "3" } })

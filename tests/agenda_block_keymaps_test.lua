@@ -98,7 +98,6 @@ assert_eq(vim.fn.foldclosed(first), -1, "<Tab> reopens the fold")
 
 vim.api.nvim_buf_delete(bufnr, { force = true })
 
-----------------------------------------------------------------------
 -- Probe (C1): line_index must not contain vim.NIL after vim.b round-trip.
 -- Pre-fix: encode_state only re-keyed block_starts, leaving line_index
 -- as a sparse integer-keyed table that vim.b pads with vim.NIL.
@@ -142,7 +141,6 @@ do
   vim.api.nvim_buf_delete(pb, { force = true })
 end
 
-----------------------------------------------------------------------
 -- Regression (I5): keymaps must not crash on non-row lines.
 -- Pre-fix: vim.NIL leaked through line_index for header/separator/
 -- placeholder lines; keymap callbacks did `if r then r.file_path` which
@@ -228,7 +226,6 @@ do
   vim.api.nvim_buf_delete(b2, { force = true })
 end
 
-----------------------------------------------------------------------
 -- / filter mutates title_match across ALL blocks.
 do
   seq = 0

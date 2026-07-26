@@ -54,10 +54,8 @@ require("organ").setup({
 
 local agenda = require("organ.agenda")
 
--- ---------------------------------------------------------------------------
 -- (a) "reuse" — default.  Window count unchanged; current window
 -- adopts the agenda buffer.
--- ---------------------------------------------------------------------------
 local before = #vim.api.nvim_list_wins()
 require("organ").config.agenda.window_setup = "reuse"
 require("organ").config.agenda.sticky = false -- always fresh buffer
@@ -71,9 +69,7 @@ check(
 check("reuse: agenda buffer is current", vim.api.nvim_get_current_buf() == b1)
 vim.api.nvim_buf_delete(b1, { force = true })
 
--- ---------------------------------------------------------------------------
 -- (b) "split-below" — adds a horizontal split.
--- ---------------------------------------------------------------------------
 local before_b = #vim.api.nvim_list_wins()
 require("organ").config.agenda.window_setup = "split-below"
 local b2 = agenda.open({ from = "today", to = "today", group_by = "none", types = { "scheduled" } })
@@ -85,9 +81,7 @@ check(
 )
 vim.api.nvim_buf_delete(b2, { force = true })
 
--- ---------------------------------------------------------------------------
 -- (c) "vsplit-right" — adds a vertical split.
--- ---------------------------------------------------------------------------
 local before_v = #vim.api.nvim_list_wins()
 require("organ").config.agenda.window_setup = "vsplit-right"
 local b3 = agenda.open({ from = "today", to = "today", group_by = "none", types = { "scheduled" } })
@@ -99,9 +93,7 @@ check(
 )
 vim.api.nvim_buf_delete(b3, { force = true })
 
--- ---------------------------------------------------------------------------
 -- (d) "tab" — opens in a new tab.
--- ---------------------------------------------------------------------------
 local tabs_before = #vim.api.nvim_list_tabpages()
 require("organ").config.agenda.window_setup = "tab"
 local b4 = agenda.open({ from = "today", to = "today", group_by = "none", types = { "scheduled" } })
@@ -114,10 +106,8 @@ check(
 vim.cmd("tabclose")
 vim.api.nvim_buf_delete(b4, { force = true })
 
--- ---------------------------------------------------------------------------
 -- (e) restore_windows_after_quit — open with split, close with `q`,
 -- expect the previous single-window layout to come back.
--- ---------------------------------------------------------------------------
 require("organ").config.agenda.window_setup = "split-below"
 require("organ").config.agenda.restore_windows_after_quit = true
 local before_r = #vim.api.nvim_list_wins()

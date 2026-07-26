@@ -67,10 +67,8 @@ end
 
 local id = require("organ.id")
 
--- ---------------------------------------------------------------------------
 -- (a) Explicit export: write to a target path, content is parseable
 --     s-expr alist with the expected ID strings.
--- ---------------------------------------------------------------------------
 local target = tmp .. "/explicit.locations"
 local path, n = id.export_locations(target)
 check("export returns the written path", path == target, tostring(path))
@@ -104,10 +102,8 @@ check(
   body
 )
 
--- ---------------------------------------------------------------------------
 -- (b) Auto-export hook fires after scan_done when id_locations_file
 --     is set in config.
--- ---------------------------------------------------------------------------
 local auto_target = tmp .. "/.org-id-locations"
 require("organ.id")._maybe_auto_export()
 local af = assert(io.open(auto_target, "r"))
@@ -118,9 +114,7 @@ check(
   auto_body:find("11111111", 1, true) ~= nil
 )
 
--- ---------------------------------------------------------------------------
 -- (c) No id_locations_file configured → export returns nil + error msg.
--- ---------------------------------------------------------------------------
 require("organ").config.links.id_locations_file = nil
 local p2, err = id.export_locations()
 check("nil id_locations_file: returns nil", p2 == nil)

@@ -21,7 +21,6 @@ local writer = require("organ.pdf.writer")
 
 local M = {}
 
-----------------------------------------------------------------------
 -- Inline flattening.
 
 -- Strip inline markup to plain text. Emphasis unwraps to its content;
@@ -52,7 +51,6 @@ local function emit_inline(nodes)
   return table.concat(out)
 end
 
-----------------------------------------------------------------------
 -- Body splitter for code-block / verse / example: preserve every source
 -- line including trailing empties. `gmatch("[^\n]*")` is unreliable for
 -- empty trailing lines; do it by hand.
@@ -74,7 +72,6 @@ local function split_lines(s)
   return out
 end
 
-----------------------------------------------------------------------
 -- AST dispatch.
 
 local render_block
@@ -178,7 +175,6 @@ render_block = function(node, ctx)
   -- footnote_definition, comment): drop silently for MVP.
 end
 
-----------------------------------------------------------------------
 -- Content stream emission.
 
 -- Hex-encode a string as 16-bit big-endian CIDs by mapping each UTF-8
@@ -241,7 +237,6 @@ local function build_content_stream(page_lines, font_names)
   return table.concat(parts, "\n")
 end
 
-----------------------------------------------------------------------
 -- Top-level: AST -> PDF bytes.
 
 -- Resolve a font: explicit `path` wins; otherwise font_search.find
@@ -357,7 +352,6 @@ function M.render(ast_root, opts)
   return doc:bytes()
 end
 
-----------------------------------------------------------------------
 -- Test hooks.
 
 M._emit_inline = emit_inline

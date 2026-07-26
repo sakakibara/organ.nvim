@@ -77,10 +77,8 @@ vim.cmd("edit " .. vim.fn.fnameescape(f2))
 vim.bo.filetype = "org"
 local origin_win = vim.api.nvim_get_current_win()
 
--- ---------------------------------------------------------------------------
 -- (a) Open: sidebar window appears; state populated; origin_win
 --     recorded as target.
--- ---------------------------------------------------------------------------
 sidebar.open()
 
 check("open: state.winid set", sidebar._state().winid ~= nil)
@@ -94,9 +92,7 @@ check(
 local sidebar_win = sidebar._state().winid
 local sidebar_buf = sidebar._state().bufnr
 
--- ---------------------------------------------------------------------------
 -- (b) The sidebar buffer is distinct from the user's editing buffer.
--- ---------------------------------------------------------------------------
 check(
   "sidebar window holds the sidebar buffer",
   vim.api.nvim_win_get_buf(sidebar_win) == sidebar_buf
@@ -106,11 +102,9 @@ check(
   vim.api.nvim_win_get_buf(origin_win) == vim.fn.bufnr(f2)
 )
 
--- ---------------------------------------------------------------------------
 -- (c) <CR> jump must NOT replace the sidebar buffer; it should land in
 --     the target window.  Find a row in the rendered text that points
 --     at note1 (which links to note2) and trigger <CR> on it.
--- ---------------------------------------------------------------------------
 local body = vim.api.nvim_buf_get_lines(sidebar_buf, 0, -1, false)
 local target_lnum
 -- Backlink entries render on two lines (title + location).  The
@@ -152,9 +146,7 @@ if target_lnum then
   )
 end
 
--- ---------------------------------------------------------------------------
 -- (d) Manual window close → state torn down.
--- ---------------------------------------------------------------------------
 vim.api.nvim_win_close(sidebar_win, true)
 -- WinClosed is scheduled; flush.
 vim.cmd("doautocmd WinClosed " .. tostring(sidebar_win))
@@ -168,24 +160,18 @@ check(
 )
 check("manual :close: state.bufnr cleared", sidebar._state().bufnr == nil)
 
--- ---------------------------------------------------------------------------
 -- (e) toggle: open then close idempotently.
--- ---------------------------------------------------------------------------
 sidebar.toggle()
 check("toggle from closed → open", sidebar._state().winid ~= nil)
 sidebar.toggle()
 check("toggle from open → closed", sidebar._state().winid == nil)
 
--- ---------------------------------------------------------------------------
 -- (f) close() called twice is a no-op (no error).
--- ---------------------------------------------------------------------------
 local ok = pcall(sidebar.close)
 check("close() on already-closed sidebar is a no-op", ok)
 
--- ---------------------------------------------------------------------------
 -- (g) Tab-local: opening in tab 1 leaves tab 2 alone.  Each tab has
 --     its own bufnr / winid; close on tab 1 doesn't affect tab 2.
--- ---------------------------------------------------------------------------
 do
   vim.cmd("tabnew " .. vim.fn.fnameescape(f2))
   vim.bo.filetype = "org"
@@ -222,10 +208,8 @@ do
   vim.cmd("tabclose")
 end
 
--- ---------------------------------------------------------------------------
 -- (h) Resize persistence: a user-driven resize is remembered across
 --     close + reopen on the same tab.
--- ---------------------------------------------------------------------------
 do
   vim.cmd("edit " .. vim.fn.fnameescape(f2))
   vim.bo.filetype = "org"

@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Column formula: $4=$2*$3 fills total for every body row.
 do
   local b = mk_buf({
@@ -40,7 +39,6 @@ do
   assert(lines[4]:find("| 15"), "row 4 total = 15: " .. lines[4])
 end
 
-----------------------------------------------------------------------
 -- Cell formula: @5$2=vsum(@3$1..@4$1).
 do
   local b = mk_buf({
@@ -58,7 +56,6 @@ do
   assert(lines[5]:find("| 3"), "row 5 col 2 = 3: " .. lines[5])
 end
 
-----------------------------------------------------------------------
 -- Multiple :: formulas applied in order.
 do
   local b = mk_buf({

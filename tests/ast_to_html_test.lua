@@ -20,7 +20,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local out = to_html.render(A.document({}))
   check("DOCTYPE present", out:find("<!DOCTYPE html>", 1, true) ~= nil, "got: " .. out)
@@ -29,7 +29,7 @@ do
   check("body present", out:find("<body>", 1, true) ~= nil)
 end
 
--- ---- title from TITLE directive --------------------------------------
+-- Title from TITLE directive
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),
@@ -43,7 +43,7 @@ do
   )
 end
 
--- ---- title fallback to first headline --------------------------------
+-- Title fallback to first headline
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("First Head") } }),
@@ -56,7 +56,7 @@ do
   )
 end
 
--- ---- headlines map to <hN> -------------------------------------------
+-- Headlines map to <hN>
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Top") } }),
@@ -69,7 +69,7 @@ do
   check("level 3 -> <h3>Deep</h3>", out:find("<h3>Deep</h3>", 1, true) ~= nil)
 end
 
--- ---- headline level clamps to 6 --------------------------------------
+-- Headline level clamps to 6
 do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
@@ -78,7 +78,7 @@ do
   check("level 9 clamps to <h6>", out:find("<h6>Way deep</h6>", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- paragraph wrapped in <p>...</p> ---------------------------------
+-- Paragraph wrapped in <p>...</p>
 do
   local doc = A.document({
     A.paragraph({ A.text("Hello world.") }),
@@ -87,7 +87,7 @@ do
   check("paragraph wrapped in <p>", out:find("<p>Hello world.</p>", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- emphasis (6 styles) ---------------------------------------------
+-- Emphasis (6 styles)
 do
   local doc = A.document({
     A.paragraph({
@@ -114,7 +114,7 @@ do
   check("code -> <code>", out:find("<code>C</code>", 1, true) ~= nil)
 end
 
--- ---- inline link -----------------------------------------------------
+-- Inline link
 do
   local doc = A.document({
     A.paragraph({
@@ -136,7 +136,7 @@ do
   )
 end
 
--- ---- inline image ---------------------------------------------------
+-- Inline image
 do
   local doc = A.document({
     A.paragraph({
@@ -168,7 +168,7 @@ do
   )
 end
 
--- ---- math: inline + display + MathJax loader -------------------------
+-- Math: inline + display + MathJax loader
 do
   local doc = A.document({
     A.paragraph({
@@ -197,7 +197,7 @@ do
   check("no math -> head omits mathjax", out:find("mathjax", 1, true) == nil, "got: " .. out)
 end
 
--- ---- HTML escaping --------------------------------------------------
+-- HTML escaping
 do
   local doc = A.document({
     A.paragraph({ A.text('<script>alert("x" & "y")</script>') }),
@@ -214,7 +214,7 @@ do
   )
 end
 
--- ---- minimal_style = false drops <style> ----------------------------
+-- minimal_style = false drops <style>
 do
   local doc = A.document({
     A.paragraph({ A.text("body") }),
@@ -223,7 +223,7 @@ do
   check("minimal_style=false omits <style>", out:find("<style>", 1, true) == nil, "got: " .. out)
 end
 
--- ---- linebreak -> <br> ----------------------------------------------
+-- Linebreak -> <br>
 do
   local doc = A.document({
     A.paragraph({
@@ -236,7 +236,7 @@ do
   check("linebreak emits <br>", out:find("first<br>second", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- list (unordered) ------------------------------------------------
+-- List (unordered)
 do
   local doc = A.document({
     A.list(false, {
@@ -251,7 +251,7 @@ do
   check("item 2 in <li>", out:find("<li>two</li>", 1, true) ~= nil)
 end
 
--- ---- list (ordered) --------------------------------------------------
+-- List (ordered)
 do
   local doc = A.document({
     A.list(true, {
@@ -264,7 +264,7 @@ do
   check("closing </ol>", out:find("</ol>", 1, true) ~= nil)
 end
 
--- ---- list with checkboxes -------------------------------------------
+-- List with checkboxes
 do
   local doc = A.document({
     A.list(false, {
@@ -287,7 +287,7 @@ do
   check("b item content rendered", out:find("b</li>", 1, true) ~= nil)
 end
 
--- ---- nested list ----------------------------------------------------
+-- Nested list
 do
   local doc = A.document({
     A.list(false, {
@@ -310,7 +310,7 @@ do
   check("inner item still rendered", out:find("inner", 1, true) ~= nil)
 end
 
--- ---- code_block (with language) -------------------------------------
+-- code_block (with language)
 do
   local doc = A.document({
     A.code_block("python", 'print("hi")'),
@@ -325,7 +325,7 @@ do
   check("closing tags", out:find("</code></pre>", 1, true) ~= nil)
 end
 
--- ---- code_block (no language) ---------------------------------------
+-- code_block (no language)
 do
   local doc = A.document({
     A.code_block(nil, "raw"),
@@ -343,7 +343,7 @@ do
   )
 end
 
--- ---- block: example -------------------------------------------------
+-- Block: example
 do
   local doc = A.document({
     A.block("example", { body = "raw <text>" }),
@@ -357,7 +357,7 @@ do
   check("example body escaped", out:find("raw &lt;text&gt;", 1, true) ~= nil)
 end
 
--- ---- block: verse ---------------------------------------------------
+-- Block: verse
 do
   local doc = A.document({
     A.block("verse", { body = "verse 1\nverse 2" }),
@@ -366,7 +366,7 @@ do
   check("verse uses <pre>", out:find("<pre>verse 1\nverse 2</pre>", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- block: quote ---------------------------------------------------
+-- Block: quote
 do
   local doc = A.document({
     A.block("quote", {
@@ -388,7 +388,7 @@ do
   )
 end
 
--- ---- block: export (dropped) ----------------------------------------
+-- Block: export (dropped)
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -403,7 +403,7 @@ do
   )
 end
 
--- ---- table with header divider --------------------------------------
+-- Table with header divider
 do
   local doc = A.document({
     {
@@ -427,7 +427,7 @@ do
   check("<td>36</td>", out:find("<td>36</td>", 1, true) ~= nil)
 end
 
--- ---- table with no header divider ----------------------------------
+-- Table with no header divider
 do
   local doc = A.document({
     {
@@ -445,7 +445,7 @@ do
   check("data row 1 as <td>", out:find("<td>a</td>", 1, true) ~= nil)
 end
 
--- ---- table with mid-table sep (extra sep dropped) -------------------
+-- Table with mid-table sep (extra sep dropped)
 do
   local doc = A.document({
     {
@@ -468,7 +468,7 @@ do
   )
 end
 
--- ---- table cell content escaped -------------------------------------
+-- Table cell content escaped
 do
   local doc = A.document({
     {
@@ -483,7 +483,7 @@ do
   check("cell content escaped", out:find("<td>&lt;x&gt;</td>", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- block-level image ----------------------------------------------
+-- Block-level image
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -502,7 +502,7 @@ do
   )
 end
 
--- ---- block-level image with no alt (fallback to target) -------------
+-- Block-level image with no alt (fallback to target)
 do
   local doc = A.document({ { kind = "image", target = "x.png" } })
   local out = to_html.render(doc)
@@ -513,7 +513,7 @@ do
   )
 end
 
--- ---- horizontal rule ------------------------------------------------
+-- Horizontal rule
 do
   local doc = A.document({
     A.paragraph({ A.text("above") }),
@@ -524,7 +524,7 @@ do
   check("rule renders as <hr>", out:find("<hr>", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- footnote_definition --------------------------------------------
+-- footnote_definition
 do
   local doc = A.document({
     A.paragraph({
@@ -544,7 +544,7 @@ do
   check("footnote body present", out:find("the footnote body", 1, true) ~= nil)
 end
 
--- ---- multi-paragraph footnote --------------------------------------
+-- Multi-paragraph footnote
 do
   local doc = A.document({
     A.footnote_definition("note", {
@@ -564,7 +564,7 @@ do
   )
 end
 
--- ---- directive dropped ---------------------------------------------
+-- Directive dropped
 do
   local doc = A.document({
     A.directive("TITLE", "ignored title"),

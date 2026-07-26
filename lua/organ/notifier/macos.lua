@@ -27,7 +27,7 @@ local TICK_LABEL = "sh.organ.tick"
 local LEGACY_PFX = "sh.organ.reminder." -- old per-reminder agents (cleanup)
 local BUNDLE_ID = "sh.organ.notifier"
 
--- Paths ---------------------------------------------------------------------
+-- Paths
 
 local function home()
   return vim.uv.os_homedir() or os.getenv("HOME")
@@ -70,7 +70,7 @@ local function source_swift()
   return hits[1]
 end
 
--- Bundle install ------------------------------------------------------------
+-- Bundle install
 
 local INFO_PLIST = [[<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -403,7 +403,7 @@ function M.install_bundle()
   return ensure_bundle()
 end
 
--- Tick agent ----------------------------------------------------------------
+-- Tick agent
 
 local function escape_xml(s)
   s = tostring(s or "")
@@ -722,7 +722,7 @@ M._tick_plist_body = tick_plist_body
 M._notify_script = NOTIFY_FALLBACK_SH
 M._info_plist = INFO_PLIST
 
--- Status / diagnose ---------------------------------------------------------
+-- Status / diagnose
 
 function M.status()
   local function which(cmd)
@@ -871,7 +871,7 @@ function M.diagnose()
   return out
 end
 
--- Safe uninstall ------------------------------------------------------------
+-- Safe uninstall
 
 -- Removes the tick agent + every legacy per-reminder agent + the bundle
 -- + deregisters from LaunchServices. Refuses to delete a SYMLINK at the

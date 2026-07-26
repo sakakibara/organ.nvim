@@ -23,7 +23,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- move_subtree_up swaps with previous sibling, preserving body content.
 do
   local b = mk_buf({
@@ -43,7 +42,6 @@ do
   assert_eq(out[5], "** A1")
 end
 
-----------------------------------------------------------------------
 -- move_subtree_down swaps with next sibling.
 do
   local b = mk_buf({
@@ -61,7 +59,6 @@ do
   assert_eq(out[4], "* C")
 end
 
-----------------------------------------------------------------------
 -- move_subtree_up at first sibling errors.
 do
   local b = mk_buf({ "* A", "* B" })
@@ -70,7 +67,6 @@ do
   assert_eq(get_lines(b)[1], "* A", "buffer unchanged")
 end
 
-----------------------------------------------------------------------
 -- move_subtree_down at last sibling errors.
 do
   local b = mk_buf({ "* A", "* B" })
@@ -79,7 +75,6 @@ do
   assert_eq(get_lines(b)[2], "* B")
 end
 
-----------------------------------------------------------------------
 -- move with sub-headlines preserves nested structure.
 do
   local b = mk_buf({
@@ -98,7 +93,6 @@ do
   assert_eq(out[5], "** A2")
 end
 
-----------------------------------------------------------------------
 -- Blank lines between siblings survive the swap (one of the user-visible
 -- bugs we're fixing: the separator used to collapse on each move).
 do
@@ -157,7 +151,6 @@ do
   assert_eq(out[6], "body A")
 end
 
-----------------------------------------------------------------------
 -- Cursor follows the moved subtree (matches Emacs behavior).
 do
   local b = mk_buf({

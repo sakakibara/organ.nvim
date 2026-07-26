@@ -19,7 +19,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Cursor on headline line returns that headline.
 do
   local b = mk_buf({ "* A", "  body", "** A1", "* B" })
@@ -30,7 +29,6 @@ do
   assert_eq(hl.title_text, "A")
 end
 
-----------------------------------------------------------------------
 -- Cursor on body text resolves to containing headline.
 do
   local b = mk_buf({ "* A", "  body", "  more body", "** A1" })
@@ -38,7 +36,6 @@ do
   assert_eq(hl.line, 1, "body resolves to parent headline")
 end
 
-----------------------------------------------------------------------
 -- Cursor on sub-headline returns sub-headline (the one it's actually on).
 do
   local b = mk_buf({ "* A", "** A1", "   sub body" })
@@ -47,7 +44,6 @@ do
   assert_eq(hl.level, 2)
 end
 
-----------------------------------------------------------------------
 -- Cursor before any headline returns nil.
 do
   local b = mk_buf({ "before any heading", "* A" })
@@ -55,7 +51,6 @@ do
   assert_eq(hl, nil, "no enclosing headline")
 end
 
-----------------------------------------------------------------------
 -- Subtree end calculation.
 do
   local b = mk_buf({ "* A", "  body", "** A1", "   x", "** A2", "* B" })
@@ -64,7 +59,6 @@ do
   assert_eq(subtree_end, 5, "subtree of A ends at line 5 (last A2 body line)")
 end
 
-----------------------------------------------------------------------
 -- Subtree end at end of buffer.
 do
   local b = mk_buf({ "* A", "** A1" })

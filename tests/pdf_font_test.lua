@@ -53,7 +53,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. font.load + name extraction.
 
 local f, err = font.load(ttf_path)
@@ -77,7 +76,6 @@ check(
 check("font:gid is callable", type(f.gid) == "function")
 check("font:width is callable", type(f.width) == "function")
 
-----------------------------------------------------------------------
 -- 2. cmap lookup behaviour.
 
 local gid_A = f:gid(0x41) -- 'A'
@@ -93,7 +91,6 @@ check("gid for U+FFFE (unmapped) is 0", gid_notdef == 0, ("got %s"):format(tostr
 local gid_space = f:gid(0x20)
 check("gid for U+0020 (space) is non-zero", type(gid_space) == "number" and gid_space > 0)
 
-----------------------------------------------------------------------
 -- 3. width lookup.
 
 local w_A = f:width(gid_A)
@@ -107,7 +104,6 @@ check(
 local w_notdef = f:width(0)
 check("width for gid 0 (.notdef) returns a number", type(w_notdef) == "number")
 
-----------------------------------------------------------------------
 -- 4. Embed into a writer and inspect the produced bytes.
 
 local w = writer.new()
@@ -135,7 +131,6 @@ check(
   bytes:find("/CIDToGIDMap /Identity", 1, true) ~= nil
 )
 
-----------------------------------------------------------------------
 -- 5. /FontFile2 stream's /Length1 equals the on-disk TTF size.
 
 local ttf_size = vim.uv.fs_stat(ttf_path).size
@@ -145,7 +140,6 @@ check(
   ("did not find /Length1 %d in output"):format(ttf_size)
 )
 
-----------------------------------------------------------------------
 -- 6. ToUnicode CMap contains expected PostScript-flavoured CMap markers.
 
 check("ToUnicode contains beginbfchar", bytes:find("beginbfchar", 1, true) ~= nil)
@@ -156,12 +150,10 @@ check(
   bytes:find("/Ordering %(UCS%)") ~= nil
 )
 
-----------------------------------------------------------------------
 -- 7. CIDFontType2 W array is present.
 
 check("CIDFontType2 carries a /W array", bytes:find("/W [", 1, true) ~= nil)
 
-----------------------------------------------------------------------
 -- 8. /BaseFont uses the (sanitized) PostScript name.
 
 local pat = "/BaseFont /" .. f.postscript_name:gsub("([%-%.%+%*%?%[%]%^%$%(%)%%])", "%%%1")
@@ -172,7 +164,6 @@ check(
   ("looking for: %s"):format(pat)
 )
 
-----------------------------------------------------------------------
 -- 9. Cmap pair sanity: pair count > 0 and ToUnicode has at least one
 -- bfchar entry mapping a gid to a hex codepoint.
 
@@ -180,8 +171,6 @@ check(
   "ToUnicode contains at least one <hex> <hex> bfchar entry",
   bytes:find("<%x%x%x%x>%s+<%x%x%x%x>") ~= nil
 )
-
-----------------------------------------------------------------------
 
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then

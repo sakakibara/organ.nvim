@@ -45,9 +45,7 @@ package.loaded["snacks.picker"] = _G.Snacks.picker
 package.loaded["organ.find.backends.snacks"] = nil
 local backend = require("organ.find.backends.snacks")
 
--- ---------------------------------------------------------------------------
 -- 1. Item-shape translation: file_path -> file, line_start -> pos.
--- ---------------------------------------------------------------------------
 local items = {
   {
     title = "Buy groceries",
@@ -93,14 +91,10 @@ check(
 check("items[2].file preserved when already set", items[2].file == "/x/notes.org")
 check("items[2].pos preserved when already set", items[2].pos[1] == 10)
 
--- ---------------------------------------------------------------------------
 -- 2. Title forwarded.
--- ---------------------------------------------------------------------------
 check("title forwarded to snacks", recorded.title == "Find")
 
--- ---------------------------------------------------------------------------
 -- 3. Keymaps registered under win.input.keys with action names.
--- ---------------------------------------------------------------------------
 local keys = recorded.win and recorded.win.input and recorded.win.input.keys
 check("win.input.keys present", type(keys) == "table")
 check(
@@ -132,21 +126,17 @@ check(
   refile_keys and refile_keys["<C-s>"] and refile_keys["<C-s>"][1] == "split"
 )
 
--- ---------------------------------------------------------------------------
 -- 4. actions.confirm aliases the default action.  snacks routes <CR>
 --    through `confirm` on some versions; without this alias, pressing
 --    Enter would silently fall back to snacks's built-in jump (which
 --    doesn't know our item shape).
--- ---------------------------------------------------------------------------
 check("actions.confirm registered", type(recorded.actions.confirm) == "function")
 
--- ---------------------------------------------------------------------------
 -- 5. Action invocation: simulate <CR>; the adapter must close the
 --    picker BEFORE running the action so :edit / etc. lands in the
 --    user's window, not the picker window.  We reset and re-invoke
 --    backend.pick with a NEW jump fn that observes the close state
 --    at the moment it runs.
--- ---------------------------------------------------------------------------
 local close_called = false
 local close_observed_in_action = nil
 local jumped_in_action
@@ -174,11 +164,9 @@ check("picker closed during action invocation path", close_called)
 check("close happened BEFORE the user's action fn ran", close_observed_in_action == true)
 check("default action received the picked item", jumped_in_action == items[1])
 
--- ---------------------------------------------------------------------------
 -- 6. Top-level `confirm` mirrors actions.confirm: close picker, then
 --    invoke the default action.  snacks routes <CR> through this
 --    callback in some versions.
--- ---------------------------------------------------------------------------
 close_called = false
 close_observed_in_action = nil
 local confirm_jumped_to
@@ -206,10 +194,8 @@ check("top-level confirm closes picker", close_called)
 check("top-level confirm fires action AFTER close", close_observed_in_action == true)
 check("top-level confirm passes the picked item to action", confirm_jumped_to == items[2])
 
--- ---------------------------------------------------------------------------
 -- 7. Format function: passes through display_segments when present,
 --    falls back to single { display } pair otherwise.
--- ---------------------------------------------------------------------------
 local seg_item = { display = "fallback", display_segments = { { "[T]", "Type" }, { "title" } } }
 local plain_item = { display = "just text" }
 check(

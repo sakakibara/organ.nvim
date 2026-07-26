@@ -76,11 +76,9 @@ local function get_lines(b)
   return vim.api.nvim_buf_get_lines(b, 0, -1, false)
 end
 
--- -------------------------------------------------------------------------
 -- 1. Fixpoint idempotency: format(format(x)) == format(x).
 --    Canonical section: SCHEDULED / DEADLINE / CLOSED one-per-line,
 --    property drawer, LOGBOOK -- all already in order.
--- -------------------------------------------------------------------------
 do
   local input = {
     "* TODO Idempotency check",
@@ -121,10 +119,8 @@ do
   end)
 end
 
--- -------------------------------------------------------------------------
 -- 2. Repair: property drawer placed BEFORE the planning line.
 --    After format_buffer, SCHEDULED appears above :PROPERTIES:.
--- -------------------------------------------------------------------------
 do
   local input = {
     "* TODO Repair test",
@@ -182,13 +178,11 @@ do
   end)
 end
 
--- -------------------------------------------------------------------------
 -- 3. No-op on already-canonical: a simple canonical section
 --    (headline + SCHEDULED + :PROPERTIES:/:ID:/:END:) is byte-identical
 --    after format_buffer.  No tags to realign; quiet_format_cfg disables
 --    tag alignment and prose rewrap so the only thing that could change is
 --    the section order pass.
--- -------------------------------------------------------------------------
 do
   local canonical = {
     "* TODO Already canonical",
@@ -238,10 +232,8 @@ do
   end)
 end
 
--- -------------------------------------------------------------------------
 -- 4. Disabled knob: with format.section.normalize = false, the
 --    property-before-planning buffer is NOT reordered.
--- -------------------------------------------------------------------------
 do
   local input = {
     "* TODO Knob disabled",

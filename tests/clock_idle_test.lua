@@ -22,7 +22,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- subtract_idle moves active clock's start_ts forward.
 do
   -- Manually seed an active clock.
@@ -35,7 +34,6 @@ do
   assert_eq(s.active.start_ts, 1120, "start_ts moved forward by 120 seconds")
 end
 
-----------------------------------------------------------------------
 -- subtract_idle with no active clock returns error.
 do
   state.clear()
@@ -43,7 +41,6 @@ do
   assert(err and err:find("no active"), "got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- idle.start with nil/0 threshold is a no-op.
 do
   local idle = require("organ.clock.idle")
@@ -55,7 +52,6 @@ do
   assert(not ok, "no autocmd group when threshold is nil")
 end
 
-----------------------------------------------------------------------
 -- idle.start with threshold registers autocmds + timer.
 do
   local idle = require("organ.clock.idle")
@@ -66,7 +62,6 @@ do
   idle.stop() -- cleanup
 end
 
-----------------------------------------------------------------------
 -- Threshold reached: prompt-handler "Subtract" path adjusts state.
 do
   state.save({

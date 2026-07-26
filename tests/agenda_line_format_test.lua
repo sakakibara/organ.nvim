@@ -66,7 +66,6 @@ do
   assert(joined:find("26 April 2026", 1, true), "header row should still appear:\n" .. joined)
 end
 
-----------------------------------------------------------------------
 -- A line_format that raises falls back to the default formatter for
 -- that row; render does not crash. The error is recorded for surfacing.
 do

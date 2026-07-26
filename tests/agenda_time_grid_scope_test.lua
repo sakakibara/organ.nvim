@@ -89,7 +89,7 @@ local function render(scope)
   return out.lines
 end
 
--- ---- scope = "today" ----
+-- scope = "today"
 do
   local lines = render("today")
   -- Find the index of each date header so we can scope the grid search.
@@ -121,7 +121,7 @@ do
   check("scope='today': NO grid lines INSIDE Monday bucket", not has_grid_between(mon_idx))
 end
 
--- ---- scope = "all" ----
+-- scope = "all"
 do
   local lines = render("all")
   local sun_idx, mon_idx
@@ -146,7 +146,7 @@ do
   check("scope='all': grid lines INSIDE Monday bucket too", has_grid_between(mon_idx))
 end
 
--- ---- time_grid disabled ----
+-- time_grid disabled
 do
   require("organ").config.agenda.time_grid = false
   local out = agenda.render({

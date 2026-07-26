@@ -12,7 +12,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Parse $4=$2*$3 → one col_formula with binop.
 do
   local out = f.parse("$4=$2*$3")
@@ -28,7 +27,6 @@ do
   assert_eq(e.right.col, 3)
 end
 
-----------------------------------------------------------------------
 -- Parse @5$4=vsum($1..$3) → cell_formula with call(vsum, range).
 do
   local out = f.parse("@5$4=vsum($1..$3)")
@@ -44,7 +42,6 @@ do
   assert_eq(e.arg.to.col, 3)
 end
 
-----------------------------------------------------------------------
 -- Parse $1=1 :: $2=2 → two formulas.
 do
   local out = f.parse("$1=1 :: $2=2")
@@ -53,7 +50,6 @@ do
   assert_eq(out[2].col, 2)
 end
 
-----------------------------------------------------------------------
 -- Parse range @2$4..@5$4.
 do
   local out = f.parse("@2$4=@2$4..@5$4") -- silly LHS, but valid syntax for testing
@@ -68,7 +64,6 @@ do
   assert_eq(rng.to.col, 4)
 end
 
-----------------------------------------------------------------------
 -- Parse error: unbalanced parens raises.
 do
   local ok, err = pcall(f.parse, "$1=vsum($2..$3")
@@ -79,7 +74,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Parse @4=42 → row_formula.
 do
   local out = f.parse("@4=42")

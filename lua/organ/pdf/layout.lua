@@ -12,7 +12,6 @@
 
 local M = {}
 
-----------------------------------------------------------------------
 -- UTF-8 codepoint iterator. Returns successive codepoints from a Lua
 -- string. Continuation bytes encountered alone fall through as raw
 -- byte values (latin-1) -- defensive against malformed input.
@@ -71,7 +70,6 @@ local function split_words(s)
   return out
 end
 
-----------------------------------------------------------------------
 -- Layout state machine.
 
 local Layout = {}
@@ -175,7 +173,6 @@ function Layout:_advance(font_size, factor)
   end
 end
 
-----------------------------------------------------------------------
 -- Public surface.
 
 function Layout:add_paragraph(text, style)
@@ -266,7 +263,6 @@ function Layout:finish()
   return { pages = self.pages }
 end
 
-----------------------------------------------------------------------
 -- Exposed helpers for the test suite.
 
 M._measure = measure

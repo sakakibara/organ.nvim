@@ -24,9 +24,7 @@ require("organ").setup({
 
 local todo = require("organ.todo")
 
--- ---------------------------------------------------------------------------
 -- File with `#+TODO:` directive uses the directive, not the global config.
--- ---------------------------------------------------------------------------
 local b = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b, 0, -1, false, {
   "#+TODO: NEW DOING | SHIPPED",
@@ -55,9 +53,7 @@ check(
 
 vim.api.nvim_buf_delete(b, { force = true })
 
--- ---------------------------------------------------------------------------
 -- Multiple `#+TODO:` lines accumulate as multi-sequence.
--- ---------------------------------------------------------------------------
 local b2 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b2, 0, -1, false, {
   "#+TODO: TODO PROG | DONE",
@@ -85,9 +81,7 @@ check(
 
 vim.api.nvim_buf_delete(b2, { force = true })
 
--- ---------------------------------------------------------------------------
 -- No `#+TODO:` directive falls back to global config.
--- ---------------------------------------------------------------------------
 local b3 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b3, 0, -1, false, { "* TODO Plain task" })
 vim.bo[b3].filetype = "org"
@@ -103,9 +97,7 @@ check(
 
 vim.api.nvim_buf_delete(b3, { force = true })
 
--- ---------------------------------------------------------------------------
 -- Annotated keywords in directive: `#+TODO: TODO(t!) | DONE(d)`.
--- ---------------------------------------------------------------------------
 local b4 = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_lines(b4, 0, -1, false, {
   "#+TODO: TODO(t!) WAIT(w@) | DONE(d!)",

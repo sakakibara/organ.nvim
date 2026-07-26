@@ -20,7 +20,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- show_todo populates vim.b.organ_sparse.visible.
 do
   local b = mk_buf({ "* TODO X", "* Y" })
@@ -31,7 +30,6 @@ do
   assert_eq(s.visible[2], nil)
 end
 
-----------------------------------------------------------------------
 -- clear removes state.
 do
   local b = mk_buf({ "* TODO X" })
@@ -41,7 +39,6 @@ do
   assert_eq(vim.b[b].organ_sparse, nil, "state cleared")
 end
 
-----------------------------------------------------------------------
 -- show_regex matches headline title.
 do
   local b = mk_buf({ "* hello world", "* foo" })
@@ -51,7 +48,6 @@ do
   assert_eq(s.visible[2], nil)
 end
 
-----------------------------------------------------------------------
 -- show_tag matches.
 do
   local b = mk_buf({ "* A :work:", "* B :home:" })
@@ -61,7 +57,6 @@ do
   assert_eq(s.visible[2], nil)
 end
 
-----------------------------------------------------------------------
 -- property predicate via the tree-sitter path: the drawer is a DIRECT
 -- child of headline in the grammar.
 do

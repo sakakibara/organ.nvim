@@ -134,9 +134,7 @@ local row_d = find_line("Untagged plain heading")
 
 check("snapshot: each headline gets a line", row_a and row_b and row_c and row_d)
 
--- ---------------------------------------------------------------------------
 -- Format invariants (text-level)
--- ---------------------------------------------------------------------------
 check("format: two-space left indent", row_a:sub(1, 2) == "  ", "got `" .. row_a:sub(1, 4) .. "`")
 
 -- Category prefix on the left with trailing colon (Emacs `%-12:c`
@@ -196,9 +194,7 @@ check(
   "got `" .. row_d .. "`"
 )
 
--- ---------------------------------------------------------------------------
 -- Highlight invariants (extmark-level)
--- ---------------------------------------------------------------------------
 local NS = vim.api.nvim_get_namespaces()["organ-agenda"]
 check("snapshot: organ-agenda namespace registered", NS ~= nil)
 
@@ -238,11 +234,9 @@ check(
 )
 check("hl: tag column uses @organ.agenda.tag", (hl_groups["@organ.agenda.tag"] or 0) >= 1)
 
--- ---------------------------------------------------------------------------
 -- Highlight groups have catppuccin/native fallbacks (link-with-default)
 -- so the agenda is never unstyled when the user's colorscheme doesn't
 -- define them.
--- ---------------------------------------------------------------------------
 for _, g in ipairs({
   "@organ.agenda.priority_A",
   "@organ.agenda.priority_B",

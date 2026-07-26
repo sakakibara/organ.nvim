@@ -38,9 +38,7 @@ local function probe(line, col_1based)
   return cite.trigger_at_cursor(buf)
 end
 
--- ---------------------------------------------------------------------------
 -- trigger_at_cursor — the completion source dispatch point.
--- ---------------------------------------------------------------------------
 do
   -- Cursor at col 11 = byte index 10 (0-based). "[cite:@knu" is 10 chars,
   -- so cursor lands ON the position past 'u'. Trailing space gives us a
@@ -95,9 +93,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- completion_items — filtering, sorting, item shape.
--- ---------------------------------------------------------------------------
 local tmp_bib = vim.fn.tempname() .. ".bib"
 do
   local fd = io.open(tmp_bib, "w")
@@ -191,9 +187,7 @@ do
   vim.fn.delete(dup_bib)
 end
 
--- ---------------------------------------------------------------------------
 -- find_bibliographies / find_cite_export — directive scanning.
--- ---------------------------------------------------------------------------
 do
   local text = [[
 #+TITLE: Notes

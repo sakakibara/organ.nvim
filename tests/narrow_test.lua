@@ -40,10 +40,8 @@ local function make_buf(lines)
   return b
 end
 
--- ---------------------------------------------------------------------------
 -- (a) :Org narrow_to_subtree on a top-level headline narrows to that
 -- subtree (line 1 through end of section, before the next sibling).
--- ---------------------------------------------------------------------------
 do
   local b = make_buf({
     "* Top level headline",
@@ -70,10 +68,8 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (b) :Org narrow_to_subtree on a sub-headline narrows to just that
 -- subtree (not its parent).
--- ---------------------------------------------------------------------------
 do
   local b = make_buf({
     "* Parent",
@@ -99,9 +95,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (c) :Org narrow_to_subtree on a non-headline line is a no-op (warns).
--- ---------------------------------------------------------------------------
 do
   local b = make_buf({
     "  this is a body line, no headline",
@@ -113,9 +107,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (d) Narrow + widen cycle is idempotent.
--- ---------------------------------------------------------------------------
 do
   local b = make_buf({
     "* Headline One",

@@ -60,9 +60,7 @@ require("organ.agenda").resolve_agenda_files = function(spec)
   return { spec }
 end
 
--- ---------------------------------------------------------------------------
 -- (a) No `refile.targets`: filter is empty (every indexed headline).
--- ---------------------------------------------------------------------------
 require("organ").config.refile = nil
 captured = nil
 cmd.OrgRefile()
@@ -72,9 +70,7 @@ check(
   "filter: " .. vim.inspect(captured and captured.filter)
 )
 
--- ---------------------------------------------------------------------------
 -- (b) `targets = { { files = "agenda_files", max_level = 3 } }`.
--- ---------------------------------------------------------------------------
 require("organ").config.refile = {
   targets = { { files = "agenda_files", max_level = 3 } },
 }
@@ -95,9 +91,7 @@ check(
   "filter.level: " .. vim.inspect(captured and captured.filter.level)
 )
 
--- ---------------------------------------------------------------------------
 -- (c) Multiple rules union.
--- ---------------------------------------------------------------------------
 require("organ").config.refile = {
   targets = {
     { files = { "/tmp/notes.org" }, max_level = 2 },
@@ -120,10 +114,8 @@ check(
   "filter.level: " .. vim.inspect(captured.filter.level)
 )
 
--- ---------------------------------------------------------------------------
 -- (d) `use_outline_path = "file"` — picker columns include `path`,
 -- not `breadcrumb`.
--- ---------------------------------------------------------------------------
 require("organ").config.refile = { use_outline_path = "file" }
 captured = nil
 cmd.OrgRefile()
@@ -142,9 +134,7 @@ check(
   "cols: " .. vim.inspect(captured.columns)
 )
 
--- ---------------------------------------------------------------------------
 -- (e) `use_outline_path = "outline"` (default) — breadcrumb column.
--- ---------------------------------------------------------------------------
 require("organ").config.refile = { use_outline_path = "outline" }
 captured = nil
 cmd.OrgRefile()

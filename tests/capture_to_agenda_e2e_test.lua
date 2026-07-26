@@ -66,9 +66,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Capture: start with a programmatic template, finalize, file appended.
--- ---------------------------------------------------------------------------
 local capture = require("organ.capture")
 
 do
@@ -113,11 +111,9 @@ check(
   new_heading_idx and lines_after_capture[new_heading_idx + 1] == "  captured body"
 )
 
--- ---------------------------------------------------------------------------
 -- 2. Indexer picks up the change → query.headlines includes it.
 -- capture.finalise writes via low-level file ops; without the watcher the
 -- file change isn't auto-enqueued. Re-walk the org_dir explicitly.
--- ---------------------------------------------------------------------------
 require("organ").scan_blocking(org_dir, 5000)
 
 local query = require("organ.query")
@@ -138,9 +134,7 @@ check(
 )
 check("indexer: stored todo_state is TODO", found_in_index and found_in_index.todo_state == "TODO")
 
--- ---------------------------------------------------------------------------
 -- 3. Agenda lists the new heading.
--- ---------------------------------------------------------------------------
 require("organ").config.agenda = require("organ").config.agenda or {}
 require("organ").config.agenda.views = require("organ").config.agenda.views or {}
 require("organ").config.agenda.views.t = {
@@ -174,9 +168,7 @@ check(
   "agenda lines:\n" .. table.concat(agenda_lines, "\n")
 )
 
--- ---------------------------------------------------------------------------
 -- 4. Toggle TODO via agenda — `t` keymap → state cycles → file writes back
--- ---------------------------------------------------------------------------
 do
   vim.api.nvim_win_set_cursor(0, { agenda_lnum, 0 })
   -- Trigger the `t` mapping via feedkeys.
@@ -199,9 +191,7 @@ check(
   "got " .. tostring(toggled_heading)
 )
 
--- ---------------------------------------------------------------------------
 -- 5. Re-index → agenda re-render → reflects new state.
--- ---------------------------------------------------------------------------
 require("organ").scan_blocking(org_dir, 5000)
 agenda.refresh(agenda_buf)
 local agenda_lines2 = vim.api.nvim_buf_get_lines(agenda_buf, 0, -1, false)

@@ -6,7 +6,6 @@ dofile(root .. "/tests/_bootstrap.lua")
 
 local events = require("organ.events")
 
-----------------------------------------------------------------------
 -- on / emit round-trip.
 do
   events.clear()
@@ -20,7 +19,6 @@ do
   assert(got[1].value == 1 and got[2].value == 2)
 end
 
-----------------------------------------------------------------------
 -- Multiple listeners on the same event.
 do
   events.clear()
@@ -35,7 +33,6 @@ do
   assert(a == 1 and b == 1, "both listeners should fire")
 end
 
-----------------------------------------------------------------------
 -- off() removes a specific listener.
 do
   events.clear()
@@ -52,7 +49,6 @@ do
   assert(a == 0 and b == 1, "off should only remove fn_a")
 end
 
-----------------------------------------------------------------------
 -- pcall isolation: a raising listener doesn't kill others.
 do
   events.clear()
@@ -67,7 +63,6 @@ do
   assert(reached, "second listener should still fire despite first raising")
 end
 
-----------------------------------------------------------------------
 -- clear() empties all listeners by default; clear(event) empties one.
 do
   events.clear()
@@ -87,14 +82,12 @@ do
   assert(b == 1) -- no additional increment
 end
 
-----------------------------------------------------------------------
 -- emit on unknown event is a no-op (not an error).
 do
   events.clear()
   events.emit("nonexistent", { any = "payload" }) -- must not raise
 end
 
-----------------------------------------------------------------------
 -- Integration: indexer emits "indexed" on successful write.
 do
   events.clear()
@@ -137,7 +130,6 @@ do
   vim.fn.delete(tmp, "rf")
 end
 
-----------------------------------------------------------------------
 -- Integration: scan_done fires with n_ok count.
 do
   events.clear()
@@ -176,7 +168,6 @@ do
   vim.fn.delete(tmp, "rf")
 end
 
-----------------------------------------------------------------------
 -- Back-compat: user's on_index / on_scan_done callbacks still fire.
 do
   events.clear()
@@ -214,7 +205,6 @@ do
   vim.fn.delete(tmp, "rf")
 end
 
-----------------------------------------------------------------------
 -- Back-compat: on_index fires with n=0 for skipped files.
 do
   events.clear()
@@ -255,7 +245,6 @@ do
   vim.fn.delete(tmp, "rf")
 end
 
-----------------------------------------------------------------------
 -- Back-compat: calling setup() twice doesn't duplicate listeners.
 do
   events.clear()

@@ -12,7 +12,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Match TODO-state: ancestor + match + body visible.
 do
   local lines = {
@@ -34,7 +33,6 @@ do
   assert_eq(visible[2], nil, "Parent body not auto-visible (Parent isn't a match)")
 end
 
-----------------------------------------------------------------------
 -- Match by tag: nested ancestor visible.
 do
   local lines = {
@@ -57,7 +55,6 @@ do
   assert_eq(visible[4], true, "Other :work: match")
 end
 
-----------------------------------------------------------------------
 -- No matches: empty visible map.
 do
   local lines = { "* A", "* B" }
@@ -67,7 +64,6 @@ do
   assert_eq(next(visible), nil)
 end
 
-----------------------------------------------------------------------
 -- Body of match extends through next headline of any level.
 do
   local lines = {

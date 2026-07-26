@@ -20,7 +20,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local out = to_latex.render(A.document({}))
   check(
@@ -37,7 +37,7 @@ do
   )
 end
 
--- ---- title / author / date directives -------------------------------
+-- Title / author / date directives
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),
@@ -56,7 +56,7 @@ do
   check("\\maketitle present when title set", out:find("\\maketitle", 1, true) ~= nil)
 end
 
--- ---- title without author/date --------------------------------------
+-- Title without author/date
 do
   local doc = A.document({
     A.directive("TITLE", "Solo"),
@@ -69,7 +69,7 @@ do
   check("\\maketitle still present (title set)", out:find("\\maketitle", 1, true) ~= nil)
 end
 
--- ---- body_only -------------------------------------------------------
+-- body_only
 do
   local doc = A.document({
     A.directive("TITLE", "ignored"),
@@ -86,7 +86,7 @@ do
   check("body_only: paragraph still rendered", out:find("hello", 1, true) ~= nil)
 end
 
--- ---- headlines map to sectioning commands ----------------------------
+-- Headlines map to sectioning commands
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Top") } }),
@@ -103,7 +103,7 @@ do
   check("level 5 -> \\subparagraph{Subpara}", out:find("\\subparagraph{Subpara}", 1, true) ~= nil)
 end
 
--- ---- level 9 caps at \subparagraph ----------------------------------
+-- Level 9 caps at \subparagraph
 do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
@@ -116,7 +116,7 @@ do
   )
 end
 
--- ---- paragraph emits inline + trailing blank line --------------------
+-- Paragraph emits inline + trailing blank line
 do
   local doc = A.document({
     A.paragraph({ A.text("first") }),
@@ -130,7 +130,7 @@ do
   )
 end
 
--- ---- emphasis (6 styles) --------------------------------------------
+-- Emphasis (6 styles)
 do
   local doc = A.document({
     A.paragraph({
@@ -157,7 +157,7 @@ do
   check("code -> \\verb|C|", out:find("\\verb|C|", 1, true) ~= nil)
 end
 
--- ---- verb delimiter fallback when body contains | -------------------
+-- Verb delimiter fallback when body contains |
 do
   local doc = A.document({
     A.paragraph({
@@ -172,7 +172,7 @@ do
   )
 end
 
--- ---- link with description ------------------------------------------
+-- Link with description
 do
   local doc = A.document({
     A.paragraph({
@@ -194,7 +194,7 @@ do
   )
 end
 
--- ---- math: inline + display passthrough ------------------------------
+-- Math: inline + display passthrough
 do
   local doc = A.document({
     A.paragraph({
@@ -213,7 +213,7 @@ do
   )
 end
 
--- ---- linebreak -> \\ ------------------------------------------------
+-- Linebreak -> \\
 do
   local doc = A.document({
     A.paragraph({
@@ -226,7 +226,7 @@ do
   check("linebreak emits \\\\", out:find("first\\\\second", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- inline image ---------------------------------------------------
+-- Inline image
 do
   local doc = A.document({
     A.paragraph({
@@ -243,7 +243,7 @@ do
   )
 end
 
--- ---- LaTeX special char escaping ------------------------------------
+-- LaTeX special char escaping
 do
   local doc = A.document({
     A.paragraph({ A.text("50% off & $5 saved #1 a_b <x> {y}") }),
@@ -259,7 +259,7 @@ do
   check("{ escaped to \\{", out:find("\\{y\\}", 1, true) ~= nil)
 end
 
--- ---- list (unordered) ------------------------------------------------
+-- List (unordered)
 do
   local doc = A.document({
     A.list(false, {
@@ -274,7 +274,7 @@ do
   check("item two", out:find("\\item two", 1, true) ~= nil)
 end
 
--- ---- list (ordered) --------------------------------------------------
+-- List (ordered)
 do
   local doc = A.document({
     A.list(true, {
@@ -288,7 +288,7 @@ do
   check("item first", out:find("\\item first", 1, true) ~= nil)
 end
 
--- ---- list (nested) --------------------------------------------------
+-- List (nested)
 do
   local doc = A.document({
     A.list(false, {
@@ -309,7 +309,7 @@ do
   check("inner item rendered", out:find("\\item inner", 1, true) ~= nil)
 end
 
--- ---- list (checkboxes literal prefix) -------------------------------
+-- List (checkboxes literal prefix)
 do
   local doc = A.document({
     A.list(false, {
@@ -324,7 +324,7 @@ do
   check("part checkbox -> [-]", out:find("\\item [-] c", 1, true) ~= nil)
 end
 
--- ---- code_block ----------------------------------------------------
+-- code_block
 do
   local doc = A.document({
     A.code_block("python", 'print("hi")'),
@@ -349,7 +349,7 @@ do
   check("code_block line 2", out:find("print(x)", 1, true) ~= nil)
 end
 
--- ---- block: example ----------------------------------------------
+-- Block: example
 do
   local doc = A.document({
     A.block("example", { body = "raw text\nline 2" }),
@@ -364,7 +364,7 @@ do
   )
 end
 
--- ---- block: verse -------------------------------------------------
+-- Block: verse
 do
   local doc = A.document({
     A.block("verse", { body = "verse 1\nverse 2" }),
@@ -378,7 +378,7 @@ do
   )
 end
 
--- ---- block: quote -------------------------------------------------
+-- Block: quote
 do
   local doc = A.document({
     A.block("quote", {
@@ -397,7 +397,7 @@ do
   )
 end
 
--- ---- block: export dropped ---------------------------------------
+-- Block: export dropped
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -412,7 +412,7 @@ do
   )
 end
 
--- ---- table (basic with header divider) ----------------------------
+-- Table (basic with header divider)
 do
   local doc = A.document({
     {
@@ -439,7 +439,7 @@ do
   check("tabular end", out:find("\\end{tabular}", 1, true) ~= nil)
 end
 
--- ---- table column alignment letters -------------------------------
+-- Table column alignment letters
 do
   local doc = A.document({
     {
@@ -458,7 +458,7 @@ do
   )
 end
 
--- ---- table with no alignments -> default all l --------------------
+-- Table with no alignments -> default all l
 do
   local doc = A.document({
     {
@@ -476,7 +476,7 @@ do
   )
 end
 
--- ---- table cell content escaped -----------------------------------
+-- Table cell content escaped
 do
   local doc = A.document({
     {
@@ -491,7 +491,7 @@ do
   check("cell content latex-escaped", out:find("50\\%", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- multi-divider table emits multiple hlines --------------------
+-- Multi-divider table emits multiple hlines
 do
   local doc = A.document({
     {
@@ -511,7 +511,7 @@ do
   check("two hlines (one per sep)", n_hline == 2, "got " .. n_hline .. " hlines in:\n" .. out)
 end
 
--- ---- block-level image ----------------------------------------------
+-- Block-level image
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -534,7 +534,7 @@ do
   )
 end
 
--- ---- block image with no alt -> no caption ---------------------------
+-- Block image with no alt -> no caption
 do
   local doc = A.document({ { kind = "image", target = "x.png" } })
   local out = to_latex.render(doc, { body_only = true })
@@ -542,7 +542,7 @@ do
   check("image still has includegraphics", out:find("\\includegraphics{x.png}", 1, true) ~= nil)
 end
 
--- ---- horizontal rule -------------------------------------------------
+-- Horizontal rule
 do
   local doc = A.document({
     A.paragraph({ A.text("above") }),
@@ -553,7 +553,7 @@ do
   check("rule renders \\hrule", out:find("\\hrule", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- footnote_definition --------------------------------------------
+-- footnote_definition
 do
   local doc = A.document({
     A.paragraph({
@@ -575,7 +575,7 @@ do
   )
 end
 
--- ---- multi-paragraph footnote: paragraphs joined ---------------------
+-- Multi-paragraph footnote: paragraphs joined
 do
   local doc = A.document({
     A.footnote_definition("note", {
@@ -591,7 +591,7 @@ do
   )
 end
 
--- ---- directive dropped ---------------------------------------------
+-- Directive dropped
 do
   local doc = A.document({
     A.directive("AUTHOR", "Jane"),

@@ -29,9 +29,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. diagnose(): returns a list of step records.
--- ---------------------------------------------------------------------------
 do
   local steps = mac.diagnose()
   check("diagnose: returns a non-empty list", type(steps) == "table" and #steps > 0)
@@ -43,9 +41,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 2. uninstall_bundle(): paranoia guards.
--- ---------------------------------------------------------------------------
 
 -- 2a. Symlink refusal: replace the bundle dir with a symlink, ensure
 -- uninstall refuses to follow + delete.

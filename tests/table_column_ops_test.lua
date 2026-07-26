@@ -21,7 +21,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- insert_column_right adds an empty column right of cursor's column.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -34,7 +33,6 @@ do
   assert_eq(n, 4, "3 cells = 4 pipes; row 1: " .. lines[1])
 end
 
-----------------------------------------------------------------------
 -- insert_column_left adds empty column left of cursor's column.
 do
   local b = mk_buf({ "| a | b |", "| c | d |" })
@@ -45,7 +43,6 @@ do
   assert(lines[1]:match("^|%s+a%s+|%s+|%s+b%s+|$"), "expected | a | | b |, got: " .. lines[1])
 end
 
-----------------------------------------------------------------------
 -- delete_column removes cursor's column from all non-separator rows.
 do
   local b = mk_buf({ "| a | b | c |", "| d | e | f |" })
@@ -56,7 +53,6 @@ do
   assert(lines[2]:match("^|%s+d%s+|%s+f%s+|$"))
 end
 
-----------------------------------------------------------------------
 -- move_column_left swaps cursor's column with the one to the left.
 do
   local b = mk_buf({ "| a | b | c |" })
@@ -66,7 +62,6 @@ do
   assert(lines[1]:match("^|%s+b%s+|%s+a%s+|%s+c%s+|$"), "got: " .. lines[1])
 end
 
-----------------------------------------------------------------------
 -- move_column_right at last column is a no-op.
 do
   local b = mk_buf({ "| a | b |" })

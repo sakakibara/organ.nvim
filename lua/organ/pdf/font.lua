@@ -24,7 +24,6 @@ local writer = require("organ.pdf.writer")
 
 local M = {}
 
-----------------------------------------------------------------------
 -- Big-endian primitive readers. `o` is 1-indexed (Lua string offsets).
 
 local byte = string.byte
@@ -56,7 +55,6 @@ local function fixed(b, o)
   return hi + lo / 65536
 end
 
-----------------------------------------------------------------------
 -- TTF file loader.
 
 local function read_all(path)
@@ -94,7 +92,6 @@ local function parse_table_directory(data)
   return tables
 end
 
-----------------------------------------------------------------------
 -- Per-table parsers. Each returns a small table of values; missing /
 -- corrupt fields fall back to sensible defaults rather than erroring,
 -- to be tolerant of slightly-off fonts (PDF readers themselves are
@@ -245,7 +242,6 @@ local function parse_post(data, t)
   }
 end
 
-----------------------------------------------------------------------
 -- cmap format 4 parser. Returns an array of segments; gid lookup walks
 -- them on demand.
 
@@ -391,7 +387,6 @@ local function cmap4_gid(cmap, data, cp)
   return 0
 end
 
-----------------------------------------------------------------------
 -- Font object.
 
 local Font = {}
@@ -470,7 +465,6 @@ function Font:width(gid)
   return self:_to_pdf_units(raw)
 end
 
-----------------------------------------------------------------------
 -- Embedding.
 
 -- Build the W array for the CIDFontType2 dict. PDF 1.7 9.7.4.3 lets us

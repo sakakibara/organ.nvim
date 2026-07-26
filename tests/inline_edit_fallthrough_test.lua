@@ -20,7 +20,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- No fallback configured: built-in <C-a> increments a number in body text.
 do
   require("organ").setup({})
@@ -32,7 +31,6 @@ do
   assert_eq(get_line(b, 1), "the answer is 42", "built-in <C-a> ran")
 end
 
-----------------------------------------------------------------------
 -- User fallback configured: it's called instead of the built-in.
 do
   local called = 0

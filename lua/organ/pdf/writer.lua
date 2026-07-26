@@ -9,7 +9,6 @@
 
 local M = {}
 
-----------------------------------------------------------------------
 -- Encoding primitives.
 
 -- Escape a literal string body per PDF 7.3.4.2: backslash, open paren,
@@ -143,7 +142,6 @@ encode_value = function(v)
   error("cannot encode value of type " .. tv)
 end
 
-----------------------------------------------------------------------
 -- Public helpers.
 
 function M.name(s)
@@ -193,7 +191,6 @@ M.helpers = {
   ref = M.ref,
 }
 
-----------------------------------------------------------------------
 -- Writer instance.
 
 local Writer = {}

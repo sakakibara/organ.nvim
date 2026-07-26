@@ -151,7 +151,6 @@ for _, c in ipairs(cases) do
   check(c.label, emacs_out == our_out, string.format("emacs=%q\n     ours= %q", emacs_out, our_out))
 end
 
--- ---------------------------------------------------------------------------
 -- `:KEY+:` append syntax: child's `+` value appends (space-joined) to
 -- parent's effective value, instead of overriding it.  Used for things
 -- like `:LATEX_HEADER+:` where multiple `\usepackage{...}` lines
@@ -160,7 +159,6 @@ end
 -- (`t` for all properties, or a list / regex including KEY) on the
 -- Emacs side -- our test fixture uses `LATEX_HEADER` which is in the
 -- list of properties Emacs inherits by default for org-mode use.
--- ---------------------------------------------------------------------------
 local function our_dump_property_plus(input, key)
   local lines = vim.split(input, "\n", { plain = true })
   if lines[#lines] == "" then

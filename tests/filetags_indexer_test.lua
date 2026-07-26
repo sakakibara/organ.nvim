@@ -47,7 +47,6 @@ local function assert_eq_list(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Colon-delimited.
 do
   local path = write_file("colon.org", "#+FILETAGS: :project:work:\n* Foo\n")
@@ -55,7 +54,6 @@ do
   assert_eq_list(file_tags(path), { "project", "work" }, "colon-delimited")
 end
 
-----------------------------------------------------------------------
 -- Space-delimited.
 do
   local path = write_file("space.org", "#+FILETAGS: project work\n* Foo\n")
@@ -63,7 +61,6 @@ do
   assert_eq_list(file_tags(path), { "project", "work" }, "space-delimited")
 end
 
-----------------------------------------------------------------------
 -- Mixed-case keyword.
 do
   local path = write_file("case.org", "#+filetags: :lab:\n* Foo\n")
@@ -71,7 +68,6 @@ do
   assert_eq_list(file_tags(path), { "lab" }, "case-insensitive keyword")
 end
 
-----------------------------------------------------------------------
 -- Re-index with reduced tags clears the old set.
 do
   local path = write_file("reduce.org", "#+FILETAGS: :a:b:c:\n* Foo\n")

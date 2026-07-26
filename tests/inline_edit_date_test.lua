@@ -29,7 +29,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Day inc/dec.
 do
   local b = mk_buf({ "* TODO X", "  SCHEDULED: <2026-04-26 Sun>" })
@@ -40,7 +39,6 @@ do
   assert_eq(get_line(b, 2), "  SCHEDULED: <2026-04-26 Sun>", "day -1")
 end
 
-----------------------------------------------------------------------
 -- Month inc rolls year on Dec.
 do
   local b = mk_buf({ "  <2026-12-15>" })
@@ -49,7 +47,6 @@ do
   assert_eq(get_line(b, 1), "  <2027-01-15 Fri>", "month rollover into next year, weekday added")
 end
 
-----------------------------------------------------------------------
 -- Month inc clamps day to last day of new month.
 do
   local b = mk_buf({ "  <2026-01-31>" })
@@ -57,7 +54,6 @@ do
   assert_eq(get_line(b, 1), "  <2026-02-28 Sat>", "Jan-31 +month -> Feb-28 (2026 not leap)")
 end
 
-----------------------------------------------------------------------
 -- Year inc / Feb 29 clamp.
 do
   local b = mk_buf({ "  <2024-02-29>" }) -- 2024 leap
@@ -65,7 +61,6 @@ do
   assert_eq(get_line(b, 1), "  <2025-02-28 Fri>", "year +1 clamps Feb 29 to Feb 28 (2025 not leap)")
 end
 
-----------------------------------------------------------------------
 -- Hour ±1, no day rollover.
 do
   local b = mk_buf({ "  <2026-04-26 Sun 23:30>" })
@@ -73,7 +68,6 @@ do
   assert_eq(get_line(b, 1), "  <2026-04-26 Sun 00:30>", "hour 23 -> 00 same day")
 end
 
-----------------------------------------------------------------------
 -- Minute ±1, no hour rollover.
 do
   local b = mk_buf({ "  <2026-04-26 Sun 23:30>" })
@@ -81,7 +75,6 @@ do
   assert_eq(get_line(b, 1), "  <2026-04-26 Sun 23:31>", "minute +1")
 end
 
-----------------------------------------------------------------------
 -- Inactive timestamp brackets preserved.
 do
   local b = mk_buf({ "  [2026-04-26 Sun]" })
@@ -89,7 +82,6 @@ do
   assert_eq(get_line(b, 1), "  [2026-04-27 Mon]", "[ ] brackets preserved")
 end
 
-----------------------------------------------------------------------
 -- Repeater suffix preserved on day shift.
 do
   local b = mk_buf({ "  <2026-04-26 Sun +1w>" })
@@ -97,7 +89,6 @@ do
   assert_eq(get_line(b, 1), "  <2026-04-27 Mon +1w>", "+1w repeater preserved")
 end
 
-----------------------------------------------------------------------
 -- Cursor on weekday name shifts day.
 do
   local b = mk_buf({ "  <2026-04-26 Sun>" })

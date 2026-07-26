@@ -27,12 +27,10 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- Buffer fixture: 3-deep heading tree with a drawer + body lines.
 -- `expanded = true` forces foldlevel=99 (showall) post-attach so
 -- assertions about body visibility have a known baseline; otherwise
 -- the configured `startup.folded` (default `showeverything`) decides.
--- ---------------------------------------------------------------------------
 local function fresh_buffer(opts)
   opts = opts or {}
   local tmp = vim.fn.tempname() .. ".org"
@@ -126,9 +124,7 @@ local function visible_count(total)
   return n
 end
 
--- ---------------------------------------------------------------------------
 -- (1) ftplugin attach sets foldmethod=expr + foldenable + foldexpr.
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
 
@@ -143,10 +139,8 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (2) close_drawers_on_open: drawer interior is folded after attach;
 --     headings + body are visible.
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
 
@@ -159,10 +153,8 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (3) <Tab> on a heading line cycles 3 states: collapsed → children
 --     → fully open → collapsed.
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
   vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on H1
@@ -194,10 +186,8 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (4) <Tab> on a drawer line toggles the drawer specifically (no
 --     global cycle, no heading cycle).
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
   -- H1's PROPERTIES drawer starts collapsed (close_drawers_on_open).
@@ -213,9 +203,7 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (5) <S-Tab> cycle_global: SHOW_ALL → OVERVIEW → CONTENTS → SHOW_ALL.
--- ---------------------------------------------------------------------------
 do
   -- Bust the build_fold_levels cache so prior tests' levels don't leak.
   require("organ.fold").forget(vim.api.nvim_get_current_buf())
@@ -249,9 +237,7 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (6) zR opens every fold (Vim builtin) including drawers.
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
   vim.cmd("silent! normal! zM") -- close all
@@ -266,9 +252,7 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (7) zM closes every fold (foldlevel=0).
--- ---------------------------------------------------------------------------
 do
   local tmp = fresh_buffer()
   vim.cmd("silent! normal! zM")
@@ -280,9 +264,7 @@ do
   cleanup(tmp)
 end
 
--- ---------------------------------------------------------------------------
 -- (8) `keymaps = false` disables fold bindings entirely.
--- ---------------------------------------------------------------------------
 do
   -- Rebuild buffer with keymaps disabled.
   local tmp = vim.fn.tempname() .. ".org"

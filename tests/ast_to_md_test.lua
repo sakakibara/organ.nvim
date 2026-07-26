@@ -19,14 +19,14 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local doc = A.document({})
   local out = to_md.render(doc)
   check("empty doc renders to a single newline", out == "\n", "got " .. vim.inspect(out))
 end
 
--- ---- headlines (ATX, levels 1-6) -------------------------------------
+-- Headlines (ATX, levels 1-6)
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Top") } }),
@@ -48,7 +48,7 @@ do
   check("level 8 clamps to 6 hashes", out:find("###### Way deep", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- paragraph + text inline -----------------------------------------
+-- Paragraph + text inline
 do
   local doc = A.document({
     A.paragraph({ A.text("Hello world.") }),
@@ -71,7 +71,7 @@ do
   )
 end
 
--- ---- emphasis (6 styles) ---------------------------------------------
+-- Emphasis (6 styles)
 do
   local doc = A.document({
     A.paragraph({
@@ -112,7 +112,7 @@ do
   check("nested bold inside italic", out:find("*outer **inner***", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- inline link -----------------------------------------------------
+-- Inline link
 do
   local doc = A.document({
     A.paragraph({
@@ -133,7 +133,7 @@ do
   )
 end
 
--- ---- inline image (within paragraph) ---------------------------------
+-- Inline image (within paragraph)
 do
   local doc = A.document({
     A.paragraph({
@@ -150,7 +150,7 @@ do
   )
 end
 
--- ---- inline footnote_ref ---------------------------------------------
+-- Inline footnote_ref
 do
   local doc = A.document({
     A.paragraph({
@@ -163,7 +163,7 @@ do
   check("footnote_ref -> [^1]", out:find("[^1]", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- inline math (inline + display) ----------------------------------
+-- Inline math (inline + display)
 do
   local doc = A.document({
     A.paragraph({
@@ -178,7 +178,7 @@ do
   check("display math -> $$...$$", out:find("$$\\int_0^1 x dx$$", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- linebreak -------------------------------------------------------
+-- Linebreak
 do
   local doc = A.document({
     A.paragraph({
@@ -196,7 +196,7 @@ do
   )
 end
 
--- ---- list (unordered, basic) ----------------------------------------
+-- List (unordered, basic)
 do
   local doc = A.document({
     A.list(false, {
@@ -212,7 +212,7 @@ do
   )
 end
 
--- ---- list (ordered, basic) ------------------------------------------
+-- List (ordered, basic)
 do
   local doc = A.document({
     A.list(true, {
@@ -228,7 +228,7 @@ do
   )
 end
 
--- ---- list (checkboxes) ----------------------------------------------
+-- List (checkboxes)
 do
   local doc = A.document({
     A.list(false, {
@@ -243,7 +243,7 @@ do
   check("partial checkbox -> [ ] (GFM has no partial)", out:find("- [ ] c", 1, true) ~= nil)
 end
 
--- ---- list (nested) --------------------------------------------------
+-- List (nested)
 do
   local doc = A.document({
     A.list(false, {
@@ -262,7 +262,7 @@ do
   check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
 end
 
--- ---- code_block -----------------------------------------------------
+-- code_block
 do
   local doc = A.document({
     A.code_block("python", "print('hi')"),
@@ -296,7 +296,7 @@ do
   )
 end
 
--- ---- block: quote --------------------------------------------------
+-- Block: quote
 do
   local doc = A.document({
     A.block("quote", { content = { A.paragraph({ A.text("wisdom") }) } }),
@@ -322,7 +322,7 @@ do
   )
 end
 
--- ---- block: example / verse (body as fenced code) ------------------
+-- Block: example / verse (body as fenced code)
 do
   local doc = A.document({
     A.block("example", { body = "raw text\nline 2" }),
@@ -346,7 +346,7 @@ do
   )
 end
 
--- ---- block: export (dropped) ---------------------------------------
+-- Block: export (dropped)
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -361,7 +361,7 @@ do
   )
 end
 
--- ---- table (basic) -------------------------------------------------
+-- Table (basic)
 do
   local doc = A.document({
     {
@@ -412,7 +412,7 @@ do
   check("a2 still rendered", out:find("| a2 |", 1, true) ~= nil)
 end
 
--- ---- block-level image ---------------------------------------------
+-- Block-level image
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -436,7 +436,7 @@ do
   check("image no alt -> ![x.png](x.png)", out:find("![x.png](x.png)", 1, true) ~= nil)
 end
 
--- ---- horizontal rule -----------------------------------------------
+-- Horizontal rule
 do
   local doc = A.document({
     A.paragraph({ A.text("above") }),
@@ -447,7 +447,7 @@ do
   check("rule -> ---", out:find("\n---\n", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- footnote_definition -------------------------------------------
+-- footnote_definition
 do
   local doc = A.document({
     A.paragraph({
@@ -464,7 +464,7 @@ do
   )
 end
 
--- ---- directive (dropped) -------------------------------------------
+-- Directive (dropped)
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),
@@ -477,7 +477,7 @@ do
   check("paragraph still rendered", out:find("body", 1, true) ~= nil)
 end
 
--- ---- citation rendering (via organ.cite.replace_in) -----------------
+-- Citation rendering (via organ.cite.replace_in)
 -- This test loads organ.cite and asserts that to_md routes the inline
 -- output through it. Specific citation grammars are organ.cite's
 -- responsibility; here we just verify the pass runs.

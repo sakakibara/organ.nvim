@@ -60,9 +60,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Schedule the Standup headline for today via _set_planning.
--- ---------------------------------------------------------------------------
 local schedule = require("organ.schedule")
 local sb = vim.fn.bufadd(fixture)
 vim.fn.bufload(sb)
@@ -89,9 +87,7 @@ check(
   "file:\n" .. table.concat(lines, "\n")
 )
 
--- ---------------------------------------------------------------------------
 -- 2. Re-index → query.agenda for today's window includes Standup.
--- ---------------------------------------------------------------------------
 require("organ").scan_blocking(org_dir, 5000)
 
 local query = require("organ.query")
@@ -111,9 +107,7 @@ check(
   end, rows))
 )
 
--- ---------------------------------------------------------------------------
 -- 3. Archive the Standup subtree.
--- ---------------------------------------------------------------------------
 local archive = require("organ.archive")
 local err = archive.archive_subtree({ bufnr = sb, line = 1 })
 check("archive: returns no error", err == nil, "err: " .. tostring(err))
@@ -159,9 +153,7 @@ check(
   "archive contents:\n" .. table.concat(archive_lines, "\n")
 )
 
--- ---------------------------------------------------------------------------
 -- 4. Re-index. Standup should now be in archive_file, NOT src.
--- ---------------------------------------------------------------------------
 require("organ").scan_blocking(org_dir, 5000)
 local where_is_standup
 for _, r in ipairs(query.headlines()) do

@@ -18,10 +18,8 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- (1) agenda.time_leading_zero — affects the time_only formatter that
 -- feeds the `%t` token in row prefixes.  Sample row uses 9:00 AM.
--- ---------------------------------------------------------------------------
 require("organ").config = require("organ").config or {}
 require("organ").config.agenda = require("organ").config.agenda or {}
 require("organ").config.agenda.tags_virt_align = false -- snapshot inline text
@@ -120,10 +118,8 @@ check(
 )
 require("organ").config.agenda.time_leading_zero = nil
 
--- ---------------------------------------------------------------------------
 -- (2) agenda.category_icons — prepends an icon to the rendered
 -- category column when matched.
--- ---------------------------------------------------------------------------
 require("organ").config.agenda.category_icons = { x = "■ " }
 local out_icon = agenda.render({
   {
@@ -144,10 +140,8 @@ check(
 )
 require("organ").config.agenda.category_icons = nil
 
--- ---------------------------------------------------------------------------
 -- (3) priority.start_cycle_with_default — first raise on cookie-less
 -- headline jumps to `default` instead of `highest`.
--- ---------------------------------------------------------------------------
 local inline_edit = require("organ.inline_edit")
 require("organ").config.priority = require("organ").config.priority or {}
 require("organ").config.priority.highest = "A"
@@ -177,9 +171,7 @@ check(
 )
 require("organ").config.priority.start_cycle_with_default = nil
 
--- ---------------------------------------------------------------------------
 -- (4) links.id_method — "ts" generator emits a timestamp-formatted ID.
--- ---------------------------------------------------------------------------
 require("organ").config.links = require("organ").config.links or {}
 require("organ").config.links.id_method = "ts"
 local b3 = vim.api.nvim_create_buf(false, true)
@@ -204,10 +196,8 @@ check(
 )
 require("organ").config.links.id_method = nil
 
--- ---------------------------------------------------------------------------
 -- (5) archive.save_context_info — restrict which ARCHIVE_* properties
 -- get injected into the archived subtree's property drawer.
--- ---------------------------------------------------------------------------
 require("organ").config.agenda.tags_virt_align = nil
 require("organ").config.archive = require("organ").config.archive or {}
 require("organ").config.archive.save_context_info = { "time", "olpath" }

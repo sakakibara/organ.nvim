@@ -8,7 +8,6 @@ local deps = require("organ.dependencies")
 
 local SEQ = { "TODO", "DOING", "|", "DONE" }
 
--- ---------------------------------------------------------------------------
 -- Headline traversal helpers
 
 do
@@ -47,7 +46,6 @@ do
   assert(#prev == 0, "first child has no prev siblings")
 end
 
--- ---------------------------------------------------------------------------
 -- Parent blocked by active descendants
 
 do
@@ -81,7 +79,6 @@ do
   assert(err == nil, "NOBLOCKING child should not block: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- ORDERED enforcement
 
 do
@@ -123,7 +120,6 @@ do
   assert(err == nil, "non-child unaffected by ORDERED: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- Checkbox dependencies (opt-in)
 
 do
@@ -146,7 +142,6 @@ do
   assert(err == nil, "all boxes ticked: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- Disabled via config
 
 do
@@ -158,7 +153,6 @@ do
   assert(err == nil, "disabled config skips checks: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- Transitions to non-DONE states are never blocked
 
 do
@@ -175,7 +169,6 @@ do
   assert(err == nil, "nil transition allowed: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- End-to-end: real buffer + todo._apply
 
 do

@@ -12,7 +12,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Single 2-row, 2-col table.
 do
   local lines = { "| a | b |", "| c | d |" }
@@ -28,7 +27,6 @@ do
   assert_eq(t.rows[2].cells[2], "d")
 end
 
-----------------------------------------------------------------------
 -- Table with separator row.
 do
   local lines = { "| a | b |", "|---|---|", "| c | d |" }
@@ -39,7 +37,6 @@ do
   assert_eq(t.rows[3].sep, false)
 end
 
-----------------------------------------------------------------------
 -- Cursor on non-table line returns nil.
 do
   local lines = { "before", "| a |", "after" }
@@ -48,7 +45,6 @@ do
   assert(tab._parse(lines, 2), "table line parses")
 end
 
-----------------------------------------------------------------------
 -- Indented table preserves indent.
 do
   local lines = { "  | a |", "  | b |" }
@@ -56,7 +52,6 @@ do
   assert_eq(t.indent, "  ")
 end
 
-----------------------------------------------------------------------
 -- Walks up + down from middle line.
 do
   local lines = { "x", "| 1 |", "| 2 |", "| 3 |", "y" }

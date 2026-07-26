@@ -6,7 +6,6 @@ dofile(root .. "/tests/_bootstrap.lua")
 
 local C = require("organ.calc")
 
--- ---------------------------------------------------------------------------
 -- bignum primitives
 
 do
@@ -86,7 +85,6 @@ do
   assert(bn.to_string(bn.gcd(bn.from_int(7), bn.from_int(13))) == "1")
 end
 
--- ---------------------------------------------------------------------------
 -- Calc value API
 
 -- from_string
@@ -172,7 +170,6 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- floats and mixed-type arithmetic
 
 do
@@ -202,7 +199,6 @@ do
   assert(C.eq(C.from_string("6.022e23"), C.mul(C.from_string("6022"), C.pow(C.from_int(10), 20))))
 end
 
--- ---------------------------------------------------------------------------
 -- math functions
 
 do
@@ -239,7 +235,6 @@ do
   assert(C.eq(C.trunc(C.from_string("-3/2")), C.from_int(-1)))
 end
 
--- ---------------------------------------------------------------------------
 -- logical and conditional
 
 do
@@ -257,7 +252,6 @@ do
   assert(C.ifte(C.from_int(0), "yes", "no") == "no")
 end
 
--- ---------------------------------------------------------------------------
 -- aggregations
 
 do
@@ -283,7 +277,6 @@ do
   assert(C.eq(C.vmaxabs(mixed), C.from_int(5)))
 end
 
--- ---------------------------------------------------------------------------
 -- units
 
 do
@@ -322,7 +315,6 @@ do
   assert(C.to_number(sec) == 3600)
 end
 
--- ---------------------------------------------------------------------------
 -- symbolic simplification
 
 do
@@ -341,7 +333,6 @@ do
   assert(C.simplify_binop("+", x, x) == nil)
 end
 
--- ---------------------------------------------------------------------------
 -- financial functions
 
 do
@@ -381,7 +372,6 @@ do
   assert(pmt0 == -100, "PMT zero rate: " .. pmt0)
 end
 
--- ---------------------------------------------------------------------------
 -- primality + factoring
 
 do
@@ -428,7 +418,6 @@ do
   assert(#C.prime_factors(C.from_int(1)) == 0)
 end
 
--- ---------------------------------------------------------------------------
 -- matrix algebra
 
 do
@@ -491,7 +480,6 @@ do
   assert(C.eq(detR, C.from_string("1/60")), "rational det: " .. C.to_string(detR))
 end
 
--- ---------------------------------------------------------------------------
 -- eigenvalues (power iteration; reliable for symmetric matrices)
 
 do
@@ -519,7 +507,6 @@ do
   assert(math.abs(vals2[3] - 7) < 1e-6, "diag eig 7: " .. vals2[3])
 end
 
--- ---------------------------------------------------------------------------
 -- symbolic differentiation
 
 do
@@ -601,7 +588,6 @@ do
   assert(d_prod ~= nil, "product-rule deriv produces something")
 end
 
--- ---------------------------------------------------------------------------
 -- date arithmetic
 
 do
@@ -654,7 +640,6 @@ do
   assert(C.date_year(far) >= 2125, "100 yrs forward: " .. C.date_year(far))
 end
 
--- ---------------------------------------------------------------------------
 -- limits
 
 do
@@ -686,7 +671,6 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- symbolic integration
 
 do
@@ -751,7 +735,6 @@ do
   assert(C.eq(v, C.from_int(12)), "∫(x+5) dx at x=2 = 12; got " .. C.to_string(v))
 end
 
--- ---------------------------------------------------------------------------
 -- polynomial / algebraic manipulation
 
 do
@@ -812,7 +795,6 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- variable-exponent derivative (logarithmic differentiation)
 
 do

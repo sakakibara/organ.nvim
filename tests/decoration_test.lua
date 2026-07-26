@@ -17,7 +17,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- register API ----------------------------------------------------
+-- Register API
 do
   -- Reset state between tests via _reset (internal helper for tests).
   decoration._reset()
@@ -65,7 +65,7 @@ do
   )
 end
 
--- ---- unregister ------------------------------------------------------
+-- Unregister
 do
   decoration._reset()
   decoration.register({
@@ -91,7 +91,7 @@ do
   check("unregister frees the name for re-registration", ok, err)
 end
 
--- ---- attach + on_lines_only dispatch --------------------------------
+-- Attach + on_lines_only dispatch
 do
   decoration._reset()
   local on_lines_calls = {}
@@ -149,7 +149,7 @@ do
   )
 end
 
--- ---- enabled() gate respected ---------------------------------------
+-- enabled() gate respected
 do
   decoration._reset()
   local p2_calls = 0
@@ -175,7 +175,7 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---- on_line dispatch ------------------------------------------------
+-- on_line dispatch
 do
   decoration._reset()
   local on_line_calls = {}
@@ -209,7 +209,7 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---- pcall isolation in on_lines_only -------------------------------
+-- pcall isolation in on_lines_only
 do
   decoration._reset()
   local good_calls = 0
@@ -253,7 +253,7 @@ do
   vim.api.nvim_buf_delete(bufnr, { force = true })
 end
 
--- ---- refresh repopulates --------------------------------------------
+-- Refresh repopulates
 do
   decoration._reset()
   local call_count = 0

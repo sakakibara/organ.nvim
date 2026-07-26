@@ -16,7 +16,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. Minimal valid PDF: header + 1 catalog object.
 
 do
@@ -45,7 +44,6 @@ do
   check("trailer /Size 2", bytes:find("/Size 2", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 2. Multiple objects: xref offsets line up with actual byte positions.
 
 do
@@ -95,7 +93,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 3. Encoding each Lua type.
 
 do
@@ -125,7 +122,6 @@ do
   check("ref encodes as 'N 0 R'", bytes:find("/Refr 99 0 R", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 4. Errors on incomplete state.
 
 do
@@ -151,7 +147,6 @@ do
   check("bytes() errors without set_root", not ok and tostring(err):find("set_root"), tostring(err))
 end
 
-----------------------------------------------------------------------
 -- 5. Stream encoding with auto-injected /Length.
 
 do
@@ -171,7 +166,6 @@ do
   check("stream carries /Type /XObject", bytes:find("/Type /XObject", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 6. Helpers.
 
 do
@@ -188,7 +182,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 7. Linear xref correctness with 5 objects.
 
 do
@@ -221,7 +214,6 @@ do
   check("all 5 xref offsets point at correct '<n> 0 obj' headers", all_ok)
 end
 
-----------------------------------------------------------------------
 -- 8. Empty dict / array helpers.
 
 do
@@ -235,8 +227,6 @@ do
   -- Ensure we used both refs to silence linters.
   check("empty_arr_ref num is 2", empty_arr_ref.num == 2)
 end
-
-----------------------------------------------------------------------
 
 print(("\n%d check(s), %d failure(s)"):format(0, fails))
 if fails > 0 then

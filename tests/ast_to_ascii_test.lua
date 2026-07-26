@@ -20,13 +20,13 @@ local function check(label, ok, detail)
   end
 end
 
--- ---- empty document --------------------------------------------------
+-- Empty document
 do
   local out = to_ascii.render(A.document({}))
   check("empty doc renders to single newline", out == "\n", "got: " .. vim.inspect(out))
 end
 
--- ---- headlines (per-level underlines) --------------------------------
+-- Headlines (per-level underlines)
 do
   local doc = A.document({
     A.headline({ level = 1, title = { A.text("Top") } }),
@@ -39,7 +39,7 @@ do
   check("level 3 underlined with ~", out:find("Deeper\n~~~~~~", 1, true) ~= nil)
 end
 
--- ---- paragraph -------------------------------------------------------
+-- Paragraph
 do
   local doc = A.document({
     A.paragraph({ A.text("simple text") }),
@@ -48,7 +48,7 @@ do
   check("paragraph renders plain", out:find("simple text", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- inline emphasis stripped ----------------------------------------
+-- Inline emphasis stripped
 do
   local doc = A.document({
     A.paragraph({
@@ -69,7 +69,7 @@ do
   )
 end
 
--- ---- inline link with description ------------------------------------
+-- Inline link with description
 do
   local doc = A.document({
     A.paragraph({
@@ -86,7 +86,7 @@ do
   )
 end
 
--- ---- bare link (no description) --------------------------------------
+-- Bare link (no description)
 do
   local doc = A.document({
     A.paragraph({
@@ -103,7 +103,7 @@ do
   )
 end
 
--- ---- math (rendered as body, no $ delimiters) ------------------------
+-- Math (rendered as body, no $ delimiters)
 do
   local doc = A.document({
     A.paragraph({
@@ -121,7 +121,7 @@ do
   )
 end
 
--- ---- inline image dropped --------------------------------------------
+-- Inline image dropped
 do
   local doc = A.document({
     A.paragraph({
@@ -134,7 +134,7 @@ do
   check("inline image dropped", out:find("before  after", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- footnote_ref dropped --------------------------------------------
+-- footnote_ref dropped
 do
   local doc = A.document({
     A.paragraph({
@@ -147,7 +147,7 @@ do
   check("footnote_ref dropped", out:find("claim.", 1, true) ~= nil, "got: " .. out)
 end
 
--- ---- list (unordered, basic) ----------------------------------------
+-- List (unordered, basic)
 do
   local doc = A.document({
     A.list(false, {
@@ -163,7 +163,7 @@ do
   )
 end
 
--- ---- list (ordered: bullets normalised to "-") -----------------------
+-- List (ordered: bullets normalised to "-")
 do
   local doc = A.document({
     A.list(true, {
@@ -179,7 +179,7 @@ do
   )
 end
 
--- ---- list (checkboxes preserved as [X]/[ ]/[-]) ----------------------
+-- List (checkboxes preserved as [X]/[ ]/[-])
 do
   local doc = A.document({
     A.list(false, {
@@ -194,7 +194,7 @@ do
   check("partial checkbox -> [-]", out:find("- [-] c", 1, true) ~= nil)
 end
 
--- ---- list (nested 2-space indent) ------------------------------------
+-- List (nested 2-space indent)
 do
   local doc = A.document({
     A.list(false, {
@@ -213,7 +213,7 @@ do
   check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
 end
 
--- ---- code_block: 4-space indent --------------------------------------
+-- code_block: 4-space indent
 do
   local doc = A.document({
     A.code_block("python", "print('hi')"),
@@ -236,7 +236,7 @@ do
   check("multi-line code: line 2 indented", out:find("    print(x)", 1, true) ~= nil)
 end
 
--- ---- block: example -------------------------------------------------
+-- Block: example
 do
   local doc = A.document({
     A.block("example", { body = "raw text\nline 2" }),
@@ -250,7 +250,7 @@ do
   check("example indented 4 spaces line 2", out:find("    line 2", 1, true) ~= nil)
 end
 
--- ---- block: verse ---------------------------------------------------
+-- Block: verse
 do
   local doc = A.document({
     A.block("verse", { body = "v1\nv2" }),
@@ -260,7 +260,7 @@ do
   check("verse line 2 indented", out:find("    v2", 1, true) ~= nil)
 end
 
--- ---- block: quote ---------------------------------------------------
+-- Block: quote
 do
   local doc = A.document({
     A.block("quote", {
@@ -275,7 +275,7 @@ do
   check("quote line 2 prefixed with '  > '", out:find("  > second", 1, true) ~= nil)
 end
 
--- ---- block: export (dropped) ----------------------------------------
+-- Block: export (dropped)
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -290,7 +290,7 @@ do
   )
 end
 
--- ---- table (basic) -------------------------------------------------
+-- Table (basic)
 do
   local doc = A.document({
     {
@@ -311,7 +311,7 @@ do
   check("data row 2", out:find("| ben  | 41  |", 1, true) ~= nil)
 end
 
--- ---- table (multi-divider preserves them all) ---------------------
+-- Table (multi-divider preserves them all)
 do
   local doc = A.document({
     {
@@ -341,7 +341,7 @@ do
   check("a2 still rendered", out:find("| a2", 1, true) ~= nil)
 end
 
--- ---- table (column widths fit widest cell) -----------------------
+-- Table (column widths fit widest cell)
 do
   local doc = A.document({
     {
@@ -362,7 +362,7 @@ do
   )
 end
 
--- ---- block-level image: dropped --------------------------------------
+-- Block-level image: dropped
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -381,7 +381,7 @@ do
   )
 end
 
--- ---- horizontal rule -----------------------------------------------
+-- Horizontal rule
 do
   local doc = A.document({
     A.paragraph({ A.text("above") }),
@@ -396,7 +396,7 @@ do
   )
 end
 
--- ---- footnote_definition -------------------------------------------
+-- footnote_definition
 do
   local doc = A.document({
     A.paragraph({ A.text("claim") }),
@@ -427,7 +427,7 @@ do
   check("footnote second paragraph indented 4 spaces", out:find("    second", 1, true) ~= nil)
 end
 
--- ---- directive: dropped --------------------------------------------
+-- Directive: dropped
 do
   local doc = A.document({
     A.directive("TITLE", "My Doc"),

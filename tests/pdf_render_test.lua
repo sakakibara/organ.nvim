@@ -31,7 +31,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. Empty document renders to a structurally valid PDF.
 
 do
@@ -51,7 +50,6 @@ do
   end
 end
 
-----------------------------------------------------------------------
 -- 2. Headline + paragraph: content stream with BT / Tf / Tj / ET.
 
 do
@@ -76,7 +74,6 @@ do
   check("contains 11pt Tf for body paragraph", bytes:find("/F1 11 Tf", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 3. Page /Resources /Font dict references the embedded font(s).
 
 do
@@ -89,7 +86,6 @@ do
   check("page resources include /Font subdict", bytes:find("/Font <<", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 4. Code block uses a (potentially) different font ref.
 
 do
@@ -109,7 +105,6 @@ do
   check("at least one Tf font name reference (F1 or F2)", has_f1 or has_f2)
 end
 
-----------------------------------------------------------------------
 -- 5. Long content paginates onto multiple pages.
 
 do
@@ -130,7 +125,6 @@ do
   check("page tree /Count matches leaf count", bytes:find("/Count " .. page_count, 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 6. Inline flattener handles emphasis / links / math.
 
 do
@@ -151,7 +145,6 @@ do
   check("emit_inline preserves math body", out:find("x^2", 1, true) ~= nil)
 end
 
-----------------------------------------------------------------------
 -- 7. split_lines retains empty trailing lines.
 
 do
@@ -161,7 +154,6 @@ do
   check("split_lines preserves empty middle line", lines[2] == "")
 end
 
-----------------------------------------------------------------------
 -- 8. Glyph encoding produces 4-hex-digit big-endian CIDs.
 
 do
@@ -175,8 +167,6 @@ do
   -- Empty string -> "<>"
   check("encode_glyphs('') == '<>'", pdf._encode_glyphs(f, "") == "<>")
 end
-
-----------------------------------------------------------------------
 
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then

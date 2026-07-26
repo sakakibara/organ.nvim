@@ -83,7 +83,7 @@ assert(after2 > 0)
 
 -- Close the buffer → listener unsubscribes.
 vim.api.nvim_buf_delete(bufnr, { force = true })
-----------------------------------------------------------------------
+
 -- title_match filter preserves agenda's multi-type OR semantics
 -- (i.e. rows with scheduled-but-no-deadline are still included).
 do

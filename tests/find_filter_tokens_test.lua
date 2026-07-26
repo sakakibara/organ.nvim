@@ -13,7 +13,6 @@ require("organ").setup({
 
 local find = require("organ.find")
 
--- ---------------------------------------------------------------------------
 -- parse_filter_tokens
 
 -- 1. Empty / nil query → all empty arrays.
@@ -71,7 +70,6 @@ do
   assert(#p.todo == 2, "two todo tokens: " .. #p.todo)
 end
 
--- ---------------------------------------------------------------------------
 -- apply_filter_tokens
 
 local function mk_item(over)
@@ -191,7 +189,6 @@ do
   assert(#out == 0, "no match → 0; got " .. #out)
 end
 
--- ---------------------------------------------------------------------------
 -- Integration: find.pick with opts.query applies pre-filtering.
 
 require("organ").setup({

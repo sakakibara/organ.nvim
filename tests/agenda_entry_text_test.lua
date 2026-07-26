@@ -59,9 +59,7 @@ require("organ").scan_blocking(org_dir, 5000)
 
 local agenda = require("organ.agenda")
 
--- ---------------------------------------------------------------------------
 -- (a) Default (on_start=false): no body preview rows in the buffer.
--- ---------------------------------------------------------------------------
 local bufnr = agenda.open({
   from = "2026-05-04",
   to = "2026-05-04",
@@ -86,9 +84,7 @@ check(
   "found body preview when entry_text.on_start was false"
 )
 
--- ---------------------------------------------------------------------------
 -- (b) Toggle via `E` keymap: max_lines body rows appear under the item.
--- ---------------------------------------------------------------------------
 vim.api.nvim_set_current_buf(bufnr)
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
   if m.lhs == "E" and m.callback then
@@ -103,9 +99,7 @@ check("after E: Second body line appears", find_line("Second body line") ~= nil)
 check("after E: Third body line appears", find_line("Third body line") ~= nil)
 check("after E: Fourth body line NOT shown (max_lines = 3)", find_line("Fourth body line") == nil)
 
--- ---------------------------------------------------------------------------
 -- (c) Toggle off again: previews disappear.
--- ---------------------------------------------------------------------------
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
   if m.lhs == "E" and m.callback then
     m.callback()
@@ -116,10 +110,8 @@ end
 lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 check("after E (toggle off): body preview gone", find_line("First body line") == nil)
 
--- ---------------------------------------------------------------------------
 -- (d) on_start = true: a freshly-opened agenda buffer renders with
 --     previews already shown.
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_delete(bufnr, { force = true })
 require("organ").config.agenda.entry_text.on_start = true
 local b2 = agenda.open({

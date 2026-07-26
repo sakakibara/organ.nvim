@@ -172,7 +172,6 @@ local function data_intact(h)
   return true
 end
 
-----------------------------------------------------------------------
 -- 1. v1 data survives an injected two-step cascade.
 
 do
@@ -194,7 +193,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 2. Missing migration entry: refuse loudly, change nothing.
 
 do
@@ -212,7 +210,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 3. Failed step rolls back everything, including the user_version
 --    stamp written before the failure (PRAGMA user_version lives in the
 --    db header and is transactional -- proven here, not assumed).
@@ -240,7 +237,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 4. Real ensure_schema path: idempotent no-op at the current version.
 
 local current
@@ -259,7 +255,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 5. Newer-db refusal preserved.
 
 do
@@ -281,7 +276,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 6. A required column missing at the current version errors with the
 --    delete-the-file recovery and never wipes anything.
 
@@ -361,7 +355,6 @@ do
   h:close()
 end
 
-----------------------------------------------------------------------
 -- 7. Migration-ledger continuity: every version step from the baseline
 --    to current has a migration function. Vacuous at v1; bites the
 --    moment SCHEMA_VERSION bumps without a MIGRATIONS entry.
@@ -373,7 +366,6 @@ do
   check("ledger: walked baseline+1 .. v" .. current, true)
 end
 
-----------------------------------------------------------------------
 -- 8. Schema-drift guard: sql/schema.sql must be byte-identical to the
 --    snapshot fixture for the current version.
 
@@ -407,7 +399,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 9. Fresh install == migrated install. Today the cascade is empty so
 --    this compares v1 with itself; the moment MIGRATIONS gains entries
 --    it proves each step lands on the fresh schema.sql shape.

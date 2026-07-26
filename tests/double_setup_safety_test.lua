@@ -23,9 +23,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Watcher: setup() twice → still only one set of handles + one rescan timer.
--- ---------------------------------------------------------------------------
 do
   local org_dir = vim.fn.tempname() .. "/org"
   vim.fn.mkdir(org_dir, "p")
@@ -72,9 +70,8 @@ do
   vim.fn.delete(org_dir, "rf")
 end
 
--- ---------------------------------------------------------------------------
 -- 2. Alarms: setup() twice → still only one events.on("indexed", ...) listener.
--- ---------------------------------------------------------------------------
+
 -- Real-world scenario: user calls setup() multiple times in their config
 -- (no module reload). package.loaded reset would simulate vim.pack-style
 -- reload, which is a different bug class — orphaned listeners in modules
@@ -157,10 +154,8 @@ do
   end)
 end
 
--- ---------------------------------------------------------------------------
 -- 3. setup_compat_listeners: user's on_index callback fires once per event,
 --    not once-per-setup-call.
--- ---------------------------------------------------------------------------
 do
   package.loaded["organ"] = nil
   package.loaded["organ.events"] = nil

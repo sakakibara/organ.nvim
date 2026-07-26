@@ -33,9 +33,7 @@ local function index_text(src, file_path)
   return indexer.extract(src, file_path or "/tmp/x.org", parser_path)
 end
 
--- ---------------------------------------------------------------------------
 -- 1. File-level :ID: with heading → 2 records (file + heading).
--- ---------------------------------------------------------------------------
 do
   local src = ":PROPERTIES:\n:ID: file-id-1\n:END:\n#+title: My Note\n\n* First heading\n  body\n"
   local hls = index_text(src)
@@ -52,9 +50,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 2. File-level :ID: only (no headings) → 1 record (the synthetic node).
--- ---------------------------------------------------------------------------
 do
   local src = ":PROPERTIES:\n:ID: only-file\n:END:\n#+title: Solo\n"
   local hls = index_text(src)
@@ -67,9 +63,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 3. No file-level :ID: → no synthetic node.
--- ---------------------------------------------------------------------------
 do
   local src = "#+title: No File ID\n\n* Heading A\n* Heading B\n"
   local hls = index_text(src)
@@ -79,9 +73,7 @@ do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 4. Property drawer present but no :ID: in it → no synthetic node.
--- ---------------------------------------------------------------------------
 do
   local src = ":PROPERTIES:\n:CATEGORY: notes\n:END:\n#+title: Without ID\n\n* H\n"
   local hls = index_text(src)
@@ -94,9 +86,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 5. File-level :ID: but no #+title: → falls back to basename.
--- ---------------------------------------------------------------------------
 do
   local src = ":PROPERTIES:\n:ID: titleless\n:END:\n\n* H\n"
   local hls = index_text(src, "/tmp/special-name.org")
@@ -114,13 +104,11 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 6. File-level :ID: must NOT shadow heading-level :ID: with same value
 --    (different files happen to have the same file-level :ID: — unlikely
 --    but possible). Each scan is per-file; collision is the indexer's
 --    responsibility on the DB-write side, not extraction. We just confirm
 --    the same scan doesn't dedupe against itself.
--- ---------------------------------------------------------------------------
 do
   local src =
     ":PROPERTIES:\n:ID: shared-id\n:END:\n#+title: T\n\n* Heading\n  :PROPERTIES:\n  :ID: shared-id\n  :END:\n"

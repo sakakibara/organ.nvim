@@ -17,9 +17,7 @@
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
--- ---------------------------------------------------------------------------
 -- Stub backing modules so adapters get controlled inputs/outputs.
--- ---------------------------------------------------------------------------
 package.loaded["organ.complete"] = {
   trigger_at_cursor = function(_)
     return { kind = "id", query = "fo" }
@@ -69,9 +67,7 @@ package.loaded["organ.cite"] = {
 
 require("organ").setup({ org_dir = "/tmp" })
 
--- ---------------------------------------------------------------------------
 -- Test rig
--- ---------------------------------------------------------------------------
 local fails = 0
 local function check(label, ok, detail)
   if ok then
@@ -97,9 +93,7 @@ local function run_complete(source, getter)
   return captured
 end
 
--- ---------------------------------------------------------------------------
 -- nvim-cmp adapter
--- ---------------------------------------------------------------------------
 package.loaded["cmp"] = {
   lsp = { CompletionItemKind = { Reference = 18, Property = 10 } },
   register_source = function() end,
@@ -207,9 +201,8 @@ do
   check("cmp maybe_register: no crash when nvim-cmp is absent", ok)
 end
 
--- ---------------------------------------------------------------------------
 -- blink.cmp adapter
--- ---------------------------------------------------------------------------
+
 -- Each per-source module exposes M.new(opts, source_config) returning a
 -- source-class table. blink calls m:enabled() / m:get_trigger_characters()
 -- / m:get_completions(ctx, cb). We stub blink's runtime API

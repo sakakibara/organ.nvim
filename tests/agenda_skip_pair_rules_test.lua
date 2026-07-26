@@ -109,9 +109,7 @@ local function count_in(out, needle)
   return n
 end
 
--- ---------------------------------------------------------------------------
 -- (a) skip_scheduled_if_deadline_shown
--- ---------------------------------------------------------------------------
 stub_query(SAMPLE_DUAL)
 
 require("organ").config.agenda.skip_scheduled_if_deadline_shown = false
@@ -151,12 +149,10 @@ check(
 )
 require("organ").config.agenda.skip_scheduled_if_deadline_shown = nil
 
--- ---------------------------------------------------------------------------
 -- (b) skip_deadline_prewarning_if_scheduled — defaults to true.  The
 -- "Sched-and-deadline" row should NOT spawn an early-warning row on
 -- today, because it's already on the agenda via its scheduled day.
 -- The "Deadline-only" row SHOULD still get the warning row.
--- ---------------------------------------------------------------------------
 stub_query(SAMPLE_DL_WARN)
 
 require("organ").config.agenda.skip_deadline_prewarning_if_scheduled = true

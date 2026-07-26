@@ -12,7 +12,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Flat shape wraps as one labelless block.
 do
   local v = {
@@ -36,7 +35,6 @@ do
   assert_eq(out.blocks[1].refresh_debounce_ms, nil)
 end
 
-----------------------------------------------------------------------
 -- Block-list shape passes through.
 do
   local v = {
@@ -54,7 +52,6 @@ do
   assert_eq(out.refresh_debounce_ms, 100)
 end
 
-----------------------------------------------------------------------
 -- Mixed shape (top-level filter fields + blocks) errors.
 do
   local v = { from = "today", blocks = { { label = "X" } } }
@@ -64,7 +61,6 @@ do
   assert(err:find("'bad'"), "error names the view")
 end
 
-----------------------------------------------------------------------
 -- Empty blocks list errors.
 do
   local v = { blocks = {} }
@@ -73,7 +69,6 @@ do
   assert(err and err:find("blocks list is empty"), "error mentions empty, got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- Missing label errors with index.
 do
   local v = { blocks = { { label = "OK" }, { from = "today" } } }
@@ -83,7 +78,6 @@ do
   assert(err:find("'label'"), "error names label, got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- Non-table input returns clean error (no exception).
 do
   local out, err = agenda.normalize_view(nil, "nope")
@@ -95,7 +89,6 @@ do
   assert(err:find("'nope'"), "error names the view")
 end
 
-----------------------------------------------------------------------
 -- Non-table 'blocks' field gets a distinct error from empty-list.
 do
   local out, err = agenda.normalize_view({ blocks = "today" }, "stringblocks")
@@ -107,7 +100,6 @@ do
   assert(err:find("got string"), "error names the actual type, got: " .. tostring(err))
 end
 
-----------------------------------------------------------------------
 -- Block-list path does not alias the caller's tables (mutating the
 -- normalized output must not leak back into the input).
 do

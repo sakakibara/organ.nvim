@@ -81,14 +81,14 @@ local function first_kind(nodes, kind)
   return nil
 end
 
--- entity ------------------------------------------------------------
+-- Entity
 do
   local n = first_kind(inline_of({ "caf\\'e and \\copy here." }), "entity")
   check(n ~= nil, "entity: captured as typed node")
   assert_roundtrip({ "caf\\'e and \\copy here." }, "entity: round-trips")
 end
 
--- subscript / superscript -------------------------------------------
+-- Subscript / superscript
 do
   local sub = first_kind(inline_of({ "x_{ij} value" }), "subscript")
   check(sub ~= nil, "subscript: captured")
@@ -98,7 +98,7 @@ do
   assert_roundtrip({ "E^{2} value" }, "superscript: round-trips")
 end
 
--- statistics cookie -------------------------------------------------
+-- Statistics cookie
 do
   local n = first_kind(inline_of({ "Progress [1/3] today" }), "statistics_cookie")
   check(n ~= nil and n.value == "[1/3]", "statistics_cookie: value captured")
@@ -106,7 +106,7 @@ do
   assert_roundtrip({ "Progress [50%] today" }, "statistics_cookie [50%]: round-trips")
 end
 
--- timestamp ---------------------------------------------------------
+-- Timestamp
 do
   local n = first_kind(inline_of({ "Meeting <2026-06-14 Sun> soon" }), "timestamp")
   check(n ~= nil and n.variant == "active", "timestamp: active variant captured")
@@ -114,14 +114,14 @@ do
   assert_roundtrip({ "Logged [2026-06-14 Sun] entry" }, "timestamp inactive: round-trips")
 end
 
--- target ------------------------------------------------------------
+-- Target
 do
   local n = first_kind(inline_of({ "Jump <<here>> now" }), "target")
   check(n ~= nil and n.name == "here", "target: name captured")
   assert_roundtrip({ "Jump <<here>> now" }, "target: round-trips")
 end
 
--- macro -------------------------------------------------------------
+-- Macro
 do
   local n = first_kind(inline_of({ "Color {{{c(red,bold)}}} text" }), "macro")
   check(
@@ -132,7 +132,7 @@ do
   assert_roundtrip({ "Bare {{{plain}}} macro" }, "macro no args: round-trips")
 end
 
--- footnotes ---------------------------------------------------------
+-- Footnotes
 do
   local named = first_kind(inline_of({ "Cite [fn:1] here" }), "footnote_ref")
   check(named ~= nil and named.label == "1" and named.content == nil, "footnote: named label only")
@@ -146,7 +146,7 @@ do
   assert_roundtrip({ "Note [fn:lbl:inline body] here" }, "footnote inline-named: round-trips")
 end
 
--- nested emphasis (the regression this fixes) -----------------------
+-- Nested emphasis (the regression this fixes)
 do
   local inl = inline_of({ "This is *bold /italic/ end* text" })
   local bold = first_kind(inl, "emphasis")
@@ -156,7 +156,7 @@ do
   assert_roundtrip({ "This is *bold /italic/ end* text" }, "nested emphasis: round-trips")
 end
 
--- math delimiter families -------------------------------------------
+-- Math delimiter families
 do
   assert_roundtrip({ "Inline $x=1$ math" }, "math dollar inline: round-trips")
   assert_roundtrip({ "Display $$x=1$$ math" }, "math dollar display: round-trips")
@@ -164,14 +164,14 @@ do
   assert_roundtrip({ "Alt \\[x=1\\] math" }, "math bracket: round-trips")
 end
 
--- catch-all: untyped construct survives as raw_inline ---------------
+-- Catch-all: untyped construct survives as raw_inline
 do
   local n = first_kind(inline_of({ "Snippet @@html:<br>@@ here" }), "raw_inline")
   check(n ~= nil, "raw_inline: export snippet preserved as raw_inline")
   assert_roundtrip({ "Snippet @@html:<br>@@ here" }, "export snippet: round-trips")
 end
 
--- mixed line: many objects in one paragraph -------------------------
+-- Mixed line: many objects in one paragraph
 do
   assert_roundtrip(
     { "x_{i} \\copy [1/3] <<t>> {{{m(a)}}} [fn::b] *bold* end" },
@@ -179,14 +179,14 @@ do
   )
 end
 
--- non-braced superscript must not recurse infinitely (regression) -----
+-- Non-braced superscript must not recurse infinitely (regression)
 do
   local n = first_kind(inline_of({ "value x^2 here" }), "superscript")
   check(n ~= nil, "superscript non-braced: captured (no stack overflow)")
   assert_roundtrip({ "value x^2 here" }, "superscript non-braced: round-trips")
 end
 
--- regression: the six parse_inline call sites still round-trip --------
+-- Regression: the six parse_inline call sites still round-trip
 do
   -- paragraph body with link + math
   assert_roundtrip(
@@ -230,7 +230,7 @@ do
   )
 end
 
--- radio-target definition is a typed node and round-trips ------------
+-- Radio-target definition is a typed node and round-trips
 do
   local n = first_kind(inline_of({ "Define <<<my phrase>>> here." }), "radio_target")
   check(

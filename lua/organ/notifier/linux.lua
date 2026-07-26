@@ -14,7 +14,7 @@ local M = {}
 
 local UNIT_PREFIX = "organ-reminder-"
 
--- Paths ---------------------------------------------------------------------
+-- Paths
 
 local function home()
   return vim.uv.os_homedir() or os.getenv("HOME")
@@ -29,7 +29,7 @@ local function source_hicolor_dir()
   return hits[1]
 end
 
--- Tool detection ------------------------------------------------------------
+-- Tool detection
 
 local function which(cmd)
   local r = vim.system({ "command", "-v", cmd }, { text = true }):wait()
@@ -87,7 +87,7 @@ local function pick_scheduler_cached()
   return _scheduler_cache or nil
 end
 
--- Icon install -------------------------------------------------------------
+-- Icon install
 
 local function ensure_icons()
   local src = source_hicolor_dir()
@@ -107,7 +107,7 @@ local function ensure_icons()
   return true
 end
 
--- Helpers ------------------------------------------------------------------
+-- Helpers
 
 local function uuid()
   local r = math.random
@@ -134,7 +134,7 @@ local function notify_shell_command(title, body)
   }, " ")
 end
 
--- Schedulers ---------------------------------------------------------------
+-- Schedulers
 
 local function schedule_at(entry)
   local stamp = os.date("%Y%m%d%H%M", entry.at)
@@ -260,7 +260,7 @@ local function cancel_async(handle)
   end
 end
 
--- Public --------------------------------------------------------------------
+-- Public
 
 -- Test/diagnostic accessors. Underscore-prefixed; not part of the stable API.
 M._shquote = shquote

@@ -12,7 +12,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- Mixed-width cells pad to the longest.
 do
   local rows = {
@@ -24,7 +23,6 @@ do
   assert_eq(out[2], "| alice | 30  |")
 end
 
-----------------------------------------------------------------------
 -- Separator row matches column widths (count of dashes = width + 2).
 do
   local rows = {
@@ -37,7 +35,6 @@ do
   assert_eq(out[2], "|-------|-----|", "separator dashes match widths +2")
 end
 
-----------------------------------------------------------------------
 -- Empty cells render as ' ' padded to column width.
 do
   local rows = {
@@ -48,7 +45,6 @@ do
   assert_eq(out[2], "| alice |     |")
 end
 
-----------------------------------------------------------------------
 -- Single-column table.
 do
   local rows = { { cells = { "x" }, sep = false }, { cells = { "yyy" }, sep = false } }
@@ -57,7 +53,6 @@ do
   assert_eq(out[2], "| yyy |")
 end
 
-----------------------------------------------------------------------
 -- Indented align.
 do
   local rows = { { cells = { "a", "b" }, sep = false } }

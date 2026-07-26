@@ -24,7 +24,6 @@ local writer = require("organ.pdf.writer")
 
 local M = {}
 
-----------------------------------------------------------------------
 -- File loader.
 
 local function read_all(path)
@@ -37,7 +36,6 @@ local function read_all(path)
   return data
 end
 
-----------------------------------------------------------------------
 -- JPEG segment walker.
 
 -- Markers without a length payload: SOI (D8), EOI (D9), TEM (01), and
@@ -148,7 +146,6 @@ local function parse_jpeg(data)
   }
 end
 
-----------------------------------------------------------------------
 -- Image object.
 
 local Image = {}
@@ -179,7 +176,6 @@ function Image:embed(w)
   return w:add(writer.stream(self.bytes, extra))
 end
 
-----------------------------------------------------------------------
 -- Public loader.
 
 function M.load_jpeg(path)

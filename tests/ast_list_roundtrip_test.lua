@@ -72,7 +72,7 @@ local function first_list(lines)
   return find(doc)
 end
 
--- bullet markers --------------------------------------------------
+-- Bullet markers
 do
   -- `-` and `+` are valid unordered bullets at column 0. `*` is a
   -- headline at column 0, so it is only a list bullet when indented;
@@ -94,7 +94,7 @@ do
   assert_roundtrip({ "- parent", "  * starred" }, "marker round-trips: * (nested)")
 end
 
--- ordered separators + non-1 start --------------------------------
+-- Ordered separators + non-1 start
 do
   local dot = first_list({ "1. item" })
   check(dot ~= nil and dot.items[1].marker == "1.", "ordered dot marker")
@@ -105,7 +105,7 @@ do
   assert_roundtrip({ "3. third" }, "non-1 start round-trips")
 end
 
--- checkbox --------------------------------------------------------
+-- Checkbox
 do
   local l = first_list({ "- [ ] todo", "- [X] done", "- [-] part" })
   check(
@@ -118,14 +118,14 @@ do
   assert_roundtrip({ "1. [X] done" }, "ordered + checkbox round-trips")
 end
 
--- counter ---------------------------------------------------------
+-- Counter
 do
   local l = first_list({ "1. [@5] text" })
   check(l ~= nil and l.items[1].counter == "5", "counter captured")
   assert_roundtrip({ "1. [@5] text" }, "counter round-trips")
 end
 
--- description tag -------------------------------------------------
+-- Description tag
 do
   local l = first_list({ "- term :: definition" })
   check(l ~= nil and l.items[1].tag ~= nil, "description tag captured")
@@ -133,7 +133,7 @@ do
   assert_roundtrip({ "- *bold* term :: def" }, "description tag with markup round-trips")
 end
 
--- nested lists (the data-loss regression) -------------------------
+-- Nested lists (the data-loss regression)
 do
   local l = first_list({ "- a", "  - nested", "- b" })
   check(l ~= nil and #l.items == 2, "outer list has 2 items")
@@ -148,14 +148,14 @@ do
   assert_roundtrip({ "- a", "  - b", "    - c" }, "two-level nesting round-trips")
 end
 
--- multi-line item content + flat regression -----------------------
+-- Multi-line item content + flat regression
 do
   assert_roundtrip({ "- a", "  continued" }, "multi-line item round-trips")
   assert_roundtrip({ "- one", "- two", "- three" }, "flat unordered round-trips")
   assert_roundtrip({ "1. one", "2. two" }, "flat ordered round-trips")
 end
 
--- regression: combined + list under a headline ---------------------
+-- Regression: combined + list under a headline
 do
   -- counter + checkbox on one ordered item
   assert_roundtrip({ "1. [@3] [X] done with counter" }, "regression: counter + checkbox")
@@ -170,7 +170,7 @@ do
   assert_roundtrip({ "- dash", "+ plus" }, "regression: mixed bullets round-trip")
 end
 
--- regression: a content-less item is not dropped --------------------
+-- Regression: a content-less item is not dropped
 do
   local l = first_list({ "- a", "- term ::", "- b" })
   check(l ~= nil and #l.items == 3, "content-less middle item survives in AST")

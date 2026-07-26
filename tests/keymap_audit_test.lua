@@ -121,12 +121,10 @@ for _, path in ipairs(FILES_TO_SCAN) do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- ALSO audit the resolved defaults: in-code literals can be overridden by
 -- `lua/organ/defaults.lua` (via the `cfg[desc]` path in agenda.lua's
 -- map helper, etc.). A bad default re-introduces the shadow even when
 -- the literal in the .lua file was correct.
--- ---------------------------------------------------------------------------
 local defaults = dofile("lua/organ/defaults.lua")
 
 local function audit_keymap_table(name, t)

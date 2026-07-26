@@ -27,9 +27,7 @@ local function pin(date)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. [wd]: weekday-only repeater skips Sat/Sun.
-----------------------------------------------------------------------
 local function write_file(path, contents)
   local f = assert(io.open(path, "w"))
   f:write(contents)
@@ -57,9 +55,7 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 2. [nth:1:mon]: first Monday of next month.
-----------------------------------------------------------------------
 do
   local fixture = org_dir .. "/nth.org"
   write_file(
@@ -84,9 +80,7 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 3. [eom]: end of month.
-----------------------------------------------------------------------
 do
   local fixture = org_dir .. "/eom.org"
   write_file(
@@ -110,9 +104,7 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 4. .+P/Q (habit): bump preserves the alarm half.
-----------------------------------------------------------------------
 do
   local fixture = org_dir .. "/habit.org"
   write_file(

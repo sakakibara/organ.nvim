@@ -126,7 +126,6 @@ lint-doc:
 	  -c 'verb VimhelpLintEcho' \
 	  -c qa
 
-# ---------------------------------------------------------------------------
 # Demos: render each `.tape` script in assets/tapes/ to an animated
 # GIF via `vhs`.  Tapes are the source of truth; the rendered GIFs
 # are derived artifacts.
@@ -300,7 +299,6 @@ clean:
 	@rm -rf $(DEPS_DIR)
 	@echo "removed $(DEPS_DIR) (run 'make deps' to refetch)"
 
-# ---------------------------------------------------------------------------
 # Agenda parity: side-by-side snapshot of organ.nvim's render against
 # real Emacs org-agenda output, both driven from tests/fixtures/parity/.
 #

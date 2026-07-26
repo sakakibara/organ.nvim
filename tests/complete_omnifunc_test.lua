@@ -56,18 +56,14 @@ local b = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_set_current_buf(b)
 vim.bo[b].filetype = "org"
 
--- ---------------------------------------------------------------------------
 -- (a) No trigger at cursor → findstart returns -3 (silent cancel).
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "plain text" })
 vim.api.nvim_win_set_cursor(0, { 1, 5 })
 local col = complete.omnifunc(1, "")
 check("no trigger: findstart returns -3", col == -3, "got " .. tostring(col))
 
--- ---------------------------------------------------------------------------
 -- (b) `[[id:` trigger → findstart returns the column AFTER the prefix.
 --     Then phase 2 returns the two seeded IDs.
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "see [[id: " })
 vim.api.nvim_win_set_cursor(0, { 1, #"see [[id:" })
 col = complete.omnifunc(1, "")
@@ -95,9 +91,7 @@ check(
   vim.inspect(words["alpha-id"])
 )
 
--- ---------------------------------------------------------------------------
 -- (c) ftplugin attach sets buffer-local omnifunc when complete.enabled.
--- ---------------------------------------------------------------------------
 require("organ.ftplugin.core").attach(b)
 local of = vim.api.nvim_get_option_value("omnifunc", { buf = b })
 check(
@@ -106,9 +100,7 @@ check(
   of
 )
 
--- ---------------------------------------------------------------------------
 -- (d) ftplugin does NOT clobber an existing omnifunc.
--- ---------------------------------------------------------------------------
 local b2 = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_set_current_buf(b2)
 vim.bo[b2].filetype = "org"

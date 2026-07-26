@@ -61,9 +61,7 @@ local function lines(b)
   return vim.api.nvim_buf_get_lines(b, 0, -1, false)
 end
 
--- ---------------------------------------------------------------------------
 -- (a) move_subtree_up: <M-k> swaps "* Beta" with "* Alpha".
--- ---------------------------------------------------------------------------
 do
   local b, lhs = setup("move_subtree_up")
   if not lhs then
@@ -81,9 +79,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (b) move_subtree_down: when on the FIRST heading, <M-j> swaps it down.
--- ---------------------------------------------------------------------------
 do
   local b, lhs = setup("move_subtree_down")
   vim.api.nvim_win_set_cursor(0, { 1, 0 }) -- on "* Alpha"
@@ -102,9 +98,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (c) demote_subtree: cursor on "* Beta" → "** Beta".
--- ---------------------------------------------------------------------------
 do
   local b, lhs = setup("demote_subtree")
   if not lhs then
@@ -118,9 +112,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (d) promote_subtree: '** Beta' back to '* Beta'.
--- ---------------------------------------------------------------------------
 do
   local b, lhs = setup("promote_subtree")
   if not lhs then
@@ -141,9 +133,7 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (e) meta_return: opens a new same-level heading below the cursor's heading.
--- ---------------------------------------------------------------------------
 do
   local b, lhs = setup("meta_return")
   if not lhs then
@@ -165,11 +155,9 @@ do
   vim.api.nvim_buf_delete(b, { force = true })
 end
 
--- ---------------------------------------------------------------------------
 -- (f) Insert-mode bindings: every structure op also installs a buffer-local
 -- insert-mode keymap with the SAME lhs.  Verifies the bind exists; firing
 -- it from headless insert-mode is awkward so we just check installation.
--- ---------------------------------------------------------------------------
 do
   local b, _ = setup("meta_return")
   local i_maps = {}

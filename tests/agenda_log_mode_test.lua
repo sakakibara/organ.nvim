@@ -79,9 +79,7 @@ local function find_line(bufnr, needle)
   return nil
 end
 
--- ---------------------------------------------------------------------------
 -- (a) Default render: scheduled task only; CLOSED entries hidden.
--- ---------------------------------------------------------------------------
 local bufnr = agenda.open({
   from = "2026-05-04",
   to = "2026-05-04",
@@ -96,9 +94,7 @@ check(
   "Closed task appeared without log mode"
 )
 
--- ---------------------------------------------------------------------------
 -- (b) Press `l` to toggle log mode on: CLOSED task now appears.
--- ---------------------------------------------------------------------------
 vim.api.nvim_set_current_buf(bufnr)
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
   if m.lhs == "l" and m.callback then
@@ -122,9 +118,7 @@ check(
   find_line(bufnr, "State: TODO -> WAIT") ~= nil
 )
 
--- ---------------------------------------------------------------------------
 -- (c) Press `l` again to toggle off: CLOSED task disappears.
--- ---------------------------------------------------------------------------
 for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
   if m.lhs == "l" and m.callback then
     m.callback()
@@ -133,10 +127,8 @@ for _, m in ipairs(vim.api.nvim_buf_get_keymap(bufnr, "n")) do
 end
 check("after l (toggle off): Closed task hidden again", find_line(bufnr, "Closed task") == nil)
 
--- ---------------------------------------------------------------------------
 -- (d) on_start = true: CLOSED entries shown on first open without
 --     pressing `l`.
--- ---------------------------------------------------------------------------
 vim.api.nvim_buf_delete(bufnr, { force = true })
 require("organ").config.agenda.log_mode.on_start = true
 local b2 = agenda.open({

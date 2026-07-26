@@ -34,11 +34,9 @@ local function get_buf(b)
   return vim.api.nvim_buf_get_lines(b, 0, -1, false)
 end
 
--- ---------------------------------------------------------------------------
 -- (a) clipboard.cut: deletion site collapses orphan blanks to the
 --     buffer's "before" policy.  Two-blank-between style → cut middle
 --     subtree → exactly two blanks remain between surviving siblings.
--- ---------------------------------------------------------------------------
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].filetype = "org"
@@ -70,12 +68,10 @@ do
   check("cut: deletion site normalized to surrounding pattern", ok, vim.inspect(out))
 end
 
--- ---------------------------------------------------------------------------
 -- (b) clipboard.paste: destination heading gets the buffer's spacing
 --     policy applied automatically.  Source = none-style buffer; copy
 --     a subtree, paste into a "before"-style buffer; pasted heading
 --     ends up with one blank above.
--- ---------------------------------------------------------------------------
 do
   -- 1. Cut a subtree from a "tight" buffer.
   local src = vim.api.nvim_create_buf(false, true)
@@ -113,10 +109,8 @@ do
   check("paste: pasted heading inserted at re-leveled depth", saw_pasted, vim.inspect(out))
 end
 
--- ---------------------------------------------------------------------------
 -- (c) archive_subtree: cut site is tidied even though the
 --     subtree-removal happens before the spacing call.
--- ---------------------------------------------------------------------------
 do
   local tmp_src = vim.fn.tempname() .. ".org"
   local f = io.open(tmp_src, "w")

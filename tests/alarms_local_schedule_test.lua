@@ -53,9 +53,7 @@ local function iso(ts)
   return os.date("%Y-%m-%dT%H:%M", ts)
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Two future scheduled rows × lead_minutes={10,0} → four entries.
--- ---------------------------------------------------------------------------
 organ.config = organ.config or {}
 organ.config.alarms = {
   enabled = true,
@@ -114,11 +112,9 @@ end
 check("body wording: 'in 10 min' for lead=10", has_in_min)
 check("body wording: '— now' for lead=0", has_now)
 
--- ---------------------------------------------------------------------------
 -- 2. Same row scanned twice produces the same ids → notifier idempotency
 --    (set_pending replaces the previous batch; same ids = same effective
 --    schedule).
--- ---------------------------------------------------------------------------
 local first_ids = {}
 for _, e in ipairs(entries) do
   first_ids[e.id] = true
@@ -139,12 +135,10 @@ check(
   "matched " .. matched .. "/" .. #second
 )
 
--- ---------------------------------------------------------------------------
 -- 3. Past-due row with lead=0 produces no entry; with lead=10 may still
 --    emit an entry if (due - 10min) is still in the future. Confirm the
 --    boundary: a row 5 min ago, lead {10, 0} → zero entries (both leads
 --    fall before now).
--- ---------------------------------------------------------------------------
 stub_rows = {
   { id = "past", title = "Old", todo_state = "TODO", scheduled = iso(now - 300) }, -- 5 min ago
 }
@@ -156,9 +150,7 @@ check(
   "got " .. (set_pending_calls[1] and #set_pending_calls[1] or "nil")
 )
 
--- ---------------------------------------------------------------------------
 -- 4. Empty agenda → set_pending called with empty list (cancels prior batch).
--- ---------------------------------------------------------------------------
 stub_rows = {}
 set_pending_calls = {}
 alarms.scan(now)
@@ -167,9 +159,7 @@ check(
   #set_pending_calls == 1 and #set_pending_calls[1] == 0
 )
 
--- ---------------------------------------------------------------------------
 -- 5. local_schedule=false → notifier not invoked at all.
--- ---------------------------------------------------------------------------
 organ.config.alarms.local_schedule = false
 set_pending_calls = {}
 stub_rows = {
@@ -182,9 +172,7 @@ check(
   "got " .. #set_pending_calls .. " calls"
 )
 
--- ---------------------------------------------------------------------------
 -- 6. enabled=false → no scan happens at all.
--- ---------------------------------------------------------------------------
 organ.config.alarms.enabled = false
 organ.config.alarms.local_schedule = true
 set_pending_calls = {}

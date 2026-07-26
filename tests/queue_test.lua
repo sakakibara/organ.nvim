@@ -30,7 +30,6 @@ assert(processed[1].path == "a.org")
 assert(processed[2].path == "b.org")
 assert(processed[3].path == "c.org")
 
-----------------------------------------------------------------------
 -- Priority tiers: interactive always drains before background.
 
 do
@@ -73,7 +72,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- Debounce: rapid consecutive enqueues collapse to one processing.
 
 do
@@ -102,7 +100,6 @@ do
   assert(#processed3 == 1, "expected 1, got " .. #processed3)
 end
 
-----------------------------------------------------------------------
 -- Background tier: items drain one at a time, in FIFO order, via the
 -- async worker contract (each calls done() when finished).
 
@@ -133,7 +130,6 @@ do
   assert(processedb[7].item == "f07.org", "FIFO broken: last = " .. tostring(processedb[7].item))
 end
 
-----------------------------------------------------------------------
 -- drain_blocking: waits until both tiers are empty.
 
 do

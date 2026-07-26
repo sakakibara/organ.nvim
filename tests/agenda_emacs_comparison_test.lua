@@ -95,9 +95,7 @@ require("organ").setup({
 
 local agenda = require("organ.agenda")
 
--- ---------------------------------------------------------------------------
 -- Render directly via the pure renderer so we can target both view kinds.
--- ---------------------------------------------------------------------------
 local function render_block_lines(block)
   local out = agenda.render({ { block = block, rows = SAMPLE } }, { now = "2026-05-03" })
   -- Strip empty trailing lines.

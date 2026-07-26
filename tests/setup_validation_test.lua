@@ -23,9 +23,7 @@ local function fresh_setup(opts)
   return require("organ").setup(opts or {})
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Bad agenda.views (a value that's not a table) → setup errors clearly.
--- ---------------------------------------------------------------------------
 do
   local ok, err = pcall(fresh_setup, {
     db_path = vim.fn.tempname() .. ".db",
@@ -42,9 +40,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 2. Bad agenda.views[name].blocks (not a list) → setup errors clearly.
--- ---------------------------------------------------------------------------
 do
   local ok, err = pcall(fresh_setup, {
     db_path = vim.fn.tempname() .. ".db",
@@ -61,9 +57,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- 3. Valid view passes.
--- ---------------------------------------------------------------------------
 do
   local ok, err = pcall(fresh_setup, {
     db_path = vim.fn.tempname() .. ".db",
@@ -76,9 +70,7 @@ do
   check("valid agenda view: setup succeeds", ok, "err: " .. tostring(err))
 end
 
--- ---------------------------------------------------------------------------
 -- 4. todo.sequence missing `|` divider → warns but does NOT error.
--- ---------------------------------------------------------------------------
 do
   local notes = {}
   local saved = vim.notify
@@ -106,9 +98,7 @@ do
   check("todo.sequence missing `|`: warning emitted", saw_warn, "notes: " .. vim.inspect(notes))
 end
 
--- ---------------------------------------------------------------------------
 -- 5. org_dir nonexistent → warns at startup.
--- ---------------------------------------------------------------------------
 do
   local notes = {}
   local saved = vim.notify
@@ -135,9 +125,7 @@ do
   check("org_dir missing: warning emitted", saw_warn, "notes: " .. vim.inspect(notes))
 end
 
--- ---------------------------------------------------------------------------
 -- 6. Capture template invalid shape: setup errors clearly (existing behavior).
--- ---------------------------------------------------------------------------
 do
   local ok, err = pcall(fresh_setup, {
     db_path = vim.fn.tempname() .. ".db",

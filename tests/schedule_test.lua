@@ -24,7 +24,6 @@ local function assert_eq(a, b, msg)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. Set schedule on fresh headline — planning line inserted with SCHEDULED:.
 do
   local b = mk_buf({ "* Task", "  body" })
@@ -36,7 +35,6 @@ do
   assert_eq(#lines, 3)
 end
 
-----------------------------------------------------------------------
 -- 2. Set schedule when planning line already has SCHEDULED — replaced in place.
 --    Canonical rewrite: indent from adapt (level 1 -> 2 spaces).
 do
@@ -47,7 +45,6 @@ do
   assert_eq(#lines, 3, "no extra lines added")
 end
 
-----------------------------------------------------------------------
 -- 3. Set schedule when planning line already has DEADLINE only —
 --    canonical rewrite produces separate aligned lines in order:
 --    SCHEDULED first, DEADLINE second.
@@ -62,7 +59,6 @@ do
   assert_eq(#lines, 4, "one extra line from canonical separate-line format")
 end
 
-----------------------------------------------------------------------
 -- 4. Cancel (callback nil) — no buffer change.
 do
   local b = mk_buf({ "* Task", "  body" })
@@ -81,7 +77,6 @@ do
   assert_eq(after[2], original[2])
 end
 
-----------------------------------------------------------------------
 -- 5. Cursor in body resolves to containing headline.
 do
   local b = mk_buf({ "* Task", "  first body line", "  second body line" })

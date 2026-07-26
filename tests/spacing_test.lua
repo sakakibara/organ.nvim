@@ -38,9 +38,7 @@ local function eq_policy(got, want)
   return got and got.before == want.before and got.after == want.after
 end
 
--- ---------------------------------------------------------------------------
 -- detect: no-blank style
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "* H1",
@@ -194,9 +192,7 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- resolve: presets and overrides
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({ "* H" })
   check(
@@ -236,9 +232,7 @@ do
   require("organ").config.structure.headline_spacing = nil
 end
 
--- ---------------------------------------------------------------------------
 -- normalize_around: enforces the policy at a specific headline
--- ---------------------------------------------------------------------------
 
 local function lines_of(b)
   return vim.api.nvim_buf_get_lines(b, 0, -1, false)
@@ -311,11 +305,9 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Exhaustive policy combinations: every (before, after) in {0..3} x {0..3}
 -- against an over-spaced source buffer.  Asserts the heading is at the
 -- expected line, with exactly N blanks before it and M blanks after.
--- ---------------------------------------------------------------------------
 for before = 0, 3 do
   for after = 0, 3 do
     local b = buf_with({
@@ -379,12 +371,10 @@ for before = 0, 3 do
   end
 end
 
--- ---------------------------------------------------------------------------
 -- Edge: two consecutive headings with policy (1,1) -- the shared gap
 -- between them resolves to one blank line, not two.  normalize_around
 -- on the SECOND heading should leave the first heading's "after" gap
 -- as part of its own region, not double up.
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "* H1",
@@ -400,11 +390,9 @@ do
   )
 end
 
--- ---------------------------------------------------------------------------
 -- Detection adversarial: bimodal pattern (half headings at 0 blanks,
 -- half at 2 blanks before).  Mode should pick whichever is more
 -- frequent; tie -> smaller.
--- ---------------------------------------------------------------------------
 do
   -- before counts: H2 -> 0, H3 -> 2, H4 -> 0, H5 -> 2.  Tie -> 0.
   local b = buf_with({
@@ -427,9 +415,7 @@ do
   check("bimodal (0,2,0,2): tie-break to smaller (before=0)", p.before == 0, vim.inspect(p))
 end
 
--- ---------------------------------------------------------------------------
 -- Detection adversarial: clear majority of 2 blanks despite some 0s.
--- ---------------------------------------------------------------------------
 do
   -- before counts: 0, 2, 2, 2 -> mode = 2.
   local b = buf_with({
@@ -454,10 +440,8 @@ do
   check("majority of 2 blanks (one zero outlier): before=2", p.before == 2, vim.inspect(p))
 end
 
--- ---------------------------------------------------------------------------
 -- Detection: leading-of-buffer blanks don't poison the count for the
 -- first heading.
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "",
@@ -472,10 +456,8 @@ do
   check("leading-of-buffer blanks ignored: before=0", p.before == 0, vim.inspect(p))
 end
 
--- ---------------------------------------------------------------------------
 -- Detection: trailing-of-buffer blanks don't poison the count for the
 -- last heading.
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "* H1",
@@ -490,11 +472,9 @@ do
   check("trailing-of-buffer blanks ignored: after=0", p.after == 0, vim.inspect(p))
 end
 
--- ---------------------------------------------------------------------------
 -- Detection: nested headings (different levels) all contribute to the
 -- same count.  Not level-aware -- a single dominant pattern wins
 -- across all depths.
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "* H1",
@@ -511,10 +491,8 @@ do
   check("nested levels share the same count -> before=1", p.before == 1, vim.inspect(p))
 end
 
--- ---------------------------------------------------------------------------
 -- normalize_around applied repeatedly is idempotent: running twice
 -- with the same policy produces the same result as running once.
--- ---------------------------------------------------------------------------
 do
   local b = buf_with({
     "preamble",

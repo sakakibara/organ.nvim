@@ -81,7 +81,6 @@ local function pdf_bytes_look_valid(path)
   return true
 end
 
-----------------------------------------------------------------------
 -- Lua engine (default).
 
 local ttf, ferr = font_search.find({ style = "regular" })
@@ -153,7 +152,6 @@ else
   print("SKIP  lua engine checks: no system TTF found (" .. tostring(ferr) .. ")")
 end
 
-----------------------------------------------------------------------
 -- LaTeX engine path.
 
 local latex_engine = which_latex_engine()

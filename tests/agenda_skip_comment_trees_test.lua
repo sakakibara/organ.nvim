@@ -23,9 +23,7 @@ local function check(label, ok, detail)
   end
 end
 
--- ---------------------------------------------------------------------------
 -- 1. Parser-level: indexer.extract sets `commented` on the right rows.
--- ---------------------------------------------------------------------------
 local fixture_path = os.tmpname() .. ".org"
 local f = assert(io.open(fixture_path, "w"))
 f:write([[
@@ -84,10 +82,8 @@ check(
   by_title["COMMENTARY-ish title"] and (by_title["COMMENTARY-ish title"].commented or 0) == 0
 )
 
--- ---------------------------------------------------------------------------
 -- 2. Agenda filter: drops commented rows + descendants, transitive via
 --    parent_id chain (commented_chain).
--- ---------------------------------------------------------------------------
 local SAMPLE = {
   {
     id = "h1",

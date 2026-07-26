@@ -18,7 +18,6 @@ local function check(label, ok, detail)
   end
 end
 
-----------------------------------------------------------------------
 -- 1. Explicit path override -- existing fixture round-trips verbatim.
 
 local tmpdir = vim.fn.tempname()
@@ -37,7 +36,6 @@ check(
   ("got=%s err=%s"):format(tostring(p), tostring(err))
 )
 
-----------------------------------------------------------------------
 -- 2. Explicit path that doesn't exist -- returns (nil, err).
 
 local missing = tmpdir .. "/does-not-exist-" .. tostring(math.random(1, 1e9)) .. ".ttf"
@@ -49,7 +47,6 @@ check(
   ("got %q"):format(tostring(err2))
 )
 
-----------------------------------------------------------------------
 -- 3. fc-match path (only when actually installed; otherwise skip).
 
 if vim.fn.executable("fc-match") == 1 then
@@ -63,7 +60,6 @@ else
   print("SKIP  fc-match unavailable (covered by directory walk below)")
 end
 
-----------------------------------------------------------------------
 -- 4. Directory walk -- with fc-match shadowed via the executable() stub.
 
 local orig_executable = vim.fn.executable
@@ -102,7 +98,6 @@ else
   )
 end
 
-----------------------------------------------------------------------
 -- 5. Diagnostic lists at least one directory it tried. We force the
 -- no-hit case by also stubbing scandir indirectly: temporarily bait
 -- _os_font_dirs with a path that is guaranteed not to exist.
@@ -125,7 +120,6 @@ do
   )
 end
 
-----------------------------------------------------------------------
 -- 6. mono style -- when DejaVuSansMono is installed it should win
 -- over DejaVuSans.ttf via the preferred-name ranking.
 
@@ -141,7 +135,6 @@ else
   print("SKIP  DejaVuSansMono not on this system")
 end
 
-----------------------------------------------------------------------
 -- 7. Bold style -- DejaVuSans-Bold ranks above the regular face when
 -- both are present.
 
@@ -157,7 +150,6 @@ else
   print("SKIP  DejaVuSans-Bold not on this system")
 end
 
-----------------------------------------------------------------------
 -- 8. Regular style -- DejaVuSans.ttf wins when present.
 
 local dejavu_regular = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
@@ -175,7 +167,6 @@ end
 -- Restore the executable stub.
 vim.fn.executable = orig_executable
 
-----------------------------------------------------------------------
 -- 9. Unknown style is rejected.
 
 local pu, erru = font_search.find({ style = "wibble" })
@@ -184,7 +175,6 @@ check(
   pu == nil and type(erru) == "string" and erru:find("unknown style", 1, true) ~= nil
 )
 
-----------------------------------------------------------------------
 -- 10. Explicit path bypasses other strategies -- a non-canonical
 -- fixture (not a real font) is returned even though dejavu is on
 -- disk. We pass the temp fixture and verify the result is that exact
@@ -196,8 +186,6 @@ check(
   p_bypass == fixture and err_bypass == nil,
   ("got=%s err=%s"):format(tostring(p_bypass), tostring(err_bypass))
 )
-
-----------------------------------------------------------------------
 
 -- Cleanup.
 pcall(vim.fn.delete, fixture)
