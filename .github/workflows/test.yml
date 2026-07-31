@@ -235,8 +235,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
           args: --check lua/ plugin/ tests/
-      - uses: leafo/gh-actions-lua@v10
-      - uses: leafo/gh-actions-luarocks@v4
+      # luaVersion is pinned because v13 defaults to 5.5, and which Lua
+      # luacheck runs under is a linting decision, not something to inherit
+      # from an action bump.
+      - uses: leafo/gh-actions-lua@v13
+        with:
+          luaVersion: "5.4"
+      - uses: leafo/gh-actions-luarocks@v6
       - run: luarocks install luacheck
       - run: luacheck lua/ plugin/
 
@@ -244,7 +249,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - uses: DavidAnson/markdownlint-cli2-action@v20
+      - uses: DavidAnson/markdownlint-cli2-action@v24
         with:
           globs: |
             **/*.md
