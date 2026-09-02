@@ -35,6 +35,14 @@ end
 local sandbox = vim.fn.tempname()
 vim.fn.mkdir(sandbox, "p")
 vim.env.XDG_DATA_HOME = sandbox
+
+-- Hermetic git env: don't inherit the dev's global config (which may
+-- enable commit.gpgsign and need a signing agent the test sandbox
+-- doesn't run). Empty config files work cross-platform.
+local empty_cfg = sandbox .. "/empty.gitconfig"
+io.open(empty_cfg, "w"):close()
+vim.env.GIT_CONFIG_GLOBAL = empty_cfg
+vim.env.GIT_CONFIG_SYSTEM = empty_cfg
 local data = vim.fn.stdpath("data") .. "/organ"
 assert(data:find(sandbox, 1, true), "sandbox not in effect: " .. data)
 
