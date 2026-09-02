@@ -8,6 +8,7 @@
 local M = {}
 
 local obuf = require("organ.buf")
+local list = require("organ.list")
 local function is_headline(line)
   return line:match("^%*+%s") ~= nil
 end
@@ -35,7 +36,16 @@ local function is_table(line)
   return line:match("^%s*|") ~= nil
 end
 local function is_list(line)
-  return line:match("^(%s*)[%-%+%*]%s") ~= nil or line:match("^(%s*)%d+[%.%)]%s") ~= nil
+  return list.parse_item(line) ~= nil
+end
+local function is_fixed_width(line)
+  return line:match("^%s*:%s") ~= nil or line:match("^%s*:$") ~= nil
+end
+local function is_hrule(line)
+  return line:match("^%s*%-%-%-%-%-+%s*$") ~= nil
+end
+local function is_comment(line)
+  return line:match("^%s*#%s") ~= nil or line:match("^%s*#$") ~= nil
 end
 local function leading_indent(line)
   return line:match("^(%s*)") or ""
@@ -315,7 +325,7 @@ local function wrap_to_width(text, width, first_indent, cont_indent)
   for word in text:gmatch("%S+") do
     if cur == first_indent or cur == cont_indent then
       cur = cur .. word
-    elseif #cur + 1 + #word <= width then
+    elseif vim.fn.strdisplaywidth(cur) + 1 + vim.fn.strdisplaywidth(word) <= width then
       cur = cur .. " " .. word
     else
       out[#out + 1] = cur
@@ -336,12 +346,13 @@ local function wrap_prose(lines, cfg)
   local out = {}
   local in_block = false
   local in_drawer = false
-  local para_lines, para_first, para_cont = {}, nil, nil
+  local para_lines, para_first, para_cont, para_kind = {}, nil, nil, nil
 
   local function flush()
     if #para_lines == 0 then
       return
     end
+    para_kind = nil
     -- Org's hard-line-break syntax (verified against Emacs `org-mode`
     -- + `fill-paragraph`, GNU Emacs 30.2) is `\\` at end of line, with
     -- optional trailing whitespace.  Lines NOT ending in `\\` are
@@ -364,6 +375,9 @@ local function wrap_prose(lines, cfg)
     for _, chunk in ipairs(chunks) do
       local joined = table.concat(chunk, " "):gsub("%s+", " ")
       joined = joined:gsub("^%s+", ""):gsub("%s+$", "")
+      if joined == "" then
+        out[#out + 1] = (first:gsub("%s+$", ""))
+      end
       for _, l in ipairs(wrap_to_width(joined, width, first, cont)) do
         out[#out + 1] = l
       end
@@ -402,20 +416,42 @@ local function wrap_prose(lines, cfg)
       or is_planning(line)
       or is_directive(line)
       or is_table(line)
+      or is_fixed_width(line)
+      or is_hrule(line)
       or line == ""
     then
       flush()
       out[#out + 1] = line
+    elseif is_comment(line) then
+      -- Emacs `org-fill-element` fills a comment under its `# ` prefix;
+      -- a bare `#` line splits comment paragraphs.
+      local indent, gap, body = line:match("^(%s*)#(%s*)(.*)$")
+      if body == "" then
+        flush()
+        out[#out + 1] = line
+      else
+        if para_kind ~= "comment" then
+          flush()
+          para_kind = "comment"
+          para_first = indent .. "#" .. (gap ~= "" and gap or " ")
+          para_cont = para_first
+        end
+        para_lines[#para_lines + 1] = body
+      end
     elseif is_list(line) then
       flush()
-      local bullet = line:match("^(%s*[%-%+%*]%s)") or line:match("^(%s*%d+[%.%)]%s)")
-      local rest = line:sub(#bullet + 1)
-      para_first = bullet
-      para_cont = string.rep(" ", #bullet)
-      para_lines[#para_lines + 1] = rest
+      local item = list.parse_item(line)
+      para_kind = "list"
+      para_first = item.indent .. item.bullet .. " "
+      para_cont = string.rep(" ", #para_first)
+      para_lines[#para_lines + 1] = item.content
     else
+      if para_kind == "comment" then
+        flush()
+      end
       if not para_first then
         local indent = leading_indent(line)
+        para_kind = "text"
         para_first = indent
         para_cont = indent
       end
@@ -723,9 +759,15 @@ function M.format_buffer(bufnr)
     repair_lists(bufnr)
   end
   if (cfg.blanks or {}).ensure_final_newline ~= false then
-    local last = vim.api.nvim_buf_get_lines(bufnr, -2, -1, false)[1]
-    if last and last ~= "" then
-      obuf.set_lines(bufnr, -1, -1, { "" })
+    -- Neovim writes the newline after the last line itself; trailing
+    -- empty lines would each add another.
+    local total = vim.api.nvim_buf_line_count(bufnr)
+    local last = total
+    while last > 1 and (vim.api.nvim_buf_get_lines(bufnr, last - 1, last, false)[1] or "") == "" do
+      last = last - 1
+    end
+    if last < total then
+      obuf.set_lines(bufnr, last, total, {})
     end
   end
 end

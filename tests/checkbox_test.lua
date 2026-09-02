@@ -149,5 +149,35 @@ out = with_buffer({
 end)
 eq(out[1], "- [X] [2/2] parent", "parent's own checkbox flips to X when all children done")
 
+-- Percent cookies truncate like Emacs `org-update-checkbox-count`
+-- (2 of 3 -> 66%, not 67%).
+out = with_buffer({
+  "- [%] parent",
+  "  - [X] a",
+  "  - [X] b",
+  "  - [ ] c",
+}, function(b)
+  cb.toggle({ bufnr = b, line = 4 })
+  cb.toggle({ bufnr = b, line = 4 })
+end)
+eq(out[1], "- [66%] parent", "percent cookie floors 2/3")
+
+-- A `[@N]` counter precedes the checkbox (Emacs: `1. [@3][ ] foo`).
+p = cb.parse_item_line("1. [@3] foo")
+eq(p.state, nil, "counter without checkbox")
+p = cb.parse_item_line("1. [@3][X] foo")
+eq(p.state, "X", "checkbox right after counter")
+eq(p.state_col, 8, "state column after counter")
+
+out = with_buffer({ "1. [@3] foo" }, function(b)
+  cb.toggle({ bufnr = b, line = 1 })
+end)
+deq(out, { "1. [@3][ ] foo" }, "checkbox inserted after the counter")
+
+out = with_buffer({ "1. [@3][ ] foo" }, function(b)
+  cb.toggle({ bufnr = b, line = 1 })
+end)
+deq(out, { "1. [@3][X] foo" }, "checkbox after counter toggles")
+
 io.write("checkbox ok\n")
 os.exit(0)

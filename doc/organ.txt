@@ -2966,9 +2966,11 @@ MACROS, SETUPFILE, INCLUDE                                  *organ-cmd-expand*
 Org-mode's reusable-content surface — macros (`{{{name(args)}}}`),
 SETUPFILE keyword inheritance, and INCLUDE directives — is implemented
 by `lua/organ/expand.lua`. The expansion runs as a buffer pre-pass
-before tree-sitter parses the source. Built-in macros: `{{{date(FMT)}}}`,
-`{{{time(FMT)}}}`, `{{{modification-time(FMT)}}}`, `{{{title}}}`,
-`{{{author}}}`, `{{{email}}}`, `{{{date}}}` (no-arg pulls #+DATE),
+before tree-sitter parses the source. Built-in macros: `{{{date(FMT)}}}`
+(formats a single-timestamp #+DATE; any other #+DATE value is used as
+is, and without #+DATE the macro is empty), `{{{time(FMT)}}}`,
+`{{{modification-time(FMT)}}}`, `{{{title}}}`, `{{{author}}}`,
+`{{{email}}}`, `{{{date}}}` (no-arg pulls #+DATE),
 `{{{property(KEY)}}}`, `{{{keyword(KEY)}}}`, `{{{n(VAR[,VAL])}}}`
 counters.
 
@@ -3266,12 +3268,24 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
 
 *:Org-toggle_item*
     `:Org toggle_item`
-    Cycle the marker of the line at cursor between plain text → `- `
-    list item → `1. ` numbered → plain text.
+    Emacs `org-toggle-item` (C-c -) on the line at cursor: a list
+    item becomes plain text (the bullet goes, the indent stays); a
+    headline becomes a `- ` item, its TODO keyword turning into a
+    `[ ]` / `[X]` checkbox and its tags, planning and property
+    drawer dropped; any other text line becomes a `- ` item at its
+    own indent.
+
+*:Org-toggle_heading*
+    `:Org toggle_heading`
+    Emacs `org-toggle-heading` (C-c *) on the line at cursor: a list
+    item or plain line becomes a headline one level below the nearest
+    headline above (a checkbox becomes a TODO/DONE keyword); a headline
+    becomes plain text with its stars removed.
 
 *:Org-list_sort*
-    `:Org list sort`
-    Sort the list at cursor alphabetically (case-insensitive).
+    `:Org list sort {kind}`
+    Sort the list at cursor by {kind}: `alpha` (case-insensitive, the
+    default), `numeric`, or `length` (display width).
 
 *:Org-list_repair*
     `:Org list repair`

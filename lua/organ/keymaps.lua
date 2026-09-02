@@ -80,7 +80,8 @@ M.defaults = {
   { "<LocalLeader>lr", "Org list repair", desc = "Renumber list" },
   { "<LocalLeader>ls", "Org list sort", desc = "Sort list" },
   { "<LocalLeader>lh", "Org list to_subtree", desc = "Convert list to subtree" },
-  { "<LocalLeader>l-", "Org toggle_item", desc = "Toggle item ↔ heading" },
+  { "<LocalLeader>l-", "Org toggle_item", desc = "Toggle list item (C-c -)" },
+  { "<LocalLeader>l*", "Org toggle_heading", desc = "Toggle headline (C-c *)" },
 
   -- subtree clipboard (capital S; `s` stays free for schedule)
   { "<LocalLeader>Sc", "Org cut_subtree", desc = "Cut subtree" },

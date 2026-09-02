@@ -198,8 +198,7 @@ do
     fmt.format_buffer(b)
     local after = get_lines(b)
 
-    -- The ensure_final_newline pass appends a trailing "" if absent, so
-    -- compare the content lines only (trim trailing empty from both sides).
+    -- Compare content lines only (trim trailing empty from both sides).
     local function trim_trailing_empty(t)
       local n = #t
       while n > 0 and t[n] == "" do

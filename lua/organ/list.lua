@@ -18,16 +18,29 @@ local obuf = require("organ.buf")
 --   counter = numeric value of an ordered bullet, or nil for unordered
 --   content = the body after the bullet
 function M.parse_item(line)
+  -- A bare bullet at end of line is an item too (Emacs `org-item-re`).
   local indent, bullet, content = line:match("^(%s*)([%-%+])%s+(.*)$")
+  if not bullet then
+    indent, bullet = line:match("^(%s*)([%-%+])$")
+    content = ""
+  end
   if not bullet then
     -- A `*` bullet requires leading whitespace; unindented `*` is a
     -- headline.
     indent, bullet, content = line:match("^(%s+)(%*)%s+(.*)$")
   end
+  if not bullet then
+    indent, bullet = line:match("^(%s+)(%*)$")
+    content = ""
+  end
   if bullet then
     return { indent = indent, bullet = bullet, content = content }
   end
   local i, num, sep, c = line:match("^(%s*)(%d+)([.)])%s+(.*)$")
+  if not num then
+    i, num, sep = line:match("^(%s*)(%d+)([.)])$")
+    c = ""
+  end
   if num then
     return {
       indent = i,
@@ -416,6 +429,14 @@ function M.sort(bufnr, cursor_line, comparator)
       end
       return a.key < b.key
     end
+  elseif comparator == "length" then
+    cmp = function(a, b)
+      local la, lb = vim.fn.strdisplaywidth(a.key), vim.fn.strdisplaywidth(b.key)
+      if la ~= lb then
+        return la < lb
+      end
+      return a.key < b.key
+    end
   else -- alpha (default)
     cmp = function(a, b)
       return a.key < b.key
@@ -489,8 +510,10 @@ end
 -- false when there's no same-indent sibling to swap with (Emacs:
 -- "Cannot move this item further up/down").
 function M.move(bufnr, line, dir)
-  local cur_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
-  local cur = M.parse_item(cur_text)
+  local function get(j)
+    return vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
+  end
+  local cur = M.parse_item(get(line))
   if not cur then
     return false
   end
@@ -498,26 +521,35 @@ function M.move(bufnr, line, dir)
   local other_start, other_end, other
   if dir == "up" then
     for j = line - 1, 1, -1 do
-      local text = vim.api.nvim_buf_get_lines(bufnr, j - 1, j, false)[1] or ""
-      if text:match("^%s*$") or text:match("^%*+%s") then
+      local text = get(j)
+      if text:match("^%*+%s") then
         break
-      end
-      local item = M.parse_item(text)
-      if item then
-        if #item.indent == #cur.indent then
-          other_start, other_end, other = j, line - 1, item
-          break
-        elseif #item.indent < #cur.indent then
+      elseif text:match("^%s*$") then
+        if j == 1 or get(j - 1):match("^%s*$") then
           break
         end
-      elseif #text:match("^(%s*)") <= #cur.indent then
-        break
+      else
+        local item = M.parse_item(text)
+        if item then
+          if #item.indent == #cur.indent then
+            other_start, other = j, item
+            other_end = item_subtree_end(bufnr, j, #item.indent)
+            break
+          elseif #item.indent < #cur.indent then
+            break
+          end
+        elseif #text:match("^(%s*)") <= #cur.indent then
+          break
+        end
       end
     end
   else
+    local total = vim.api.nvim_buf_line_count(bufnr)
     local nxt = cur_end + 1
-    local text = vim.api.nvim_buf_get_lines(bufnr, nxt - 1, nxt, false)[1] or ""
-    local item = M.parse_item(text)
+    if nxt <= total and get(nxt):match("^%s*$") then
+      nxt = nxt + 1
+    end
+    local item = nxt <= total and M.parse_item(get(nxt)) or nil
     if item and #item.indent == #cur.indent then
       other_start, other_end, other = nxt, item_subtree_end(bufnr, nxt, #item.indent), item
     end
@@ -531,13 +563,17 @@ function M.move(bufnr, line, dir)
     cur_block[1] = cur.indent .. other.bullet .. " " .. cur.content
     other_block[1] = other.indent .. cur.bullet .. " " .. other.content
   end
-  local combined, new_line
+  -- Blank lines between the two items stay where they are (Emacs
+  -- org-list-swap-items).
+  local between, combined, new_line
   if dir == "up" then
+    between = vim.api.nvim_buf_get_lines(bufnr, other_end, line - 1, false)
     new_line = other_start
-    combined = vim.list_extend(cur_block, other_block)
+    combined = vim.list_extend(vim.list_extend(cur_block, between), other_block)
   else
-    new_line = line + #other_block
-    combined = vim.list_extend(other_block, cur_block)
+    between = vim.api.nvim_buf_get_lines(bufnr, cur_end, other_start - 1, false)
+    new_line = line + #other_block + #between
+    combined = vim.list_extend(vim.list_extend(other_block, between), cur_block)
   end
   obuf.set_lines(bufnr, math.min(line, other_start) - 1, math.max(cur_end, other_end), combined)
   return new_line

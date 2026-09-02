@@ -229,6 +229,109 @@ do
   )
 end
 
+-- Emacs `org-fill-paragraph` never touches fixed-width lines, and a
+-- horizontal rule is its own element: neither joins the surrounding
+-- prose.
+do
+  local got = format_input({ "* H", ": fixed one", ": fixed two", ":", "para" })
+  check(
+    "fixed-width lines pass through unwrapped",
+    vim.deep_equal(got, { "* H", ": fixed one", ": fixed two", ":", "para" }),
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "para a", "-----", "para b", "para c" })
+  check(
+    "horizontal rule separates paragraphs",
+    vim.deep_equal(got, { "para a", "-----", "para b para c" }),
+    vim.inspect(got)
+  )
+end
+
+-- Comments fill with the `# ` prefix on every line; a bare `#` line
+-- splits comment paragraphs; prose never merges into a comment.
+do
+  local got = format_input({ "  # comment one", "  # comment two", "para" })
+  check(
+    "comment lines fill under the comment prefix",
+    vim.deep_equal(got, { "  # comment one comment two", "para" }),
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "#", "# a", "# b", "#", "# c" })
+  check(
+    "bare `#` separates comment paragraphs",
+    vim.deep_equal(got, { "#", "# a b", "#", "# c" }),
+    vim.inspect(got)
+  )
+end
+
+do
+  local got = format_input({ "para", "# a", "# b" })
+  check(
+    "comment after prose stays separate",
+    vim.deep_equal(got, { "para", "# a b" }),
+    vim.inspect(got)
+  )
+end
+
+do
+  local long = "# " .. string.rep("word ", 20)
+  local got = format_input({ long }, { wrap = { width = 30 } })
+  local ok = #got > 1
+  for _, l in ipairs(got) do
+    if not l:match("^# %S") or vim.fn.strdisplaywidth(l) > 30 then
+      ok = false
+    end
+  end
+  check("long comment wraps with the prefix on each line", ok, vim.inspect(got))
+end
+
+-- Width is measured in display columns, not bytes.
+do
+  local cjk = string.rep("\227\129\130", 30) -- 30 x U+3042, 60 columns, 90 bytes
+  local got = format_input({ cjk .. " " .. cjk }, { wrap = { width = 130 } })
+  check("CJK text within the column width is not wrapped", #got == 1, vim.inspect(got))
+  got = format_input({ cjk .. " " .. cjk }, { wrap = { width = 100 } })
+  check("CJK text wider than the column width wraps", #got == 2, vim.inspect(got))
+end
+
+-- A bare bullet is an item (Emacs `org-at-item-p`), not prose to join.
+do
+  local got = format_input({ "- a", "-", "- b" })
+  check(
+    "bare bullet stays its own item",
+    vim.deep_equal(got, { "- a", "-", "- b" }),
+    vim.inspect(got)
+  )
+end
+
+-- format_buffer leaves the last line non-empty so the written file ends
+-- with exactly one newline.
+do
+  local b = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* A", "body" })
+  fmt.format_buffer(b)
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "format_buffer adds no trailing empty line",
+    vim.deep_equal(lines, { "* A", "body" }),
+    vim.inspect(lines)
+  )
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* A", "body", "", "" })
+  fmt.format_buffer(b)
+  lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "format_buffer strips trailing empty lines",
+    vim.deep_equal(lines, { "* A", "body" }),
+    vim.inspect(lines)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

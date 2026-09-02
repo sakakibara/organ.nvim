@@ -45,12 +45,21 @@ T={{{title}}} A={{{author}}} E={{{email}}} D={{{date}}}
   assert(out:match("T=My Doc A=Jane E=j@example.com D=2026%-05%-02"), "keyword built-ins: " .. out)
 end
 
--- date(FMT) → strftime
+-- date(FMT) formats a single-timestamp #+DATE (Emacs `org-macro`:
+-- `org-format-timestamp`); a non-timestamp DATE ignores FMT; without a
+-- DATE keyword the macro is empty.
 
 do
-  local out = expand.process("[{{{date(%Y)}}}]")
-  local year = os.date("%Y")
-  assert(out:match("%[" .. year .. "%]"), "date(FMT): " .. out)
+  local out = expand.process("#+DATE: <2020-05-06 Wed>\n[{{{date(%Y)}}}] [{{{date}}}]")
+  assert(out:match("%[2020%] %[<2020%-05%-06 Wed>%]"), "date(FMT) from #+DATE: " .. out)
+  out = expand.process("#+DATE: [2020-05-06 Wed 10:30]\n[{{{date(%d %H:%M)}}}]")
+  assert(out:match("%[06 10:30%]"), "date(FMT) inactive with time: " .. out)
+  out = expand.process("#+DATE: <2020-05-06 Wed>--<2020-05-08 Fri>\n[{{{date(%d)}}}]")
+  assert(out:match("%[06%]"), "date(FMT) range uses the start: " .. out)
+  out = expand.process("#+DATE: foo bar\n[{{{date(%Y)}}}]")
+  assert(out:match("%[foo bar%]"), "date(FMT) non-timestamp DATE: " .. out)
+  out = expand.process("[{{{date(%Y)}}}] [{{{date}}}]")
+  assert(out:match("%[%] %[%]"), "date without #+DATE is empty: " .. out)
 end
 
 -- property(KEY) from passed-in property table
@@ -116,12 +125,21 @@ B2
   assert(out1:match("Top intro line"), "verbatim include: " .. out1)
   assert(out1:match("Section B"), "full content included")
 
-  -- Line range :lines "2-3"
-  local src2 = string.format('#+INCLUDE: "%s" :lines "2-3"', incl)
+  -- Line range :lines "2-4": the upper bound is excluded (Emacs
+  -- `org-export--prepare-file-contents`: "5-10" is lines 5 to 9).
+  local src2 = string.format('#+INCLUDE: "%s" :lines "2-4"', incl)
   local out2 = expand.process(src2)
   assert(out2:match("Section A"), "lines slice: " .. out2)
   assert(out2:match("A1"), "lines slice second")
+  assert(not out2:match("A2"), "lines upper bound excluded: " .. out2)
   assert(not out2:match("B1"), "lines exclusion")
+  local out2b = expand.process(string.format('#+INCLUDE: "%s" :lines "-2"', incl))
+  assert(
+    out2b:match("Top intro line") and not out2b:match("Section A"),
+    "open lower bound: " .. out2b
+  )
+  local out2c = expand.process(string.format('#+INCLUDE: "%s" :lines "5-"', incl))
+  assert(out2c:match("Section B") and not out2c:match("A2"), "open upper bound: " .. out2c)
 
   -- Headline search: ::*Section A
   local src3 = string.format('#+INCLUDE: "%s::*Section A"', incl)
@@ -130,14 +148,14 @@ B2
   assert(not out3:match("B1"), "headline scope")
 
   -- Wrap as example block
-  local src4 = string.format('#+INCLUDE: "%s" example :lines "1-1"', incl)
+  local src4 = string.format('#+INCLUDE: "%s" example :lines "1-2"', incl)
   local out4 = expand.process(src4)
   assert(out4:match("#%+begin_example"), "example wrap: " .. out4)
   assert(out4:match("Top intro line"), "example body")
   assert(out4:match("#%+end_example"), "example end")
 
   -- Wrap as src block with language
-  local src5 = string.format('#+INCLUDE: "%s" src lua :lines "1-1"', incl)
+  local src5 = string.format('#+INCLUDE: "%s" src lua :lines "1-2"', incl)
   local out5 = expand.process(src5)
   assert(out5:match("#%+begin_src lua"), "src wrap: " .. out5)
   assert(out5:match("#%+end_src"), "src end")

@@ -107,9 +107,69 @@ do
   check("buffer unchanged after refused moves", eq(lines_of(b), { "- one", "- two" }))
 end
 
+-- Loose lists: a single blank line keeps the list going (Emacs
+-- `org-move-item-up/down` swap across it); the blank stays in place.
 do
   local b = org_buf({ "- a", "", "- b" })
-  check("move down stops at a blank line (list boundary)", list.move(b, 1, "down") == false)
+  local new_line = list.move(b, 1, "down")
+  local got = lines_of(b)
+  check(
+    "move down crosses a single blank line",
+    new_line == 3 and eq(got, { "- b", "", "- a" }),
+    detail(got) .. " new_line=" .. tostring(new_line)
+  )
+end
+
+do
+  local b = org_buf({ "- a", "", "- b", "", "- c" })
+  local new_line = list.move(b, 3, "up")
+  local got = lines_of(b)
+  check(
+    "move up in a loose list keeps the blank between items",
+    new_line == 1 and eq(got, { "- b", "", "- a", "", "- c" }),
+    detail(got) .. " new_line=" .. tostring(new_line)
+  )
+end
+
+do
+  local b = org_buf({ "- a", "", "- b", "", "- c" })
+  local new_line = list.move(b, 3, "down")
+  local got = lines_of(b)
+  check(
+    "move down in a loose list keeps the blank between items",
+    new_line == 5 and eq(got, { "- a", "", "- c", "", "- b" }),
+    detail(got) .. " new_line=" .. tostring(new_line)
+  )
+end
+
+do
+  local b = org_buf({ "- a", "  - a1", "", "- b" })
+  local new_line = list.move(b, 4, "up")
+  local got = lines_of(b)
+  check(
+    "move up over a sibling with children across a blank",
+    new_line == 1 and eq(got, { "- b", "", "- a", "  - a1" }),
+    detail(got)
+  )
+end
+
+do
+  local b = org_buf({ "- a", "", "", "- b" })
+  check("two blank lines end the list", list.move(b, 1, "down") == false)
+  check("two blank lines end the list (up)", list.move(b, 4, "up") == false)
+end
+
+-- A bare bullet is an item (Emacs `org-at-item-p`).
+do
+  local p = list.parse_item("-")
+  check("parse_item accepts a bare `-`", p ~= nil and p.bullet == "-" and p.content == "")
+  p = list.parse_item("1.")
+  check("parse_item accepts a bare `1.`", p ~= nil and p.counter == 1 and p.content == "")
+  check("parse_item rejects a bare `*` at column 0", list.parse_item("*") == nil)
+  local b = org_buf({ "- a", "-", "- b" })
+  local new_line = list.move(b, 3, "up")
+  local got = lines_of(b)
+  check("move up over a bare bullet", new_line == 2 and eq(got, { "- a", "- b", "-" }), detail(got))
 end
 
 -- <M-k>/<M-j> on an item dispatch to the list move; cursor follows.

@@ -110,8 +110,8 @@ function M.actions_at_cursor()
       end
     end)
     add("Convert to subtree", function()
-      local kind, err = require("organ.list_convert").toggle_item()
-      if not kind then
+      local ok, err = require("organ.list_convert").list_to_subtree()
+      if not ok then
         require("organ.notify").warn(tostring(err))
       end
     end)
@@ -129,6 +129,12 @@ function M.actions_at_cursor()
   -- Always-available low-level conversions.
   if not on_headline then
     add("Convert line to headline", function()
+      local kind, err = require("organ.list_convert").toggle_heading()
+      if not kind then
+        require("organ.notify").warn(tostring(err))
+      end
+    end)
+    add("Convert line to list item", function()
       local kind, err = require("organ.list_convert").toggle_item()
       if not kind then
         require("organ.notify").warn(tostring(err))

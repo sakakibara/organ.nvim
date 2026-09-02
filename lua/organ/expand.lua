@@ -200,7 +200,9 @@ local function parse_include(value)
     val = val:gsub("%s+$", "")
     if key == "lines" then
       local lo, hi = val:gsub('"', ""):match("^(%d*)-(%d*)$")
-      out.lines = { tonumber(lo), tonumber(hi) }
+      -- Emacs excludes the upper bound: "5-10" is lines 5 to 9.
+      local last = tonumber(hi)
+      out.lines = { tonumber(lo), last and last - 1 or nil }
     elseif key == "minlevel" then
       out.minlevel = tonumber(val)
     elseif key == "only-contents" then
@@ -407,13 +409,39 @@ end
 -- Built-in macros. `args` is the parenthesised arg list (already split
 -- on commas, with whitespace trimmed); `ctx` is the directive ctx.
 -- Return nil to fall through to user macros.
+-- Epoch time of `value` when it is exactly one org timestamp (a range
+-- counts as one; its start is used), else nil.
+local function timestamp_time(value)
+  local y, m, d, rest, after = value:match("^[<%[](%d%d%d%d)%-(%d%d)%-(%d%d)([^>%]]*)[>%]](.*)$")
+  if not y or (after ~= "" and not after:match("^%-%-[<%[][^>%]]*[>%]]$")) then
+    return nil
+  end
+  local h, mi = rest:match("(%d%d?):(%d%d)")
+  return os.time({
+    year = tonumber(y),
+    month = tonumber(m),
+    day = tonumber(d),
+    hour = tonumber(h) or 0,
+    min = tonumber(mi) or 0,
+  })
+end
+
 local function builtin_macro(name, args, ctx)
   if name == "date" then
-    local fmt = (args[1] and args[1] ~= "") and args[1] or "%Y-%m-%d"
-    if not args[1] and ctx.keywords.date then
-      return ctx.keywords.date
+    -- Emacs `org-macro-initialize-templates`: FMT applies only when
+    -- #+DATE is a single timestamp; otherwise the raw value is used.
+    local value = ctx.keywords.date
+    if not value then
+      return ""
     end
-    return os.date(fmt)
+    if not args[1] or args[1] == "" then
+      return value
+    end
+    local t = timestamp_time(vim.trim(value))
+    if t then
+      return os.date(args[1], t)
+    end
+    return value
   end
   if name == "time" then
     local fmt = (args[1] and args[1] ~= "") and args[1] or "%H:%M"

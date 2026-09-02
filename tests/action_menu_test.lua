@@ -84,6 +84,10 @@ local plain_actions = with({ "Just some prose here." }, 1, 5, function()
 end)
 local plain_titles = titles(plain_actions)
 check(
+  "plain: includes 'Convert line to list item'",
+  contains(plain_titles, "Convert line to list item")
+)
+check(
   "plain: includes 'Convert line to headline'",
   contains(plain_titles, "Convert line to headline")
 )

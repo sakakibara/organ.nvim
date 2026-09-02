@@ -86,6 +86,23 @@ do
   assert(lines[3] == "- charlie", "3rd: " .. lines[3])
 end
 
+-- 5b. sort by display length, ties alphabetical.
+do
+  local b = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+    "- longest one",
+    "- bb",
+    "- 日本",
+    "- aa",
+  })
+  list.sort(b, 1, "length")
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  assert(
+    vim.deep_equal(lines, { "- aa", "- bb", "- 日本", "- longest one" }),
+    "length sort: " .. vim.inspect(lines)
+  )
+end
+
 -- 6. sort keeps sub-items with their parent.
 do
   local b = vim.api.nvim_create_buf(false, true)

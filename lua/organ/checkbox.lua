@@ -60,13 +60,13 @@ function M.parse_item_line(line)
   local rest = line:sub(after_bullet_pos + 1)
   local rest_offset = after_bullet_pos
 
-  -- Optional counter `[@N] `
-  local counter_len
-  local cm = rest:match("^(%[@%d+%]%s+)")
+  -- Optional counter `[@N]`, with or without trailing whitespace.
+  local counter_end
+  local cm = rest:match("^%[@%d+%]%s*")
   if cm then
-    counter_len = #cm
-    rest = rest:sub(counter_len + 1)
-    rest_offset = rest_offset + counter_len
+    counter_end = rest_offset + #rest:match("^%[@%d+%]")
+    rest = rest:sub(#cm + 1)
+    rest_offset = rest_offset + #cm
   end
 
   -- Optional checkbox `[X] ` / `[ ] ` / `[-] `
@@ -100,6 +100,7 @@ function M.parse_item_line(line)
   return {
     indent = indent_chars,
     bullet_end_col = after_bullet_pos, -- 0-based exclusive
+    counter_end = counter_end, -- 0-based exclusive, after the counter's `]`
     state = state,
     state_col = state_col,
     cookie = cookie_text,
@@ -130,10 +131,10 @@ function M.toggle(opts)
   if p.state then
     local new_state = CYCLE[p.state] or " "
     new_line = txt:sub(1, p.state_col) .. new_state .. txt:sub(p.state_col + 2)
+  elseif p.counter_end then
+    new_line = txt:sub(1, p.counter_end) .. "[ ]" .. txt:sub(p.counter_end + 1)
   else
-    -- Insert `[ ] ` right after the bullet (and any counter).
-    local insert_col = p.bullet_end_col
-    new_line = txt:sub(1, insert_col) .. "[ ] " .. txt:sub(insert_col + 1)
+    new_line = txt:sub(1, p.bullet_end_col) .. "[ ] " .. txt:sub(p.bullet_end_col + 1)
   end
   obuf.set_lines(bufnr, row, row + 1, { new_line })
 
@@ -226,9 +227,7 @@ function M.update_parent_cookie(bufnr, child_line)
   if parent.cookie:match("/") then
     new_cookie = string.format("[%d/%d]", done, total)
   else
-    -- Percent form
-    local pct = math.floor((done / total) * 100 + 0.5)
-    new_cookie = string.format("[%d%%]", pct)
+    new_cookie = string.format("[%d%%]", math.floor(done * 100 / total))
   end
 
   local txt = vim.api.nvim_buf_get_lines(bufnr, parent_ln - 1, parent_ln, false)[1] or ""
