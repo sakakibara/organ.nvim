@@ -5,9 +5,11 @@
 --
 -- Supported header args:
 --   :results value | output        what to capture (default value=output for shell)
---   :results raw | replace         output formatting (default replace)
+--   :results raw | silent | none   raw: insert lines verbatim; silent/none:
+--                                  evaluate without touching the buffer
 --   :exports code | results | both | none
---   :tangle <file>                 destination for :Org babel tangle
+--   :tangle <file> | yes           destination for :Org babel tangle; yes
+--                                  means <org basename>.<lang ext>
 --   :var KEY=VALUE                 passed as env var KEY (subset; flat strings)
 --   :dir <dir>                     run in this working directory
 --
@@ -28,11 +30,8 @@ local function run_subprocess(cmd, opts, body)
   local env = nil
   if opts.vars and next(opts.vars) then
     env = {}
-    for k, v in pairs(vim.fn.environ()) do
-      env[#env + 1] = k .. "=" .. v
-    end
     for k, v in pairs(opts.vars) do
-      env[#env + 1] = k .. "=" .. tostring(v)
+      env[k] = tostring(v)
     end
   end
   local out_lines = {}
@@ -254,24 +253,73 @@ M.languages.rest = function(body, opts)
   return run_subprocess({ "curl", "-s", body }, opts, nil)
 end
 
+-- Split header text at each ":" that follows whitespace, keeping quoted
+-- strings and bracketed groups intact (org-babel-balanced-split).
+local function split_header_args(rest)
+  local chunks, buf = {}, {}
+  local depth, quoted, prev = 0, false, " "
+  local i = 1
+  while i <= #rest do
+    local c = rest:sub(i, i)
+    if quoted then
+      buf[#buf + 1] = c
+      if c == "\\" and i < #rest then
+        i = i + 1
+        buf[#buf + 1] = rest:sub(i, i)
+      elseif c == '"' then
+        quoted = false
+      end
+    elseif c == '"' then
+      quoted = true
+      buf[#buf + 1] = c
+    elseif c == "(" or c == "[" then
+      depth = depth + 1
+      buf[#buf + 1] = c
+    elseif c == ")" or c == "]" then
+      depth = math.max(0, depth - 1)
+      buf[#buf + 1] = c
+    elseif c == ":" and depth == 0 and prev:match("%s") then
+      chunks[#chunks + 1] = table.concat(buf)
+      buf = {}
+    else
+      buf[#buf + 1] = c
+    end
+    prev = c
+    i = i + 1
+  end
+  chunks[#chunks + 1] = table.concat(buf)
+  return chunks
+end
+
+local function unquote(val)
+  local inner = val:match('^"(.*)"$')
+  if not inner then
+    return val
+  end
+  return (inner:gsub('\\(["\\])', "%1"))
+end
+
 -- Parse a "#+BEGIN_SRC LANG :k1 v1 :k2 v2" header line.
 --
 -- Vars (`:var k=v`) accumulate into a table; other keys are scalars.
 function M.parse_header(line)
   local lang = line:match("[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]%s+(%S+)") or ""
   local args = { vars = {} }
-  -- Strip up through the language token so we only iterate true header args.
   local rest = line:match("[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]%s+%S+%s*(.*)$") or ""
-  -- Split into ":key value [value...]" runs.
-  for key, val in rest:gmatch(":(%S+)%s+([^:]*)") do
-    val = val:gsub("%s+$", "")
+  local chunks = split_header_args(rest)
+  for idx = 2, #chunks do
+    local chunk = chunks[idx]:gsub("%s+$", "")
+    local key, val = chunk:match("^(%S+)%s+(.*)$")
+    if not key then
+      key, val = chunk, ""
+    end
     if key == "var" then
-      local k, v = val:match("^([%w_]+)=(.*)$")
+      local k, v = val:match("^([^=%s]+)%s*=%s*(.*)$")
       if k then
-        args.vars[k] = v
+        args.vars[k] = unquote(v)
       end
-    else
-      args[key] = val
+    elseif key ~= "" then
+      args[key] = unquote(val)
     end
   end
   return lang, args
@@ -287,7 +335,7 @@ function M.find_block(bufnr, line)
   local begin
   for i = line, 1, -1 do
     local l = lines[i] or ""
-    if l:match("^%s*#%+[Ee][Nn][Dd]_[Ss][Rr][Cc]") then
+    if l:match("^%s*#%+[Ee][Nn][Dd]_[Ss][Rr][Cc]") and i ~= line then
       return nil
     end
     if l:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]") then
@@ -322,6 +370,93 @@ function M.find_block(bufnr, line)
   }
 end
 
+local function is_results_header(l)
+  l = l:lower()
+  return l:match("^%s*#%+results:") ~= nil or l:match("^%s*#%+results%b[]:") ~= nil
+end
+
+local function is_list_item(l)
+  return l:match("^%s*[-+]%s") ~= nil
+    or l:match("^%s+%*%s") ~= nil
+    or l:match("^%s*%d+[.)]%s") ~= nil
+end
+
+-- Last line of the results element starting at lines[i], following
+-- org-babel-result-end: only drawers, blocks, fixed-width, tables, lists,
+-- latex environments, and a lone link count; anything else means the
+-- header has no body.
+local function results_body_end(lines, i)
+  local l = lines[i] or ""
+  if l:match("^%s*$") then
+    return i - 1
+  end
+  local block = l:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_(%S+)")
+  if block then
+    local close = "^%s*#%+end_" .. vim.pesc(block:lower())
+    for j = i + 1, #lines do
+      if lines[j]:lower():match(close) then
+        return j
+      end
+    end
+    return #lines
+  end
+  if l:match("^%s*:[%w_%-]+:%s*$") then
+    for j = i + 1, #lines do
+      if lines[j]:lower():match("^%s*:end:%s*$") then
+        return j
+      end
+    end
+    return #lines
+  end
+  if l:match("^%s*\\begin{") then
+    for j = i + 1, #lines do
+      if lines[j]:match("^%s*\\end{") then
+        return j
+      end
+    end
+    return #lines
+  end
+  if l:match("^%s*%[%[.-%]%]%s*$") then
+    return i
+  end
+  local function extend(pred)
+    local j = i
+    while j < #lines and pred(lines[j + 1]) do
+      j = j + 1
+    end
+    return j
+  end
+  if l:match("^%s*:%s") or l:match("^%s*:$") then
+    return extend(function(x)
+      return x:match("^%s*:%s") or x:match("^%s*:$")
+    end)
+  end
+  if l:match("^%s*|") then
+    return extend(function(x)
+      return x:match("^%s*|") or x:match("^%s*#%+[Tt][Bb][Ll][Ff][Mm]:")
+    end)
+  end
+  if is_list_item(l) then
+    local indent = #l:match("^%s*")
+    local j = i
+    while j < #lines do
+      local nxt = lines[j + 1]
+      if nxt:match("^%s*$") then
+        local after = lines[j + 2] or ""
+        local deeper = #after:match("^%s*") > indent
+        if after:match("^%s*$") or not (deeper or is_list_item(after)) then
+          break
+        end
+      elseif not (is_list_item(nxt) or #nxt:match("^%s*") > indent) then
+        break
+      end
+      j = j + 1
+    end
+    return j
+  end
+  return i - 1
+end
+
 -- Find an existing #+RESULTS: block immediately following end_line; returns
 -- (start, end) of the entire results block (including its `#+RESULTS:` header
 -- and any wrapping :results or example block), or nil.
@@ -331,55 +466,38 @@ function M.find_results(bufnr, end_line)
   while i <= #lines and (lines[i] or ""):match("^%s*$") do
     i = i + 1
   end
-  if not (lines[i] or ""):match("^%s*#%+RESULTS:") then
+  if not is_results_header(lines[i] or "") then
     return nil
   end
-  local start = i
-  i = i + 1
-  -- Wrapped result: example/quote block, drawer, or single-line.
-  local wrap = (lines[i] or ""):match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_(%a+)")
-  if wrap then
-    while i <= #lines do
-      if (lines[i] or ""):lower():find("^%s*#%+end_" .. wrap:lower()) then
-        return start, i
-      end
-      i = i + 1
-    end
-    return start, #lines
-  end
-  if (lines[i] or ""):match("^%s*:results:") then
-    while i <= #lines and not (lines[i] or ""):match("^%s*:end:") do
-      i = i + 1
-    end
-    return start, i
-  end
-  -- Single-line: collect contiguous `: ` indented results.
-  while i <= #lines and (lines[i] or ""):match("^%s*:%s") do
-    i = i + 1
-  end
-  return start, i - 1
+  return i, results_body_end(lines, i + 1)
 end
 
--- Format captured stdout into a results block. Returns a list of lines.
-local function format_results(stdout, args)
+local function results_params(args)
+  local set = {}
+  for w in (args.results or ""):gmatch("%S+") do
+    set[w] = true
+  end
+  return set
+end
+
+-- Format captured stdout into results body lines (org-babel-examplify-region).
+local function format_results(stdout, params)
   local body_lines = vim.split(stdout or "", "\n", { plain = true })
-  -- Drop a single trailing empty line that came from a final newline.
   if body_lines[#body_lines] == "" then
     body_lines[#body_lines] = nil
   end
-  if args.results == "raw" then
-    local out = { "#+RESULTS:" }
-    for _, l in ipairs(body_lines) do
-      out[#out + 1] = l
+  if params.raw then
+    return body_lines
+  end
+  if #body_lines < 10 then
+    for i, l in ipairs(body_lines) do
+      body_lines[i] = ": " .. l
     end
-    return out
+    return body_lines
   end
-  -- Default: wrap in `: ` for short single-line; `#+begin_example` otherwise.
-  if #body_lines <= 1 then
-    return { "#+RESULTS:", ": " .. (body_lines[1] or "") }
-  end
-  local out = { "#+RESULTS:", "#+begin_example" }
+  local out = { "#+begin_example" }
   for _, l in ipairs(body_lines) do
+    l = l:gsub("^(%s*,*)(%*)", "%1,%2"):gsub("^(%s*,*)(#%+)", "%1,%2")
     out[#out + 1] = l
   end
   out[#out + 1] = "#+end_example"
@@ -458,15 +576,25 @@ function M.execute(bufnr, line)
     stdout = (stdout ~= "" and stdout .. "\n" or "") .. "STDERR: " .. stderr
   end
 
-  local result_lines = format_results(stdout, block.args)
+  local params = results_params(block.args)
+  local msg = "ran " .. block.lang .. " block (" .. #block.body_lines .. " lines)"
+  if params.silent or params.none then
+    return true, msg .. ": " .. stdout
+  end
+  local body_out = format_results(stdout, params)
   local rs, re = M.find_results(bufnr, block.end_line)
   if rs and re then
-    obuf.set_lines(bufnr, rs - 1, re, result_lines)
+    local header = vim.api.nvim_buf_get_lines(bufnr, rs - 1, rs, false)[1]
+    obuf.set_lines(bufnr, rs - 1, re, vim.list_extend({ header }, body_out))
   else
-    -- Insert just below #+end_src (with a blank line separator).
-    obuf.set_lines(bufnr, block.end_line, block.end_line, vim.list_extend({ "" }, result_lines))
+    obuf.set_lines(
+      bufnr,
+      block.end_line,
+      block.end_line,
+      vim.list_extend({ "", "#+RESULTS:" }, body_out)
+    )
   end
-  return true, ("ran " .. block.lang .. " block (" .. #block.body_lines .. " lines)")
+  return true, msg
 end
 
 -- Execute every src block in the buffer.
@@ -502,6 +630,35 @@ end
 --   :mkdirp yes    — create parent directories for the destination
 --                    file on tangle (Emacs default behaviour when on).
 --
+-- org-babel-tangle-lang-exts, including the entries the ob-* modules add.
+local TANGLE_EXTS = {
+  ["emacs-lisp"] = "el",
+  elisp = "el",
+  bibtex = "bib",
+  awk = "awk",
+  clojure = "clj",
+  clojurescript = "cljs",
+  ["C++"] = "cpp",
+  D = "d",
+  csharp = "cs",
+  fortran = "F90",
+  groovy = "groovy",
+  haskell = "hs",
+  java = "java",
+  julia = "jl",
+  latex = "tex",
+  LilyPond = "ly",
+  lisp = "lisp",
+  lua = "lua",
+  maxima = "max",
+  ocaml = "ml",
+  perl = "pl",
+  processing = "pde",
+  python = "py",
+  ruby = "rb",
+  sed = "sed",
+}
+
 -- Returns { path = { ok = bool, blocks = N, error = ... } }.
 function M.tangle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -548,14 +705,25 @@ function M.tangle(bufnr)
 
   local groups = {} -- absolute_path -> { lines... }
   local mkdirp = {} -- absolute_path -> bool
+  local results = {}
 
   local i = 1
   while i <= #lines do
     if (lines[i] or ""):match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_[Ss][Rr][Cc]") then
-      local _, args = M.parse_header(lines[i])
+      local lang, args = M.parse_header(lines[i])
       local tangle = args.tangle
+      if tangle == "yes" then
+        if source_path == "" then
+          results.yes = { ok = false, error = ":tangle yes needs a file-backed buffer" }
+          tangle = nil
+        else
+          tangle = vim.fn.fnamemodify(source_path, ":p:r") .. "." .. (TANGLE_EXTS[lang] or lang)
+        end
+      end
       if tangle and tangle ~= "no" and tangle ~= "" then
-        if tangle:sub(1, 1) ~= "/" then
+        if tangle:sub(1, 1) == "~" then
+          tangle = vim.fn.fnamemodify(tangle, ":p")
+        elseif tangle:sub(1, 1) ~= "/" then
           tangle = source_dir .. "/" .. tangle
         end
         local body = {}
@@ -580,7 +748,6 @@ function M.tangle(bufnr)
     end
     i = i + 1
   end
-  local results = {}
   for path, body in pairs(groups) do
     if mkdirp[path] then
       pcall(vim.fn.mkdir, vim.fn.fnamemodify(path, ":h"), "p")

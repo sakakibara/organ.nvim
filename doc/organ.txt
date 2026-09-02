@@ -3053,7 +3053,8 @@ By default every block prompts before execution. Disable globally with
 *:Org-babel_tangle*
     `:Org babel tangle`
     Extract every src block with `:tangle PATH` header into PATH.
-    Multiple blocks targeting the same PATH are concatenated in
+    `:tangle yes` writes `<org basename>.<lang ext>` next to the org
+    file. Multiple blocks targeting the same PATH are concatenated in
     document order.
 
 ==============================================================================

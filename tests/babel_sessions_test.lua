@@ -31,7 +31,7 @@ end
 
 -- 1. sh session: variables persist across two calls.
 do
-  local out1, err1 = sessions.eval("sh", "test", "X=hello", 5000)
+  local _, err1 = sessions.eval("sh", "test", "X=hello", 5000)
   check("sh first eval did not error", err1 == nil, tostring(err1))
   local out2, err2 = sessions.eval("sh", "test", 'echo "$X world"', 5000)
   check("sh second eval did not error", err2 == nil, tostring(err2))
@@ -84,6 +84,33 @@ if vim.fn.executable("python3") == 1 then
     "python: x persists across blocks (printed 14)",
     out and out:find("14") ~= nil and err2 == nil,
     "out=" .. vim.inspect(out) .. " err=" .. tostring(err2)
+  )
+  local function trim(s)
+    return s and (s:gsub("%s+$", "")) or nil
+  end
+  local loop = sessions.eval("python", "py1", "for i in range(2):\n    print(i)", 5000)
+  check(
+    "python: compound statement runs as a unit (Emacs: 0 / 1)",
+    trim(loop) == "0\n1",
+    "got: " .. vim.inspect(loop)
+  )
+  local two = sessions.eval("python", "py1", "x = 5\nprint(x * 2)", 5000)
+  check(
+    "python: no REPL prompt or banner in output",
+    trim(two) == "10",
+    "got: " .. vim.inspect(two)
+  )
+  local bad = sessions.eval("python", "py1", "1 +", 5000)
+  check(
+    "python: syntax error text captured, without prompts",
+    bad and bad:find("SyntaxError", 1, true) ~= nil and bad:find(">>>", 1, true) == nil,
+    "got: " .. vim.inspect(bad)
+  )
+  local after = sessions.eval("python", "py1", "print('still %d' % x)", 5000)
+  check(
+    "python: session usable after error",
+    trim(after) == "still 5",
+    "got: " .. vim.inspect(after)
   )
 else
   print("SKIP  python session test (python3 not on PATH)")

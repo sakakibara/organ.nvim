@@ -6,12 +6,17 @@
 -- lived interpreter — the standard literate-programming workflow.
 --
 -- Supported languages (initial):
---   python  → `python3 -i -u`
+--   python  -> `python3 -i -u -q`
 --   sh / bash  → `bash -i`
 --
 -- Mechanism: spawn the interpreter via vim.uv.spawn, write the block's
 -- body to its stdin followed by a unique sentinel that we then look
 -- for in stdout. Output before the sentinel = the block's result.
+--
+-- Python gets the whole body as one exec(compile(...)) statement, as
+-- ob-python does, so compound statements survive the REPL's line-at-a-
+-- time reader. Its tracebacks are routed to stdout from inside the
+-- interpreter; the C-level prompt writes stay on stderr and are dropped.
 --
 -- Lifecycle: sessions live until the user calls
 -- M.stop_session / M.stop_all, or until VimLeavePre fires.
@@ -35,27 +40,41 @@ do
 end
 
 -- Default per-language settings. Override via config.babel.sessions.<lang>.
+local function python_literal(s)
+  return "'"
+    .. s:gsub("[\\'\r\n\t%c]", function(c)
+      if c == "\\" then
+        return "\\\\"
+      elseif c == "'" then
+        return "\\'"
+      elseif c == "\n" then
+        return "\\n"
+      elseif c == "\r" then
+        return "\\r"
+      elseif c == "\t" then
+        return "\\t"
+      end
+      return ("\\x%02x"):format(c:byte())
+    end)
+    .. "'"
+end
+
 local LANGS = {
   python = {
     cmd = "python3",
-    args = { "-i", "-u" },
+    args = { "-i", "-u", "-q" },
+    init = "__import__('sys').stderr = __import__('sys').stdout",
+    body_fn = function(body)
+      return "exec(compile(" .. python_literal(body) .. ", '<org>', 'exec'))"
+    end,
     sentinel_fn = function(s)
       return "print('" .. s .. "')"
-    end,
-    -- Strip Python REPL prompts and the echoed sentinel-print line.
-    clean = function(text)
-      text = text:gsub("\r", "")
-      -- Strip ">>> " and "... " at line starts.
-      text = text:gsub("\n>>> ", "\n")
-      text = text:gsub("\n%.%.%. ", "\n")
-      text = text:gsub("^>>> ", "")
-      text = text:gsub("^%.%.%. ", "")
-      return text
     end,
   },
   sh = {
     cmd = "sh",
     args = { "-i" },
+    merge_stderr = true,
     sentinel_fn = function(s)
       return "echo '" .. s .. "'"
     end,
@@ -66,6 +85,7 @@ local LANGS = {
   bash = {
     cmd = "bash",
     args = { "-i" },
+    merge_stderr = true,
     sentinel_fn = function(s)
       return "echo '" .. s .. "'"
     end,
@@ -127,10 +147,13 @@ local function spawn(lang)
     end
   end)
   vim.uv.read_start(stderr, function(_err, data)
-    if data then
+    if data and conf.merge_stderr then
       s.out = s.out .. data
     end
   end)
+  if conf.init then
+    vim.uv.write(stdin, conf.init .. "\n")
+  end
   return s
 end
 
@@ -162,7 +185,9 @@ function M.eval(lang, name, body, timeout_ms)
   local sentinel = "__ORG_BABEL_END_" .. tostring(math.random(1, 1e9)) .. "__"
   s.out = ""
   local marker = s.conf.sentinel_fn(sentinel)
-  -- Write body + a newline + the marker.
+  if s.conf.body_fn then
+    body = s.conf.body_fn(body)
+  end
   vim.uv.write(s.stdin, body .. "\n" .. marker .. "\n")
   local got = vim.wait(timeout_ms or 10000, function()
     return s.out:find(sentinel, 1, true) ~= nil
@@ -171,7 +196,10 @@ function M.eval(lang, name, body, timeout_ms)
     return nil, "timed out waiting for session output (sentinel: " .. sentinel .. ")"
   end
   local before = s.out:match("^(.-)" .. sentinel) or s.out
-  return s.conf.clean(before), nil
+  if s.conf.clean then
+    before = s.conf.clean(before)
+  end
+  return before, nil
 end
 
 -- Public: stop a single session (or all matching `lang` if name is nil).

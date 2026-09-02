@@ -100,6 +100,91 @@ assert(
   "tangled file content unexpected:\n" .. content
 )
 
+-- 6. Header values keep ":" inside quotes; surrounding quotes are stripped.
+do
+  local _, args =
+    babel.parse_header('#+begin_src sh :var url="http://x.y/z" :dir "/tmp/a b" :noweb yes')
+  assert(args.vars.url == "http://x.y/z", "quoted var: " .. tostring(args.vars.url))
+  assert(args.dir == "/tmp/a b", "quoted dir: " .. tostring(args.dir))
+  assert(args.noweb == "yes", "noweb: " .. tostring(args.noweb))
+  assert(args['//x.y/z"'] == nil, "no bogus key from the URL")
+  local _, a2 = babel.parse_header("#+begin_src sh :var x=42 :results output raw")
+  assert(a2.vars.x == "42", "plain var: " .. tostring(a2.vars.x))
+  assert(a2.results == "output raw", "results words: " .. tostring(a2.results))
+end
+
+-- 7. Cursor on the #+end_src line still belongs to the block.
+do
+  local sb = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(
+    sb,
+    0,
+    -1,
+    false,
+    { "#+begin_src sh", "echo hi", "#+end_src", "after" }
+  )
+  local blk = babel.find_block(sb, 3)
+  assert(blk and blk.end_line == 3, "end_src line should resolve to its block")
+  assert(babel.find_block(sb, 4) == nil, "line after end_src is not a block")
+end
+
+-- 8. Results headers: lowercase, hashed, and named all count.
+do
+  for _, header in ipairs({ "#+results:", "#+RESULTS[abc123]:", "#+RESULTS: foo" }) do
+    local sb = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(
+      sb,
+      0,
+      -1,
+      false,
+      { "#+begin_src sh", "echo hi", "#+end_src", "", header, ": old" }
+    )
+    local s, e = babel.find_results(sb, 3)
+    assert(s == 5 and e == 6, header .. " -> " .. tostring(s) .. "," .. tostring(e))
+  end
+end
+
+-- 9. Results extent covers tables, lists, and blocks; a paragraph is not a result.
+do
+  local cases = {
+    { { "| a | b |", "| 1 | 2 |", "#+TBLFM: $2=1", "", "After." }, 7 },
+    { { "- a", "- b", "", "After." }, 6 },
+    { { "old para", "After." }, 4 },
+    { { "", "After." }, 4 },
+    { { "[[file:x.png]]", "After." }, 5 },
+    { { "#+begin_src org", "* x", "#+end_src", "After." }, 7 },
+    { { ":results:", "old", ":end:", "After." }, 7 },
+  }
+  for _, c in ipairs(cases) do
+    local sb = vim.api.nvim_create_buf(false, true)
+    local lines = { "#+begin_src sh", "echo hi", "#+end_src", "#+RESULTS:" }
+    vim.list_extend(lines, c[1])
+    vim.api.nvim_buf_set_lines(sb, 0, -1, false, lines)
+    local s, e = babel.find_results(sb, 3)
+    assert(s == 4 and e == c[2], vim.inspect(c[1]) .. " -> " .. tostring(s) .. "," .. tostring(e))
+  end
+end
+
+-- 10. :tangle yes -> <org basename>.<lang ext> next to the org file.
+do
+  local sb = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(sb, tmp .. "/notes.org")
+  vim.api.nvim_buf_set_lines(sb, 0, -1, false, {
+    "#+begin_src python :tangle yes",
+    "print(1)",
+    "#+end_src",
+    "#+begin_src sh :tangle yes",
+    "echo 1",
+    "#+end_src",
+  })
+  local r = babel.tangle(sb)
+  local py = vim.fn.resolve(tmp .. "/notes.py")
+  local sh = vim.fn.resolve(tmp .. "/notes.sh")
+  assert(r[py] and r[py].ok, "tangle yes python -> notes.py; got " .. vim.inspect(r))
+  assert(r[sh] and r[sh].ok, "tangle yes sh -> notes.sh; got " .. vim.inspect(r))
+  assert(vim.fn.filereadable(tmp .. "/yes") == 0, "no file literally named yes")
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("babel parse + tangle ok\n")
 os.exit(0)
