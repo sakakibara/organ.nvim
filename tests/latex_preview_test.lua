@@ -75,5 +75,45 @@ do
   pcall(vim.api.nvim_win_close, win, true)
 end
 
+-- 7. Starred environment names (`align*`) are matched literally.
+do
+  local buf = setup_buf({
+    "Before",
+    "\\begin{align*}",
+    "  a &= b \\\\",
+    "  c &= d",
+    "\\end{align*}",
+    "After",
+  }, 3, 4)
+  local f = lp.fragment_at_cursor(0)
+  assert(f and f.kind == "environment", "align* should be detected as an environment")
+  assert(f.start_line == 2 and f.end_line == 5, "align* bounds should be lines 2-5")
+  local frags = lp._all_fragments(buf)
+  assert(#frags == 1 and frags[1].kind == "environment", "all_fragments should find align*")
+end
+
+-- 8. Plain text between two `$..$` fragments is not a fragment.
+do
+  setup_buf({ "a $x$ plain $y$ c" }, 1, 7)
+  local f = lp.fragment_at_cursor(0)
+  assert(f == nil, "text between two $..$ pairs must not match, got " .. vim.inspect(f))
+  setup_buf({ "$$x$$ and $y$" }, 1, 7)
+  f = lp.fragment_at_cursor(0)
+  assert(f == nil, "text after a $$..$$ pair must not match, got " .. vim.inspect(f))
+end
+
+-- 9. A `$$..$$` fragment is reported once; its `$` markers are not
+--    rescanned as inline fragments.
+do
+  local buf = setup_buf({ "Display $$E=mc^2$$ end." }, 1, 1)
+  local frags = lp._all_fragments(buf)
+  assert(#frags == 1, "expected exactly one fragment, got " .. vim.inspect(frags))
+  assert(frags[1].kind == "display" and frags[1].text == "$$E=mc^2$$")
+  buf = setup_buf({ "$$x$$ and $y$" }, 1, 1)
+  frags = lp._all_fragments(buf)
+  assert(#frags == 2, "expected display + inline, got " .. vim.inspect(frags))
+  assert(frags[1].text == "$$x$$" and frags[2].text == "$y$", vim.inspect(frags))
+end
+
 io.write("latex preview ok\n")
 os.exit(0)

@@ -65,16 +65,16 @@ local function build_tex(text, kind, fg, preamble)
   end
   return (preamble or DEFAULT_PREAMBLE)
     .. "\\color"
-    .. (fg and ("{" .. fg .. "}") or "{black}")
+    .. (fg or "{black}")
     .. "\n"
     .. "\\begin{document}\n"
     .. body
     .. "\n\\end{document}\n"
 end
 
--- Convert a Neovim highlight color (#RRGGBB or "Normal" group) to xcolor's
--- HTML form. Returns "HTML}{RRGGBB" so the macro reads `\color[HTML]{...}`,
--- or nil for default black.
+-- Convert a Neovim highlight color (#RRGGBB string or integer) to the
+-- argument of xcolor's `\color` macro: "[HTML]{RRGGBB}", or nil for
+-- default black.
 local function fg_to_xcolor(fg)
   if not fg then
     return nil

@@ -2,7 +2,8 @@
 --
 -- Three escalating strategies:
 --   1. Explicit `opts.path` override (verified on disk).
---   2. `fc-match` query when fontconfig is installed.
+--   2. `fc-match` query when fontconfig is installed; its answer is
+--      used only when the file carries a TrueType sfnt header.
 --   3. Recursive walk of OS-standard font directories, prefering a
 --      curated list of well-known faces and falling back to first
 --      *.ttf found.
@@ -197,6 +198,18 @@ end
 
 -- Strategy 2: fc-match.
 
+-- organ.pdf.font embeds TrueType outlines only; fontconfig may answer
+-- with a collection (.ttc) or a CFF OpenType face instead.
+local function has_truetype_header(path)
+  local fh = io.open(path, "rb")
+  if not fh then
+    return false
+  end
+  local magic = fh:read(4)
+  fh:close()
+  return magic == "\0\1\0\0" or magic == "true"
+end
+
 local function try_fc_match(style)
   if vim.fn.executable("fc-match") ~= 1 then
     return nil
@@ -209,7 +222,7 @@ local function try_fc_match(style)
     return nil
   end
   local path = (res.stdout or ""):gsub("%s+$", "")
-  if path ~= "" and file_exists(path) then
+  if path ~= "" and file_exists(path) and has_truetype_header(path) then
     return path
   end
   return nil

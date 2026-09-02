@@ -292,6 +292,107 @@ check(
   ("got %d pages"):format(#rE.pages)
 )
 
+-- 10. A word wider than the column (unspaced CJK prose) breaks at
+-- codepoint boundaries instead of overflowing the right margin.
+
+do
+  local LJ = new_layout()
+  local ja = string.rep("\230\151\165\230\156\172\232\170\158\227\129\174", 30)
+  LJ:add_paragraph(ja)
+  local rJ = LJ:finish()
+  local lines = rJ.pages[1] and rJ.pages[1].lines or {}
+  local content_w = LJ:_content_width()
+  local widest = 0
+  local joined = {}
+  for _, ln in ipairs(lines) do
+    widest = math.max(widest, layout._measure(f, 11, ln.text))
+    joined[#joined + 1] = ln.text
+  end
+  check("oversize word wraps onto several lines", #lines >= 2, ("got %d lines"):format(#lines))
+  check(
+    "no line exceeds the content width",
+    widest <= content_w,
+    ("widest=%.1f content=%.1f"):format(widest, content_w)
+  )
+  check("codepoint wrap drops nothing", table.concat(joined) == ja)
+  -- Latin words still wrap whole; the oversize word fills the remainder
+  -- of the current line before breaking.
+  local LM = new_layout()
+  LM:add_paragraph("abc " .. ja)
+  local rM = LM:finish()
+  local first = rM.pages[1].lines[1].text
+  check(
+    "oversize word continues on the current line after a short word",
+    first:sub(1, 4) == "abc " and #first > 4,
+    ("got %q"):format(first)
+  )
+end
+
+-- 11. Spacing that runs past the bottom margin does not leave an empty
+-- trailing page behind.
+
+do
+  -- Body area fits exactly three 11pt lines: 182 - 72 - 72 = 38 = 11 + 13.2 * 2.
+  local LP = new_layout({ page_height = 182 })
+  LP:add_paragraph("one")
+  LP:add_paragraph("two")
+  LP:add_paragraph("three")
+  LP:add_code_block({}, {})
+  local rP = LP:finish()
+  check(
+    "empty code block at a page boundary adds no page",
+    #rP.pages == 1,
+    ("got %d pages"):format(#rP.pages)
+  )
+  LP = new_layout({ page_height = 182 })
+  LP:add_paragraph("one")
+  LP:add_paragraph("two")
+  LP:add_paragraph("three")
+  LP:add_blank()
+  LP:add_blank()
+  LP:add_paragraph("four")
+  rP = LP:finish()
+  check(
+    "text after the boundary lands on a second page",
+    #rP.pages == 2,
+    ("got %d pages"):format(#rP.pages)
+  )
+  check(
+    "no page is empty",
+    rP.pages[2] and #rP.pages[2].lines == 1 and rP.pages[2].lines[1].text == "four"
+  )
+end
+
+-- 12. `style.indent` shifts a paragraph right and narrows its column.
+
+do
+  local LI = new_layout()
+  LI:add_paragraph("indented", { indent = 24 })
+  local rI = LI:finish()
+  local ln = rI.pages[1].lines[1]
+  check(
+    "indented line x == margin_left + indent",
+    ln.x == 72 + 24,
+    ("got x=%s"):format(tostring(ln.x))
+  )
+  local LW = new_layout()
+  local words = {}
+  for i = 1, 200 do
+    words[i] = "w" .. i
+  end
+  LW:add_paragraph(table.concat(words, " "), { indent = 200 })
+  local rW = LW:finish()
+  local widest = 0
+  for _, l in ipairs(rW.pages[1].lines) do
+    widest = math.max(widest, layout._measure(f, 11, l.text))
+  end
+  check(
+    "indented paragraph wraps inside the narrowed column",
+    widest <= LW:_content_width() - 200,
+    ("widest=%.1f limit=%.1f"):format(widest, LW:_content_width() - 200)
+  )
+end
+
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then
   os.exit(1)

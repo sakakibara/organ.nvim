@@ -45,7 +45,7 @@ local function find_environment(lines, lnum)
   -- Scan forward for matching \end.
   for i = start_lnum, #lines do
     local l = lines[i] or ""
-    if l:match("\\end{" .. env_name .. "}") then
+    if l:find("\\end{" .. env_name .. "}", 1, true) then
       if i >= lnum then
         return start_lnum, i, "environment"
       end
@@ -55,9 +55,19 @@ local function find_environment(lines, lnum)
   return nil
 end
 
--- Locate the LaTeX fragment containing column `col` on `line`.  Returns
--- start/end byte cols and the fragment string, or nil if not in one.
-local function find_inline_fragment(line, col)
+-- Every single-line fragment on `line`, in column order, as
+-- { lo, hi, kind } with 1-based inclusive byte columns. Text claimed by
+-- an earlier (longer) delimiter pair is never rescanned by a later one.
+local function scan_line(line)
+  local found = {}
+  local function claimed(lo, hi)
+    for _, f in ipairs(found) do
+      if lo <= f.hi and hi >= f.lo then
+        return true
+      end
+    end
+    return false
+  end
   for _, p in ipairs(FRAGMENT_PATTERNS) do
     local s = 1
     while true do
@@ -66,10 +76,29 @@ local function find_inline_fragment(line, col)
         break
       end
       local close_lo, close_hi = line:find(p[2], hi + 1)
-      if close_lo and col + 1 >= lo and col + 1 <= close_hi then
-        return lo, close_hi, line:sub(lo, close_hi), p[3]
+      if not close_lo then
+        break
       end
-      s = hi + 1
+      if claimed(lo, close_hi) then
+        s = hi + 1
+      else
+        found[#found + 1] = { lo = lo, hi = close_hi, kind = p[3] }
+        s = close_hi + 1
+      end
+    end
+  end
+  table.sort(found, function(a, b)
+    return a.lo < b.lo
+  end)
+  return found
+end
+
+-- Locate the LaTeX fragment containing column `col` on `line`.  Returns
+-- start/end byte cols and the fragment string, or nil if not in one.
+local function find_inline_fragment(line, col)
+  for _, f in ipairs(scan_line(line)) do
+    if col + 1 >= f.lo and col + 1 <= f.hi then
+      return f.lo, f.hi, line:sub(f.lo, f.hi), f.kind
     end
   end
 end
@@ -245,7 +274,7 @@ local function all_fragments(bufnr)
     if env then
       local end_i
       for j = i, #lines do
-        if (lines[j] or ""):match("\\end{" .. env .. "}") then
+        if (lines[j] or ""):find("\\end{" .. env .. "}", 1, true) then
           end_i = j
           break
         end
@@ -268,27 +297,15 @@ local function all_fragments(bufnr)
 
   -- Inline + display patterns within single lines.
   for ln_i, line in ipairs(lines) do
-    for _, p in ipairs(FRAGMENT_PATTERNS) do
-      local s = 1
-      while true do
-        local lo, hi = line:find(p[1], s)
-        if not lo then
-          break
-        end
-        local close_lo, close_hi = line:find(p[2], hi + 1)
-        if not close_lo then
-          break
-        end
-        out[#out + 1] = {
-          kind = p[3],
-          start_line = ln_i,
-          end_line = ln_i,
-          start_col = lo - 1,
-          end_col = close_hi,
-          text = line:sub(lo, close_hi),
-        }
-        s = close_hi + 1
-      end
+    for _, f in ipairs(scan_line(line)) do
+      out[#out + 1] = {
+        kind = f.kind,
+        start_line = ln_i,
+        end_line = ln_i,
+        start_col = f.lo - 1,
+        end_col = f.hi,
+        text = line:sub(f.lo, f.hi),
+      }
     end
   end
 

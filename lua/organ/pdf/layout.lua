@@ -5,16 +5,16 @@
 -- ready for a content-stream emitter to translate into
 -- `BT /F1 sz Tf x y Td (text) Tj ET` sequences.
 --
--- Greedy word wrap only (no Knuth-Plass). UTF-8 codepoints inside a
--- word are atomic and contribute their per-glyph advance to the word's
--- width. A word wider than the line by itself is emitted alone and
--- allowed to overflow the right margin (we don't hyphenate).
+-- Greedy word wrap only (no Knuth-Plass). Words wrap whole; a word
+-- wider than the column by itself (unspaced CJK prose, long URLs) is
+-- broken between codepoints, never hyphenated.
 
 local M = {}
 
 -- UTF-8 codepoint iterator. Returns successive codepoints from a Lua
--- string. Continuation bytes encountered alone fall through as raw
--- byte values (latin-1) -- defensive against malformed input.
+-- string together with the byte index of each codepoint's last byte.
+-- Continuation bytes encountered alone fall through as raw byte
+-- values (latin-1) -- defensive against malformed input.
 
 local function utf8_codepoints(s)
   local i, n = 1, #s
@@ -44,7 +44,7 @@ local function utf8_codepoints(s)
       w = 4
     end
     i = i + w
-    return cp
+    return cp, i - 1
   end
 end
 
@@ -58,6 +58,22 @@ local function measure(font, size, s)
     total = total + font:width(gid)
   end
   return total * size / 1000
+end
+
+-- Longest prefix of `s` made of whole codepoints that is no wider than
+-- `room`; at least one codepoint when `force`. Returns the prefix, its
+-- width, and the remainder.
+local function take_prefix(font, size, s, room, force)
+  local width, stop = 0, 0
+  for cp, last in utf8_codepoints(s) do
+    local w = font:width(font:gid(cp)) * size / 1000
+    if width + w > room and not (force and stop == 0) then
+      break
+    end
+    width = width + w
+    stop = last
+  end
+  return s:sub(1, stop), width, s:sub(stop + 1)
 end
 
 -- Split an input string on ASCII whitespace (space, tab, newline, CR).
@@ -98,8 +114,8 @@ function M.new(opts)
     default_font_size = opts.default_font_size or 11,
     line_gap_factor = opts.line_gap_factor or 1.2,
     pages = {},
-    current = nil, -- in-progress page
-    cursor_y = nil,
+    current = nil, -- in-progress page, created by the first line on it
+    cursor_y = nil, -- baseline of the last line or spacing on that page
   }, Layout)
   return self
 end
@@ -117,21 +133,14 @@ end
 function Layout:_start_page()
   self.current = { lines = {} }
   self.pages[#self.pages + 1] = self.current
-  -- Cursor sits at the y where the NEXT line baseline will land. The
-  -- first call to `_emit_line` will subtract one line height, so seed
-  -- cursor_y to top + line_gap so the first baseline lands at
-  -- (top - 0) + ... wait: simpler to just preset cursor at the first
-  -- baseline directly and add the gap AFTER emission.
-  self.cursor_y = nil -- decided lazily when the first line is emitted
 end
 
 -- Emit one line at the current cursor. If we're at the start of a page,
 -- the baseline is `page_height - margin_top - font_size`; otherwise it
 -- advances by `font_size * line_gap_factor` from the previous baseline.
-function Layout:_emit_line(line_text, font, font_size)
-  if not self.current then
-    self:_start_page()
-  end
+-- Pages are created here, never by spacing alone, so trailing spacing
+-- cannot leave an empty page behind.
+function Layout:_emit_line(line_text, font, font_size, x)
   local line_gap = font_size * self.line_gap_factor
   if self.cursor_y == nil then
     self.cursor_y = self:_top_baseline(font_size)
@@ -141,11 +150,14 @@ function Layout:_emit_line(line_text, font, font_size)
   -- If the new baseline would dip below the bottom margin, start a new
   -- page and place this line at the top there.
   if self.cursor_y < self.margin_bottom then
-    self:_start_page()
+    self.current = nil
     self.cursor_y = self:_top_baseline(font_size)
   end
+  if not self.current then
+    self:_start_page()
+  end
   table.insert(self.current.lines, {
-    x = self.margin_left,
+    x = x or self.margin_left,
     y = self.cursor_y,
     font = font,
     font_size = font_size,
@@ -157,9 +169,6 @@ end
 -- Used for blank lines and pre/post spacing around headings / code.
 function Layout:_advance(font_size, factor)
   factor = factor or self.line_gap_factor
-  if not self.current then
-    self:_start_page()
-  end
   if self.cursor_y == nil then
     -- Equivalent to placing an invisible first baseline at the top
     -- and then skipping.
@@ -167,7 +176,7 @@ function Layout:_advance(font_size, factor)
   end
   self.cursor_y = self.cursor_y - font_size * factor
   if self.cursor_y < self.margin_bottom then
-    -- Roll to the next page; lazy seed of cursor_y on first emit.
+    -- Roll to the next page; the next emitted line creates it.
     self.current = nil
     self.cursor_y = nil
   end
@@ -175,10 +184,13 @@ end
 
 -- Public surface.
 
+-- `style.indent` (points) shifts every line of the paragraph right and
+-- narrows its column by the same amount.
 function Layout:add_paragraph(text, style)
   style = style or {}
   local font = style.font or self.default_font
   local font_size = style.font_size or self.default_font_size
+  local indent = style.indent or 0
   if not text or text == "" then
     return self.pages
   end
@@ -187,33 +199,51 @@ function Layout:add_paragraph(text, style)
     return self.pages
   end
 
-  local max_width = self:_content_width()
+  local x = self.margin_left + indent
+  local max_width = self:_content_width() - indent
   local space_width = measure(font, font_size, " ")
 
   local line_words = {}
   local line_width = 0
   local function commit()
     if #line_words > 0 then
-      self:_emit_line(table.concat(line_words, " "), font, font_size)
+      self:_emit_line(table.concat(line_words, " "), font, font_size, x)
       line_words = {}
       line_width = 0
     end
   end
+  local function append(w, ww)
+    if #line_words == 0 then
+      line_width = ww
+    else
+      line_width = line_width + space_width + ww
+    end
+    line_words[#line_words + 1] = w
+  end
+  local function room()
+    return max_width - line_width - (#line_words > 0 and space_width or 0)
+  end
 
   for _, w in ipairs(words) do
     local ww = measure(font, font_size, w)
-    if #line_words == 0 then
-      line_words[1] = w
-      line_width = ww
+    if ww <= room() then
+      append(w, ww)
+    elseif ww <= max_width then
+      commit()
+      append(w, ww)
     else
-      local tentative = line_width + space_width + ww
-      if tentative <= max_width then
-        line_words[#line_words + 1] = w
-        line_width = tentative
-      else
-        commit()
-        line_words[1] = w
-        line_width = ww
+      local rest = w
+      while rest ~= "" do
+        local piece, pw
+        piece, pw, rest = take_prefix(font, font_size, rest, room(), #line_words == 0)
+        if piece == "" then
+          commit()
+        else
+          append(piece, pw)
+          if rest ~= "" then
+            commit()
+          end
+        end
       end
     end
   end

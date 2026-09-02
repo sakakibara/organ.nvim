@@ -168,6 +168,148 @@ do
   check("encode_glyphs('') == '<>'", pdf._encode_glyphs(f, "") == "<>")
 end
 
+-- 9. Inline kinds beyond text / emphasis / link / math keep their text.
+
+do
+  local out = pdf._emit_inline({
+    ast.text("H"),
+    ast.subscript({ ast.text("2") }),
+    ast.text("O E=mc"),
+    ast.superscript({ ast.text("2") }),
+    ast.text(" "),
+    ast.entity("alpha"),
+    ast.text(" "),
+    ast.timestamp("<2026-09-02 Wed>", "active"),
+    ast.text(" "),
+    ast.statistics_cookie("[1/2]"),
+    ast.text(" "),
+    ast.target("here"),
+    ast.macro("title"),
+    ast.macro("kbd", { "C-c", "C-e" }),
+  })
+  check("subscript renders as _content", out:find("H_2O", 1, true) ~= nil, ("got %q"):format(out))
+  check(
+    "superscript renders as ^content",
+    out:find("E=mc^2", 1, true) ~= nil,
+    ("got %q"):format(out)
+  )
+  check("entity renders as its glyph", out:find("\206\177", 1, true) ~= nil, ("got %q"):format(out))
+  check(
+    "timestamp value kept",
+    out:find("<2026-09-02 Wed>", 1, true) ~= nil,
+    ("got %q"):format(out)
+  )
+  check("statistics cookie kept", out:find("[1/2]", 1, true) ~= nil, ("got %q"):format(out))
+  check("target is invisible", out:find("here", 1, true) == nil, ("got %q"):format(out))
+  check(
+    "macro keeps its source form",
+    out:find("{{{title}}}{{{kbd(C-c,C-e)}}}", 1, true) ~= nil,
+    ("got %q"):format(out)
+  )
+  check(
+    "unknown entity falls back to its name",
+    pdf._emit_inline({ ast.entity("nosuchentity") }) == "nosuchentity"
+  )
+end
+
+-- 10. A link whose description equals its target is written once.
+
+do
+  local out =
+    pdf._emit_inline({ ast.link("https://example.org", { ast.text("https://example.org") }) })
+  check(
+    "same description and target -> target once",
+    out == "https://example.org",
+    ("got %q"):format(out)
+  )
+  out = pdf._emit_inline({ ast.link("https://example.org", { ast.text("site") }) })
+  check(
+    "differing description keeps both",
+    out == "site (https://example.org)",
+    ("got %q"):format(out)
+  )
+end
+
+-- 11. Lists: nested items are indented, description tags and ordered
+-- counters are rendered.
+
+do
+  local layout_mod = require("organ.pdf.layout")
+  local orig_add = layout_mod.Layout.add_paragraph
+  local seen = {}
+  layout_mod.Layout.add_paragraph = function(self, text, style)
+    seen[#seen + 1] = { text = text, indent = style and style.indent or 0 }
+    return orig_add(self, text, style)
+  end
+  local doc = ast.document({
+    ast.list(false, {
+      ast.list_item({
+        content = {
+          ast.paragraph({ ast.text("parent") }),
+          ast.list(false, {
+            ast.list_item({
+              content = {
+                ast.paragraph({ ast.text("child") }),
+                ast.list(
+                  false,
+                  { ast.list_item({ content = { ast.paragraph({ ast.text("grandchild") }) } }) }
+                ),
+              },
+            }),
+          }),
+        },
+      }),
+      ast.list_item({
+        tag = { ast.text("apple") },
+        content = { ast.paragraph({ ast.text("a red fruit") }) },
+      }),
+    }),
+    ast.list(true, {
+      ast.list_item({ content = { ast.paragraph({ ast.text("one") }) } }),
+      ast.list_item({ counter = "7", content = { ast.paragraph({ ast.text("seven") }) } }),
+      ast.list_item({ content = { ast.paragraph({ ast.text("eight") }) } }),
+    }),
+  })
+  assert(pdf.render(doc))
+  layout_mod.Layout.add_paragraph = orig_add
+  local by_text = {}
+  for _, s in ipairs(seen) do
+    by_text[s.text] = s.indent
+  end
+  check("top-level item is flush left", by_text["- parent"] == 0, vim.inspect(seen))
+  check("child item is indented", (by_text["- child"] or 0) > 0, vim.inspect(seen))
+  check(
+    "grandchild is indented further than child",
+    (by_text["- grandchild"] or 0) > (by_text["- child"] or 0),
+    vim.inspect(seen)
+  )
+  check(
+    "description tag precedes its text",
+    by_text["- apple: a red fruit"] ~= nil,
+    vim.inspect(seen)
+  )
+  check("ordered list starts at 1", by_text["1. one"] ~= nil, vim.inspect(seen))
+  check("[@7] counter restarts numbering", by_text["7. seven"] ~= nil, vim.inspect(seen))
+  check("numbering continues after a counter", by_text["8. eight"] ~= nil, vim.inspect(seen))
+end
+
+-- 12. Tabs in verbatim bodies expand to 8-column stops.
+
+do
+  local lines = pdf._split_lines("a\tb\n\t\tx\n\228\184\128\ty")
+  check("tab after one char pads to column 8", lines[1] == "a       b", ("got %q"):format(lines[1]))
+  check(
+    "leading tabs become 16 spaces",
+    lines[2] == string.rep(" ", 16) .. "x",
+    ("got %q"):format(lines[2])
+  )
+  check(
+    "tab stops count codepoints, not bytes",
+    lines[3] == "\228\184\128" .. string.rep(" ", 7) .. "y",
+    ("got %q"):format(lines[3])
+  )
+end
+
 print(("\n%d check(s), %d failure(s)"):format(checks, fails))
 if fails > 0 then
   os.exit(1)

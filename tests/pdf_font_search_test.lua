@@ -187,6 +187,49 @@ check(
   ("got=%s err=%s"):format(tostring(p_bypass), tostring(err_bypass))
 )
 
+-- 11. fc-match answering with a non-TrueType file (a .ttc collection)
+-- is rejected so the directory walk can find an embeddable face.
+
+do
+  local ttc = tmpdir .. "/Collection.ttc"
+  local fh = assert(io.open(ttc, "wb"))
+  fh:write("ttcf\x00\x02\x00\x00")
+  fh:close()
+  local walk_dir = tmpdir .. "/walk"
+  vim.fn.mkdir(walk_dir, "p")
+  local walk_ttf = walk_dir .. "/Plain.ttf"
+  fh = assert(io.open(walk_ttf, "wb"))
+  fh:write("\x00\x01\x00\x00")
+  fh:close()
+
+  local saved_exec, saved_system, saved_dirs =
+    vim.fn.executable, vim.system, font_search._os_font_dirs
+  vim.fn.executable = function(name)
+    if name == "fc-match" then
+      return 1
+    end
+    return saved_exec(name)
+  end
+  vim.system = function(cmd)
+    assert(cmd[1] == "fc-match")
+    return {
+      wait = function()
+        return { code = 0, stdout = ttc .. "\n" }
+      end,
+    }
+  end
+  font_search._os_font_dirs = function()
+    return { walk_dir }
+  end
+  local p11, err11 = font_search.find({ style = "regular" })
+  vim.fn.executable, vim.system, font_search._os_font_dirs = saved_exec, saved_system, saved_dirs
+  check(
+    "fc-match .ttc answer is skipped in favour of the directory walk",
+    p11 == walk_ttf,
+    ("got=%s err=%s"):format(tostring(p11), tostring(err11))
+  )
+end
+
 -- Cleanup.
 pcall(vim.fn.delete, fixture)
 pcall(vim.fn.delete, tmpdir, "rf")

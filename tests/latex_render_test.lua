@@ -81,5 +81,14 @@ do
   assert((kinds.environment or 0) == 1, "expected one environment; got " .. vim.inspect(kinds))
 end
 
+-- 7. A foreground colour is emitted in xcolor's `\color[HTML]{RRGGBB}` form.
+do
+  local tex = r._build_tex("$x$", "inline", r._fg_to_xcolor("#ff0000"), "PRE\n")
+  assert(tex:find("\\color[HTML]{FF0000}\n", 1, true), "bad \\color macro:\n" .. tex)
+  assert(not tex:find("\\color{[", 1, true), "option list wrapped in braces:\n" .. tex)
+  tex = r._build_tex("$x$", "inline", nil, "PRE\n")
+  assert(tex:find("\\color{black}\n", 1, true), "default colour missing:\n" .. tex)
+end
+
 io.write("latex render ok\n")
 os.exit(0)

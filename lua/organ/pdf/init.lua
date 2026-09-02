@@ -25,8 +25,11 @@ local M = {}
 
 -- Strip inline markup to plain text. Emphasis unwraps to its content;
 -- links keep their description (with target in parens if both differ);
--- math passes through with bracket markers since v1 doesn't typeset it.
--- Image / footnote_ref / linebreak: dropped for MVP.
+-- math passes through with bracket markers since v1 doesn't typeset it;
+-- sub/superscripts keep their `_` / `^` marker; entities become their
+-- glyph; timestamps and statistics cookies are written verbatim; an
+-- unexpanded macro keeps its `{{{...}}}` source form.
+-- Image / footnote_ref / linebreak / target: dropped for MVP.
 local function emit_inline(nodes)
   if not nodes then
     return ""
@@ -39,21 +42,57 @@ local function emit_inline(nodes)
       out[#out + 1] = emit_inline(n.content)
     elseif n.kind == "link" then
       local desc = n.description and emit_inline(n.description) or ""
-      if desc ~= "" then
-        out[#out + 1] = desc .. " (" .. (n.target or "") .. ")"
+      local target = n.target or ""
+      if desc == "" or desc == target then
+        out[#out + 1] = target
       else
-        out[#out + 1] = n.target or ""
+        out[#out + 1] = desc .. " (" .. target .. ")"
       end
     elseif n.kind == "math" then
       out[#out + 1] = "<" .. (n.body or "") .. ">"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "_" .. emit_inline(n.content)
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "^" .. emit_inline(n.content)
+    elseif n.kind == "entity" then
+      local name = n.name or ""
+      out[#out + 1] = require("organ.entities").lookup("\\" .. name) or name
+    elseif n.kind == "timestamp" or n.kind == "statistics_cookie" then
+      out[#out + 1] = n.value or ""
+    elseif n.kind == "macro" then
+      local args = n.args or {}
+      out[#out + 1] = "{{{"
+        .. (n.name or "")
+        .. (#args > 0 and ("(" .. table.concat(args, ",") .. ")") or "")
+        .. "}}}"
+    end
+  end
+  return table.concat(out)
+end
+
+-- Tab stops every 8 columns, one column per codepoint. The embedded
+-- fonts have no glyph for U+0009.
+local function expand_tabs(line)
+  if not line:find("\t", 1, true) then
+    return line
+  end
+  local out, col = {}, 0
+  for ch in line:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+    if ch == "\t" then
+      local pad = 8 - col % 8
+      out[#out + 1] = string.rep(" ", pad)
+      col = col + pad
+    else
+      out[#out + 1] = ch
+      col = col + 1
     end
   end
   return table.concat(out)
 end
 
 -- Body splitter for code-block / verse / example: preserve every source
--- line including trailing empties. `gmatch("[^\n]*")` is unreliable for
--- empty trailing lines; do it by hand.
+-- line including trailing empties, tabs expanded. `gmatch("[^\n]*")` is
+-- unreliable for empty trailing lines; do it by hand.
 local function split_lines(s)
   if not s or s == "" then
     return {}
@@ -63,10 +102,10 @@ local function split_lines(s)
   while true do
     local nl = s:find("\n", start, true)
     if not nl then
-      out[#out + 1] = s:sub(start)
+      out[#out + 1] = expand_tabs(s:sub(start))
       break
     end
-    out[#out + 1] = s:sub(start, nl - 1)
+    out[#out + 1] = expand_tabs(s:sub(start, nl - 1))
     start = nl + 1
   end
   return out
@@ -109,19 +148,17 @@ local function render_block_node(node, ctx)
   -- Unknown block styles (center, export, ...): drop silently.
 end
 
--- Render a list as one paragraph per item, prefixed with a marker.
--- Nested lists are walked recursively. Checkbox state surfaces as a
--- bracketed marker before the bullet.
+-- Render a list as one paragraph per item, prefixed with a marker and
+-- indented two ems per nesting level. Ordered numbering honours `[@N]`
+-- counters. Checkbox state surfaces as a bracketed marker after the
+-- bullet; a description tag precedes its text with a colon.
 local function render_list(node, ctx, depth)
   depth = depth or 0
-  local indent = string.rep("  ", depth)
-  for i, item in ipairs(node.items or {}) do
-    local marker
-    if node.ordered then
-      marker = tostring(i) .. ". "
-    else
-      marker = "- "
-    end
+  local style = { indent = depth * 2 * ctx.layout.default_font_size }
+  local num = 0
+  for _, item in ipairs(node.items or {}) do
+    num = tonumber(item.counter) or (num + 1)
+    local marker = node.ordered and (num .. ". ") or "- "
     local checkbox = ""
     if item.checkbox == "todo" then
       checkbox = "[ ] "
@@ -130,27 +167,34 @@ local function render_list(node, ctx, depth)
     elseif item.checkbox == "part" then
       checkbox = "[-] "
     end
+    local tag = item.tag and emit_inline(item.tag) or ""
+    if tag ~= "" then
+      tag = tag .. ": "
+    end
+    local prefix = marker .. checkbox .. tag
     -- Item content: first paragraph (if any) gets the prefix; further
     -- blocks render normally underneath.
     local first = true
     for _, child in ipairs(item.content or {}) do
       if first and child.kind == "paragraph" then
-        ctx.layout:add_paragraph(indent .. marker .. checkbox .. emit_inline(child.inline))
+        ctx.layout:add_paragraph(prefix .. emit_inline(child.inline), style)
         first = false
-      elseif first and (checkbox ~= "" or marker ~= "") then
-        -- Empty-bodied item still deserves a visible bullet.
-        ctx.layout:add_paragraph(indent .. marker .. checkbox)
-        first = false
-        render_block(child, ctx)
-      elseif child.kind == "list" then
-        render_list(child, ctx, depth + 1)
       else
-        render_block(child, ctx)
+        if first then
+          -- Empty-bodied item still deserves a visible bullet.
+          ctx.layout:add_paragraph(prefix, style)
+          first = false
+        end
+        if child.kind == "list" then
+          render_list(child, ctx, depth + 1)
+        else
+          render_block(child, ctx)
+        end
       end
     end
     if first then
       -- The item had no content at all.
-      ctx.layout:add_paragraph(indent .. marker .. checkbox)
+      ctx.layout:add_paragraph(prefix, style)
     end
   end
 end
