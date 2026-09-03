@@ -33,6 +33,8 @@ end
 local groups = {}
 -- bufnr -> debounce timer
 local timers = {}
+-- bufnr -> row last left undecorated for the cursor
+local last_reveal = {}
 -- winid -> conceallevel saved before the engine raised it. Most engine
 -- elements conceal their raw tokens (checkboxes, dates, priority, ...), which
 -- only hide at conceallevel >= 2, so the engine raises it on attach and
@@ -81,6 +83,35 @@ local function visible_range(bufnr)
   return top, bot
 end
 
+-- 0-based row whose decorations must be dropped so the raw text shows
+-- under the cursor, or nil.  `modern.concealcursor` names the modes that
+-- KEEP the decoration, like Vim's own `concealcursor`.
+local function reveal_row(bufnr)
+  local win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_get_buf(win) ~= bufnr then
+    return nil
+  end
+  local keep = require("organ.buf_config").read(bufnr, "modern.concealcursor")
+  if keep == nil then
+    keep = "nv"
+  end
+  local mode = vim.api.nvim_get_mode().mode
+  local key = mode:sub(1, 1)
+  if key == "i" or key == "R" then
+    key = "i"
+  elseif key == "v" or key == "V" or key == "\22" then
+    key = "v"
+  elseif key == "c" then
+    key = "c"
+  else
+    key = "n"
+  end
+  if keep:find(key, 1, true) then
+    return nil
+  end
+  return vim.api.nvim_win_get_cursor(win)[1] - 1
+end
+
 local function do_refresh(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
@@ -95,6 +126,10 @@ local function do_refresh(bufnr)
   end
   for _, fn in ipairs(after_hooks) do
     pcall(fn, bufnr, top, bot)
+  end
+  local row = reveal_row(bufnr)
+  if row and row >= 0 and row < vim.api.nvim_buf_line_count(bufnr) then
+    vim.api.nvim_buf_clear_namespace(bufnr, NS, row, row + 1)
   end
 end
 
@@ -156,6 +191,22 @@ function M.attach(bufnr, name)
       M.refresh(bufnr)
     end,
   })
+  -- Moving onto or off a decorated line changes which row is revealed;
+  -- re-render only when that row actually changes.
+  vim.api.nvim_create_autocmd(
+    { "InsertEnter", "InsertLeave", "CursorMoved", "CursorMovedI", "ModeChanged" },
+    {
+      group = g,
+      buffer = bufnr,
+      callback = function()
+        local row = reveal_row(bufnr)
+        if row ~= last_reveal[bufnr] then
+          last_reveal[bufnr] = row
+          M.refresh(bufnr)
+        end
+      end,
+    }
+  )
   -- Scroll / resize are window events; refresh the current buffer if it is
   -- one we manage (buffer-local scoping is unreliable for WinScrolled).
   vim.api.nvim_create_autocmd({ "WinScrolled", "WinResized" }, {

@@ -733,6 +733,12 @@ return {
     -- glyph for a single-cell ASCII fallback. Bullets, list bullets, and the
     -- rule use plain Unicode either way.
     nerd_font = true,
+    -- Modes in which the line under the cursor KEEPS its decorations,
+    -- spelled like Vim's own `concealcursor` (n, v, i, c). In every other
+    -- mode that line renders as raw text, so you can see what you are
+    -- editing. Default `"nv"`: decorated while you read and move, raw
+    -- while you type. `""` always reveals it; `"nvic"` never does.
+    concealcursor = "nv",
     -- Per-level headline bullets. Replaces the trailing `*` with a level-
     -- indexed glyph (`◉ ○ ◈ ◇` cycling) and conceals the leading N-1 stars
     -- as spaces. Use `glyphs = {…}` to override the cycle. Plain list bullets

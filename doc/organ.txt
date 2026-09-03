@@ -3778,6 +3778,20 @@ Enable everything at once with the preset `modern = "all"` (or
 `modern = { preset = "rich" }`); explicit per-element values still win, so
 `modern = { preset = "rich", table = false }` turns on all but the table.
 
+                                                  *organ-modern-concealcursor*
+Every element above hides raw text behind a glyph or an overlay, which
+makes the line under the cursor hard to edit: you cannot see where the
+cursor sits inside `#+begin_src lua` when a frame is drawn over it.
+`modern.concealcursor` names the modes in which that line KEEPS its
+decorations, spelled like Vim's own 'concealcursor': >
+
+    modern = { concealcursor = "nv" }    -- default
+<
+In every mode not listed, the cursor's line renders as raw text and the
+decorations return as soon as you move off it or leave the mode. The
+default shows the rendered form while you read and navigate, and the real
+text while you type. Use `""` to always reveal it, `"nvic"` to never.
+
                                                         *organ-modern-bullets*
 `bullets` — replaces the trailing `*` of each headline with a level-indexed
 glyph (`◉ ○ ◈ ◇` cycling, repeats for deeper levels) and conceals the
