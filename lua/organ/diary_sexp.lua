@@ -1,12 +1,19 @@
 -- Diary-style sexp dates for org-mode.
 --
--- Recognised forms (Emacs `org-diary-class` subset):
---   <%%(diary-date Y M D)>            single date (any of Y/M/D may be `t` for wildcard)
---   <%%(diary-anniversary Y M D)>     fires every year on M D (Y is the start year)
---   <%%(diary-cyclic N Y M D)>        fires every N days starting from Y-M-D
---   <%%(diary-block Y1 M1 D1 Y2 M2 D2)>   every day in [start, end] inclusive
---   <%%(diary-float DOW NTH MONTH?)>  Nth weekday of month (DOW: 0=Sun..6=Sat;
---                                     MONTH=t for every month, else 1..12)
+-- Recognised forms.  `diary-*` take Emacs's default `calendar-date-style`
+-- (american: MONTH DAY YEAR); the `org-*` variants take ISO order
+-- (YEAR MONTH DAY):
+--   <%%(diary-date M D Y)>  <%%(org-date Y M D)>
+--       single date (any of M/D/Y may be `t` for wildcard)
+--   <%%(diary-anniversary M D Y?)>  <%%(org-anniversary Y M D)>
+--       every year on M D after the start year Y (any year when omitted)
+--   <%%(diary-cyclic N M D Y)>  <%%(org-cyclic N Y M D)>
+--       every N days starting from the date
+--   <%%(diary-block M1 D1 Y1 M2 D2 Y2)>  <%%(org-block Y1 M1 D1 Y2 M2 D2)>
+--       every day in [start, end] inclusive
+--   <%%(diary-float MONTH DOW NTH)>
+--       Nth weekday of month (DOW: 0=Sun..6=Sat; MONTH=t for every month,
+--       else 1..12)
 --
 -- Anything else (including arbitrary `if`/lambda predicates) is rejected:
 -- evaluating untrusted elisp is out of scope.
@@ -83,7 +90,28 @@ function M.parse(s)
     return nil
   end
   local fn = toks[1]
-  if fn == "diary-date" and #toks == 4 then
+  local argc = #toks - 1
+  local function int(i)
+    return tonumber(toks[i])
+  end
+  -- diary-* forms take Emacs's default american order (M D Y); the iso
+  -- order (Y M D) is accepted too, recognised by a leading year (a number
+  -- above 31, or the `t` wildcard when the last value is a plain day).
+  local function mdy(i)
+    local a, b, c = toks[i], toks[i + 1], toks[i + 2]
+    local an, cn = tonumber(a), tonumber(c)
+    local year_last = c == "t" or (cn and cn > 31)
+    local year_first = (an and an > 31) or (a == "t" and not year_last)
+    if year_first then
+      return as_int_or_t(b), as_int_or_t(c), as_int_or_t(a)
+    end
+    return as_int_or_t(a), as_int_or_t(b), as_int_or_t(c)
+  end
+  if fn == "diary-date" and argc == 3 then
+    local m, d, y = mdy(2)
+    return { kind = "date", m = m, d = d, y = y }
+  end
+  if fn == "org-date" and argc == 3 then
     return {
       kind = "date",
       y = as_int_or_t(toks[2]),
@@ -91,21 +119,51 @@ function M.parse(s)
       d = as_int_or_t(toks[4]),
     }
   end
-  if fn == "diary-anniversary" and #toks == 4 then
-    local y, m, d = tonumber(toks[2]), tonumber(toks[3]), tonumber(toks[4])
+  if fn == "diary-anniversary" and (argc == 2 or argc == 3) then
+    local m, d, y = int(2), int(3), int(4)
+    if argc == 3 then
+      m, d, y = mdy(2)
+    end
+    if type(m) == "number" and type(d) == "number" and (argc == 2 or type(y) == "number") then
+      return { kind = "anniversary", y = y, m = m, d = d }
+    end
+  end
+  if fn == "org-anniversary" and argc == 3 then
+    local y, m, d = int(2), int(3), int(4)
     if y and m and d then
       return { kind = "anniversary", y = y, m = m, d = d }
     end
   end
-  if fn == "diary-cyclic" and #toks == 5 then
-    local n, y, m, d = tonumber(toks[2]), tonumber(toks[3]), tonumber(toks[4]), tonumber(toks[5])
+  if fn == "diary-cyclic" and argc == 4 then
+    local n = int(2)
+    local m, d, y = mdy(3)
+    if n and type(y) == "number" and type(m) == "number" and type(d) == "number" then
+      return { kind = "cyclic", n = n, y = y, m = m, d = d }
+    end
+  end
+  if fn == "org-cyclic" and argc == 4 then
+    local n, y, m, d = int(2), int(3), int(4), int(5)
     if n and y and m and d then
       return { kind = "cyclic", n = n, y = y, m = m, d = d }
     end
   end
-  if fn == "diary-block" and #toks == 7 then
-    local y1, m1, d1 = tonumber(toks[2]), tonumber(toks[3]), tonumber(toks[4])
-    local y2, m2, d2 = tonumber(toks[5]), tonumber(toks[6]), tonumber(toks[7])
+  if fn == "diary-block" and argc == 6 then
+    local m1, d1, y1 = mdy(2)
+    local m2, d2, y2 = mdy(5)
+    if
+      type(y1) == "number"
+      and type(m1) == "number"
+      and type(d1) == "number"
+      and type(y2) == "number"
+      and type(m2) == "number"
+      and type(d2) == "number"
+    then
+      return { kind = "block", y1 = y1, m1 = m1, d1 = d1, y2 = y2, m2 = m2, d2 = d2 }
+    end
+  end
+  if fn == "org-block" and argc == 6 then
+    local y1, m1, d1 = int(2), int(3), int(4)
+    local y2, m2, d2 = int(5), int(6), int(7)
     if y1 and m1 and d1 and y2 and m2 and d2 then
       return { kind = "block", y1 = y1, m1 = m1, d1 = d1, y2 = y2, m2 = m2, d2 = d2 }
     end
@@ -143,7 +201,7 @@ function M.matches(node, iso_date)
   end
 
   if node.kind == "anniversary" then
-    return node.m == m and node.d == d and y >= node.y
+    return node.m == m and node.d == d and (node.y == nil or y > node.y)
   end
 
   if node.kind == "cyclic" then

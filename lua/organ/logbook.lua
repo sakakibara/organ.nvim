@@ -24,33 +24,46 @@ local function now_inactive_ts()
   return string.format("[%04d-%02d-%02d %s %02d:%02d]", t.year, t.month, t.day, dow, t.hour, t.min)
 end
 
--- Build a state-change entry: `- State "TO"       from "FROM"       <ts> \\`.
+local function quote_state(state)
+  return state and ('"' .. state .. '"') or ""
+end
+
+-- Emacs `org-log-note-headings` state entry: `State %-12s from %-12S %t`,
+-- with ` \\` appended only when note lines follow.
 function M.build_state_entry(from_state, to_state, note)
-  local ts = now_inactive_ts()
   local first = string.format(
-    '- State "%s"       from "%s"       %s \\\\',
-    to_state or "(none)",
-    from_state or "(none)",
-    ts
+    "- State %-12s from %-12s %s",
+    quote_state(to_state),
+    quote_state(from_state),
+    now_inactive_ts()
   )
   if note and note ~= "" then
-    return { first, "  " .. note }
+    return { first .. " \\\\", "  " .. note }
   end
   return { first }
 end
 
--- Build a `- Rescheduled from "<old>" on <ts>` entry. `verb` is one of
--- "Rescheduled" | "New deadline" | "Refiled" — matches Emacs phrasing.
+-- Emacs `%S`: an active old stamp is quoted as an inactive one.
+local function quote_old_value(value)
+  local inner = value:match("^<(.*)>$")
+  if inner then
+    return '"[' .. inner .. ']"'
+  end
+  return '"' .. value .. '"'
+end
+
+-- Build a `- Rescheduled from "[old]" on <ts>` entry. `verb` is one of
+-- "Rescheduled" | "New deadline" | "Refiled" -- matches Emacs phrasing.
 function M.build_planning_entry(verb, old_value, note)
   local ts = now_inactive_ts()
   local body
   if old_value and old_value ~= "" then
-    body = string.format('- %s from "%s" on %s \\\\', verb, old_value, ts)
+    body = string.format("- %s from %s on %s", verb, quote_old_value(old_value), ts)
   else
-    body = string.format("- %s on %s \\\\", verb, ts)
+    body = string.format("- %s on %s", verb, ts)
   end
   if note and note ~= "" then
-    return { body, "  " .. note }
+    return { body .. " \\\\", "  " .. note }
   end
   return { body }
 end

@@ -92,5 +92,15 @@ do
   assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri>", "planning line inserted at correct position")
 end
 
+-- 6. Setting a deadline removes CLOSED (Emacs `org--deadline-or-schedule`
+--    passes `'closed` to `org-add-planning-info`).
+do
+  local b = mk_buf({ "* DONE Two", "CLOSED: [2026-05-04 Mon 12:00]" })
+  sched._set_planning(b, 1, "DEADLINE", "2026-05-07")
+  local lines = get_lines(b)
+  assert_eq(lines[2], "  DEADLINE: <2026-05-07 Thu>", "CLOSED removed")
+  assert_eq(#lines, 2)
+end
+
 io.write("deadline ok\n")
 os.exit(0)

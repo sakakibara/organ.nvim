@@ -38,6 +38,8 @@ end
 -- Extract State→DONE-(or any "done" keyword) date stamps from the text of
 -- a LOGBOOK drawer.  Lines look like:
 --   - State "DONE"      from "TODO"      [2026-04-25 Sat 14:30]
+--   - State "DONE"      from             [2026-04-25 Sat 14:30]
+-- (the second shape is a transition from no state).
 -- Returns an ascending-sorted list of YYYY-MM-DD strings.
 local DONE_KEYWORDS = { DONE = true, CANCELLED = true }
 
@@ -48,7 +50,7 @@ function M.parse_completions(logbook_text, done_keywords)
   end
   local seen, out = {}, {}
   for kw, date in
-    logbook_text:gmatch('%-%s*State%s+"([%u_]+)"%s+from%s+"[%u_]+"%s*%[(%d%d%d%d%-%d%d%-%d%d)')
+    logbook_text:gmatch('%-%s*State%s+"([%u_]+)"%s+from%s*"?[^"%s%[]*"?%s*%[(%d%d%d%d%-%d%d%-%d%d)')
   do
     if done_keywords[kw] and not seen[date] then
       seen[date] = true

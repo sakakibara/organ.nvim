@@ -113,6 +113,44 @@ check("directive with annotations: bare DONE", seqs4[1][4] == "DONE")
 
 vim.api.nvim_buf_delete(b4, { force = true })
 
+-- A sequence without `|` ends in its done state (Emacs
+-- `org-set-regexps-and-options`): the last keyword is done, the rest active.
+local b5 = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(b5, 0, -1, false, {
+  "#+TODO: A B",
+  "#+SEQ_TODO: C",
+  "* A one",
+})
+vim.bo[b5].filetype = "org"
+
+local seqs5 = todo.effective_sequences(b5)
+check(
+  "bar-less directive: divider before last keyword",
+  vim.deep_equal(seqs5[1], { "A", "|", "B" }),
+  vim.inspect(seqs5[1])
+)
+check(
+  "bar-less single keyword: done only",
+  vim.deep_equal(seqs5[2], { "|", "C" }),
+  vim.inspect(seqs5[2])
+)
+check("bar-less directive: A active", todo._is_active("A", seqs5) == true)
+check("bar-less directive: B done", todo._is_done("B", seqs5) == true)
+check("bar-less directive: B not active", todo._is_active("B", seqs5) == false)
+check(
+  "bar-less config sequence: divider before last keyword",
+  vim.deep_equal(todo._normalise_sequences({ "TODO(t)", "DONE(d)" }), { { "TODO", "|", "DONE" } })
+)
+check(
+  "bar-less config multi-sequence: divider per sequence",
+  vim.deep_equal(
+    todo._normalise_sequences({ { "TODO", "DONE" }, { "BUG", "|", "FIXED" } }),
+    { { "TODO", "|", "DONE" }, { "BUG", "|", "FIXED" } }
+  )
+)
+
+vim.api.nvim_buf_delete(b5, { force = true })
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

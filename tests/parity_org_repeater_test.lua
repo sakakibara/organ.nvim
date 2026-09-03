@@ -94,6 +94,14 @@ local cases = {
       "2026-05-01 Fri +1w"
     ),
   },
+  {
+    label = "+1w repeater on the headline itself",
+    input = "#+TODO: TODO | DONE\n* TODO <CURSOR>Meeting <2026-05-01 Fri +1w>\n  body\n",
+  },
+  {
+    label = "+0d zero repeater: entry completes, timestamp untouched",
+    input = fixture("2026-05-01 Fri +0d"),
+  },
 }
 
 for _, c in ipairs(cases) do

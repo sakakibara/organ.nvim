@@ -28,8 +28,12 @@ local function days_in_month(y, m)
   return tonumber(os.date("%d", last))
 end
 
--- Add `n` of `unit` to a date, clamping day-of-month for short months.
-local function add_unit(y, m, d, n, unit)
+-- Add `n` of `unit` to a date.  Month and year steps rely on mktime
+-- normalisation, so a day past the end of the target month overflows into
+-- the next one exactly like Emacs `encode-time` (Jan 31 +1m -> Mar 3).
+-- With `clamp` the day is capped at the target month's length instead, so
+-- a skip filter such as `[eom]` searches from the intended month.
+local function add_unit(y, m, d, n, unit, clamp)
   if unit == "d" then
     local t = os.time(date_table(y, m, d)) + n * 86400
     local dt = os.date("*t", t)
@@ -38,19 +42,47 @@ local function add_unit(y, m, d, n, unit)
   if unit == "w" then
     return add_unit(y, m, d, n * 7, "d")
   end
+  local ty, tm
   if unit == "m" then
-    local total = (y * 12 + (m - 1)) + n
-    local ny = math.floor(total / 12)
-    local nm = (total % 12) + 1
-    local nd = math.min(d, days_in_month(ny, nm))
-    return ny, nm, nd
+    local dt = os.date("*t", os.time({ year = y, month = m + n, day = 1, hour = 12 }))
+    ty, tm = dt.year, dt.month
+  elseif unit == "y" then
+    ty, tm = y + n, m
+  else
+    error("unknown unit: " .. tostring(unit))
   end
-  if unit == "y" then
-    local ny = y + n
-    local nd = math.min(d, days_in_month(ny, m))
-    return ny, m, nd
+  if clamp then
+    d = math.min(d, days_in_month(ty, tm))
   end
-  error("unknown unit: " .. tostring(unit))
+  local dt = os.date("*t", os.time({ year = ty, month = tm, day = d, hour = 12 }))
+  return dt.year, dt.month, dt.day
+end
+
+-- Split "YYYY-MM-DD" or "YYYY-MM-DD HH:MM" into numeric fields; a missing
+-- time reads as midnight.
+local function parse_now(s)
+  local y, m, d = s:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)")
+  local hh, mi = s:match("^%d%d%d%d%-%d%d%-%d%d%s+(%d%d?):(%d%d)$")
+  return tonumber(y), tonumber(m), tonumber(d), tonumber(hh) or 0, tonumber(mi) or 0
+end
+
+-- Shift the leading HH:MM of `suffix` (and a HH:MM range end, if any) by
+-- `shift_min` minutes, rolling the date through mktime.
+local function shift_time(y, m, d, suffix, shift_min)
+  local hh, mi, rest = suffix:match("^ (%d%d?):(%d%d)(.*)$")
+  local dt = os.date(
+    "*t",
+    os.time({ year = y, month = m, day = d, hour = tonumber(hh), min = tonumber(mi) + shift_min })
+  )
+  local out = string.format(" %02d:%02d", dt.hour, dt.min)
+  local eh, em, tail = rest:match("^%-(%d%d?):(%d%d)(.*)$")
+  if eh then
+    local e = (tonumber(eh) * 60 + tonumber(em) + shift_min) % 1440
+    out = out .. string.format("-%02d:%02d%s", math.floor(e / 60), e % 60, tail)
+  else
+    out = out .. rest
+  end
+  return dt.year, dt.month, dt.day, out
 end
 
 local function date_lt(y1, m1, d1, y2, m2, d2)
@@ -68,12 +100,24 @@ end
 local TS_RE_ACTIVE = "^(<)(%d%d%d%d%-%d%d%-%d%d) (%a%a%a)( ?[^>]*)(>)$"
 -- Inactive suffix stops at the first ']' (the timestamp close bracket).
 local TS_RE_INACTIVE = "^(%[)(%d%d%d%d%-%d%d%-%d%d) (%a%a%a)( ?[^%]]*)(])$"
-local REP_RE = "([%+%.][%+]?)(%d+)([dwmy])"
+local REP_RE = "([%+%.][%+]?)(%d+)([hdwmy])"
 -- Two-period habit syntax: `.+1d/3d` means "every 1 day; alarm if not done
 -- within 3 days".  Per Emacs `org-habit`.  The `/Nu` half is preserved for
 -- round-trip but doesn't change bump semantics.
-local DEADLINE_RE = "/(%d+)([dwmy])"
+local DEADLINE_RE = "/(%d+)([hdwmy])"
 local FILTER_RE = "%[([^%]]+)%]"
+
+local function match_repeater(suffix)
+  local kind, value, unit = suffix:match(REP_RE)
+  if not kind then
+    return nil
+  end
+  value = tonumber(value)
+  if value == 0 then
+    return nil
+  end
+  return kind, value, unit
+end
 
 local function match_ts(s)
   local a, b, c, d, e = s:match(TS_RE_ACTIVE)
@@ -88,7 +132,7 @@ function M.parse(timestamp_text)
   if not suffix or suffix == "" then
     return nil
   end
-  local kind, value, unit = suffix:match(REP_RE)
+  local kind, value, unit = match_repeater(suffix)
   if not kind then
     return nil
   end
@@ -99,7 +143,7 @@ function M.parse(timestamp_text)
   local deadline_value, deadline_unit = suffix:match(DEADLINE_RE)
   return {
     kind = kind,
-    value = tonumber(value),
+    value = value,
     unit = unit,
     filter = filter,
     deadline_value = deadline_value and tonumber(deadline_value) or nil,
@@ -502,33 +546,61 @@ local function resolve_calendar(name, date)
   return false
 end
 
-function M.bump(timestamp_text, now_yyyy_mm_dd)
+-- Shift a repeating timestamp past `now` ("YYYY-MM-DD" or "YYYY-MM-DD
+-- HH:MM") the way `org-auto-repeat-maybe` does.  Returns the new timestamp
+-- text, or nil plus an error message.
+function M.bump(timestamp_text, now)
   local open_b, ymd, _, suffix, close_b = match_ts(timestamp_text)
   if not open_b then
     return nil, "not a recognised timestamp"
   end
-  local kind, value, unit = suffix:match(REP_RE)
+  local kind, value, unit = match_repeater(suffix)
   if not kind then
     return nil, "no repeater in timestamp"
   end
   local filter = suffix:match(FILTER_RE)
 
   local oy, om, od = parse_ymd(ymd)
-  local ny, nm, nd = parse_ymd(now_yyyy_mm_dd)
+  local ny, nm, nd, nh, nmin = parse_now(now)
   local by, bm, bd
 
-  if kind == "+" then
-    by, bm, bd = add_unit(oy, om, od, value, unit)
+  if unit == "h" then
+    local hh, mi = suffix:match("^ (%d%d?):(%d%d)")
+    if not hh then
+      return nil, string.format("Cannot repeat in %d hour(s) because no hour has been set", value)
+    end
+    hh, mi = tonumber(hh), tonumber(mi)
+    local function shifted(min)
+      return os.time({ year = oy, month = om, day = od, hour = hh, min = mi + min })
+    end
+    local now_t = os.time({ year = ny, month = nm, day = nd, hour = nh, min = nmin })
+    local shift_min
+    if kind == "+" then
+      shift_min = value * 60
+    elseif kind == "++" then
+      local steps = math.floor((now_t - shifted(0)) / (value * 3600))
+      shift_min = math.max(1, steps - 1) * value * 60
+      while shifted(shift_min) <= now_t do
+        shift_min = shift_min + value * 60
+      end
+    elseif kind == ".+" then
+      shift_min = math.floor((now_t - shifted(0)) / 60) + value * 60
+    else
+      return nil, "unknown repeater kind: " .. kind
+    end
+    by, bm, bd, suffix = shift_time(oy, om, od, suffix, shift_min)
+  elseif kind == "+" then
+    by, bm, bd = add_unit(oy, om, od, value, unit, filter ~= nil)
   elseif kind == "++" then
     by, bm, bd = oy, om, od
     for _ = 1, 366 do
-      by, bm, bd = add_unit(by, bm, bd, value, unit)
+      by, bm, bd = add_unit(by, bm, bd, value, unit, filter ~= nil)
       if not date_lt(by, bm, bd, ny, nm, nd) and not (by == ny and bm == nm and bd == nd) then
         break
       end
     end
   elseif kind == ".+" then
-    by, bm, bd = add_unit(ny, nm, nd, value, unit)
+    by, bm, bd = add_unit(ny, nm, nd, value, unit, filter ~= nil)
   else
     return nil, "unknown repeater kind: " .. kind
   end

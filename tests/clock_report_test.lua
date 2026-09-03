@@ -39,5 +39,22 @@ do
   assert(lines[3]:match("100:30"), "expected 100:30; got " .. lines[3])
 end
 
+-- 4. The default week range is computed on calendar days, so a DST
+--    fall-back inside the week does not lose Monday.
+do
+  local saved_tz = vim.env.TZ
+  vim.env.TZ = "America/New_York"
+  -- Sunday 2026-11-01 23:30 EST; DST ended at 02:00 that morning.
+  local sunday = os.time({ year = 2026, month = 11, day = 1, hour = 23, min = 30, sec = 0 })
+  local from, to = require("organ.clock")._week_range(sunday)
+  assert(from == "2026-10-26", "week starts Monday across fall-back; got " .. tostring(from))
+  assert(to == "2026-11-01", "week ends Sunday; got " .. tostring(to))
+  -- Spring-forward week: Sunday 2026-03-08 23:30 EDT.
+  local spring = os.time({ year = 2026, month = 3, day = 8, hour = 23, min = 30, sec = 0 })
+  from, to = require("organ.clock")._week_range(spring)
+  assert(from == "2026-03-02" and to == "2026-03-08", "spring-forward week: " .. from .. ".." .. to)
+  vim.env.TZ = saved_tz
+end
+
 io.write("clock report ok\n")
 os.exit(0)

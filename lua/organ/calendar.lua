@@ -939,6 +939,27 @@ function M.pick(opts, callback)
     zone = "grid",
   }
 
+  -- :close / :q / <C-w>c bypass the q/<Esc>/<CR> maps; the buffer wipe is
+  -- the one exit every path shares, so restore the cursor and cancel there.
+  require("organ.errors").autocmd("BufWipeout", {
+    buffer = bufnr,
+    once = true,
+    callback = function()
+      local state = vim.b[bufnr].organ_calendar
+      if not state or state.fired then
+        return
+      end
+      state.fired = true
+      vim.b[bufnr].organ_calendar = state
+      if state.saved_guicursor then
+        vim.o.guicursor = state.saved_guicursor
+      end
+      if state.callback then
+        pcall(state.callback, nil)
+      end
+    end,
+  })
+
   install_keymaps(bufnr)
   _refresh(bufnr)
   return bufnr, win

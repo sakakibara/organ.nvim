@@ -45,9 +45,12 @@ local now = os.time()
 local target_ts = math.floor(now / 60) * 60 + 60
 -- We can't actually wait a full minute in tests; instead we directly invoke
 -- the dispatcher by faking `now` as 1s before the target.
+-- Rows carry the shape `organ.query.agenda` returns: `scheduled` is the raw
+-- org timestamp text, `scheduled_date` the ISO form.
 local iso = os.date("%Y-%m-%dT%H:%M", target_ts)
+local raw = os.date("<%Y-%m-%d %a %H:%M>", target_ts)
 stub_rows = {
-  { id = "row1", title = "Standup", todo_state = "TODO", scheduled = iso },
+  { id = "row1", title = "Standup", todo_state = "TODO", scheduled = raw, scheduled_date = iso },
 }
 
 alarms.scan(target_ts - 1)
@@ -65,7 +68,7 @@ assert(
 -- 3. Already-DONE rows are skipped.
 fired_payloads = {}
 stub_rows = {
-  { id = "row2", title = "Done thing", todo_state = "DONE", scheduled = iso },
+  { id = "row2", title = "Done thing", todo_state = "DONE", scheduled = raw, scheduled_date = iso },
 }
 alarms.scan(os.time())
 -- DONE rows should produce no timers.
@@ -78,11 +81,19 @@ stub_rows = {
     id = "row3",
     title = "Old",
     todo_state = "TODO",
-    scheduled = os.date("%Y-%m-%dT%H:%M", os.time() - 3600),
+    scheduled = os.date("<%Y-%m-%d %a %H:%M>", os.time() - 3600),
+    scheduled_date = os.date("%Y-%m-%dT%H:%M", os.time() - 3600),
   },
 }
 alarms.scan(os.time())
 assert(#alarms._state().timers == 0, "past-due rows skipped")
+
+-- 5. DEADLINE rows read `deadline_date` the same way.
+stub_rows = {
+  { id = "row4", title = "Ship", todo_state = "TODO", deadline = raw, deadline_date = iso },
+}
+alarms.scan(target_ts - 1)
+assert(#alarms._state().timers == 1, "deadline timer expected, got " .. #alarms._state().timers)
 
 -- Clean up.
 alarms.stop()

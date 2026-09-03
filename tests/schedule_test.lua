@@ -95,5 +95,41 @@ do
   assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>", "planning line inserted at correct position")
 end
 
+-- 6. Re-setting a planning date keeps the existing repeater / warning
+--    cookie (Emacs `org--deadline-or-schedule` re-appends it).
+do
+  local b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri +1w>" })
+  sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
+  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon +1w>", "repeater kept")
+
+  b = mk_buf({ "* Task", "SCHEDULED: <2026-05-01 Fri 09:00 .+1d/3d>" })
+  sched._set_planning(b, 1, "SCHEDULED", "2026-06-01", { start = "10:00" })
+  assert_eq(get_lines(b)[2], "  SCHEDULED: <2026-06-01 Mon 10:00 .+1d/3d>", "habit cookie kept")
+
+  b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri ++1w -2d>" })
+  sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
+  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon ++1w -2d>", "warning period kept")
+
+  b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri -2d>" })
+  sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
+  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon -2d>", "lone warning period kept")
+end
+
+-- 7. Scheduling removes CLOSED, keeps the other keywords (Emacs
+--    `org--deadline-or-schedule` passes `'closed` to
+--    `org-add-planning-info`).
+do
+  local b = mk_buf({
+    "* DONE Keep",
+    "CLOSED: [2026-05-04 Mon 12:00] DEADLINE: <2026-05-10 Sun>",
+    "body",
+  })
+  sched._set_planning(b, 1, "SCHEDULED", "2026-05-06")
+  local lines = get_lines(b)
+  assert_eq(lines[2], "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-10 Sun>", "CLOSED removed")
+  assert_eq(lines[3], "body")
+  assert_eq(#lines, 3)
+end
+
 io.write("schedule ok\n")
 os.exit(0)

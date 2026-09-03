@@ -94,6 +94,25 @@ do
   assert(not vim.api.nvim_win_is_valid(pre_win), "window closed")
 end
 
+-- Closing the float any other way (:close, :q, <C-w>c) still restores the
+-- masked guicursor and cancels the pick.
+do
+  local saved = vim.o.guicursor
+  vim.o.guicursor = "n-v-c:block,i:ver25"
+  local calls, got = 0, "unset"
+  local bufnr, win = cal.pick({ initial = "2026-04-15" }, function(iso)
+    calls = calls + 1
+    got = iso
+  end)
+  assert_eq(vim.o.guicursor, "a:OrganCalendarCursor", "cursor masked while open")
+  vim.api.nvim_win_close(win, true)
+  assert(not vim.api.nvim_buf_is_valid(bufnr), "buffer wiped with the window")
+  assert_eq(vim.o.guicursor, "n-v-c:block,i:ver25", "guicursor restored after :close")
+  assert_eq(calls, 1, "callback fired once on external close")
+  assert_eq(got, nil, "external close cancels")
+  vim.o.guicursor = saved
+end
+
 io.write("calendar pick ok\n")
 
 -- opts.time: pick() seeds a time substate; _confirm fires callback with time_info

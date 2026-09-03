@@ -102,6 +102,26 @@ do
   assert(count >= 1, "expected at least one clock_entries row for alpha; got " .. count)
 end
 
+-- 3. clock-out over a state file holding the state under `active`.
+do
+  clock.start({ bufnr = bufnr, line = 1 })
+  local s = state_mod.load()
+  assert(s and s.headline_id == "alpha", "state should exist after second clock-in")
+  state_mod.save({ active = s })
+  vim.cmd("write")
+  local ok, err = pcall(clock.stop)
+  assert(ok, "clock.stop over nested state raised: " .. tostring(err))
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local open_count = 0
+  for _, l in ipairs(lines) do
+    if l:match("CLOCK:%s*%[%d+%-%d+%-%d+") and not l:match("%-%-%[") then
+      open_count = open_count + 1
+    end
+  end
+  assert(open_count == 0, "nested state: CLOCK line closed; got\n" .. table.concat(lines, "\n"))
+  assert(state_mod.load() == nil, "nested state: cleared after clock-out")
+end
+
 vim.fn.stdpath = original_stdpath
 vim.fn.delete(tmp, "rf")
 io.write("clock e2e ok\n")

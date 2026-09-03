@@ -49,6 +49,44 @@ assert(joined:find('- State "NEXT"', 1, true), "expected NEXT entry")
 assert(joined:find('- State "WAITING"', 1, true), "expected WAITING entry")
 assert(joined:find('- State "DONE"', 1, true), "expected DONE entry")
 
+-- Exact Emacs shape: `State %-12s from %-12S %t`, no ` \\` without a note.
+local function state_line(pat)
+  for _, ln in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
+    if ln:find(pat, 1, true) then
+      return ln
+    end
+  end
+end
+local done_line = state_line('State "DONE"')
+assert(
+  done_line:match(
+    '^%- State "DONE"       from "WAITING"    %[%d%d%d%d%-%d%d%-%d%d %a%a%a %d%d:%d%d%]$'
+  ),
+  "expected Emacs-padded DONE entry; got: " .. done_line
+)
+
+-- Transition from no state: `%S` renders empty, keeping the padding.
+local fixture_ns = org_dir .. "/ns.org"
+fh = assert(io.open(fixture_ns, "w"))
+fh:write("* Heading\n")
+fh:close()
+local bns = vim.fn.bufadd(fixture_ns)
+vim.fn.bufload(bns)
+assert(todo.set(bns, 1, "TODO") == nil)
+local ns_line
+for _, ln in ipairs(vim.api.nvim_buf_get_lines(bns, 0, -1, false)) do
+  if ln:find("- State", 1, true) then
+    ns_line = ln
+  end
+end
+assert(ns_line, "expected state entry for no-state -> TODO")
+assert(
+  ns_line:match(
+    '^%- State "TODO"       from              %[%d%d%d%d%-%d%d%-%d%d %a%a%a %d%d:%d%d%]$'
+  ),
+  "expected Emacs no-previous-state entry; got: " .. ns_line
+)
+
 -- No-op transition (DONE → DONE) should not add another entry.
 assert(todo.set(b, 1, "DONE") == nil)
 local entries2 = 0

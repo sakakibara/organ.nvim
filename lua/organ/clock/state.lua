@@ -28,6 +28,9 @@ function M.load()
   if not ok or type(data) ~= "table" then
     return nil
   end
+  if type(data.active) == "table" then
+    data = data.active
+  end
   return data
 end
 

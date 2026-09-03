@@ -76,6 +76,22 @@ do
   assert(vim.loop.fs_stat(data_dir .. "/organ/clock.json"), "file should exist")
 end
 
+-- A file holding the state under an `active` key loads as the flat state.
+do
+  state.save({
+    active = {
+      file_path = "/abs/n.org",
+      line_start = 3,
+      headline_id = "nested",
+      start_ts = 5,
+    },
+  })
+  local s = state.load()
+  assert(s and s.active == nil, "nested state flattened; got " .. vim.inspect(s))
+  assert(s.file_path == "/abs/n.org" and s.line_start == 3 and s.headline_id == "nested")
+  state.clear()
+end
+
 vim.fn.stdpath = original_stdpath
 vim.fn.delete(tmp, "rf")
 io.write("clock state ok\n")

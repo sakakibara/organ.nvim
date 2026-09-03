@@ -50,7 +50,22 @@ local function parse_ts_time(ts)
 end
 M._parse_ts_time = parse_ts_time
 
--- Insert or update a SCHEDULED/DEADLINE keyword on the planning line.
+-- Repeater / warning cookie of a timestamp (`+1w`, `.+1d/3d`, `++1w -2d`,
+-- `-2d`), matched the way Emacs `org--deadline-or-schedule` does.
+local function planning_cookie(ts)
+  if not ts then
+    return nil
+  end
+  local s, e = ts:find("[%.%+%-]+%d+[hdwmy]")
+  if not s then
+    return nil
+  end
+  local _, e2 = ts:find("^[/ ][%-%+]?%d+[hdwmy]", e + 1)
+  return ts:sub(s, e2 or e)
+end
+
+-- Insert or update a SCHEDULED/DEADLINE keyword on the planning line and
+-- drop CLOSED, as Emacs `org--deadline-or-schedule` does.
 -- kind    = "SCHEDULED" | "DEADLINE"
 -- date_str = iso string "YYYY-MM-DD"
 local function _set_planning(bufnr, hl_line, kind, date_str, time_info)
@@ -76,7 +91,14 @@ local function _set_planning(bufnr, hl_line, kind, date_str, time_info)
     end
   end
 
-  require("organ.section").set_planning(bufnr, hl_line - 1, kind, ts)
+  local cookie = planning_cookie(old_ts)
+  if cookie then
+    ts = ts:sub(1, -2) .. " " .. cookie .. ">"
+  end
+
+  local section = require("organ.section")
+  section.set_planning(bufnr, hl_line - 1, kind, ts)
+  section.set_planning(bufnr, hl_line - 1, "CLOSED", nil)
 
   -- LOGBOOK note (only for true CHANGES; first-time schedule with no prior
   -- value bypasses the log to avoid noise — Emacs parity).

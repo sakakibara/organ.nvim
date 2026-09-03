@@ -40,6 +40,16 @@ do
     { "2026-04-20", "2026-04-21", "2026-04-22", "2026-04-24" },
     "completions sorted, dedup, ignores reverse transitions"
   )
+  -- Emacs leaves `from` empty (no quotes) when there was no previous state.
+  local emacs_shaped = [[
+- State "DONE"       from              [2026-04-25 Sat 09:00]
+- State "DONE"       from "TODO"       [2026-04-26 Sun 09:00]
+]]
+  deq(
+    hab.parse_completions(emacs_shaped),
+    { "2026-04-25", "2026-04-26" },
+    "parses Emacs no-previous-state entries"
+  )
 end
 
 -- period_days

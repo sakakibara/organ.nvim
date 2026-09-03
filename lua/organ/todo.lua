@@ -67,6 +67,21 @@ end
 --
 -- A sequence is detected by checking if the first element is a string;
 -- a list-of-lists has tables as elements.
+--
+-- Without `|` the last keyword is the done state (Emacs
+-- `org-set-regexps-and-options`), so a divider is inserted before it.
+local function with_divider(seq)
+  for _, k in ipairs(seq) do
+    if k == "|" then
+      return seq
+    end
+  end
+  if #seq > 0 then
+    table.insert(seq, #seq, "|")
+  end
+  return seq
+end
+
 local function normalise_sequences(input)
   if type(input) ~= "table" or #input == 0 then
     return {}
@@ -78,7 +93,7 @@ local function normalise_sequences(input)
       for _, k in ipairs(seq) do
         stripped[#stripped + 1] = strip_annotation(k)
       end
-      out[#out + 1] = stripped
+      out[#out + 1] = with_divider(stripped)
     end
     return out
   end
@@ -86,12 +101,11 @@ local function normalise_sequences(input)
   for _, k in ipairs(input) do
     stripped[#stripped + 1] = strip_annotation(k)
   end
-  return { stripped }
+  return { with_divider(stripped) }
 end
 M._normalise_sequences = normalise_sequences
 
 -- Split a sequence into { actives = [...], dones = [...] } at the `|` marker.
--- A sequence with no `|` puts everything into actives.
 local function split_seq(sequence)
   local actives, dones = {}, {}
   local in_done = false
@@ -476,30 +490,35 @@ local function set_property(bufnr, hl_line, key, value)
   end
 end
 
--- Try to bump SCHEDULED/DEADLINE timestamps if they have repeaters. Returns
--- true if any bump happened (and the state transition should be cancelled).
-local function try_bump_repeaters(bufnr, hl_line, now_yyyy_mm_dd)
+-- Bump every active timestamp carrying a repeater anywhere in the entry
+-- (planning lines and body alike), as `org-auto-repeat-maybe` does.
+-- Returns true if any bump happened (the state transition is then cancelled).
+local function try_bump_repeaters(bufnr, hl_line, now)
   local rep = require("organ.todo.repeater")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local pl = require("organ.element").planning_lines(bufnr, hl_line - 1)
   local bumped = false
 
-  for _, key in ipairs({ "scheduled", "deadline" }) do
-    local idx = pl[key]
-    if idx then
-      local ln = lines[idx]
-      -- Extract the timestamp (between < > or [ ]).
-      local ts = ln:match("(<[^>]+>)") or ln:match("(%b[])")
-      if ts and rep.parse(ts) then
-        local new_ts, err = rep.bump(ts, now_yyyy_mm_dd)
-        if new_ts then
-          local new_line = ln:gsub(vim.pesc(ts), new_ts, 1)
-          obuf.set_lines(bufnr, idx - 1, idx, { new_line })
-          bumped = true
-        elseif err then
-          require("organ.notify").warn(err)
-        end
+  for i = hl_line, #lines do
+    local ln = lines[i]
+    if i > hl_line and ln:match("^%*+%s") then
+      break
+    end
+    local new_line = ln:gsub("<[^>]+>", function(ts)
+      if not rep.parse(ts) then
+        return nil
       end
+      local new_ts, err = rep.bump(ts, now)
+      if new_ts then
+        bumped = true
+        return new_ts
+      end
+      if err then
+        require("organ.notify").warn(err)
+      end
+      return nil
+    end)
+    if new_line ~= ln then
+      obuf.set_lines(bufnr, i - 1, i, { new_line })
     end
   end
 
@@ -508,16 +527,21 @@ end
 
 local drawer = require("organ.drawer")
 
+local function quote_state(state)
+  return state and ('"' .. state .. '"') or ""
+end
+
+-- Emacs `org-log-note-headings` state entry: `State %-12s from %-12S %t`,
+-- with ` \\` appended only when note lines follow.
 local function build_logbook_entry(from_state, to_state, note)
-  local ts = now_inactive_ts()
   local first_line = string.format(
-    '- State "%s"       from "%s"       %s \\\\',
-    to_state or "(none)",
-    from_state or "(none)",
-    ts
+    "- State %-12s from %-12s %s",
+    quote_state(to_state),
+    quote_state(from_state),
+    now_inactive_ts()
   )
   if note and note ~= "" then
-    return { first_line, "  " .. note }
+    return { first_line .. " \\\\", "  " .. note }
   end
   return { first_line }
 end
@@ -661,7 +685,7 @@ function M._apply(bufnr, line, new_state)
 
   -- Repeating-task bump: on active→done, if SCHEDULED/DEADLINE has a repeater,
   -- bump the date and KEEP the active state. CLOSED line is NOT added.
-  local now = (M._now_for_test and M._now_for_test()) or os.date("%Y-%m-%d")
+  local now = (M._now_for_test and M._now_for_test()) or os.date("%Y-%m-%d %H:%M")
   if (was_active or current == nil) and new_done then
     if try_bump_repeaters(bufnr, hl, now) then
       -- Stamp LAST_REPEAT: [<now>] property.

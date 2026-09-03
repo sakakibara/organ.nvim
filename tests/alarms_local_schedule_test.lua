@@ -63,8 +63,8 @@ organ.config.alarms = {
 }
 
 stub_rows = {
-  { id = "h1", title = "Standup", todo_state = "TODO", scheduled = iso(now + 1800) }, -- in 30 min
-  { id = "h2", title = "Review", todo_state = "TODO", scheduled = iso(now + 7200) }, -- in 2h
+  { id = "h1", title = "Standup", todo_state = "TODO", scheduled_date = iso(now + 1800) }, -- in 30 min
+  { id = "h2", title = "Review", todo_state = "TODO", scheduled_date = iso(now + 7200) }, -- in 2h
 }
 
 set_pending_calls = {}
@@ -140,7 +140,7 @@ check(
 --    boundary: a row 5 min ago, lead {10, 0} → zero entries (both leads
 --    fall before now).
 stub_rows = {
-  { id = "past", title = "Old", todo_state = "TODO", scheduled = iso(now - 300) }, -- 5 min ago
+  { id = "past", title = "Old", todo_state = "TODO", scheduled_date = iso(now - 300) }, -- 5 min ago
 }
 set_pending_calls = {}
 alarms.scan(now)
@@ -163,7 +163,7 @@ check(
 organ.config.alarms.local_schedule = false
 set_pending_calls = {}
 stub_rows = {
-  { id = "h3", title = "Standup", todo_state = "TODO", scheduled = iso(now + 600) },
+  { id = "h3", title = "Standup", todo_state = "TODO", scheduled_date = iso(now + 600) },
 }
 alarms.scan(now)
 check(

@@ -592,8 +592,8 @@ local function setup_validate_config()
         require("organ.notify").warn(
           "organ.todo sequence #"
             .. table.concat(missing, ", #")
-            .. " has no `|` divider — every keyword will be treated as active. "
-            .. 'Add `"|"` between active and done states (e.g. `{ "TODO", "|", "DONE" }`).'
+            .. " has no `|` divider; its last keyword is the done state, as in Emacs. "
+            .. 'Add `"|"` to mark more than one done state (e.g. `{ "TODO", "|", "DONE", "CANCELLED" }`).'
         )
       end)
     end

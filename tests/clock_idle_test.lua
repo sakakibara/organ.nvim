@@ -5,12 +5,23 @@ local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
 
 local organ = require("organ")
-local tmpdir = vim.fn.tempname()
+local tmpdir = vim.fn.resolve(vim.fn.tempname())
 vim.fn.mkdir(tmpdir, "p")
+local data_dir = tmpdir .. "/data"
+vim.fn.mkdir(data_dir, "p")
+local original_stdpath = vim.fn.stdpath
+vim.fn.stdpath = function(w)
+  if w == "data" then
+    return data_dir
+  end
+  return original_stdpath(w)
+end
 organ.setup({
   org_dir = tmpdir,
   db_path = tmpdir .. "/organ.db",
-  clock = { state_path = tmpdir .. "/clock.json" },
+  notify = false,
+  scan_on_startup = false,
+  watcher = { enabled = false },
 })
 
 local clock = require("organ.clock")
@@ -22,16 +33,63 @@ local function assert_eq(a, b, msg)
   end
 end
 
--- subtract_idle moves active clock's start_ts forward.
+local function fixture_buf(name)
+  local path = tmpdir .. "/" .. name
+  local f = assert(io.open(path, "w"))
+  f:write("* Task\n  body\n")
+  f:close()
+  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  return vim.api.nvim_get_current_buf()
+end
+
+local function clock_lines(b)
+  local out = {}
+  for _, l in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
+    if l:match("^%s*CLOCK:") then
+      out[#out + 1] = l
+    end
+  end
+  return out
+end
+
+-- subtract_idle behaves like Emacs `org-clock-resolve` "s": the running
+-- clock is closed at the idle start and a fresh clock opens now.
 do
-  -- Manually seed an active clock.
-  state.save({
-    active = { start_ts = 1000, file_path = "/x.org", headline_id = "h1", drawer = "LOGBOOK" },
-  })
-  local err = clock.subtract_idle(120)
-  assert_eq(err, nil)
+  state.clear()
+  local b = fixture_buf("a.org")
+  clock.start({ bufnr = b, line = 1 })
+  local before = state.load()
+  assert(before and before.start_ts, "clock started")
+  -- Pretend the clock has been running for an hour, idle for the last 10 min.
+  before.start_ts = before.start_ts - 3600
+  state.save(before)
+  local err = clock.subtract_idle(600)
+  assert_eq(err, nil, "subtract_idle")
   local s = state.load()
-  assert_eq(s.active.start_ts, 1120, "start_ts moved forward by 120 seconds")
+  assert(s and s.start_ts and s.start_ts >= os.time() - 5, "new clock started now")
+  assert_eq(s.file_path, before.file_path, "same file")
+  assert_eq(s.line_start, before.line_start, "same headline")
+  local cl = clock_lines(b)
+  assert_eq(#cl, 2, "closed clock + fresh open clock; got:\n" .. table.concat(cl, "\n"))
+  assert(cl[1]:match("^%s*CLOCK: %[[^%]]+%]%s*$"), "newest line is open: " .. cl[1])
+  local expected_end = os.date("[%Y-%m-%d %a %H:%M]", os.time() - 600)
+  assert(cl[2]:find("--" .. expected_end, 1, true), "closed at idle start: " .. cl[2])
+  clock.stop()
+end
+
+-- A clock that had barely started when idling began is cancelled and
+-- restarted instead of closing a near-zero entry (Emacs `start-over`).
+do
+  state.clear()
+  local b = fixture_buf("b.org")
+  clock.start({ bufnr = b, line = 1 })
+  local err = clock.subtract_idle(600)
+  assert_eq(err, nil, "subtract_idle barely started")
+  local cl = clock_lines(b)
+  assert_eq(#cl, 1, "only the restarted clock remains; got:\n" .. table.concat(cl, "\n"))
+  assert(cl[1]:match("^%s*CLOCK: %[[^%]]+%]%s*$"), "restarted clock is open: " .. cl[1])
+  assert(state.load(), "state present after restart")
+  clock.stop()
 end
 
 -- subtract_idle with no active clock returns error.
@@ -62,21 +120,28 @@ do
   idle.stop() -- cleanup
 end
 
--- Threshold reached: prompt-handler "Subtract" path adjusts state.
+-- Threshold reached: prompt-handler "Subtract" path closes and restarts.
 do
-  state.save({
-    active = { start_ts = 5000, file_path = "/x.org", headline_id = "h1", drawer = "LOGBOOK" },
-  })
+  state.clear()
+  local b = fixture_buf("c.org")
+  clock.start({ bufnr = b, line = 1 })
+  local before = state.load()
+  before.start_ts = before.start_ts - 3600
+  state.save(before)
   local idle = require("organ.clock.idle")
   -- Stub vim.ui.select to immediately pick "Subtract" (idx=2).
   local saved = vim.ui.select
-  vim.ui.select = function(items, opts, cb)
+  vim.ui.select = function(items, _opts, cb)
     cb(items[2], 2)
   end
   idle._test_trigger(180) -- simulate 180 seconds idle
   vim.ui.select = saved
   local s = state.load()
-  assert_eq(s.active.start_ts, 5180, "subtract path adjusted state")
+  assert(s and s.start_ts >= os.time() - 5, "subtract path restarted the clock")
+  assert_eq(#clock_lines(b), 2, "subtract path closed the old clock")
+  clock.stop()
 end
 
+vim.fn.stdpath = original_stdpath
+vim.fn.delete(tmpdir, "rf")
 io.write("clock idle ok\n")

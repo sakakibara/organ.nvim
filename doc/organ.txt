@@ -612,7 +612,8 @@ TODO                                                       *organ-config-todo*
 
                                                   *organ-config-todo-sequence*
     `todo.sequence` (list or list-of-lists)
-    Ordered list of TODO states. `"|"` separates active from done.
+    Ordered list of TODO states. `"|"` separates active from done;
+    without it the last keyword is the done state.
     Mirrors Emacs `org-todo-keywords`.
     Default: `{ "TODO", "NEXT", "WAITING", "HOLD", "PROJ", "|",`
               `"DONE", "CANCELLED" }`
@@ -2334,8 +2335,9 @@ Miscellaneous                                                 *organ-cmd-misc*
 ==============================================================================
 REPEATERS AND HABITS                                         *organ-repeaters*
 
-A SCHEDULED or DEADLINE timestamp can carry a "repeater" suffix that
-auto-bumps the date when the task transitions into a done state.
+Any active timestamp in an entry (SCHEDULED, DEADLINE, the headline, or
+the body) can carry a "repeater" suffix; every such timestamp is bumped
+when the task transitions into a done state, as in Emacs.
 
 Base forms (from Emacs org-mode):
     `+N{u}`     plain repeat — bump from the OLD date by N units.

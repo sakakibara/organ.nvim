@@ -123,8 +123,7 @@ local function schedule_for_row(row, now, kind)
   if not reminder_enabled(kind) then
     return
   end
-  local ts_field = kind -- row.scheduled / row.deadline
-  local due = parse_iso_to_ts(row[ts_field])
+  local due = parse_iso_to_ts(row[kind .. "_date"])
   if not due then
     return
   end
@@ -196,13 +195,13 @@ local function collect_upcoming(now, hours)
   end
 
   local entries = {}
-  local function emit_for(rows, kind, ts_field, body_label)
+  local function emit_for(rows, kind, body_label)
     if not reminder_enabled(kind) then
       return
     end
     local leads = lead_minutes_for(kind)
     for _, row in ipairs(rows) do
-      local due = parse_iso_to_ts(row[ts_field])
+      local due = parse_iso_to_ts(row[kind .. "_date"])
       if due then
         local title = row.title or "(untitled)"
         for _, lead in ipairs(leads) do
@@ -226,8 +225,8 @@ local function collect_upcoming(now, hours)
     end
   end
 
-  emit_for(fetch("scheduled"), "scheduled", "scheduled", "scheduled")
-  emit_for(fetch("deadline"), "deadline", "deadline", "deadline")
+  emit_for(fetch("scheduled"), "scheduled", "scheduled")
+  emit_for(fetch("deadline"), "deadline", "deadline")
   return entries
 end
 

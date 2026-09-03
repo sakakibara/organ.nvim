@@ -44,9 +44,18 @@ vim.fn.bufload(b)
 schedule._set_planning(b, 1, "SCHEDULED", "2026-05-09")
 local joined = table.concat(vim.api.nvim_buf_get_lines(b, 0, -1, false), "\n")
 assert(joined:find(":LOGBOOK:", 1, true), "expected LOGBOOK drawer; got:\n" .. joined)
+-- Emacs quotes the old stamp as an inactive timestamp and appends ` \\`
+-- only when a note follows.
+local resched_line
+for _, ln in ipairs(vim.api.nvim_buf_get_lines(b, 0, -1, false)) do
+  if ln:find("Rescheduled", 1, true) then
+    resched_line = ln
+  end
+end
+assert(resched_line, "expected Rescheduled entry; got:\n" .. joined)
 assert(
-  joined:find('Rescheduled from "<2026-05-02 Sat>"', 1, true),
-  "expected Rescheduled entry with old ts; got:\n" .. joined
+  resched_line:match('^%s*%- Rescheduled from "%[2026%-05%-02 Sat%]" on %[[^%]]+%]$'),
+  "expected Emacs-shaped Rescheduled entry; got: " .. resched_line
 )
 
 -- 2. First-time SCHEDULED set on a headline with no prior planning → NO log.
@@ -73,7 +82,7 @@ vim.fn.bufload(b3)
 schedule._set_planning(b3, 1, "DEADLINE", "2026-05-22")
 local j3 = table.concat(vim.api.nvim_buf_get_lines(b3, 0, -1, false), "\n")
 assert(
-  j3:find('New deadline from "<2026-05-15 Fri>"', 1, true),
+  j3:find('New deadline from "[2026-05-15 Fri]"', 1, true),
   "expected New deadline entry; got:\n" .. j3
 )
 
@@ -104,9 +113,15 @@ assert(jt:find("- Refiled on", 1, true), "expected '- Refiled on' line; got:\n" 
 do
   local entry = logbook.build_planning_entry("Rescheduled", "<2026-05-02>", nil)
   assert(#entry == 1, "no-note: 1 line")
-  assert(entry[1]:match('^%- Rescheduled from "<2026%-05%-02>" on %['), "shape: " .. entry[1])
+  assert(
+    entry[1]:match('^%- Rescheduled from "%[2026%-05%-02%]" on %[[^%]]+%]$'),
+    "shape: " .. entry[1]
+  )
+  local bare = logbook.build_planning_entry("Refiled", nil, nil)
+  assert(bare[1]:match("^%- Refiled on %[[^%]]+%]$"), "no-note bare shape: " .. bare[1])
   local note_entry = logbook.build_planning_entry("Refiled", nil, "needed cleanup")
   assert(#note_entry == 2, "with note: 2 lines")
+  assert(note_entry[1]:match("^%- Refiled on %[[^%]]+%] \\\\$"), "note marker: " .. note_entry[1])
   assert(note_entry[2] == "  needed cleanup", "note line: " .. note_entry[2])
 end
 

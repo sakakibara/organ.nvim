@@ -96,11 +96,11 @@ do
   assert(todo.set(b, 1, "DONE") == nil)
   local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   local joined = table.concat(lines, "\n")
-  -- +1m from Mar 31 = Apr 30 (clamped from 31 since April has 30 days),
-  -- and Apr 30 IS the eom of April → stays at Apr 30.
+  -- A filtered month step clamps to the target month (Apr 30) rather than
+  -- overflowing to May 1, so [eom] stays "last day of every month".
   assert(
     joined:find("<2026%-04%-30 Thu %+1m%[eom%]>"),
-    "[eom] should land on April 30; got:\n" .. joined
+    "[eom] should land on Apr 30; got:\n" .. joined
   )
 end
 

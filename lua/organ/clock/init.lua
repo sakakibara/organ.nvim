@@ -145,19 +145,16 @@ function M.stop(opts)
     require("organ.notify").warn("no active clock")
     return
   end
-  -- Support nested { active = { ... } } format written by subtract_idle.
-  local active = s.active or s
   -- Find or open the file's buffer.
-  local bufnr = vim.fn.bufnr(active.file_path)
+  local bufnr = vim.fn.bufnr(s.file_path)
   if bufnr <= 0 then
-    vim.cmd("edit " .. vim.fn.fnameescape(active.file_path))
+    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
     bufnr = vim.api.nvim_get_current_buf()
   elseif not vim.api.nvim_buf_is_loaded(bufnr) then
     vim.fn.bufload(bufnr)
   end
   local now = opts.end_ts or os.time()
-  local line_start = active.line_start or s.line_start or 0
-  local ok = writer_mod.close_active(bufnr, line_start + 1, get_drawer_name(), now)
+  local ok = writer_mod.close_active(bufnr, (s.line_start or 0) + 1, get_drawer_name(), now)
   if not ok then
     require("organ.notify").warn("clock state out of sync; clearing")
     state_mod.clear()
@@ -225,18 +222,36 @@ function M.setup_resume()
   end
 end
 
--- Advance the active clock's start_ts by idle_seconds, effectively subtracting
--- idle time from the recorded duration.
+-- Resolve idle time like Emacs `org-clock-resolve` "s": close the running
+-- clock at the moment idling began and open a fresh one now.  A clock that
+-- had run under 45 seconds by then is cancelled rather than closed.
 -- Returns nil on success, or an error string if there is no active clock.
 function M.subtract_idle(idle_seconds)
-  local s = require("organ.clock.state").load()
-  if not s or not s.active then
+  local s = state_mod.load()
+  if not s then
     return "no active clock"
   end
-  s.active.start_ts = (s.active.start_ts or 0) + idle_seconds
-  require("organ.clock.state").save(s)
+  local idle_start = os.time() - idle_seconds
+  if idle_start - (s.start_ts or idle_start) < 45 then
+    M.cancel()
+  else
+    M.stop({ end_ts = idle_start })
+  end
+  M.start({ bufnr = vim.fn.bufnr(s.file_path), line = (s.line_start or 0) + 1 })
   return nil
 end
+
+-- Monday..Sunday of the week containing `now`, stepped in calendar days so
+-- a DST change inside the week cannot move the boundary.
+local function week_range(now)
+  local t = os.date("*t", now)
+  local days_since_mon = (t.wday + 5) % 7
+  local mon = os.time({ year = t.year, month = t.month, day = t.day - days_since_mon, hour = 12 })
+  local sun =
+    os.time({ year = t.year, month = t.month, day = t.day - days_since_mon + 6, hour = 12 })
+  return os.date("%Y-%m-%d", mon), os.date("%Y-%m-%d", sun)
+end
+M._week_range = week_range
 
 -- Render a clock report into the current buffer at the cursor row.
 -- `opts.range` accepts a string ("today" | "week" | "month" | "<from>"
@@ -247,14 +262,6 @@ function M.report(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
   local line = opts.line or vim.fn.line(".")
-
-  local function week_range()
-    local now = os.time()
-    local wday = tonumber(os.date("%w", now))
-    local days_since_mon = (wday + 6) % 7
-    local mon = now - days_since_mon * 86400
-    return os.date("%Y-%m-%d", mon), os.date("%Y-%m-%d", mon + 6 * 86400)
-  end
 
   local from, to
   if type(opts.range) == "table" then
@@ -267,7 +274,7 @@ function M.report(opts)
       end
     end
     if #args == 0 or args[1] == "week" then
-      from, to = week_range()
+      from, to = week_range(os.time())
     elseif args[1] == "today" then
       from = os.date("%Y-%m-%d")
       to = from
