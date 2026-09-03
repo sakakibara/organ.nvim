@@ -167,6 +167,7 @@ function M.open(bufnr, line)
     end_line = block.end_line,
     base_indent = block.base_indent,
     lang = block.lang,
+    empty = #body == 0,
   }
 
   -- Open in a split.
@@ -221,9 +222,10 @@ function M.commit(edit_bufnr)
   end
 
   local body = vim.api.nvim_buf_get_lines(edit_bufnr, 0, -1, false)
-  -- Trim a trailing single empty line (Vim adds one on save).
-  if #body > 0 and body[#body] == "" then
-    table.remove(body)
+  -- An empty buffer reads back as one empty line; keep an untouched empty
+  -- block empty rather than growing it by a line per round trip.
+  if s.empty and #body == 1 and body[1] == "" then
+    body = {}
   end
   local indented = add_indent(body, s.base_indent)
   obuf.set_lines(s.source, s.begin_line, s.end_line - 1, indented)
@@ -242,7 +244,7 @@ function M.abort(edit_bufnr)
   if M._state[edit_bufnr] then
     M._state[edit_bufnr] = nil
     vim.api.nvim_set_option_value("modified", false, { buf = edit_bufnr })
-    vim.cmd("bwipeout!")
+    vim.api.nvim_buf_delete(edit_bufnr, { force = true })
   end
 end
 

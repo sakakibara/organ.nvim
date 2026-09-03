@@ -141,7 +141,7 @@ function M.parse_org_table(buf_lines, lnum)
       for c in ln:gmatch("|([^|]*)") do
         cells[#cells + 1] = lstrip(c):gsub("%s+$", "")
       end
-      while #cells > 0 and cells[#cells] == "" do
+      if ln:match("|%s*$") then
         cells[#cells] = nil
       end
       if #cells > 0 then

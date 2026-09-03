@@ -98,6 +98,49 @@ do
   assert(joined:find("#+END:", 1, true), "end marker preserved")
 end
 
+-- 5. parse_params: quoted values may contain ":" and keep their text.
+do
+  local p = db.parse_params(':tstart "<2024-01-01 Mon 10:00>" :tend "<2024-01-31 Wed>" :scope file')
+  assert(p.tstart == "<2024-01-01 Mon 10:00>", "tstart: " .. tostring(p.tstart))
+  assert(p.tend == "<2024-01-31 Wed>", "tend: " .. tostring(p.tend))
+  assert(p.scope == "file", "scope: " .. tostring(p.scope))
+  local n = 0
+  for _ in pairs(p) do
+    n = n + 1
+  end
+  assert(n == 3, "exactly 3 params, got " .. n)
+end
+
+-- 6. clocktable: :tstart/:tend timestamps reach the query as dates,
+--    and column widths are display widths, not byte counts.
+do
+  local q = require("organ.query")
+  local orig = q.clock_entries
+  local seen
+  q.clock_entries = function(opts)
+    seen = opts
+    return {
+      { title = "日本語の見出し", total_seconds = 3600 },
+      { title = "ascii", total_seconds = 60 },
+    }
+  end
+  local lines = db.writers.clocktable(
+    db.parse_params(':tstart "<2024-01-01 Mon 10:00>" :tend "<2024-01-31 Wed>"'),
+    { bufnr = 0 }
+  )
+  q.clock_entries = orig
+  assert(seen.from == "2024-01-01", "from: " .. tostring(seen.from))
+  assert(seen.to == "2024-01-31", "to: " .. tostring(seen.to))
+  local w = vim.fn.strdisplaywidth(lines[2])
+  for i = 3, #lines do
+    assert(
+      vim.fn.strdisplaywidth(lines[i]) == w,
+      ("line %d width %d, expected %d: %s"):format(i, vim.fn.strdisplaywidth(lines[i]), w, lines[i])
+    )
+  end
+  assert(lines[4]:find("日本語の見出し", 1, true), "cjk row present: " .. lines[4])
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("dblock ok\n")
 os.exit(0)

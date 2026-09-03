@@ -52,9 +52,6 @@ end
 
 -- Parse range @2$4..@5$4.
 do
-  local out = f.parse("@2$4=@2$4..@5$4") -- silly LHS, but valid syntax for testing
-  -- Actually parse the RHS as expr; we want to exercise range parsing.
-  -- Use simpler: $1=vsum(@2$4..@5$4)
   local out2 = f.parse("$1=vsum(@2$4..@5$4)")
   local rng = out2[1].expr.arg
   assert_eq(rng.kind, "range")
@@ -64,14 +61,28 @@ do
   assert_eq(rng.to.col, 4)
 end
 
--- Parse error: unbalanced parens raises.
+-- Parse error in the RHS: the formula keeps its target and carries an
+-- error node so evaluation writes #ERROR into it.
 do
-  local ok, err = pcall(f.parse, "$1=vsum($2..$3")
-  assert(not ok, "should error")
+  local out = f.parse("$1=vsum($2..$3 :: $2=1.2.3 :: $3=@1$1")
+  assert_eq(#out, 3)
+  assert_eq(out[1].kind, "col_formula")
+  assert_eq(out[1].col, 1)
+  assert_eq(out[1].expr.kind, "error")
   assert(
-    tostring(err):find("paren") or tostring(err):find("rparen"),
-    "error mentions parens, got: " .. tostring(err)
+    out[1].expr.message:find("paren") or out[1].expr.message:find("rparen"),
+    "error mentions parens, got: " .. tostring(out[1].expr.message)
   )
+  assert_eq(out[2].expr.kind, "error")
+  assert(out[2].expr.message:find("malformed number"), out[2].expr.message)
+  assert_eq(out[3].expr.kind, "ref")
+end
+
+-- Parse error in the LHS raises.
+do
+  local ok, err = pcall(f.parse, "$x=1 :: $3=1")
+  assert(not ok, "should error")
+  assert(tostring(err):find("LHS"), "error mentions LHS, got: " .. tostring(err))
 end
 
 -- Parse @4=42 → row_formula.

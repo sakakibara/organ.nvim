@@ -47,6 +47,20 @@ do
   assert(rows[2][1] == "ada" and rows[2][2] == "36", "row 2 parsed")
 end
 
+-- 3b. Trailing empty cells are columns too (Emacs `orgtbl-to-csv`
+--     writes `1,` for `| 1 |   |`).
+do
+  local rows = tio.parse_org_table({ "| a | b |", "|---+---|", "| 1 |   |", "|   |   |" }, 1)
+  assert(#rows == 3, "3 rows; got " .. #rows)
+  assert(#rows[2] == 2 and rows[2][1] == "1" and rows[2][2] == "", "trailing empty cell kept")
+  assert(#rows[3] == 2 and rows[3][1] == "" and rows[3][2] == "", "all-empty row kept")
+  assert(tio.emit_csv(rows) == "a,b\n1,\n,\n", "csv: " .. vim.inspect(tio.emit_csv(rows)))
+  assert(
+    tio.emit_csv(rows, "\t") == "a\tb\n1\t\n\t\n",
+    "tsv: " .. vim.inspect(tio.emit_csv(rows, "\t"))
+  )
+end
+
 -- 4. render_org_table emits a divider after the header.
 do
   local lines = tio.render_org_table({

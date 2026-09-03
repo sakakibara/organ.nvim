@@ -74,10 +74,9 @@ function M.move_column_right(bufnr)
   return tab.move_column_right(bufnr, nil, ORG)
 end
 
--- Org sort: the first data row is always a header even when no separator
--- exists; row 2 is also a header if it's a separator or an alignment row.
--- Tablature's generic sort only treats sep/block rows as fence posts, so
--- we re-implement the org heuristic here on top of ops.sort.
+-- Sort the hline-delimited block containing the cursor row by the
+-- cursor column (Emacs `org-table-sort-lines`). Everything outside that
+-- block, including every hline, keeps its position.
 function M.sort_by_current_column(bufnr, direction)
   local lnum = vim.fn.line(".")
   local col = vim.fn.col(".") - 1
@@ -87,30 +86,33 @@ function M.sort_by_current_column(bufnr, direction)
     return false
   end
 
+  local cur = lnum - t.start_line + 1
+  if not t.rows[cur] or t.rows[cur].sep then
+    return false
+  end
   local cur_cell = M._cursor_to_cell(lines[lnum], col) or 1
 
-  local header_count = 1
-  if #t.rows >= 2 and (t.rows[2].sep or is_alignment_row(t.rows[2])) then
-    header_count = 2
+  local lo, hi = cur, cur
+  while lo > 1 and not t.rows[lo - 1].sep do
+    lo = lo - 1
+  end
+  while hi < #t.rows and not t.rows[hi + 1].sep do
+    hi = hi + 1
   end
 
-  local headers, body = {}, {}
-  for i, r in ipairs(t.rows) do
-    if i <= header_count or r.sep then
-      headers[#headers + 1] = { idx = i, row = r }
-    else
-      body[#body + 1] = r
-    end
+  local block = {}
+  for i = lo, hi do
+    block[#block + 1] = t.rows[i]
   end
-
-  local sorted = tab.ops.sort(body, cur_cell, direction or "asc", "auto")
+  local sorted = tab.ops.sort(block, cur_cell, direction or "asc", "auto")
 
   local new_rows = {}
-  for _, h in ipairs(headers) do
-    new_rows[#new_rows + 1] = h.row
-  end
-  for _, r in ipairs(sorted) do
-    new_rows[#new_rows + 1] = r
+  for i, r in ipairs(t.rows) do
+    if i >= lo and i <= hi then
+      new_rows[i] = sorted[i - lo + 1]
+    else
+      new_rows[i] = r
+    end
   end
 
   local new_lines = tab.align(new_rows, t.indent, ORG)
@@ -167,19 +169,6 @@ function M.find_tblfm(bufnr, table_range)
   return { line = next_lnum, formula_text = body }
 end
 
-local function format_result(value)
-  if value == nil then
-    return "#ERROR"
-  end
-  if type(value) == "table" then
-    return "#ERROR"
-  end
-  if value == math.floor(value) and math.abs(value) < 1e15 then
-    return tostring(math.floor(value))
-  end
-  return string.format("%.2f", value)
-end
-
 function M.eval_formulas(bufnr)
   local lnum = vim.fn.line(".")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -196,52 +185,70 @@ function M.eval_formulas(bufnr)
   local formula = require("organ.table.formula")
   local ok, formulas = pcall(formula.parse, tblfm.formula_text)
   if not ok then
-    require("organ.notify").error("organ: TBLFM parse error: " .. tostring(formulas))
+    require("organ.notify").error("TBLFM parse error: " .. tostring(formulas))
     return false
   end
 
-  local has_sep = false
+  -- `@N` counts data rows only (Emacs `org-table-dlines`).
+  local data_rows = {}
   for _, r in ipairs(t.rows) do
-    if r.sep then
-      has_sep = true
-      break
+    if not r.sep then
+      data_rows[#data_rows + 1] = r
     end
   end
-  local header_count = 0
-  if has_sep then
-    header_count = 1
-    if #t.rows >= 2 and (t.rows[2].sep or is_alignment_row(t.rows[2])) then
-      header_count = 2
+
+  -- Column formulas start after the first hline that follows a data
+  -- row; without such an hline (or with nothing below it) they cover
+  -- the whole table.
+  local first_body, n_data = 1, 0
+  for _, r in ipairs(t.rows) do
+    if r.sep then
+      if n_data > 0 then
+        if n_data < #data_rows then
+          first_body = n_data + 1
+        end
+        break
+      end
+    else
+      n_data = n_data + 1
     end
+  end
+
+  local function evaluate(expr, r, c)
+    local ok, v = pcall(formula.eval_calc, expr, {
+      rows = data_rows,
+      current_row = r,
+      current_col = c,
+    })
+    if not ok then
+      return "#ERROR"
+    end
+    return formula.format_value(v)
+  end
+  local function set_cell(row, c, text)
+    while #row.cells < c do
+      row.cells[#row.cells + 1] = ""
+    end
+    row.cells[c] = text
   end
 
   for _, fm in ipairs(formulas) do
     if fm.kind == "col_formula" then
-      for r = header_count + 1, #t.rows do
-        if not t.rows[r].sep and not is_alignment_row(t.rows[r]) then
-          local v = formula.eval(fm.expr, { rows = t.rows, current_row = r, current_col = fm.col })
-          while #t.rows[r].cells < fm.col do
-            t.rows[r].cells[#t.rows[r].cells + 1] = ""
-          end
-          t.rows[r].cells[fm.col] = format_result(v)
+      for r = first_body, #data_rows do
+        if not is_alignment_row(data_rows[r]) then
+          set_cell(data_rows[r], fm.col, evaluate(fm.expr, r, fm.col))
         end
       end
     elseif fm.kind == "cell_formula" then
-      local r = t.rows[fm.row]
-      if r and not r.sep then
-        local v =
-          formula.eval(fm.expr, { rows = t.rows, current_row = fm.row, current_col = fm.col })
-        while #r.cells < fm.col do
-          r.cells[#r.cells + 1] = ""
-        end
-        r.cells[fm.col] = format_result(v)
+      local row = data_rows[fm.row]
+      if row then
+        set_cell(row, fm.col, evaluate(fm.expr, fm.row, fm.col))
       end
     elseif fm.kind == "row_formula" then
-      local r = t.rows[fm.row]
-      if r and not r.sep then
-        for c = 1, #r.cells do
-          local v = formula.eval(fm.expr, { rows = t.rows, current_row = fm.row, current_col = c })
-          r.cells[c] = format_result(v)
+      local row = data_rows[fm.row]
+      if row then
+        for c = 1, #row.cells do
+          row.cells[c] = evaluate(fm.expr, fm.row, c)
         end
       end
     end

@@ -147,6 +147,26 @@ do
   )
 end
 
+-- The configured priority range governs cookie cycling, as it does
+-- raise_priority / lower_priority.
+do
+  require("organ").config.priority = { highest = "A", lowest = "E" }
+  local b = mk_buf({ "* TODO [#C] Task" })
+  press_at(b, 1, 9, "inc")
+  assert_eq(get_line(b, 1), "* TODO [#D] Task", "C -> D with lowest = E")
+  press_at(b, 1, 9, "inc")
+  assert_eq(get_line(b, 1), "* TODO [#E] Task", "D -> E")
+  press_at(b, 1, 9, "inc")
+  assert_eq(get_line(b, 1), "* TODO Task", "E -> none at lowest")
+  b = mk_buf({ "* TODO [#E] Task" })
+  press_at(b, 1, 9, "dec")
+  assert_eq(get_line(b, 1), "* TODO [#D] Task", "E -> D on dec")
+  b = mk_buf({ "* TODO [#A] Task" })
+  press_at(b, 1, 9, "dec")
+  assert_eq(get_line(b, 1), "* TODO Task", "A -> none at highest on dec")
+  require("organ").config.priority = nil
+end
+
 -- Cursor in body text does NOT match priority context.
 -- Verify by ensuring fallback runs (number increments).
 do

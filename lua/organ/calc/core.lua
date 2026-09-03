@@ -418,6 +418,9 @@ function M.mod(a, b)
     error("calc: modulo by zero")
   end
   local _, r = bn.divmod(a.n, b.n)
+  if not bn.is_zero(r) and r.sign ~= b.n.sign then
+    r = bn.add(r, b.n)
+  end
   return new_int(r)
 end
 

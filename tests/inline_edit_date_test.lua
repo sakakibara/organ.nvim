@@ -61,18 +61,66 @@ do
   assert_eq(get_line(b, 1), "  <2025-02-28 Fri>", "year +1 clamps Feb 29 to Feb 28 (2025 not leap)")
 end
 
--- Hour ±1, no day rollover.
+-- Hour +1 carries into the next day (Emacs `org-timestamp-change`).
 do
   local b = mk_buf({ "  <2026-04-26 Sun 23:30>" })
   press_at(b, 1, 19, "inc") -- on hour "23"
-  assert_eq(get_line(b, 1), "  <2026-04-26 Sun 00:30>", "hour 23 -> 00 same day")
+  assert_eq(get_line(b, 1), "  <2026-04-27 Mon 00:30>", "hour 23 -> 00 next day")
 end
 
--- Minute ±1, no hour rollover.
+-- Hour -1 at 00:xx borrows from the previous day.
+do
+  local b = mk_buf({ "  <2024-01-01 Mon 00:00>" })
+  press_at(b, 1, 18, "dec")
+  assert_eq(get_line(b, 1), "  <2023-12-31 Sun 23:00>", "hour 00 -> 23 previous day")
+end
+
+-- Minute +1.
 do
   local b = mk_buf({ "  <2026-04-26 Sun 23:30>" })
   press_at(b, 1, 22, "inc") -- on minute "30"
   assert_eq(get_line(b, 1), "  <2026-04-26 Sun 23:31>", "minute +1")
+end
+
+-- Minute +1 carries into the hour, and through midnight into the day.
+do
+  local b = mk_buf({ "  <2024-01-01 Mon 10:59>" })
+  press_at(b, 1, 21, "inc")
+  assert_eq(get_line(b, 1), "  <2024-01-01 Mon 11:00>", "10:59 -> 11:00")
+  local c = mk_buf({ "  [2024-01-01 Mon 23:59]" })
+  press_at(c, 1, 21, "inc")
+  assert_eq(get_line(c, 1), "  [2024-01-02 Tue 00:00]", "23:59 -> next day 00:00")
+end
+
+-- Time ranges: shifting the start moves the end by the same amount;
+-- the end is shifted alone and wraps modulo 24h without touching the
+-- date.
+do
+  local line = "<2024-01-01 Mon 10:00-12:00>"
+  local b = mk_buf({ line })
+  press_at(b, 1, 16, "inc") -- start hour
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 11:00-13:00>", "start hour +1 shifts both")
+  b = mk_buf({ line })
+  press_at(b, 1, 19, "dec") -- start minute
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 09:59-11:59>", "start minute -1 shifts both")
+  b = mk_buf({ line })
+  press_at(b, 1, 22, "inc") -- end hour
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 10:00-13:00>", "end hour +1 shifts end only")
+  b = mk_buf({ line })
+  press_at(b, 1, 25, "inc") -- end minute
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 10:00-12:01>", "end minute +1 shifts end only")
+  b = mk_buf({ "<2024-01-01 Mon 10:00-12:59>" })
+  press_at(b, 1, 26, "inc")
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 10:00-13:00>", "end minute carries into end hour")
+  b = mk_buf({ "<2024-01-01 Mon 10:00-23:59>" })
+  press_at(b, 1, 26, "inc")
+  assert_eq(get_line(b, 1), "<2024-01-01 Mon 10:00-00:00>", "end wraps without a day change")
+  b = mk_buf({ "<2024-01-01 Mon 23:59-23:59>" })
+  press_at(b, 1, 19, "inc")
+  assert_eq(get_line(b, 1), "<2024-01-02 Tue 00:00-00:00>", "start carry moves the day")
+  b = mk_buf({ "<2024-01-01 Mon 10:00-12:00>" })
+  press_at(b, 1, 9, "inc") -- day
+  assert_eq(get_line(b, 1), "<2024-01-02 Tue 10:00-12:00>", "day shift keeps the range")
 end
 
 -- Inactive timestamp brackets preserved.

@@ -17,23 +17,46 @@ local M = {}
 local obuf = require("organ.buf")
 M.writers = {}
 
--- Parse `:k v :k2 v2 …` into a string→value table. Numeric strings are
--- coerced to numbers; "yes"/"no" to booleans; everything else stays string.
+-- Parse `:k v :k2 v2 ...` into a string->value table. A key is a `:`
+-- that starts a word; a value runs to the next key or is a `"..."`
+-- string (which keeps its text verbatim, quotes stripped). Bare values
+-- are coerced: numbers to numbers, "yes"/"t" and "no"/"nil" to booleans.
 function M.parse_params(raw)
   local out = {}
   if not raw or raw == "" then
     return out
   end
-  for k, v in raw:gmatch(":(%S+)%s+([^:]*)") do
-    v = v:gsub("%s+$", "")
-    if v == "yes" or v == "t" then
-      out[k] = true
-    elseif v == "no" or v == "nil" then
-      out[k] = false
-    elseif tonumber(v) then
-      out[k] = tonumber(v)
+  raw = " " .. raw
+  local pos = 1
+  while true do
+    local _, ke, k = raw:find("%f[%S]:(%S+)", pos)
+    if not k then
+      break
+    end
+    local vs = raw:find("%S", ke + 1)
+    if not vs or raw:sub(vs, vs) == ":" then
+      out[k] = ""
+      pos = ke + 1
+    elseif raw:sub(vs, vs) == '"' then
+      local j = vs + 1
+      while j <= #raw and raw:sub(j, j) ~= '"' do
+        j = j + (raw:sub(j, j) == "\\" and 2 or 1)
+      end
+      out[k] = raw:sub(vs + 1, j - 1):gsub("\\(.)", "%1")
+      pos = j + 1
     else
-      out[k] = v
+      local ws = raw:find("%s+:%S", vs)
+      local v = raw:sub(vs, (ws or #raw + 1) - 1):gsub("%s+$", "")
+      if v == "yes" or v == "t" then
+        out[k] = true
+      elseif v == "no" or v == "nil" then
+        out[k] = false
+      elseif tonumber(v) then
+        out[k] = tonumber(v)
+      else
+        out[k] = v
+      end
+      pos = ws or #raw + 1
     end
   end
   return out
@@ -205,8 +228,14 @@ local function clocktable_writer(params, ctx)
   if params.block then
     from, to = resolve_block(params.block)
   end
-  from = params.tstart or from
-  to = params.tend or to
+  local function date_of(v)
+    if type(v) ~= "string" then
+      return v
+    end
+    return v:match("%d%d%d%d%-%d%d%-%d%d") or v
+  end
+  from = date_of(params.tstart) or from
+  to = date_of(params.tend) or to
 
   local query = require("organ.query")
   local opts = { from = from, to = to, group_by = "headline" }
@@ -228,19 +257,22 @@ local function clocktable_writer(params, ctx)
     rows = kept
   end
 
-  -- Compute widths.
-  local title_w = #"Headline"
-  local time_w = #"Time"
+  local dw = vim.fn.strdisplaywidth
+  local title_w = dw("Headline")
+  local time_w = dw("Time")
   local total = 0
   for _, r in ipairs(rows) do
-    title_w = math.max(title_w, #(r.title or ""))
-    time_w = math.max(time_w, #fmt_dur(r.total_seconds or 0))
+    title_w = math.max(title_w, dw(r.title or "(unknown)"))
+    time_w = math.max(time_w, dw(fmt_dur(r.total_seconds or 0)))
     total = total + (r.total_seconds or 0)
   end
-  time_w = math.max(time_w, #fmt_dur(total))
+  time_w = math.max(time_w, dw(fmt_dur(total)))
 
+  local function pad(s, w)
+    return s .. string.rep(" ", w - dw(s))
+  end
   local function row(a, b)
-    return string.format("| %-" .. title_w .. "s | %-" .. time_w .. "s |", a, b)
+    return "| " .. pad(a, title_w) .. " | " .. pad(b, time_w) .. " |"
   end
   local function sep()
     return "|" .. string.rep("-", title_w + 2) .. "+" .. string.rep("-", time_w + 2) .. "|"

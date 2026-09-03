@@ -14,9 +14,6 @@ local function tokenize(s)
     local c = s:sub(i, i)
     if c:match("%s") then
       i = i + 1
-    elseif s:sub(i, i + 1) == "::" then
-      tokens[#tokens + 1] = { type = "sep" }
-      i = i + 2
     elseif s:sub(i, i + 1) == ".." then
       tokens[#tokens + 1] = { type = "range" }
       i = i + 2
@@ -68,7 +65,12 @@ local function tokenize(s)
         end
         j = j + 1
       end
-      tokens[#tokens + 1] = { type = "num", value = tonumber(s:sub(i, j - 1)) }
+      local value = tonumber(s:sub(i, j - 1))
+      if not value then
+        error("formula tokenizer: malformed number '" .. s:sub(i, j - 1) .. "' at pos " .. i)
+      end
+      tokens[#tokens + 1] =
+        { type = "num", value = value, float = s:sub(i, j - 1):find(".", 1, true) ~= nil }
       i = j
     elseif c:match("[%a_]") then
       local j = i
@@ -146,7 +148,7 @@ function Parser:parse_primary()
   end
   if t.type == "num" then
     self:advance()
-    return { kind = "num", value = t.value }
+    return { kind = "num", value = t.value, float = t.float }
   end
   if t.type == "lparen" then
     self:advance()
@@ -244,6 +246,9 @@ end
 
 function Parser:parse_lhs()
   local t = self:peek()
+  if not t then
+    error("formula parser: empty LHS")
+  end
   if t.type == "at" then
     self:advance()
     local row = self:expect("num").value
@@ -261,26 +266,46 @@ function Parser:parse_lhs()
   error("formula parser: invalid LHS at pos " .. self.pos)
 end
 
-function Parser:parse_formula()
-  local lhs = self:parse_lhs()
-  self:expect("eq")
-  local expr = self:parse_expr()
-  lhs.expr = expr
+local function parse_lhs_text(s)
+  local p = Parser.new(tokenize(s))
+  local lhs = p:parse_lhs()
+  if p:peek() then
+    error("formula parser: trailing input in LHS")
+  end
   return lhs
 end
 
-function Parser:parse_formulas()
-  local out = { self:parse_formula() }
-  while self:peek() and self:peek().type == "sep" do
-    self:advance()
-    out[#out + 1] = self:parse_formula()
+local function parse_expr_text(s)
+  local p = Parser.new(tokenize(s))
+  local expr = p:parse_expr()
+  local t = p:peek()
+  if t then
+    error("formula parser: unexpected token type '" .. t.type .. "' at pos " .. p.pos)
   end
-  return out
+  return expr
 end
 
+-- One entry per `::`-separated formula. A bad LHS raises (Emacs
+-- `Unknown field`); a bad RHS yields an `error` node so evaluation
+-- writes #ERROR into that formula's target cells only.
 function M.parse(s)
-  local tokens = tokenize(s)
-  return Parser.new(tokens):parse_formulas()
+  local out = {}
+  for seg in (s .. "::"):gmatch("(.-)::") do
+    if seg:match("%S") then
+      local lhs_s, rhs_s = seg:match("^%s*([^=]-)%s*=(.*)$")
+      if not lhs_s then
+        error("formula parser: missing '=' in '" .. seg .. "'")
+      end
+      local ok, fm = pcall(parse_lhs_text, lhs_s)
+      if not ok then
+        error("formula parser: invalid LHS '" .. lhs_s .. "'")
+      end
+      local ok_rhs, expr = pcall(parse_expr_text, rhs_s)
+      fm.expr = ok_rhs and expr or { kind = "error", message = tostring(expr) }
+      out[#out + 1] = fm
+    end
+  end
+  return out
 end
 
 -- Pull a raw cell, parse to a Calc value if numeric. Returns nil for
@@ -299,12 +324,15 @@ local function cell_value(rows, r, c)
   if raw == "" then
     return nil
   end
-  -- Plain number first (handles 12, -3, 1.5, 1e3 — fast path).
+  -- Integers stay exact; anything with a point or exponent is a float,
+  -- as Calc reads it.
+  if raw:match("^[+-]?%d+$") then
+    return calc().from_string(raw)
+  end
   local n = tonumber(raw)
   if n then
-    return calc().from_number(n)
+    return calc().from_float(n)
   end
-  -- Fractions and scientific via Calc's parser.
   local ok, v = pcall(calc().from_string, raw)
   if ok then
     return v
@@ -557,7 +585,17 @@ local function apply_function(name, args, ctx)
     end
     return BINARY_C[name](C, a, b)
   end
-  error("formula evaluator: unknown function '" .. tostring(name) .. "'")
+  -- Unknown functions stay symbolic with evaluated arguments, as Calc
+  -- leaves them: `foo($1)` -> `foo(1)`.
+  local parts = {}
+  for i, arg in ipairs(args) do
+    local v = eval_calc(arg, ctx)
+    if v == nil then
+      return nil
+    end
+    parts[i] = M.format_value(v)
+  end
+  return C.sym(name .. "(" .. table.concat(parts, ", ") .. ")")
 end
 
 local function const_value(name, ctx)
@@ -582,7 +620,13 @@ end
 -- (Forward-declared above for apply_function's recursion.)
 function eval_calc(node, ctx)
   local C = calc()
+  if node.kind == "error" then
+    error(node.message)
+  end
   if node.kind == "num" then
+    if node.float then
+      return C.from_float(node.value)
+    end
     return C.from_number(node.value)
   end
   if node.kind == "const" then
@@ -666,6 +710,71 @@ function eval_calc(node, ctx)
     return apply_function(node.name, args or {}, ctx)
   end
   error("formula evaluator: unknown node kind '" .. tostring(node.kind) .. "'")
+end
+
+-- Calc's `(float 8)` display with `calc-internal-prec` 12: eight
+-- significant digits, scientific notation when the decimal point would
+-- sit left of the first digit by two or more places or beyond the
+-- twelfth digit, and a trailing "." on integral values.
+local function format_float(x)
+  if x ~= x or x == math.huge or x == -math.huge then
+    return "#ERROR"
+  end
+  if x < 0 then
+    return "-" .. format_float(-x)
+  end
+  local mant, exp = "0", 0
+  if x ~= 0 then
+    local digits, e = string.format("%.11e", x):match("^(%d[%.%d]*)e([%+%-]%d+)$")
+    digits = digits:gsub("%.", "")
+    mant = digits:gsub("0+$", "")
+    exp = tonumber(e) - 11 + (#digits - #mant)
+    if #mant > 8 then
+      local rounded = tonumber(mant:sub(1, 8))
+      if tonumber(mant:sub(9, 9)) >= 5 then
+        rounded = rounded + 1
+      end
+      exp = exp + #mant - 8
+      mant = tostring(rounded)
+    end
+  end
+  local len = #mant
+  local dpos = exp + len
+  if dpos >= -1 and dpos <= 12 then
+    if dpos == 0 then
+      return "0." .. mant
+    elseif exp <= 0 and dpos > 0 then
+      return mant:sub(1, dpos) .. "." .. mant:sub(dpos + 1)
+    elseif exp > 0 then
+      return mant .. string.rep("0", exp) .. "."
+    end
+    return "0." .. string.rep("0", -dpos) .. mant
+  end
+  local str = len > 1 and (mant:sub(1, 1) .. "." .. mant:sub(2)) or mant
+  return str .. "e" .. tostring(dpos - 1)
+end
+
+-- Cell text for an evaluation result: a Calc value or a range list.
+function M.format_value(v)
+  if type(v) ~= "table" then
+    return "#ERROR"
+  end
+  if not v.kind then
+    local parts = {}
+    for i, item in ipairs(v) do
+      parts[i] = M.format_value(item)
+    end
+    return "[" .. table.concat(parts, ", ") .. "]"
+  end
+  local C = calc()
+  if C.is_int(v) then
+    return C.to_string(v)
+  end
+  if C.is_float(v) or v.kind == "rat" then
+    return format_float(C.to_number(v))
+  end
+  local ok, s = pcall(C.to_string, v)
+  return ok and s or "#ERROR"
 end
 
 -- Public API. Returns a Lua number for numeric Calc values, the raw

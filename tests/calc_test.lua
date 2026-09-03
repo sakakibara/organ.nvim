@@ -139,7 +139,10 @@ end
 -- mod
 do
   assert(C.to_string(C.mod(C.from_int(17), C.from_int(5))) == "2")
-  assert(C.to_string(C.mod(C.from_int(-17), C.from_int(5))) == "-2")
+  assert(C.to_string(C.mod(C.from_int(-17), C.from_int(5))) == "3")
+  assert(C.to_string(C.mod(C.from_int(17), C.from_int(-5))) == "-3")
+  assert(C.to_string(C.mod(C.from_int(-17), C.from_int(-5))) == "-2")
+  assert(C.to_string(C.mod(C.from_int(-15), C.from_int(5))) == "0")
 end
 
 -- abs / neg / sign
@@ -527,7 +530,6 @@ do
   local d_sq = C.deriv_simplify(sq, "x")
   -- 2 * x^1 * 1, simplified to 2 * x
   -- Evaluate at x=3: 2*3 = 6
-  local ctx = { rows = {}, current_row = 1, current_col = 1 }
   -- We need to substitute x; cheat by adding x as a const = 3.
   -- The evaluator's const lookup only knows pi/e, so we'll evaluate
   -- via direct AST evaluation without symbol lookup.

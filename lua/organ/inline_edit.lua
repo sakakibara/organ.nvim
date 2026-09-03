@@ -72,7 +72,8 @@ local function find_ts_at(line_text, col)
 end
 
 -- Identify which sub-token contains col within the timestamp.
--- Returns one of "year", "month", "day", "hour", "minute", or "day" as default.
+-- Returns one of "year", "month", "day", "hour", "minute", "end_hour",
+-- "end_minute", or "day" as default.
 local function sub_unit_at(line_text, range, col)
   local s = range.start_col + 1 -- 1-based start of '<'
   -- Layout: <YYYY-MM-DD ...
@@ -108,6 +109,14 @@ local function sub_unit_at(line_text, range, col)
     if rel >= hour_start + 3 and rel <= hour_start + 4 then
       return "minute"
     end
+    if text:match("^%-%d%d:%d%d", h_s + 6) then
+      if rel >= hour_start + 6 and rel <= hour_start + 7 then
+        return "end_hour"
+      end
+      if rel >= hour_start + 9 and rel <= hour_start + 10 then
+        return "end_minute"
+      end
+    end
   end
   return "day" -- default for bracket / repeater / unknown positions
 end
@@ -124,14 +133,23 @@ local function days_in_month(y, m)
   return 31
 end
 
+local function shift_days(ts, days)
+  local t = os.time({ year = ts.year, month = ts.month, day = ts.day, hour = 12 })
+  local nt = os.date("*t", t + days * 86400)
+  ts.year, ts.month, ts.day = nt.year, nt.month, nt.day
+end
+
+-- The end of a time range wraps within the day (Emacs
+-- `org-modify-ts-extra`).
+local function shift_end(ts, minutes)
+  local total = (ts.end_hour * 60 + (ts.end_min or 0) + minutes) % 1440
+  ts.end_hour, ts.end_min = math.floor(total / 60), total % 60
+end
+
 local function shift_unit(ts, unit, dir)
   local d = dir == "inc" and 1 or -1
   if unit == "day" then
-    -- Use os.time for clean rollover.
-    local t = os.time({ year = ts.year, month = ts.month, day = ts.day, hour = 12 })
-    t = t + d * 86400
-    local nt = os.date("*t", t)
-    ts.year, ts.month, ts.day = nt.year, nt.month, nt.day
+    shift_days(ts, d)
   elseif unit == "month" then
     ts.month = ts.month + d
     if ts.month > 12 then
@@ -152,17 +170,25 @@ local function shift_unit(ts, unit, dir)
     if ts.day > maxd then
       ts.day = maxd
     end
-  elseif unit == "hour" then
-    ts.hour = ((ts.hour or 0) + d) % 24
-  elseif unit == "minute" then
-    ts.minute = ((ts.minute or 0) + d) % 60
+  elseif unit == "hour" or unit == "minute" then
+    local minutes = d * (unit == "hour" and 60 or 1)
+    local total = (ts.hour or 0) * 60 + (ts.minute or 0) + minutes
+    local days = math.floor(total / 1440)
+    total = total - days * 1440
+    ts.hour, ts.minute = math.floor(total / 60), total % 60
+    if days ~= 0 then
+      shift_days(ts, days)
+    end
+    if ts.end_hour then
+      shift_end(ts, minutes)
+    end
+  elseif unit == "end_hour" then
+    shift_end(ts, d * 60)
+  elseif unit == "end_minute" then
+    shift_end(ts, d)
   end
-  -- Recompute weekday from new date for date-unit shifts; preserve for time-unit shifts.
-  if unit == "day" or unit == "month" or unit == "year" then
-    local t = os.time({ year = ts.year, month = ts.month, day = ts.day, hour = 12 })
-    local wday = os.date("%a", t) -- 3-char abbrev
-    ts.weekday = wday
-  end
+  local t = os.time({ year = ts.year, month = ts.month, day = ts.day, hour = 12 })
+  ts.weekday = os.date("%a", t)
 end
 
 local function format_ts(ts)
@@ -353,50 +379,20 @@ end
 M._step_priority = step_priority
 M._priority_range = priority_range
 
+-- inc walks toward the lowest priority and then clears the cookie;
+-- dec walks toward the highest and clears from there.
 local function _cycle_priority(bufnr, lnum, range, direction)
-  local line_text = vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
+  local hi, lo = priority_range()
   if range.has_cookie then
-    local letter = range.letter
     local next_letter
     if direction == "inc" then
-      -- A -> B -> C -> none
-      if letter == "A" then
-        next_letter = "B"
-      elseif letter == "B" then
-        next_letter = "C"
-      else
-        next_letter = nil -- C -> none
-      end
-    else
-      -- A -> none -> C -> B -> A (dec)
-      if letter == "A" then
-        next_letter = nil
-      elseif letter == "B" then
-        next_letter = "A"
-      elseif letter == "C" then
-        next_letter = "B"
-      end
+      next_letter = step_priority(range.letter, -1)
+    elseif range.letter ~= hi then
+      next_letter = step_priority(range.letter, 1)
     end
-    if next_letter then
-      obuf.set_text(
-        bufnr,
-        lnum - 1,
-        range.start_col,
-        lnum - 1,
-        range.end_col,
-        { "[#" .. next_letter .. "]" }
-      )
-    else
-      -- Remove the cookie + its trailing space.
-      local end_col = range.end_col
-      if line_text:sub(end_col + 1, end_col + 1) == " " then
-        end_col = end_col + 1
-      end
-      obuf.set_text(bufnr, lnum - 1, range.start_col, lnum - 1, end_col, { "" })
-    end
+    M.set_priority(bufnr, lnum, next_letter)
   else
-    -- Insert new cookie at insert_col. inc -> [#A], dec -> [#C].
-    local letter = direction == "inc" and "A" or "C"
+    local letter = direction == "inc" and hi or lo
     obuf.set_text(
       bufnr,
       lnum - 1,

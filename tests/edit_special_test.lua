@@ -113,8 +113,65 @@ deq(src_body, {
   "  After.",
 }, "second commit collapses body to single line")
 
--- Cleanup.
+-- A trailing empty body line is part of the block (Emacs
+-- `org-edit-src-exit` keeps it).
+vim.api.nvim_buf_set_lines(edit, 0, -1, false, { "return 1", "" })
+es.commit(edit)
+src_body = vim.api.nvim_buf_get_lines(source, 0, -1, false)
+deq(src_body, {
+  "* Section",
+  "  Some prose.",
+  "",
+  "  #+begin_src lua",
+  "  return 1",
+  "",
+  "  #+end_src",
+  "",
+  "  After.",
+}, "commit keeps a trailing empty body line")
+
+-- abort(edit_bufnr) wipes that buffer, not whichever buffer is current.
+local other = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_set_current_buf(other)
 es.abort(edit)
+eq(vim.api.nvim_buf_is_valid(edit), false, "edit buffer wiped")
+eq(vim.api.nvim_buf_is_valid(other), true, "current buffer untouched")
+
+-- An untouched empty block stays empty across open/commit round trips
+-- (org-edit-src-exit leaves it empty); typing into it still lands.
+local empty_src = vim.api.nvim_create_buf(true, false)
+vim.api.nvim_buf_set_lines(
+  empty_src,
+  0,
+  -1,
+  false,
+  { "* H", "#+begin_src lua", "#+end_src", "after" }
+)
+for _ = 1, 2 do
+  vim.api.nvim_set_current_buf(empty_src)
+  local e = es.open(empty_src, 2)
+  es.commit(e)
+  es.abort(e)
+end
+deq(
+  vim.api.nvim_buf_get_lines(empty_src, 0, -1, false),
+  { "* H", "#+begin_src lua", "#+end_src", "after" },
+  "empty block unchanged after two round trips"
+)
+vim.api.nvim_set_current_buf(empty_src)
+local e2 = es.open(empty_src, 2)
+vim.api.nvim_buf_set_lines(e2, 0, -1, false, { "print(1)" })
+es.commit(e2)
+es.abort(e2)
+deq(
+  vim.api.nvim_buf_get_lines(empty_src, 0, -1, false),
+  { "* H", "#+begin_src lua", "print(1)", "#+end_src", "after" },
+  "typed body lands in the empty block"
+)
+vim.api.nvim_buf_delete(empty_src, { force = true })
+
+-- Cleanup.
+vim.api.nvim_buf_delete(other, { force = true })
 vim.api.nvim_buf_delete(source, { force = true })
 vim.api.nvim_buf_delete(b, { force = true })
 
