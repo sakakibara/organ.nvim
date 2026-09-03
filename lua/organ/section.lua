@@ -213,20 +213,21 @@ function M.canonicalize(bufnr, headline_row)
     end
   end
 
-  local indent = M.planning_indent(bufnr, headline_row)
   local block = {}
   local entries = planning_entries(bufnr, p)
   if #entries > 0 then
-    block[1] = join_entries(entries, indent)
+    local row = entries[1].row
+    local first = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+    block[1] = join_entries(entries, first:match("^(%s*)") or "")
   end
   if pd then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, pd.start_line - 1, pd.end_line, false)) do
-      block[#block + 1] = indent .. l:gsub("^%s*", "")
+      block[#block + 1] = l
     end
   end
   if lb then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, lb.start_line - 1, lb.end_line, false)) do
-      block[#block + 1] = indent .. l:gsub("^%s*", "")
+      block[#block + 1] = l
     end
   end
 

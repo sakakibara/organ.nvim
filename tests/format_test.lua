@@ -73,7 +73,7 @@ do
   local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
     "drawer content: long ID not wrapped (org-property-format aligned)",
-    lines[3] == "  :ID:       this-is-a-very-long-id-that-should-not-wrap",
+    lines[3] == ":ID:       this-is-a-very-long-id-that-should-not-wrap",
     vim.inspect(lines)
   )
 end

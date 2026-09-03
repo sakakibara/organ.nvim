@@ -51,7 +51,9 @@ local function leading_indent(line)
   return line:match("^(%s*)") or ""
 end
 
-local function effective_width(bufnr, cfg)
+-- `nil` means "no width available": `textwidth = 0` is Vim for "do not
+-- hard-wrap", so only an explicitly requested reflow (`gq`) falls back.
+local function effective_width(bufnr, cfg, fallback)
   local explicit = (cfg.wrap or {}).width
   if explicit and explicit > 0 then
     return explicit
@@ -62,7 +64,7 @@ local function effective_width(bufnr, cfg)
       return tw
     end
   end
-  return 80
+  return fallback
 end
 
 local function format_cfg()
@@ -316,43 +318,355 @@ local function normalize_headlines(lines, cfg)
   return out
 end
 
+local function dwidth(s)
+  if s:find("[\128-\255\t]") then
+    return vim.fn.strdisplaywidth(s)
+  end
+  return #s
+end
+
+-- Codepoints Emacs gives character category `|` ("may start or end a
+-- line"), so a run of them is breakable between characters.  Hangul and
+-- emoji are deliberately absent -- Emacs leaves those unbroken.
+local CJK_BREAK_RANGES = {
+  { 0x2E80, 0x312F },
+  { 0x3190, 0x9FFF },
+  { 0xF900, 0xFAFF },
+  { 0xFF01, 0xFF9F },
+  { 0x20000, 0x3FFFF },
+}
+
+-- Characters Emacs `kinsoku.el` gives category `>` (may not begin a
+-- line) and `<` (may not end one), verbatim from its category table.
+local KINSOKU_BOL = "!'),-.:;?]_}~¨¯°±´·×÷ˇˉˍ༈་།༎༏༐༑༒༔༴༽ཿ‐–—―‖’”‥…‧′″"
+  .. "‾℃℉∶╴、。〃々〆〇〉》」』】〕〗〜〞ぁぃぅぇぉっゃゅょゎ゛゜ゝゞァィゥェォッャュョヮヵヶ・ー"
+  .. "ヽヾㄥ仝︰︱︳︴︶︸︺︼︾﹀﹂﹄﹉﹊﹋﹌﹍﹎﹏﹐﹑﹒﹔﹕﹖﹗﹚﹜﹞﹩！＂），．／：；？＼］＾＿｀"
+  .. "｜｝～｡｣ｧｨｩｪｫｬｭｮｯｰﾞﾟ￣"
+local KINSOKU_EOL = "([`{§°ༀ༁༂༃༄༅༆༇༈༉༊༼྅࿁࿂‘“′″‵℃℉〃〈《「『【〔〖〝ㄅㄆㄇㄈㄉㄊㄋㄌㄍㄎㄏ"
+  .. "ㄐㄑㄒㄓㄔㄕㄖㄗㄘㄙㄨ︵︷︹︻︽︿﹁﹃﹙﹛﹝﹫＂（＠［｛｢"
+local kinsoku_bol, kinsoku_eol = {}, {}
+for _, ch in ipairs(vim.fn.split(KINSOKU_BOL, "\\zs")) do
+  kinsoku_bol[ch] = true
+end
+for _, ch in ipairs(vim.fn.split(KINSOKU_EOL, "\\zs")) do
+  kinsoku_eol[ch] = true
+end
+
+-- Codepoints Emacs registers in `fill-find-break-point-function-table`,
+-- i.e. those whose neighbourhood gets kinsoku treatment.
+local KINSOKU_RANGES = {
+  { 0x02EA, 0x02EB },
+  { 0x2E80, 0x2FDF },
+  { 0x3000, 0x312F },
+  { 0x31A0, 0x9FFF },
+  { 0xF900, 0xFAFF },
+  { 0xFE30, 0xFE4F },
+  { 0xFF00, 0xFFEF },
+  { 0x20000, 0x3FFFF },
+}
+
+local function in_ranges(ranges, ch)
+  local cp = vim.fn.char2nr(ch)
+  for _, r in ipairs(ranges) do
+    if cp >= r[1] and cp <= r[2] then
+      return true
+    end
+  end
+  return false
+end
+
+local function is_break_char(ch)
+  return in_ranges(CJK_BREAK_RANGES, ch)
+end
+
+local function has_kinsoku_fn(ch)
+  return in_ranges(KINSOKU_RANGES, ch)
+end
+
+local function push_units(units, word, sep, offset)
+  if not word:find("[\226-\244]") then
+    units[#units + 1] = { s = word, sep = sep, pos = offset }
+    return
+  end
+  local pending, pending_pos = "", offset
+  local pos = offset
+  local first = true
+  local function emit(s, p, cjk)
+    units[#units + 1] = { s = s, sep = first and sep or "", pos = p, cjk = cjk }
+    first = false
+  end
+  for _, ch in ipairs(vim.fn.split(word, "\\zs")) do
+    if is_break_char(ch) then
+      if pending ~= "" then
+        emit(pending, pending_pos)
+        pending = ""
+      end
+      emit(ch, pos, true)
+    else
+      if pending == "" then
+        pending_pos = pos
+      end
+      pending = pending .. ch
+    end
+    pos = pos + #ch
+  end
+  if pending ~= "" then
+    emit(pending, pending_pos)
+  end
+end
+
+local function head_char(u)
+  if u.head == nil then
+    u.head = (u.s:find("[\128-\255]") and vim.fn.strcharpart(u.s, 0, 1)) or u.s:sub(1, 1)
+  end
+  return u.head
+end
+
+local function tail_char(u)
+  if u.tailc == nil then
+    if u.s:find("[\128-\255]") then
+      u.tailc = vim.fn.strcharpart(u.s, vim.fn.strchars(u.s) - 1, 1)
+    else
+      u.tailc = u.s:sub(-1)
+    end
+  end
+  return u.tailc
+end
+
+local function break_units(text)
+  local units = {}
+  local i, n = 1, #text
+  while i <= n do
+    local sep = ""
+    local ws_e = select(2, text:find("^%s+", i))
+    if ws_e then
+      sep = text:sub(i, ws_e)
+      i = ws_e + 1
+    end
+    if i > n then
+      break
+    end
+    local next_ws = text:find("%s", i)
+    local word_end = (next_ws and next_ws - 1) or n
+    push_units(units, text:sub(i, word_end), sep, i)
+    i = word_end + 1
+  end
+  return units
+end
+
+-- Byte spans of org timestamps; a break inside one destroys it.
+local function timestamp_spans(text)
+  local spans = {}
+  for _, pat in ipairs({ "<%d%d%d%d%-%d%d%-%d%d[^<>\n]*>", "%[%d%d%d%d%-%d%d%-%d%d[^%[%]\n]*%]" }) do
+    local init = 1
+    while true do
+      local s, e = text:find(pat, init)
+      if not s then
+        break
+      end
+      spans[#spans + 1] = { s, e }
+      init = e + 1
+    end
+  end
+  return spans
+end
+
+-- Mirrors the alternatives of org's `paragraph-start` that can match
+-- mid-paragraph, which is what Emacs's `fill-nobreak-p` consults: a
+-- break whose next line would match starts a new element, so wrapping
+-- would silently turn prose into a headline, list item or keyword.
+-- `is_last` reports whether the regexp's `$` anchor would hold.
+local function starts_element(word, is_last)
+  if word:match("^%*+$") and not is_last then
+    return true
+  end
+  if word:match("^[-+*]$") or word:match("^%d+[.)]$") then
+    return true
+  end
+  if word:match("^|") or word == ":" or word == "#" then
+    return true
+  end
+  if word:match("^#%+") and #word > 2 then
+    if word:match("^#%+[bB][eE][gG][iI][nN]_.") or word:find(":", 3, true) then
+      return true
+    end
+  end
+  if word:match("^\\begin{[%w*]+}") or word:match("^%[fn:[%w_-]+%]") or word:match("^%%%%%(") then
+    return true
+  end
+  if is_last then
+    if word:match("^:[%w_-]+:$") or word:match("^%-%-%-%-%-+$") then
+      return true
+    end
+    if word:match("^%+%-") and word:match("^[-+]+$") and word:sub(-1) == "+" then
+      return true
+    end
+  end
+  return false
+end
+
 local function wrap_to_width(text, width, first_indent, cont_indent)
   if width <= 0 then
     return { first_indent .. text }
   end
-  local out = {}
-  local cur = first_indent
-  for word in text:gmatch("%S+") do
-    if cur == first_indent or cur == cont_indent then
-      cur = cur .. word
-    elseif vim.fn.strdisplaywidth(cur) + 1 + vim.fn.strdisplaywidth(word) <= width then
-      cur = cur .. " " .. word
+  local units = break_units(text)
+  local n = #units
+  if n == 0 then
+    return {}
+  end
+  local spans = timestamp_spans(text)
+  local tail, tail_last, suffix = {}, {}, {}
+  for u = n, 1, -1 do
+    units[u].w = dwidth(units[u].s)
+    if u == n then
+      tail[u], tail_last[u] = units[u].s, true
+      suffix[u] = units[u].w
     else
-      out[#out + 1] = cur
-      cur = cont_indent .. word
+      suffix[u] = units[u].w + #units[u + 1].sep + suffix[u + 1]
+      if units[u + 1].sep == "" then
+        tail[u], tail_last[u] = units[u].s .. tail[u + 1], tail_last[u + 1]
+      else
+        tail[u], tail_last[u] = units[u].s, false
+      end
     end
   end
-  if cur ~= first_indent and cur ~= cont_indent then
-    out[#out + 1] = cur
+  -- Emacs looks for a break at the fill column and stops when that
+  -- position is already the end of the text, so a final wide character
+  -- straddling the column is left in place rather than pushed down.
+  local last_char_w = dwidth(tail_char(units[n]))
+
+  -- `at_word_end` mirrors Emacs's last-resort scan, which tests the
+  -- position before the separating space rather than after it.
+  local function may_break(b, at_word_end)
+    if b >= n then
+      return false
+    end
+    local pos = at_word_end and (units[b].pos + #units[b].s) or units[b + 1].pos
+    for _, sp in ipairs(spans) do
+      if pos > sp[1] and pos <= sp[2] + 1 then
+        return false
+      end
+    end
+    -- A `.` left at end of line reads as a sentence end on the next
+    -- fill; a single following space says it is not one.
+    if units[b + 1].sep == " " and units[b].s:sub(-1) == "." then
+      return false
+    end
+    return not starts_element(tail[b + 1], tail_last[b + 1])
+  end
+
+  local function bol_blocked(b)
+    return kinsoku_bol[head_char(units[b + 1])] ~= nil
+  end
+  local function eol_blocked(b)
+    return kinsoku_eol[tail_char(units[b])] ~= nil
+  end
+  -- Emacs consults kinsoku only when a character adjacent to the break
+  -- carries a break-point function, and never between two ASCII ones.
+  local function kinsoku_applies(b)
+    local prev = units[b + 1].sep ~= "" and " " or tail_char(units[b])
+    local next_ch = head_char(units[b + 1])
+    if #prev == 1 and #next_ch == 1 then
+      return false
+    end
+    return has_kinsoku_fn(prev) or has_kinsoku_fn(next_ch)
+  end
+  -- Emacs scans past positions whose preceding character is neither a
+  -- space nor itself breakable: those are not break points at all.
+  local function kinsoku_stop(b)
+    return not bol_blocked(b) and (units[b + 1].sep ~= "" or units[b].cjk)
+  end
+
+  local out = {}
+  local i = 1
+  local indent = first_indent
+  while i <= n do
+    local iw = dwidth(indent)
+    local w = iw + units[i].w
+    local last = i
+    while last < n and w + #units[last + 1].sep + units[last + 1].w <= width do
+      w = w + #units[last + 1].sep + units[last + 1].w
+      last = last + 1
+    end
+    local b = last
+    if iw + suffix[i] - last_char_w < width then
+      b = n
+    end
+    if b < n then
+      while b > i and not may_break(b) do
+        b = b - 1
+      end
+      if not may_break(b) then
+        while b < n and not may_break(b, true) do
+          b = b + 1
+        end
+      elseif kinsoku_applies(b) then
+        -- Kinsoku: run the line long rather than start the next one with
+        -- a character that may not begin a line; if that overshoots by
+        -- more than Emacs `kinsoku-limit`, pull the break back instead.
+        local k, kw, shorter = b, iw + units[i].w, false
+        for u = i + 1, b do
+          kw = kw + #units[u].sep + units[u].w
+        end
+        if bol_blocked(k) then
+          local j, jw = k, kw
+          repeat
+            jw = jw + #units[j + 1].sep + units[j + 1].w
+            j = j + 1
+          until j >= n or kinsoku_stop(j)
+          if jw < width + 4 then
+            k = j
+          else
+            shorter = true
+          end
+        end
+        if k < n and (shorter or eol_blocked(k)) then
+          local j = k - 1
+          while j >= i and (eol_blocked(j) or not kinsoku_stop(j)) do
+            j = j - 1
+          end
+          if j >= i then
+            k = j
+          end
+        end
+        if k >= n or may_break(k) then
+          b = k
+        end
+      end
+    end
+    local parts = {}
+    for u = i, b do
+      parts[#parts + 1] = units[u].sep
+      parts[#parts + 1] = units[u].s
+    end
+    parts[1] = ""
+    out[#out + 1] = indent .. table.concat(parts)
+    i = b + 1
+    indent = cont_indent
   end
   return out
 end
 
-local function wrap_prose(lines, cfg)
+local function wrap_prose(lines, cfg, tail)
   if (cfg.wrap or {}).enabled == false then
     return lines
   end
-  local width = cfg._effective_width or 80
+  local width = cfg._effective_width
+  if not width then
+    return lines
+  end
   local out = {}
   local in_block = false
   local in_drawer = false
   local para_lines, para_first, para_cont, para_kind = {}, nil, nil, nil
+  local para_bullet_col = nil
 
   local function flush()
     if #para_lines == 0 then
       return
     end
     para_kind = nil
+    para_bullet_col = nil
     -- Org's hard-line-break syntax (verified against Emacs `org-mode`
     -- + `fill-paragraph`, GNU Emacs 30.2) is `\\` at end of line, with
     -- optional trailing whitespace.  Lines NOT ending in `\\` are
@@ -373,8 +687,18 @@ local function wrap_prose(lines, cfg)
     local first = para_first or ""
     local cont = para_cont or ""
     for _, chunk in ipairs(chunks) do
-      local joined = table.concat(chunk, " "):gsub("%s+", " ")
-      joined = joined:gsub("^%s+", ""):gsub("%s+$", "")
+      -- Collapse runs of whitespace, but keep the two spaces Emacs
+      -- writes after a sentence end under `sentence-end-double-space`,
+      -- so reformatting an Emacs-authored file is a no-op.
+      local src = table.concat(chunk, " "):gsub("^%s+", ""):gsub("%s+$", "")
+      local joined = src:gsub("()%s+", function(pos)
+        if
+          src:sub(pos, pos + 1):match("^%s%s") and src:sub(1, pos - 1):match("[.?!][\"'%]%)}]*$")
+        then
+          return "  "
+        end
+        return " "
+      end)
       if joined == "" then
         out[#out + 1] = (first:gsub("%s+$", ""))
       end
@@ -390,7 +714,23 @@ local function wrap_prose(lines, cfg)
     para_lines, para_first, para_cont = {}, nil, nil
   end
 
-  for _, line in ipairs(lines) do
+  -- A `:NAME:` line only opens a drawer when a `:END:` closes it before
+  -- the next headline; without that org reads it as ordinary text, and
+  -- treating it as a drawer would suppress wrapping to end of buffer.
+  local function drawer_closed(i)
+    for j = i + 1, #lines + #(tail or {}) do
+      local l = j <= #lines and lines[j] or tail[j - #lines]
+      if is_drawer_close(l) then
+        return true
+      end
+      if is_headline(l) then
+        return false
+      end
+    end
+    return false
+  end
+
+  for idx, line in ipairs(lines) do
     if in_block then
       flush()
       out[#out + 1] = line
@@ -407,7 +747,7 @@ local function wrap_prose(lines, cfg)
       flush()
       out[#out + 1] = line
       in_block = true
-    elseif is_drawer_open(line) then
+    elseif is_drawer_open(line) and not is_drawer_close(line) and drawer_closed(idx) then
       flush()
       out[#out + 1] = line
       in_drawer = true
@@ -418,6 +758,7 @@ local function wrap_prose(lines, cfg)
       or is_table(line)
       or is_fixed_width(line)
       or is_hrule(line)
+      or is_drawer_open(line)
       or line == ""
     then
       flush()
@@ -442,11 +783,18 @@ local function wrap_prose(lines, cfg)
       flush()
       local item = list.parse_item(line)
       para_kind = "list"
+      para_bullet_col = dwidth(item.indent)
       para_first = item.indent .. item.bullet .. " "
       para_cont = string.rep(" ", #para_first)
       para_lines[#para_lines + 1] = item.content
     else
-      if para_kind == "comment" then
+      -- Org ends a list item at a line indented no further than the
+      -- bullet; folding such a line into the item would merge two
+      -- elements into one.
+      if
+        para_kind == "comment"
+        or (para_kind == "list" and dwidth(leading_indent(line)) <= para_bullet_col)
+      then
         flush()
       end
       if not para_first then
@@ -460,6 +808,48 @@ local function wrap_prose(lines, cfg)
   end
   flush()
   return out
+end
+
+-- Blocks whose body org-element parses as raw text rather than as
+-- elements, so a `|` or `1.` line inside one is NOT a table or a list
+-- item.  Every other block name is a special block (a greater element),
+-- and drawers hold elements too -- verified against
+-- `org-element-at-point` / `org-at-table-p` / `org-at-item-p`.
+local VERBATIM_BLOCKS = {
+  comment = true,
+  example = true,
+  export = true,
+  src = true,
+  verse = true,
+}
+
+-- Set of 1-based row numbers that fall inside a verbatim block body.
+-- An unterminated `#+begin_` opens nothing, matching org-element.
+local function verbatim_rows(lines)
+  local rows = {}
+  local i, n = 1, #lines
+  while i <= n do
+    local name = lines[i]:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_([%a][%w-]*)")
+    local body_end
+    if name and VERBATIM_BLOCKS[name:lower()] then
+      local close = "^%s*#%+[Ee][Nn][Dd]_" .. name:lower() .. "%s*$"
+      for j = i + 1, n do
+        if lines[j]:lower():match(close) then
+          body_end = j
+          break
+        end
+      end
+    end
+    if body_end then
+      for j = i + 1, body_end - 1 do
+        rows[j] = true
+      end
+      i = body_end + 1
+    else
+      i = i + 1
+    end
+  end
+  return rows
 end
 
 local function adapt_indentation(lines, mode, planning_indent_cfg)
@@ -539,11 +929,12 @@ local function align_drawer_values(lines, cfg)
     return lines
   end
   local property = require("organ.property")
+  local verbatim = verbatim_rows(lines)
   local out = {}
   local i, n = 1, #lines
   while i <= n do
     local line = lines[i]
-    if not is_drawer_open(line) or is_drawer_close(line) then
+    if verbatim[i] or not is_drawer_open(line) or is_drawer_close(line) then
       out[#out + 1] = line
       i = i + 1
     else
@@ -645,16 +1036,13 @@ local function realign_tables(bufnr, lo, hi)
     return
   end
   lo = lo or 1
-  local i = 1
-  while i <= vim.api.nvim_buf_line_count(bufnr) do
-    local line = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-    if line:match("^%s*|") then
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local verbatim = verbatim_rows(lines)
+  local i, n = 1, #lines
+  while i <= n do
+    if not verbatim[i] and lines[i]:match("^%s*|") then
       local table_start = i
-      while i <= vim.api.nvim_buf_line_count(bufnr) do
-        local l = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-        if not l:match("^%s*|") then
-          break
-        end
+      while i <= n and not verbatim[i] and lines[i]:match("^%s*|") do
         i = i + 1
       end
       local table_end = i - 1
@@ -692,9 +1080,10 @@ local function repair_lists(bufnr)
   end
   local total = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, total, false)
+  local verbatim = verbatim_rows(lines)
   local skip_to = 0
   for i, l in ipairs(lines) do
-    if i > skip_to and l:match("^%s*%d+[%.%)]%s") then
+    if i > skip_to and not verbatim[i] and l:match("^%s*%d+[%.%)]%s") then
       -- repair normalizes the whole structure and reports its range;
       -- everything up to `e` is already canonical.
       local ok, _, _, e = pcall(list_mod.repair, bufnr, i)
@@ -705,15 +1094,15 @@ local function repair_lists(bufnr)
   end
 end
 
-function M.format_lines(lines, cfg, bufnr)
+function M.format_lines(lines, cfg, bufnr, opts)
   cfg = cfg or format_cfg()
-  cfg._effective_width = effective_width(bufnr, cfg)
+  cfg._effective_width = effective_width(bufnr, cfg, opts and opts.default_width)
 
   if cfg.trim_trailing_whitespace ~= false then
     lines = trim_trailing_whitespace(lines)
   end
   lines = normalize_headlines(lines, cfg)
-  lines = wrap_prose(lines, cfg)
+  lines = wrap_prose(lines, cfg, opts and opts.tail)
   do
     local icfg = require("organ.buf_config").read(nil, "indent") or {}
     if icfg.adapt_indentation then
@@ -727,7 +1116,7 @@ function M.format_lines(lines, cfg, bufnr)
   return lines
 end
 
-function M.format_range(bufnr, lo, hi)
+function M.format_range(bufnr, lo, hi, opts)
   bufnr = bufnr or 0
   local total = vim.api.nvim_buf_line_count(bufnr)
   if lo < 1 then
@@ -741,7 +1130,12 @@ function M.format_range(bufnr, lo, hi)
   end
   local cfg = format_cfg()
   local lines = vim.api.nvim_buf_get_lines(bufnr, lo - 1, hi, false)
-  local out = M.format_lines(lines, cfg, bufnr)
+  -- A drawer opened inside the range may be closed past its end.
+  local range_opts = { tail = vim.api.nvim_buf_get_lines(bufnr, hi, total, false) }
+  for k, v in pairs(opts or {}) do
+    range_opts[k] = v
+  end
+  local out = M.format_lines(lines, cfg, bufnr, range_opts)
   obuf.set_lines(bufnr, lo - 1, hi, out)
   if (cfg.tables or {}).realign ~= false then
     realign_tables(bufnr, lo, hi)
@@ -779,7 +1173,7 @@ function M.formatexpr()
     return 1
   end
   local bufnr = vim.api.nvim_get_current_buf()
-  local ok = pcall(M.format_range, bufnr, lnum, lnum + count - 1)
+  local ok = pcall(M.format_range, bufnr, lnum, lnum + count - 1, { default_width = 80 })
   if ok then
     return 0
   end

@@ -837,9 +837,8 @@ return {
     --                       stays at column 0.
     --   true             -> every body line (planning, drawers, prose)
     --                       indents to the section column too.
-    --   false (default)  -> never modify indentation.
-    -- Emacs's own default is `nil` (everything flush); organ still keeps
-    -- drawers indented via `todo.planning_indent` regardless of this.
+    --   false (default)  -> never modify indentation.  Matches Emacs's
+    --                       own default, `org-adapt-indentation = nil`.
     adapt_indentation = false,
 
     -- `==` / `o` / auto-indent follow the formatter's indent rules via an
@@ -1022,9 +1021,10 @@ return {
     -- Indent for newly-inserted planning lines (SCHEDULED:,
     -- DEADLINE:, CLOSED:).  Mirrors Emacs `org-adapt-indentation`:
     --   "adapt"   (default)  heading_level + 1 spaces -- matches
-    --                        Emacs `'headline-data` (Org 9.5+ /
-    --                        Emacs 30.x default): `* L1` -> 2,
-    --                        `** L2` -> 3, `*** L3` -> 4.
+    --                        Emacs `'headline-data`: `* L1` -> 2,
+    --                        `** L2` -> 3, `*** L3` -> 4.  Emacs
+    --                        itself defaults `org-adapt-indentation`
+    --                        to nil, i.e. flush left.
     --   <number>             fixed N spaces regardless of depth.
     --                        Older Emacs convention is usually 2.
     --   0 (or false)         flush left.  Matches Emacs
@@ -1416,9 +1416,10 @@ return {
     -- Prose rewrap.
     wrap = {
       enabled = true,
-      -- Max line width.  `0` means "use the buffer's `textwidth`,
-      -- falling back to 80 when textwidth is unset".  Any positive
-      -- integer is an explicit cap (overrides textwidth).
+      -- Max line width.  `0` means "use the buffer's `textwidth`";
+      -- `textwidth = 0` in turn is Vim for "do not hard-wrap", and only
+      -- an explicitly requested reflow (`gq`) then falls back to 80.
+      -- Any positive integer is an explicit cap (overrides textwidth).
       width = 0,
     },
 
@@ -1442,7 +1443,9 @@ return {
       --   "winwidth-3"       -> tag RIGHT edge at winwidth - 3
       --   function           -> called; result is recursively resolved
       --                         (so a function may return any of the above)
-      tags_column = "textwidth",
+      -- The default is Emacs `org-tags-column`, so a file edited in both
+      -- tools does not churn its tag column on every save.
+      tags_column = -77,
     },
 
     -- Drawer value alignment.  After format, every `:KEY: value`

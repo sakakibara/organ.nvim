@@ -1,5 +1,6 @@
--- canonicalize / format indents property + logbook drawers to the section
--- indent (level+1), like planning. Run via:
+-- canonicalize / format keep every existing planning + drawer line at the
+-- indent it already has (Emacs `org-adapt-indentation` is nil, and
+-- `todo.planning_indent` governs only newly-inserted lines).  Run via:
 -- nvim --headless -l tests/section_drawer_indent_test.lua
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -40,13 +41,67 @@ do
   })
   require("organ.format").format_buffer(b)
   local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
-  check(out[2] == "  DEADLINE: <2026-06-17 Wed>", "planning indented (level+1)")
-  check(out[3] == "  :PROPERTIES:", "property drawer open indented")
-  check(out[4] == "  :ID:       abc", "property line indented + org-property-format aligned")
-  check(out[5] == "  :END:", "property drawer close indented")
-  check(out[6] == "  :LOGBOOK:", "logbook drawer open indented")
-  check(out[7] == "  CLOCK: [2026-06-16 Tue 09:00]", "logbook line indented")
-  check(out[9] == "body text", "body NOT indented (headline-data, adapt off)")
+  check(out[2] == "DEADLINE: <2026-06-17 Wed>", "flush planning stays flush")
+  check(out[3] == ":PROPERTIES:", "flush property drawer open stays flush")
+  check(out[4] == ":ID:       abc", "property line org-property-format aligned")
+  check(out[5] == ":END:", "flush property drawer close stays flush")
+  check(out[6] == ":LOGBOOK:", "flush logbook drawer open stays flush")
+  check(out[7] == "CLOCK: [2026-06-16 Tue 09:00]", "flush logbook line stays flush")
+  check(out[9] == "body text", "body stays flush")
+end
+
+do
+  local b = mkbuf({
+    "* TODO Task",
+    "  DEADLINE: <2026-06-17 Wed>",
+    "  :PROPERTIES:",
+    "  :ID:       abc",
+    "  :END:",
+    "  :LOGBOOK:",
+    "  CLOCK: [2026-06-16 Tue 09:00]",
+    "  :END:",
+  })
+  require("organ.format").format_buffer(b)
+  local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(out[2] == "  DEADLINE: <2026-06-17 Wed>", "indented planning keeps its indent")
+  check(out[3] == "  :PROPERTIES:", "indented property drawer open keeps its indent")
+  check(out[4] == "  :ID:       abc", "indented property line keeps its indent")
+  check(out[6] == "  :LOGBOOK:", "indented logbook drawer open keeps its indent")
+  check(out[7] == "  CLOCK: [2026-06-16 Tue 09:00]", "indented logbook line keeps its indent")
+end
+
+-- A LOGBOOK note's continuation lines carry an indent deeper than the
+-- drawer's; flattening them detaches the body from its note item.
+do
+  local b = mkbuf({
+    "* TODO Thing",
+    ":LOGBOOK:",
+    "- Note taken on [2026-01-01 Thu 10:00] \\\\",
+    "  first line of note",
+    "  second line of note",
+    ":END:",
+  })
+  require("organ.format").format_buffer(b)
+  local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(out[3] == "- Note taken on [2026-01-01 Thu 10:00] \\\\", "note item preserved")
+  check(out[4] == "  first line of note", "note continuation keeps its indent")
+  check(out[5] == "  second line of note", "second note continuation keeps its indent")
+end
+
+-- Reordering still happens; only the indents are left alone.
+do
+  local b = mkbuf({
+    "* TODO Task",
+    "  :PROPERTIES:",
+    "  :ID:       abc",
+    "  :END:",
+    "DEADLINE: <2026-06-17 Wed>",
+  })
+  require("organ.format").format_buffer(b)
+  local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(out[2] == "DEADLINE: <2026-06-17 Wed>", "planning reordered above the drawer, indent kept")
+  check(out[3] == "  :PROPERTIES:", "property drawer follows, indent kept")
+  check(out[5] == "  :END:", "property drawer close kept")
 end
 
 print("ALL PASS: section_drawer_indent")

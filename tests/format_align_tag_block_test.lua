@@ -339,8 +339,27 @@ do
   )
 end
 
+-- The shipped default is Emacs `org-tags-column`: the tag block's right
+-- edge lands on column 77, so a file edited in both tools does not churn.
+do
+  local defaults = require("organ.defaults")
+  check(
+    "default tags_column is Emacs org-tags-column (-77)",
+    defaults.format.headline.tags_column == -77,
+    tostring(defaults.format.headline.tags_column)
+  )
+  local saved = organ.config.format.headline.tags_column
+  organ.config.format.headline.tags_column = -77
+  local got = format.align_tag_block("* Some headline", ":work:", {})
+  organ.config.format.headline.tags_column = saved
+  check(
+    "default tags_column: tag block right edge at column 77",
+    #got == 77 and got:sub(-6) == ":work:",
+    "len=" .. #got .. " got [" .. got .. "]"
+  )
+end
+
 -- Default (config-driven) path: nil opts falls through to config.
--- Config default is "textwidth".  Pin via config and verify.
 do
   local saved = organ.config.format.headline.tags_column
   organ.config.format.headline.tags_column = -50
