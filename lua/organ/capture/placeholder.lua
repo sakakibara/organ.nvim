@@ -11,6 +11,26 @@ local function fmt_date(now, with_time, inactive)
   return "<" .. s .. ">"
 end
 
+-- Turn a `%^t`-family prompt answer into an org timestamp.  A date-less
+-- answer means today; the time is written when the answer carries one
+-- or the placeholder letter is uppercase (org-capture.el
+-- `org-insert-timestamp` with `org-time-was-given`).
+local function answer_timestamp(answer, now, upper, inactive)
+  answer = answer or ""
+  local y, mo, d = answer:match("(%d%d%d%d)%-(%d%d?)%-(%d%d?)")
+  local h, mi = answer:match("(%d%d?):(%d%d)")
+  local base = os.date("*t", now or os.time())
+  local ts = os.time({
+    year = y and tonumber(y) or base.year,
+    month = mo and tonumber(mo) or base.month,
+    day = d and tonumber(d) or base.day,
+    hour = h and tonumber(h) or base.hour,
+    min = mi and tonumber(mi) or base.min,
+    sec = 0,
+  })
+  return fmt_date(ts, upper or h ~= nil, inactive)
+end
+
 local function annotation(ctx)
   if ctx.source_headline_id and ctx.source_headline_id ~= "" then
     return string.format("[[id:%s][%s]]", ctx.source_headline_id, ctx.source_headline_title or "")
@@ -50,6 +70,11 @@ function M.expand(body, ctx)
     out_len = out_len + #s
   end
 
+  -- Text emitted so far on the current output line.
+  local function line_lead()
+    return table.concat(out):match("[^\n]*$")
+  end
+
   while i <= #body do
     local ch = body:sub(i, i)
     if ch ~= "%" then
@@ -81,7 +106,13 @@ function M.expand(body, ctx)
         emit(annotation(ctx))
         i = i + 2
       elseif n1 == "i" then
-        emit(ctx.visual_text or "")
+        -- Every inserted line repeats the text that precedes %i on its
+        -- line (org-capture.el "repeat leading characters before
+        -- initial place holder every line").
+        local lead = "\n" .. line_lead()
+        emit((ctx.visual_text or ""):gsub("\n", function()
+          return lead
+        end))
         i = i + 2
       elseif n1 == "f" then
         -- %f → source file basename (no path).
@@ -134,9 +165,10 @@ function M.expand(body, ctx)
         elseif n2 == "g" then
           emit(prompts.tags or "")
           i = i + 3
-        elseif n2 == "t" or n2 == "T" then
+        elseif n2 == "t" or n2 == "T" or n2 == "u" or n2 == "U" then
           prompt_date_idx = prompt_date_idx + 1
-          emit((prompts.dates or {})[prompt_date_idx] or "")
+          local answer = (prompts.dates or {})[prompt_date_idx]
+          emit(answer_timestamp(answer, ctx.now, n2 == "T" or n2 == "U", n2 == "u" or n2 == "U"))
           i = i + 3
         else
           emit(ch)
@@ -153,11 +185,9 @@ function M.expand(body, ctx)
   return table.concat(out), cursor_offset
 end
 
--- Prompt pass: scan body for %^{...} / %^g / %^t / %^T placeholders and
--- fire interactive UI for each, populating ctx.prompts. Returns true on
--- success, false if any prompt was cancelled.
-function M.prompt_pass(body, ctx)
-  ctx.prompts = ctx.prompts or { text = {}, tags = nil, dates = {} }
+-- Scan body for the interactive placeholders, in order.
+local function collect_prompts(body)
+  local steps = {}
   local i = 1
   while i <= #body do
     local pct = body:find("%%%^", i)
@@ -169,61 +199,94 @@ function M.prompt_pass(body, ctx)
       local close = body:find("}", pct + 3, true)
       if close then
         local content = body:sub(pct + 3, close - 1)
-        local prompt_label, choices = content:match("^([^|]*)|(.*)$")
+        local label, choices = content:match("^([^|]*)|(.*)$")
         if choices then
           local opts = {}
           for opt in (choices .. "|"):gmatch("([^|]*)|") do
             opts[#opts + 1] = opt
           end
-          local choice
-          vim.ui.select(opts, { prompt = prompt_label .. ": " }, function(c)
-            choice = c
-          end)
-          if choice == nil then
-            return false
-          end
-          ctx.prompts.text[#ctx.prompts.text + 1] = choice
+          steps[#steps + 1] = { kind = "select", label = label, opts = opts }
         else
-          local input
-          vim.ui.input({ prompt = (content == "" and "" or content) .. ": " }, function(v)
-            input = v
-          end)
-          if input == nil then
-            return false
-          end
-          ctx.prompts.text[#ctx.prompts.text + 1] = input
+          steps[#steps + 1] = { kind = "text", label = content }
         end
         i = close + 1
       else
         i = pct + 2
       end
     elseif n2 == "g" then
-      local input
-      vim.ui.input({ prompt = "Tags: " }, function(v)
-        input = v
-      end)
-      if input == nil then
-        return false
-      end
-      ctx.prompts.tags = input
+      steps[#steps + 1] = { kind = "tags" }
       i = pct + 3
-    elseif n2 == "t" or n2 == "T" then
-      local default = (n2 == "T") and os.date("%Y-%m-%d %H:%M", ctx.now or os.time())
-        or os.date("%Y-%m-%d", ctx.now or os.time())
-      local input
-      vim.ui.input({ prompt = "Date: ", default = default }, function(v)
-        input = v
-      end)
-      if input == nil then
-        return false
-      end
-      ctx.prompts.dates[#ctx.prompts.dates + 1] = input
+    elseif n2 == "t" or n2 == "T" or n2 == "u" or n2 == "U" then
+      steps[#steps + 1] = { kind = "date", with_time = (n2 == "T" or n2 == "U") }
       i = pct + 3
     else
       i = pct + 2
     end
   end
-  return true
+  return steps
+end
+
+-- Prompt pass: fire interactive UI for each %^{...} / %^g / %^t / %^T /
+-- %^u / %^U placeholder, populating ctx.prompts.  Prompts chain through
+-- their vim.ui callbacks, so a UI that answers asynchronously works.
+-- `cb(ok)` runs once every prompt has answered (false when one was
+-- cancelled).  The return value is that same result when the UI
+-- answered synchronously, nil otherwise.
+function M.prompt_pass(body, ctx, cb)
+  ctx.prompts = ctx.prompts or { text = {}, tags = nil, dates = {} }
+  local steps = collect_prompts(body)
+  local result
+
+  local function finish(ok)
+    result = ok
+    if cb then
+      cb(ok)
+    end
+  end
+
+  local function run(k)
+    local step = steps[k]
+    if not step then
+      return finish(true)
+    end
+    local function answered(v, store)
+      if v == nil then
+        return finish(false)
+      end
+      store(v)
+      run(k + 1)
+    end
+    if step.kind == "select" then
+      vim.ui.select(step.opts, { prompt = step.label .. ": " }, function(v)
+        answered(v, function(c)
+          ctx.prompts.text[#ctx.prompts.text + 1] = c
+        end)
+      end)
+    elseif step.kind == "text" then
+      vim.ui.input({ prompt = step.label .. ": " }, function(v)
+        answered(v, function(c)
+          ctx.prompts.text[#ctx.prompts.text + 1] = c
+        end)
+      end)
+    elseif step.kind == "tags" then
+      vim.ui.input({ prompt = "Tags: " }, function(v)
+        answered(v, function(c)
+          ctx.prompts.tags = c
+        end)
+      end)
+    else
+      local now = ctx.now or os.time()
+      local default = step.with_time and os.date("%Y-%m-%d %H:%M", now) or os.date("%Y-%m-%d", now)
+      vim.ui.input({ prompt = "Date: ", default = default }, function(v)
+        answered(v, function(c)
+          ctx.prompts.dates[#ctx.prompts.dates + 1] = c
+        end)
+      end)
+    end
+  end
+
+  run(1)
+  return result
 end
 
 return M

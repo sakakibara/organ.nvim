@@ -145,7 +145,9 @@ do
   assert(text == "Tags: :work:urgent:")
 end
 
--- 14. %^t / %^T pull from ctx.prompts.dates.
+-- 14. %^t / %^T / %^u / %^U turn the prompt answers in ctx.prompts.dates
+-- into org timestamps (org-capture.el: `org-insert-timestamp`).  The
+-- lowercase forms add the time only when the answer carries one.
 do
   local text = placeholder.expand(
     "when: %^t at %^T",
@@ -153,7 +155,29 @@ do
       prompts = { text = {}, tags = nil, dates = { "2026-05-01", "2026-05-01 09:00" } },
     })
   )
-  assert(text == "when: 2026-05-01 at 2026-05-01 09:00", "got: " .. text)
+  assert(text == "when: <2026-05-01 Fri> at <2026-05-01 Fri 09:00>", "got: " .. text)
+  text = placeholder.expand(
+    "%^u %^U %^t",
+    make_ctx({
+      prompts = {
+        text = {},
+        tags = nil,
+        dates = { "2026-05-01", "2026-05-01 9:05", "2026-05-01 14:30" },
+      },
+    })
+  )
+  assert(text == "[2026-05-01 Fri] [2026-05-01 Fri 09:05] <2026-05-01 Fri 14:30>", "got: " .. text)
+end
+
+-- 14b. %i repeats the text preceding it on every inserted line
+-- (org-capture.el "repeat leading characters before initial place holder").
+do
+  local text = placeholder.expand("* Note\n  %i", make_ctx({ visual_text = "line one\nline two" }))
+  assert(text == "* Note\n  line one\n  line two", "got: " .. text)
+  text = placeholder.expand("- %i\nend", make_ctx({ visual_text = "a\nb\nc" }))
+  assert(text == "- a\n- b\n- c\nend", "got: " .. text)
+  text = placeholder.expand("* N\n%i", make_ctx({ visual_text = "x\ny" }))
+  assert(text == "* N\nx\ny", "got: " .. text)
 end
 
 -- 15. %<%H:%M> expands via os.date.

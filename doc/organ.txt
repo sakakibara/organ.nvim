@@ -952,7 +952,7 @@ Archive                                                 *organ-config-archive*
                   (via Emacs `abbreviate-file-name`)
       `olpath`    parent-chain path like `"GrandParent/Parent"`
       `category`  source file basename (without `.org`)
-      `todo`      TODO keyword stripped from the moved headline
+      `todo`      TODO keyword of the moved headline (which keeps it)
       `itags`     INHERITED tags only: ancestor headlines' tags ∪
                   `#+FILETAGS:`, deduplicated.  Direct tags on the
                   moved headline travel with its title and are NOT in

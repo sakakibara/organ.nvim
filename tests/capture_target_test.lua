@@ -252,7 +252,9 @@ do
   assert(#prelude == 0)
 end
 
--- 11. prepend = true on file_headline: insert at section START + 1.
+-- 11. prepend = true on file_headline: insert before the first child
+-- headline (org-capture.el `outline-next-heading`), i.e. after the
+-- target's drawer, planning and body.
 do
   local p = fixture(
     "prepend.org",
@@ -261,12 +263,76 @@ do
 * Other
 ]=]
   )
+  local _, line = target.resolve({ kind = "file_headline", path = p, headline = "Inbox" }, {}, true)
+  assert(line == 3, "expected line 3 (after the body); got " .. line)
+
+  p = fixture(
+    "prepend2.org",
+    [=[* Inbox
+:PROPERTIES:
+:ID: abc
+:END:
+SCHEDULED: <2026-01-01 Thu>
+some body
+** Old child
+* Other
+]=]
+  )
+  _, line = target.resolve({ kind = "file_headline", path = p, headline = "Inbox" }, {}, true)
+  assert(line == 7, "expected line 7 (before ** Old child); got " .. line)
+  _, line = target.resolve({ kind = "file_olp", path = p, olp = { "Inbox" } }, {}, true)
+  assert(line == 7, "olp prepend: expected line 7; got " .. line)
+end
+
+-- 11b. Datetree spine goes in chronological position: before the first
+-- later sibling (org-datetree.el `org-datetree--find-create-subheading`).
+do
+  local p = fixture(
+    "journal_order.org",
+    [=[* 2025
+** 2025-12 December
+* 2026
+** 2026-03 March
+*** 2026-03-10 Tuesday
+**** old entry
+** 2026-05 May
+* 2027
+]=]
+  )
+  local now = os.time({ year = 2026, month = 1, day = 5, hour = 12, min = 0, sec = 0 })
+  local _, line, prelude = target.resolve(
+    { kind = "file_olp_datetree", path = p },
+    { now = now },
+    false
+  )
+  assert(#prelude == 2, "expected month+day spine; got " .. vim.inspect(prelude))
+  assert(line == 4, "expected line 4 (before ** 2026-03 March); got " .. line)
+
+  now = os.time({ year = 2026, month = 4, day = 1, hour = 12, min = 0, sec = 0 })
+  _, line = target.resolve({ kind = "file_olp_datetree", path = p }, { now = now }, false)
+  assert(line == 7, "expected line 7 (between March and May); got " .. line)
+
+  now = os.time({ year = 2026, month = 3, day = 2, hour = 12, min = 0, sec = 0 })
+  _, line, prelude = target.resolve({ kind = "file_olp_datetree", path = p }, { now = now }, false)
+  assert(#prelude == 1 and line == 5, "expected day before 2026-03-10 at line 5; got " .. line)
+
+  now = os.time({ year = 2024, month = 6, day = 1, hour = 12, min = 0, sec = 0 })
+  _, line, prelude = target.resolve({ kind = "file_olp_datetree", path = p }, { now = now }, false)
+  assert(#prelude == 3 and line == 1, "expected full spine before * 2025 at line 1; got " .. line)
+end
+
+-- 11c. Headline matching ignores a trailing tag block with non-ASCII tags.
+do
+  local p = fixture("tagged.org", "* Inbox :仕事:\n* Other\n")
   local path, line, prelude = target.resolve(
     { kind = "file_headline", path = p, headline = "Inbox" },
     {},
-    true
+    false
   )
-  assert(line == 2, "expected line 2 (after headline); got " .. line)
+  assert(
+    #prelude == 0 and line == 2,
+    "expected existing Inbox; got line " .. line .. " " .. vim.inspect(prelude)
+  )
 end
 
 -- 12. Custom datetree_format: { "%Y-%m-%d" } → flat (one level).

@@ -101,9 +101,7 @@ do
     if l:match("^%*+ .*Top thing") then
       found_top = true
     end
-    -- archive stripped the TODO keyword into ARCHIVE_TODO; unarchive
-    -- must restore it -- the round trip should NOT silently demote
-    -- `* TODO Top thing` to `* Top thing`.
+    -- The round trip keeps `* TODO Top thing` intact.
     if l:match("^%* TODO Top thing") then
       found_top_with_todo = true
     end

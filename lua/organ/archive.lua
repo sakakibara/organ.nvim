@@ -35,7 +35,7 @@ end
 -- Extract the trailing `:tag1:tag2:` tag block from a headline title,
 -- returning a list of tag strings (or empty list if no tag block).
 local function tags_from_title(title)
-  local tag_str = title and title:match("(:[%w_@#%%:]+:)%s*$")
+  local tag_str = title and title:match("(:[%w_@#%%\128-\255:]+:)%s*$")
   local tags = {}
   if not tag_str then
     return tags
@@ -62,7 +62,7 @@ local function parent_chain_and_tags(bufnr, headline)
       local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
       local stars, rest = txt:match("^(%*+)%s+(.-)%s*$")
       if stars and #stars == target_level then
-        local tag_str = rest:match("(:[%w_@#%%:]+:)%s*$")
+        local tag_str = rest:match("(:[%w_@#%%\128-\255:]+:)%s*$")
         -- Title without the tag block, for olpath display.
         local title = rest
         if tag_str then
@@ -306,13 +306,16 @@ local function read_file_lines(path)
   return vim.fn.readfile(path)
 end
 
--- Find (1-based) the line of the given top-level headline title in lines.
--- Returns nil if not found.
+-- Find (1-based) the line of the given top-level headline title in lines,
+-- ignoring a trailing tag block (Emacs matches the heading text followed
+-- by an optional `:tags:` group).  Returns nil if not found.
 local function find_top_headline(lines, title)
   for i, l in ipairs(lines) do
     local stars, t = l:match("^(%*+)%s+(.-)%s*$")
-    if stars and #stars == 1 and t == title then
-      return i
+    if stars and #stars == 1 then
+      if t == title or t:gsub("%s+:[%w_@#%%\128-\255:]+:$", "") == title then
+        return i
+      end
     end
   end
   return nil
@@ -327,7 +330,7 @@ local function relevel_lines(lines, src_level, dst_level)
   end
   local out = {}
   for _, l in ipairs(lines) do
-    local stars = l:match("^(%*+)")
+    local stars = l:match("^(%*+)%s")
     if stars then
       local new_level = math.max(1, #stars + delta)
       out[#out + 1] = string.rep("*", new_level) .. l:sub(#stars + 1)
@@ -390,14 +393,18 @@ local function inject_properties(lines, pairs_list)
     end
     return out
   else
-    -- No existing drawer: insert after line 1 (the headline).
-    local out = { lines[1] }
+    -- No existing drawer: it goes after the headline and its planning
+    -- lines.
+    local out = {}
+    for i = 1, scan - 1 do
+      out[#out + 1] = lines[i]
+    end
     out[#out + 1] = ":PROPERTIES:"
     for _, pl in ipairs(prop_lines) do
       out[#out + 1] = pl
     end
     out[#out + 1] = ":END:"
-    for i = 2, #lines do
+    for i = scan, #lines do
       out[#out + 1] = lines[i]
     end
     return out
@@ -464,6 +471,9 @@ local function splice_subtree(arc_lines, arc_hl_line, releveled)
       break
     end
   end
+  while insert_at - 1 > arc_hl_line and arc_lines[insert_at - 1]:match("^%s*$") do
+    insert_at = insert_at - 1
+  end
   local out = {}
   for i = 1, insert_at - 1 do
     out[#out + 1] = arc_lines[i]
@@ -475,6 +485,30 @@ local function splice_subtree(arc_lines, arc_hl_line, releveled)
     out[#out + 1] = arc_lines[i]
   end
   return out
+end
+
+-- Buffer contents after moving the subtree at hl_line..subtree_end
+-- (1-based, inclusive) to the end of the section of the level-1
+-- headline at `arc_hl_line`, or to the end of the buffer when nil.
+-- The insertion point is located after the subtree is cut, so a
+-- source that closes the archive section stays inside it.
+local function move_within_buffer(all, hl_line, subtree_end, arc_hl_line, releveled)
+  local kept = {}
+  for i, l in ipairs(all) do
+    if i < hl_line or i > subtree_end then
+      kept[#kept + 1] = l
+    end
+  end
+  if not arc_hl_line then
+    for _, l in ipairs(releveled) do
+      kept[#kept + 1] = l
+    end
+    return kept
+  end
+  if arc_hl_line > subtree_end then
+    arc_hl_line = arc_hl_line - (subtree_end - hl_line + 1)
+  end
+  return splice_subtree(kept, arc_hl_line, releveled)
 end
 
 -- Public API
@@ -529,11 +563,20 @@ function M.archive_subtree(opts)
 
   -- Extract TODO keyword from headline title for ARCHIVE_TODO.
   local todo_seq = require("organ.todo").all_keywords()
-  local todo_kw, bare_title = split_todo(hl.title_text, todo_seq)
+  local todo_kw = split_todo(hl.title_text, todo_seq)
 
-  -- 8. Open (or create) the archive file.
-  ensure_file(archive_path)
-  local arc_lines = read_file_lines(archive_path)
+  -- 8. Open (or create) the archive file.  An empty file part in the
+  -- location (`::* Archive`) archives within the source buffer itself.
+  local pathmod = require("organ.path")
+  local same_file = (pathmod.canonical(archive_path) or archive_path)
+    == (pathmod.canonical(src_path) or src_path)
+  local arc_lines
+  if same_file then
+    arc_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  else
+    ensure_file(archive_path)
+    arc_lines = read_file_lines(archive_path)
+  end
 
   -- 8a. Source-file header comment.  Emacs's `org-archive--add-
   --     comment` writes `# Archived entries from file <path>` once,
@@ -556,6 +599,9 @@ function M.archive_subtree(opts)
   local arc_hl_line, dst_level
   if archive_hl_title then
     arc_hl_line = find_top_headline(arc_lines, archive_hl_title)
+    if same_file and arc_hl_line and arc_hl_line >= hl.line and arc_hl_line <= subtree_end then
+      return "cannot archive the subtree containing the archive headline"
+    end
     if not arc_hl_line then
       arc_lines[#arc_lines + 1] = "* " .. archive_hl_title
       arc_hl_line = #arc_lines
@@ -591,30 +637,30 @@ function M.archive_subtree(opts)
     releveled = inject_properties(releveled, props)
   end
 
-  -- If there was a TODO keyword, strip it from the moved headline's first line
-  -- so it doesn't pollute archive agenda.
-  if todo_kw and add_meta then
-    local first = releveled[1]
-    -- Replace "* TODO <rest>" with "* <bare_title>" (bare_title already stripped)
-    local stars_part = first:match("^(%*+%s+)")
-    if stars_part then
-      releveled[1] = stars_part .. bare_title
+  if same_file then
+    local out = move_within_buffer(
+      arc_lines,
+      hl.line,
+      subtree_end,
+      archive_hl_title and arc_hl_line or nil,
+      releveled
+    )
+    obuf.set_lines(bufnr, 0, -1, out)
+  else
+    -- 10. Insert the releveled subtree after the archive headline's section.
+    local new_arc = splice_subtree(arc_lines, arc_hl_line, releveled)
+
+    -- 11. Write archive file (atomic — a crash mid-write would otherwise
+    -- corrupt the user's archive).
+    local ok, err =
+      require("organ.path").write_atomic(archive_path, table.concat(new_arc, "\n") .. "\n")
+    if not ok then
+      return "failed to write archive file: " .. tostring(err)
     end
+
+    -- 12. Delete original subtree from source buffer.
+    obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
   end
-
-  -- 10. Insert the releveled subtree after the archive headline's section.
-  local new_arc = splice_subtree(arc_lines, arc_hl_line, releveled)
-
-  -- 11. Write archive file (atomic — a crash mid-write would otherwise
-  -- corrupt the user's archive).
-  local ok, err =
-    require("organ.path").write_atomic(archive_path, table.concat(new_arc, "\n") .. "\n")
-  if not ok then
-    return "failed to write archive file: " .. tostring(err)
-  end
-
-  -- 12. Delete original subtree from source buffer.
-  obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
 
   -- 12a. Tidy the deletion site so leftover blank-line stragglers
   -- collapse to whatever pattern the surviving buffer uses.
@@ -667,13 +713,16 @@ function M.archive_to_sibling(opts)
 
   local olpath = parent_chain(bufnr, hl)
   local todo_seq = require("organ.todo").all_keywords()
-  local todo_kw, bare_title = split_todo(hl.title_text, todo_seq)
+  local todo_kw = split_todo(hl.title_text, todo_seq)
 
   -- Read entire buffer to operate in memory.
   local all = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
   -- Locate or create the top-level Archive headline.
   local arc_hl_line = find_top_headline(all, archive_hl_title)
+  if arc_hl_line and arc_hl_line >= hl.line and arc_hl_line <= subtree_end then
+    return "cannot archive the subtree containing the archive headline"
+  end
   if not arc_hl_line then
     -- Append at end with a leading blank-line separator.
     if all[#all] and all[#all] ~= "" then
@@ -725,68 +774,7 @@ function M.archive_to_sibling(opts)
     releveled = inject_properties(releveled, props)
   end
 
-  if todo_kw and add_meta then
-    local stars_part = releveled[1]:match("^(%*+%s+)")
-    if stars_part then
-      releveled[1] = stars_part .. bare_title
-    end
-  end
-
-  -- Insertion point: end of the Archive headline's section.
-  local insert_at = #all + 1
-  for i = arc_hl_line + 1, #all do
-    local stars = (all[i] or ""):match("^(%*+)%s")
-    if stars and #stars <= 1 then
-      insert_at = i
-      break
-    end
-  end
-
-  -- Compute updated buffer: subtree removed from source, appended into Archive.
-  local out = {}
-  -- The Archive headline may sit before or after the source subtree; build
-  -- the new buffer content respecting both cases.
-  local function append_archive_block(buf)
-    -- Archive block already in `all` past hl.line..subtree_end is preserved
-    -- because we walk `all` once below. This helper just emits the moved
-    -- subtree lines at the right spot.
-    for _, l in ipairs(releveled) do
-      buf[#buf + 1] = l
-    end
-  end
-
-  for i, ln in ipairs(all) do
-    -- Skip the source subtree.
-    if i >= hl.line and i <= subtree_end then
-      -- nothing
-    else
-      out[#out + 1] = ln
-      -- After the Archive headline's section ends, splice in the moved subtree.
-      if i + 1 == insert_at then
-        -- We're right before the line that would terminate the archive section
-        -- (a sibling/parent headline). Insert here.
-        if i >= arc_hl_line then -- only after we've already passed Archive
-          append_archive_block(out)
-        end
-      end
-    end
-  end
-  -- If insert_at points past EOF (Archive is last and no terminating headline),
-  -- the loop above never inserted; do it now.
-  local appended_in_loop = false
-  do
-    -- Detect via reverse search: is the moved subtree's first line in `out`?
-    for j = #out, 1, -1 do
-      if out[j] == releveled[1] then
-        appended_in_loop = true
-        break
-      end
-    end
-  end
-  if not appended_in_loop then
-    append_archive_block(out)
-  end
-
+  local out = move_within_buffer(all, hl.line, subtree_end, arc_hl_line, releveled)
   obuf.set_lines(bufnr, 0, -1, out)
 
   -- Tidy the cut site so leftover blank-line stragglers collapse to
@@ -935,7 +923,7 @@ local function find_parent_by_olpath(dest_bufnr, segments)
       if h.line >= search_start and h.line <= search_end and h.level == depth then
         -- Heading title from the cache may include tags-block;
         -- strip the trailing `:tag1:tag2:` block before comparing.
-        local title = (h.title or ""):gsub("(:[%w_@#%%:]+:)%s*$", ""):gsub("%s*$", "")
+        local title = (h.title or ""):gsub("(:[%w_@#%%\128-\255:]+:)%s*$", ""):gsub("%s*$", "")
         if title == seg then
           match = h
           break
@@ -1018,14 +1006,10 @@ function M.unarchive(opts)
 
   local cleaned = strip_archive_properties(subtree_lines)
 
-  -- Restore the TODO keyword that archive_subtree stripped off the
-  -- headline into ARCHIVE_TODO.  Without this the round trip loses
-  -- the state: `* DONE Foo` archives to `* Foo` + `:ARCHIVE_TODO:
-  -- DONE`, and unarchive would otherwise drop the keyword when it
-  -- strips the property.  Prepend it back onto the headline line.
+  -- ARCHIVE_TODO restores the keyword when the headline lost it.
   if props.archive_todo and props.archive_todo ~= "" then
     local stars, title = cleaned[1]:match("^(%*+%s+)(.*)$")
-    if stars then
+    if stars and not split_todo(title, require("organ.todo").all_keywords()) then
       cleaned[1] = stars .. props.archive_todo .. " " .. title
     end
   end

@@ -179,6 +179,116 @@ do
   assert(not found_level1, "* test at level 1 should NOT appear; lines: " .. vim.inspect(result))
 end
 
+local function base_ctx(extra)
+  local ctx = {
+    source_bufnr = 0,
+    source_win = vim.api.nvim_get_current_win(),
+    source_cursor = { 1, 0 },
+    source_file = "",
+    cword = "",
+    visual_text = "",
+    prompts = { text = {}, dates = {} },
+    now = os.time(),
+  }
+  for k, v in pairs(extra or {}) do
+    ctx[k] = v
+  end
+  return ctx
+end
+
+-- 5. `%?` on its own trailing line keeps that line: the cursor lands on
+-- the empty body line, not on the headline (Emacs: "* TODO\n\n", point
+-- on line 2).
+do
+  vim.fn.writefile({ "* Existing" }, target_path)
+  capture.start(
+    { name = "T", target = { kind = "file", path = target_path }, body = "* TODO\n%?" },
+    base_ctx()
+  )
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  assert(#lines == 2 and lines[1] == "* TODO" and lines[2] == "", "got " .. vim.inspect(lines))
+  local cur = vim.api.nvim_win_get_cursor(0)
+  assert(cur[1] == 2 and cur[2] == 0, "cursor should be on line 2; got " .. vim.inspect(cur))
+  vim.cmd("stopinsert")
+  pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+end
+
+-- 6. Re-leveling touches headlines only; emphasis at column zero stays.
+do
+  vim.fn.writefile({ "* Inbox" }, target_path)
+  capture.start({
+    name = "T",
+    target = { kind = "file_headline", path = target_path, headline = "Inbox" },
+    body = "* Task\n*bold* text at column zero\n**also bold**",
+  }, base_ctx())
+  local bufnr = vim.api.nvim_get_current_buf()
+  vim.cmd("stopinsert")
+  capture.finalise(bufnr)
+  local result = vim.fn.readfile(target_path)
+  assert(
+    result[2] == "** Task"
+      and result[3] == "*bold* text at column zero"
+      and result[4] == "**also bold**",
+    "got " .. vim.inspect(result)
+  )
+end
+
+-- 7. Asynchronous vim.ui.input (callback via vim.schedule): the capture
+-- buffer opens once the answer arrives instead of aborting.
+do
+  vim.fn.writefile({ "* Existing" }, target_path)
+  local original = vim.ui.input
+  vim.ui.input = function(_opts, cb)
+    vim.schedule(function()
+      cb("answer")
+    end)
+  end
+  local before = vim.api.nvim_get_current_buf()
+  capture.start(
+    { name = "T", target = { kind = "file", path = target_path }, body = "* %^{Title}" },
+    base_ctx()
+  )
+  assert(vim.api.nvim_get_current_buf() == before, "buffer must not open before the prompt answers")
+  vim.wait(500, function()
+    return vim.api.nvim_get_current_buf() ~= before
+  end)
+  vim.ui.input = original
+  local bufnr = vim.api.nvim_get_current_buf()
+  assert(
+    bufnr ~= before and vim.b[bufnr].organ_capture,
+    "capture buffer should open after the async answer"
+  )
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  assert(lines[1] == "* answer", "got " .. vim.inspect(lines))
+  vim.cmd("stopinsert")
+  pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+end
+
+-- 8. build_ctx visual text: multibyte charwise, linewise, and backward
+-- selections all yield the selected text.
+do
+  local b = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "日本語", "second" })
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.cmd("normal! vl")
+  local c = capture.build_ctx()
+  assert(c.visual_text == "日本", "charwise multibyte: " .. vim.inspect(c.visual_text))
+  vim.cmd("normal! \27")
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  vim.cmd("normal! Vj")
+  c = capture.build_ctx()
+  assert(c.visual_text == "日本語\nsecond", "linewise: " .. vim.inspect(c.visual_text))
+  vim.cmd("normal! \27")
+  vim.api.nvim_win_set_cursor(0, { 2, 3 })
+  vim.cmd("normal! vk")
+  c = capture.build_ctx()
+  assert(c.visual_text == "本語\nseco", "backward: " .. vim.inspect(c.visual_text))
+  vim.cmd("normal! \27")
+  pcall(vim.api.nvim_buf_delete, b, { force = true })
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("capture finalise ok\n")
 os.exit(0)

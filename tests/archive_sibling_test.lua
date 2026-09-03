@@ -41,7 +41,7 @@ do
   local joined = table.concat(lines, "\n")
   assert(joined:find("* Archive", 1, true), "Archive heading must exist:\n" .. joined)
   assert(
-    joined:find("** Item to archive", 1, true),
+    joined:find("** TODO Item to archive", 1, true),
     "moved subtree should be a level-2 child of Archive:\n" .. joined
   )
   assert(joined:find(":ARCHIVE_TIME:", 1, true), "ARCHIVE_TIME prop present")
@@ -74,8 +74,39 @@ do
     end
   end
   assert(n_archive == 1, "expected one '* Archive'; got " .. n_archive)
-  assert(joined:find("** Newest", 1, true), "Newest moved as level-2 child")
+  assert(joined:find("** TODO Newest", 1, true), "Newest moved as level-2 child")
   assert(joined:find("** Older", 1, true), "Older still under Archive")
+end
+
+-- An entry that closes the `* Archive` section stays under Archive
+-- (the insertion point is computed after the subtree is removed).
+do
+  local fixture = org_dir .. "/d.org"
+  local fh = assert(io.open(fixture, "w"))
+  fh:write("* Archive\n** Old\nold body\n* Other\nother body\n")
+  fh:close()
+  local b = vim.fn.bufadd(fixture)
+  vim.fn.bufload(b)
+  local err = archive.archive_to_sibling({ bufnr = b, line = 2 })
+  assert(err == nil, "archive failed: " .. tostring(err))
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  local joined = table.concat(lines, "\n")
+  assert(lines[1] == "* Archive" and lines[2] == "** Old", joined)
+  assert(lines[#lines - 1] == "* Other" and lines[#lines] == "other body", joined)
+end
+
+-- The TODO keyword stays on the moved headline.
+do
+  local fixture = org_dir .. "/e.org"
+  local fh = assert(io.open(fixture, "w"))
+  fh:write("* TODO Keep state\n* Archive\n")
+  fh:close()
+  local b = vim.fn.bufadd(fixture)
+  vim.fn.bufload(b)
+  local err = archive.archive_to_sibling({ bufnr = b, line = 1 })
+  assert(err == nil, "archive failed: " .. tostring(err))
+  local joined = table.concat(vim.api.nvim_buf_get_lines(b, 0, -1, false), "\n")
+  assert(joined:find("\n** TODO Keep state\n", 1, true), joined)
 end
 
 vim.fn.delete(tmp, "rf")

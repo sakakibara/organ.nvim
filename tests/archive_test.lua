@@ -82,33 +82,28 @@ do
 
   -- With Emacs default `location = "%s_archive::"` (no wrapper
   -- headline), the archived subtree appears at the archive file's
-  -- top level.  TODO keyword is stripped from the archived headline.
+  -- top level.  The headline keeps its TODO keyword
+  -- (`org-archive-mark-done` defaults to nil) and ARCHIVE_TODO
+  -- records it as well.
   local arc_lines = read_lines(arc_path)
-  local found_item, found_time = false, false
+  local found_item, found_time, found_todo = false, false, false
   for _, l in ipairs(arc_lines) do
-    if l:match("^%* Done item") then
+    if l == "* TODO Done item" then
       found_item = true
     end
     if l:match(":ARCHIVE_TIME:") then
       found_time = true
     end
+    if l:match("^:ARCHIVE_TODO: TODO$") then
+      found_todo = true
+    end
   end
   assert(
     found_item,
-    "test1: archive file missing '* Done item' (got: " .. table.concat(arc_lines, "|") .. ")"
+    "test1: archive file missing '* TODO Done item' (got: " .. table.concat(arc_lines, "|") .. ")"
   )
   assert(found_time, "test1: archive file missing :ARCHIVE_TIME: property")
-
-  -- The TODO keyword should NOT appear on the archived headline line itself.
-  for _, l in ipairs(arc_lines) do
-    if l:match("^%*%s") then
-      assert(
-        not l:match("^%* TODO"),
-        "test1: TODO keyword should be stripped from archived headline, got: " .. l
-      )
-      break
-    end
-  end
+  assert(found_todo, "test1: archive file missing :ARCHIVE_TODO: TODO")
 end
 
 -- ─── Test 2: Archive file already exists (append new item) ───────────────────
@@ -352,6 +347,146 @@ do
     found,
     "test7: FnPat item should be in custom archive path (got: " .. table.concat(lines, "|") .. ")"
   )
+end
+
+-- ─── Test 8: planning line stays first; injected drawer follows it ──────────
+-- Also: TODO keyword kept on the moved headline; column-zero emphasis
+-- is not re-leveled when the subtree is demoted under a wrapper.
+do
+  local src_path = tmp .. "/plan.org"
+  local arc_path = src_path .. "_archive"
+  pcall(vim.fn.delete, arc_path)
+  local b = load_buf("* TODO Task\nSCHEDULED: <2026-01-01 Thu>\nbody\n*bold* at col 0\n** Sub\n")
+  vim.api.nvim_buf_set_name(b, src_path)
+  vim.api.nvim_buf_call(b, function()
+    vim.cmd("silent! write!")
+  end)
+
+  local orig_cfg = require("organ").config.archive
+  require("organ").config.archive =
+    vim.tbl_extend("force", orig_cfg, { location = "%s_archive::* Archive" })
+  local err = archive.archive_subtree({ bufnr = b, line = 1 })
+  require("organ").config.archive = orig_cfg
+  assert(err == nil, "test8: archive error: " .. tostring(err))
+
+  local arc_lines = read_lines(arc_path)
+  local start
+  for i, l in ipairs(arc_lines) do
+    if l == "** TODO Task" then
+      start = i
+    end
+  end
+  assert(start, "test8: expected '** TODO Task' (got: " .. table.concat(arc_lines, "|") .. ")")
+  assert(
+    arc_lines[start + 1] == "SCHEDULED: <2026-01-01 Thu>",
+    "test8: planning line must directly follow the headline; got " .. tostring(arc_lines[start + 1])
+  )
+  assert(arc_lines[start + 2] == ":PROPERTIES:", "test8: drawer must follow the planning line")
+  local rest = table.concat(arc_lines, "\n", start)
+  assert(rest:find("\n*bold* at col 0\n", 1, true), "test8: emphasis line altered:\n" .. rest)
+  assert(rest:find("\n*** Sub", 1, true), "test8: child not demoted:\n" .. rest)
+end
+
+-- ─── Test 9: same-file location `::* Archive` ────────────────────────────────
+do
+  local b, src_path =
+    load_buf("#+ARCHIVE: ::* Archive\n* Keep\n* DONE Old task\nold body\n* Last\n")
+  vim.api.nvim_buf_call(b, function()
+    vim.cmd("silent! write!")
+  end)
+  local err, arc_path = archive.archive_subtree({ bufnr = b, line = 3 })
+  assert(err == nil, "test9: archive error: " .. tostring(err))
+  assert(
+    vim.fn.resolve(arc_path) == vim.fn.resolve(src_path),
+    "test9: archive path should be the source file; got " .. tostring(arc_path)
+  )
+  assert(not vim.bo[b].modified, "test9: buffer should be written")
+  local lines = read_lines(src_path)
+  local joined = table.concat(lines, "\n")
+  assert(
+    lines[1] == "#+ARCHIVE: ::* Archive" and lines[2] == "* Keep" and lines[3] == "* Last",
+    joined
+  )
+  assert(lines[4] == "* Archive" and lines[5] == "** DONE Old task", joined)
+  assert(lines[#lines] == "old body", joined)
+  assert(
+    not joined:find("\n* DONE Old task", 1, true),
+    "test9: original subtree still present:\n" .. joined
+  )
+  assert(table.concat(buf_lines(b), "\n") == joined, "test9: buffer and file differ")
+
+  -- A second archive into the same file reuses the wrapper.
+  err = archive.archive_subtree({ bufnr = b, line = 2 })
+  assert(err == nil, "test9b: archive error: " .. tostring(err))
+  lines = read_lines(src_path)
+  joined = table.concat(lines, "\n")
+  local wrappers = 0
+  for _, l in ipairs(lines) do
+    if l == "* Archive" then
+      wrappers = wrappers + 1
+    end
+  end
+  assert(wrappers == 1, "test9b: wrapper duplicated:\n" .. joined)
+  assert(lines[2] == "* Last" and lines[3] == "* Archive", joined)
+  assert(joined:find("\n** Keep\n", 1, true), "test9b: Keep not under Archive:\n" .. joined)
+end
+
+-- ─── Test 10: wrapper headline carrying tags is reused ───────────────────────
+-- Emacs matches the heading text followed by an optional tag block.
+-- The parent's non-ASCII tag is inherited into ARCHIVE_ITAGS.
+do
+  local src_path = tmp .. "/tagged.org"
+  local arc_path = src_path .. "_archive"
+  vim.fn.writefile({ "* Archive :ARCHIVE:", "** Earlier" }, arc_path)
+  local b = load_buf("* Parent :仕事:\n** DONE A\n** DONE B\n")
+  vim.api.nvim_buf_set_name(b, src_path)
+  vim.api.nvim_buf_call(b, function()
+    vim.cmd("silent! write!")
+  end)
+
+  local orig_cfg = require("organ").config.archive
+  require("organ").config.archive =
+    vim.tbl_extend("force", orig_cfg, { location = "%s_archive::* Archive" })
+  local err = archive.archive_subtree({ bufnr = b, line = 2 })
+  require("organ").config.archive = orig_cfg
+  assert(err == nil, "test10: archive error: " .. tostring(err))
+
+  local lines = read_lines(arc_path)
+  local joined = table.concat(lines, "\n")
+  assert(lines[1] == "* Archive :ARCHIVE:" and lines[2] == "** Earlier", joined)
+  for _, l in ipairs(lines) do
+    assert(l ~= "* Archive", "test10: duplicate wrapper created:\n" .. joined)
+  end
+  assert(lines[3] == "** DONE A", "test10: entry should follow Earlier:\n" .. joined)
+  assert(
+    joined:find(":ARCHIVE_ITAGS: 仕事", 1, true),
+    "test10: non-ASCII tag not inherited:\n" .. joined
+  )
+end
+
+-- ─── Test 11: location heading carrying tags matches an existing wrapper ─────
+do
+  local b, src_path =
+    load_buf("#+ARCHIVE: ::* Archive :tag:\n* Keep\n* DONE Old\n* Archive :tag:\n** Earlier\n")
+  vim.api.nvim_buf_call(b, function()
+    vim.cmd("silent! write!")
+  end)
+  local err = archive.archive_subtree({ bufnr = b, line = 3 })
+  assert(err == nil, "test11: archive error: " .. tostring(err))
+  local lines = read_lines(src_path)
+  local joined = table.concat(lines, "\n")
+  local wrappers = 0
+  for _, l in ipairs(lines) do
+    if l == "* Archive :tag:" then
+      wrappers = wrappers + 1
+    end
+  end
+  assert(wrappers == 1, "test11: wrapper duplicated:\n" .. joined)
+  assert(
+    lines[2] == "* Keep" and lines[3] == "* Archive :tag:" and lines[4] == "** Earlier",
+    joined
+  )
+  assert(lines[5] == "** DONE Old", "test11: entry should follow Earlier:\n" .. joined)
 end
 
 vim.fn.delete(tmp, "rf")

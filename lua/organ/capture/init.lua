@@ -237,10 +237,8 @@ function M.build_ctx()
   local visual_text = ""
   local mode = vim.fn.mode()
   if mode == "v" or mode == "V" or mode == "\22" then
-    local s = vim.fn.getpos("v")
-    local e = vim.fn.getpos(".")
-    local lines = vim.api.nvim_buf_get_text(bufnr, s[2] - 1, s[3] - 1, e[2] - 1, e[3], {})
-    visual_text = table.concat(lines, "\n")
+    local region = vim.fn.getregion(vim.fn.getpos("v"), vim.fn.getpos("."), { type = mode })
+    visual_text = table.concat(region, "\n")
   end
 
   return {
@@ -298,6 +296,8 @@ function M.open_prompt()
   end)
 end
 
+local place
+
 function M.start(template, ctx)
   local template_mod = require("organ.capture.template")
   local placeholder_mod = require("organ.capture.placeholder")
@@ -319,12 +319,18 @@ function M.start(template, ctx)
     body_str = t.body
   end
 
-  local ok = placeholder_mod.prompt_pass(body_str, ctx)
-  if not ok then
-    require("organ.notify").info("capture aborted")
-    return
-  end
+  placeholder_mod.prompt_pass(body_str, ctx, function(ok)
+    if not ok then
+      require("organ.notify").info("capture aborted")
+      return
+    end
+    place(template, t, body_str, ctx)
+  end)
+end
 
+place = function(template, t, body_str, ctx)
+  local template_mod = require("organ.capture.template")
+  local placeholder_mod = require("organ.capture.placeholder")
   local text, cursor_offset = placeholder_mod.expand(body_str, ctx)
 
   -- Compile hooks (Emacs `org-capture-after-finalize-hook` style;
@@ -342,8 +348,10 @@ function M.start(template, ctx)
     end
   end
 
+  -- A trailing empty line stays when %? sits on it (Emacs leaves point
+  -- there); otherwise it is the final newline, not a body line.
   local body_lines = vim.split(text, "\n", { plain = true })
-  if body_lines[#body_lines] == "" then
+  if body_lines[#body_lines] == "" and cursor_offset ~= #text then
     table.remove(body_lines)
   end
 
@@ -455,7 +463,7 @@ function M.finalise(bufnr)
   if extra then
     local releveled = {}
     for _, l in ipairs(lines) do
-      local stars, rest = l:match("^(%*+)(.*)")
+      local stars, rest = l:match("^(%*+)(%s.*)$")
       if stars then
         releveled[#releveled + 1] = string.rep("*", #stars + extra) .. rest
       else
@@ -567,19 +575,21 @@ function M.cancel(bufnr)
   if not meta then
     return
   end
-  if vim.bo[bufnr].modified then
-    local response
-    vim.ui.input({ prompt = "Discard captured text? [y/N] " }, function(v)
-      response = v
-    end)
-    if response == nil or (response ~= "y" and response ~= "Y") then
-      return
+  local function close()
+    pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    if meta.source_win and vim.api.nvim_win_is_valid(meta.source_win) then
+      vim.api.nvim_set_current_win(meta.source_win)
     end
   end
-  pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
-  if meta.source_win and vim.api.nvim_win_is_valid(meta.source_win) then
-    vim.api.nvim_set_current_win(meta.source_win)
+  if not vim.bo[bufnr].modified then
+    close()
+    return
   end
+  vim.ui.input({ prompt = "Discard captured text? [y/N] " }, function(v)
+    if v == "y" or v == "Y" then
+      close()
+    end
+  end)
 end
 
 local function complete_capture_keys(arg_lead)

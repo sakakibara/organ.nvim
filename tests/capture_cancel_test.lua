@@ -130,6 +130,25 @@ do
   pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
 end
 
+-- 6. Asynchronous confirmation (callback via vim.schedule) still closes on "y".
+do
+  local bufnr = start_template()
+  vim.bo[bufnr].modified = true
+  local original = vim.ui.input
+  vim.ui.input = function(_o, cb)
+    vim.schedule(function()
+      cb("y")
+    end)
+  end
+  capture.cancel(bufnr)
+  assert(vim.api.nvim_buf_is_valid(bufnr), "buffer stays open until the answer arrives")
+  vim.wait(500, function()
+    return not vim.api.nvim_buf_is_valid(bufnr)
+  end)
+  vim.ui.input = original
+  assert(not vim.api.nvim_buf_is_valid(bufnr), "buffer should be closed after async 'y'")
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("capture cancel ok\n")
 os.exit(0)

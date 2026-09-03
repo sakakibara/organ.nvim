@@ -70,11 +70,13 @@ do
   local tb = vim.fn.bufadd(tgt_path)
   vim.fn.bufload(tb)
   local tgt_after = read_lines(tb)
-  -- Target headline at level 1; Alpha refiled as ** Alpha (level 2).
+  -- Target headline at level 1; Alpha refiled as ** Alpha (level 2)
+  -- after Target's body.
   assert(tgt_after[1] == "* Target")
+  assert(tgt_after[2] == "  target body")
   assert(
-    tgt_after[2] == "** Alpha",
-    "expected '** Alpha' as first child, got '" .. (tgt_after[2] or "") .. "'"
+    tgt_after[3] == "** Alpha",
+    "expected '** Alpha' after the target body, got '" .. (tgt_after[3] or "") .. "'"
   )
   -- Alpha child shifts from ** to *** since delta = +1.
   local has_alpha_child = false
@@ -137,6 +139,82 @@ do
     tgt_lines[2] == "** Alpha",
     "walked-up refile placed Alpha; got '" .. (tgt_lines[2] or "") .. "'"
   )
+  vim.fn.delete(tmp, "rf")
+end
+
+-- Insert after the END of the target's subtree (Emacs `org-end-of-subtree`),
+-- not directly under the target headline; body lines starting with `*`
+-- (emphasis at column zero) are not re-leveled.
+do
+  local tmp = vim.fn.tempname()
+  vim.fn.mkdir(tmp, "p")
+  local src_path = tmp .. "/src.org"
+  local tgt_path = tmp .. "/tgt.org"
+  local fh = assert(io.open(src_path, "w"))
+  fh:write("* Alpha\nalpha body\n*bold* line at col 0\n* Beta\n")
+  fh:close()
+  fh = assert(io.open(tgt_path, "w"))
+  fh:write("* Target\n:PROPERTIES:\n:ID: t1\n:END:\ntarget body\n** Existing child\n* After\n")
+  fh:close()
+  local sb = vim.fn.bufadd(src_path)
+  vim.fn.bufload(sb)
+  local err = refile.move(sb, 1, tgt_path, 1)
+  assert(err == nil, "subtree-end err: " .. tostring(err))
+  local got = table.concat(vim.fn.readfile(tgt_path), "\n")
+  local want = table.concat({
+    "* Target",
+    ":PROPERTIES:",
+    ":ID: t1",
+    ":END:",
+    "target body",
+    "** Existing child",
+    "** Alpha",
+    "alpha body",
+    "*bold* line at col 0",
+    "* After",
+  }, "\n")
+  assert(got == want, "subtree-end placement:\n" .. got)
+  vim.fn.delete(tmp, "rf")
+end
+
+-- Same buffer: target after the source subtree lands after the target's
+-- subtree end with the removal offset applied.
+do
+  local tmp = vim.fn.tempname()
+  vim.fn.mkdir(tmp, "p")
+  local path = tmp .. "/same.org"
+  local fh = assert(io.open(path, "w"))
+  fh:write("* Alpha\nalpha body\n* Target\ntarget body\n** Child\n* After\n")
+  fh:close()
+  local b = vim.fn.bufadd(path)
+  vim.fn.bufload(b)
+  local err = refile.move(b, 1, path, 3)
+  assert(err == nil, "same-buffer err: " .. tostring(err))
+  local got = table.concat(vim.fn.readfile(path), "\n")
+  local want = "* Target\ntarget body\n** Child\n** Alpha\nalpha body\n* After"
+  assert(got == want, "same-buffer placement:\n" .. got)
+  vim.fn.delete(tmp, "rf")
+end
+
+-- Refusing a target inside the subtree being moved
+-- (org-refile.el "Cannot refile to position inside the tree or region").
+do
+  local tmp = vim.fn.tempname()
+  vim.fn.mkdir(tmp, "p")
+  local path = tmp .. "/self.org"
+  local text = "* Parent\nparent body\n** Child\nchild body\n* Other\nother body\n"
+  local fh = assert(io.open(path, "w"))
+  fh:write(text)
+  fh:close()
+  local b = vim.fn.bufadd(path)
+  vim.fn.bufload(b)
+  local err = refile.move(b, 1, path, 3)
+  assert(err and err:find("inside the tree"), "expected inside-tree error, got " .. tostring(err))
+  assert(
+    table.concat(vim.fn.readfile(path), "\n") .. "\n" == text,
+    "file must be untouched after a refused refile"
+  )
+  assert(not vim.bo[b].modified, "buffer must be untouched after a refused refile")
   vim.fn.delete(tmp, "rf")
 end
 

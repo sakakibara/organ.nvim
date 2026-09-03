@@ -62,7 +62,7 @@ end
 local function bare_title(raw, kws)
   local s = raw or ""
   -- Trailing tags `:foo:bar:`.
-  s = s:gsub("%s+:[%w_:@]+:%s*$", "")
+  s = s:gsub("%s+:[%w_@#%%\128-\255:]+:%s*$", "")
   -- Trailing stats cookies `[2/5]` / `[40%%]`.
   s = s:gsub("%s*%[[%d%%/]+%]%s*$", "")
   -- Leading TODO keyword.
@@ -122,6 +122,17 @@ local function section_bounds(hls, hl_idx, total_lines)
   return hl.line, end_line
 end
 
+-- Insertion line for `prepend`: the first child headline of `hl_idx`
+-- (org-capture.el `outline-next-heading`), or the section end `e`
+-- when it has none.
+local function first_child_line(hls, hl_idx, e)
+  local nxt = hls[hl_idx + 1]
+  if nxt and nxt.line < e then
+    return nxt.line
+  end
+  return e
+end
+
 -- Walk an outline path; returns the index in `hls` of the leaf, or nil.
 -- Comparison uses each headline's bare title (TODO / priority / tags
 -- stripped) so an olp like `{"Projects","Tasks"}` matches a real outline
@@ -159,8 +170,35 @@ local function find_headline(hls, title)
   return nil
 end
 
--- Datetree spine resolution.
-local function resolve_datetree(hls, parent_idx, now, datetree_format)
+-- Leading date numbers of a datetree headline ("2026-03 March" ->
+-- {2026, 3}); nil when the title does not start with one.
+local function datetree_key(title)
+  local key = {}
+  for n in (title:match("^[%d%-]+") or ""):gmatch("%d+") do
+    key[#key + 1] = tonumber(n)
+  end
+  if #key == 0 then
+    return nil
+  end
+  return key
+end
+
+local function key_cmp(a, b)
+  for i = 1, math.max(#a, #b) do
+    local x, y = a[i] or 0, b[i] or 0
+    if x ~= y then
+      return x - y
+    end
+  end
+  return 0
+end
+
+-- Datetree spine resolution (org-datetree.el
+-- `org-datetree--find-create-subheading`).  Returns the deepest
+-- existing spine headline index, the headlines still to create, and
+-- the line they go on: before the first sibling that sorts later, else
+-- at the end of the enclosing section.
+local function resolve_datetree(hls, parent_idx, now, datetree_format, total_lines)
   local fmts = datetree_format or DEFAULT_DATETREE
   local titles = {}
   for _, fmt in ipairs(fmts) do
@@ -170,19 +208,31 @@ local function resolve_datetree(hls, parent_idx, now, datetree_format)
 
   local current_idx = parent_idx
   local current_level = parent_level
-  local prelude = {}
   for level_offset, title in ipairs(titles) do
     local target_level = parent_level + level_offset
-    local found
+    local want = datetree_key(title)
+    local found, later
     local i = (current_idx and current_idx + 1) or 1
     while i <= #hls do
       local h = hls[i]
       if h.level <= current_level then
         break
       end
-      if h.level == target_level and h.title == title then
-        found = i
-        break
+      if h.level == target_level then
+        local have = datetree_key(h.title)
+        local c
+        if have and want then
+          c = key_cmp(have, want)
+        elseif h.title == title then
+          c = 0
+        end
+        if c == 0 then
+          found = i
+          break
+        elseif c and c > 0 then
+          later = i
+          break
+        end
       end
       i = i + 1
     end
@@ -190,13 +240,23 @@ local function resolve_datetree(hls, parent_idx, now, datetree_format)
       current_idx = found
       current_level = target_level
     else
+      local prelude = {}
       for k = level_offset, #titles do
         prelude[#prelude + 1] = string.rep("*", parent_level + k) .. " " .. titles[k]
       end
-      return current_idx, prelude
+      local insert_line
+      if later then
+        insert_line = hls[later].line
+      elseif current_idx then
+        local _, e = section_bounds(hls, current_idx, total_lines)
+        insert_line = e
+      else
+        insert_line = total_lines + 1
+      end
+      return current_idx, prelude, insert_line
     end
   end
-  return current_idx, prelude
+  return current_idx, {}, nil
 end
 
 function M.resolve(spec, ctx, prepend)
@@ -243,14 +303,14 @@ function M.resolve(spec, ctx, prepend)
       -- parent_level path in capture.finalise.
       return path, #lines + 1, { "* " .. spec.headline }, 1
     end
-    local s, e = section_bounds(hls, idx, #lines)
+    local _, e = section_bounds(hls, idx, #lines)
     -- Return the target's level as 4th value so capture.finalise
     -- can re-level the inserted entry to become a CHILD (level+1)
     -- instead of a sibling.  Mirrors Emacs's `entry`-type capture
     -- behavior; without it the captured `* TODO ...` lands at
     -- level 1 next to `* Inbox`, leaving a stray blank line and
     -- an awkward fold artifact.
-    return path, prepend and (s + 1) or e, {}, hls[idx].level
+    return path, prepend and first_child_line(hls, idx, e) or e, {}, hls[idx].level
   end
 
   if kind == "file_olp" then
@@ -258,8 +318,8 @@ function M.resolve(spec, ctx, prepend)
     if not idx then
       error("capture.target: olp not found: " .. table.concat(spec.olp, " / "))
     end
-    local s, e = section_bounds(hls, idx, #lines)
-    return path, prepend and (s + 1) or e, {}, hls[idx].level
+    local _, e = section_bounds(hls, idx, #lines)
+    return path, prepend and first_child_line(hls, idx, e) or e, {}, hls[idx].level
   end
 
   if kind == "file_olp_datetree" then
@@ -275,20 +335,14 @@ function M.resolve(spec, ctx, prepend)
     local cfg = (require("organ.buf_config").read(nil, "capture") or {}).datetree_format
     local fmts = cfg or DEFAULT_DATETREE
     local leaf_level = parent_level + #fmts
-    local leaf_idx, prelude = resolve_datetree(hls, parent_idx, (ctx or {}).now or os.time(), cfg)
+    local leaf_idx, prelude, insert_line =
+      resolve_datetree(hls, parent_idx, (ctx or {}).now or os.time(), cfg, #lines)
 
-    if leaf_idx and #prelude == 0 then
-      local s, e = section_bounds(hls, leaf_idx, #lines)
-      return path, prepend and (s + 1) or e, {}, leaf_level
+    if #prelude == 0 then
+      local _, e = section_bounds(hls, leaf_idx, #lines)
+      return path, prepend and first_child_line(hls, leaf_idx, e) or e, {}, leaf_level
     end
-
-    local anchor_idx = leaf_idx
-    if anchor_idx then
-      local _, e = section_bounds(hls, anchor_idx, #lines)
-      return path, e, prelude, leaf_level
-    else
-      return path, #lines + 1, prelude, leaf_level
-    end
+    return path, insert_line, prelude, leaf_level
   end
 
   error("capture.target: unknown kind: " .. tostring(kind))

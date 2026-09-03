@@ -167,56 +167,52 @@ function M.move(src_bufnr, src_line, target_file, target_line)
     vim.fn.bufload(target_bufnr)
   end
   local tlines = vim.api.nvim_buf_get_lines(target_bufnr, 0, -1, false)
-  local target_stars = tlines[target_line] and tlines[target_line]:match("^(%*+)")
+  local target_stars = tlines[target_line] and tlines[target_line]:match("^(%*+)%s")
   if not target_stars then
     return "target line is not a headline"
   end
   local target_level = #target_stars
 
+  if target_bufnr == src_bufnr and target_line >= hl_line and target_line < end_line then
+    return "Cannot refile to position inside the tree or region"
+  end
+
+  -- Destination: end of the target's subtree (org-refile.el
+  -- `org-end-of-subtree`), so the moved subtree follows the target's
+  -- drawer, planning, body and existing children.
+  local target_end = #tlines + 1
+  for i = target_line + 1, #tlines do
+    local hl = tlines[i]:match("^(%*+)%s")
+    if hl and #hl <= target_level then
+      target_end = i
+      break
+    end
+  end
+
   -- Re-indent: top headline becomes target_level + 1; nested shift by delta.
   local delta = (target_level + 1) - src_level
   for i, ln in ipairs(subtree) do
-    local s = ln:match("^(%*+)")
+    local s = ln:match("^(%*+)%s")
     if s then
       subtree[i] = string.rep("*", #s + delta) .. ln:sub(#s + 1)
     end
   end
 
-  -- Apply mutations. Same-buffer case adjusts the insertion offset.
-  if target_bufnr == src_bufnr then
-    if target_line >= end_line then
-      local removed = end_line - hl_line
-      obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
-      obuf.set_lines(src_bufnr, target_line - removed, target_line - removed, subtree)
-    else
-      obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
-      obuf.set_lines(src_bufnr, target_line, target_line, subtree)
-    end
-  else
-    obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
-    obuf.set_lines(target_bufnr, target_line, target_line, subtree)
+  -- Remove first; a same-buffer destination past the cut shifts up by
+  -- the removed line count.
+  local insert_at = target_end - 1
+  if target_bufnr == src_bufnr and target_end > hl_line then
+    insert_at = insert_at - (end_line - hl_line)
   end
+  obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
+  obuf.set_lines(target_bufnr, insert_at, insert_at, subtree)
+  local dest_hl = insert_at + 1
 
   -- LOGBOOK refile note. Recorded BEFORE the save so the entry persists.
   local cfg = (require("organ.buf_config").read(nil, "todo") or {})
   local policy = cfg.log_refile
   if policy == "time" or policy == "note" then
-    -- The moved subtree's new headline is at:
-    --   same buffer + target_line + 1, when target_line >= end_line was the
-    --     case (subtree was removed first); offset is target_line - removed.
-    --   same buffer + target_line + 1 otherwise.
-    --   different buffer + target_line + 1.
-    local new_hl
-    if target_bufnr == src_bufnr then
-      if target_line >= end_line then
-        new_hl = (target_line - (end_line - hl_line)) + 1
-      else
-        new_hl = target_line + 1
-      end
-    else
-      new_hl = target_line + 1
-    end
-    require("organ.logbook").write_planning_change(target_bufnr, new_hl, policy, "Refiled", nil)
+    require("organ.logbook").write_planning_change(target_bufnr, dest_hl, policy, "Refiled", nil)
   end
 
   -- Tidy spacing at the cut site (source) and around the new
@@ -226,16 +222,6 @@ function M.move(src_bufnr, src_line, target_file, target_line)
   pcall(function()
     local spacing = require("organ.spacing")
     spacing.normalize_at_cut(src_bufnr, hl_line)
-    local dest_hl
-    if target_bufnr == src_bufnr then
-      if target_line >= end_line then
-        dest_hl = (target_line - (end_line - hl_line)) + 1
-      else
-        dest_hl = target_line + 1
-      end
-    else
-      dest_hl = target_line + 1
-    end
     spacing.normalize_around(target_bufnr, dest_hl)
   end)
 
