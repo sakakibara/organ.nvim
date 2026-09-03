@@ -152,6 +152,77 @@ function M.parse_org_table(buf_lines, lnum)
   return rows, s, e
 end
 
+-- Alternatives of Emacs `org-table-number-regexp`, which is matched with
+-- `case-fold-search` on, so cells are lowercased before matching.
+local NUMBER_PATTERNS = {
+  "^[<>]?[-+^.0-9]*[0-9][-+^.0-9eEdDx()%%:]*$",
+  "^[<>]?[-+]?0x[%x.]+$",
+  "^[<>]?[-+]?[0-9]+#[%w.]+$",
+  "^nan$",
+  "^[-+u]?inf$",
+}
+
+local NUMBER_FRACTION = 0.5
+
+local function is_number(cell)
+  local s = cell:lower()
+  for _, pat in ipairs(NUMBER_PATTERNS) do
+    if s:match(pat) then
+      return true
+    end
+  end
+  return false
+end
+
+-- Emacs matches `\`<\([lrc]\)[0-9]*>\'` case-insensitively and keeps the
+-- matched letter verbatim, but `org-table--align-field` only branches on
+-- lowercase "l"/"r"/"c" -- so `<R>` fixes the column yet pads it left.
+local function alignment_marker(cell)
+  return cell:match("^<([lrcLRC])%d*>$")
+end
+M.alignment_marker = alignment_marker
+
+local function align_field(field, width, align)
+  local spaces = width - vim.fn.strdisplaywidth(field)
+  local prefix = ""
+  if align == "r" then
+    prefix = string.rep(" ", spaces)
+  elseif align == "c" then
+    prefix = string.rep(" ", math.floor(spaces / 2))
+  end
+  return " " .. prefix .. field .. string.rep(" ", spaces - #prefix) .. " "
+end
+
+-- Column widths and alignments per Emacs `org-table-align`: each column
+-- takes the first `<l>`/`<r>`/`<c>` marker found scanning rows in order,
+-- else right-aligns when at least `org-table-number-fraction` of its
+-- non-empty cells look numeric.
+local function measure(rows, ncols)
+  local widths, alignments = {}, {}
+  for c = 1, ncols do
+    local width, fixed, numbers, non_empty = 1, nil, 0, 0
+    for _, r in ipairs(rows) do
+      local cell = r[c] or ""
+      local w = vim.fn.strdisplaywidth(cell)
+      if w > width then
+        width = w
+      end
+      if not fixed and cell ~= "" then
+        fixed = alignment_marker(cell)
+        if not fixed then
+          non_empty = non_empty + 1
+          if is_number(cell) then
+            numbers = numbers + 1
+          end
+        end
+      end
+    end
+    widths[c] = width
+    alignments[c] = fixed or (numbers >= NUMBER_FRACTION * non_empty and "r" or "l")
+  end
+  return widths, alignments
+end
+
 -- Render rows as an aligned org table (single divider after the header).
 function M.render_org_table(rows)
   if #rows == 0 then
@@ -163,24 +234,11 @@ function M.render_org_table(rows)
       ncols = #r
     end
   end
-  local widths = {}
-  for c = 1, ncols do
-    widths[c] = 0
-  end
-  for _, r in ipairs(rows) do
-    for c = 1, ncols do
-      local cell = r[c] or ""
-      local w = vim.fn.strdisplaywidth(cell)
-      if w > widths[c] then
-        widths[c] = w
-      end
-    end
-  end
+  local widths, alignments = measure(rows, ncols)
   local function row(cells)
     local parts = {}
     for c = 1, ncols do
-      local cell = cells[c] or ""
-      parts[c] = " " .. cell .. string.rep(" ", widths[c] - vim.fn.strdisplaywidth(cell)) .. " "
+      parts[c] = align_field(cells[c] or "", widths[c], alignments[c])
     end
     return "|" .. table.concat(parts, "|") .. "|"
   end

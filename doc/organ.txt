@@ -1917,6 +1917,10 @@ Tables                                                      *organ-cmd-tables*
      Arithmetic         `+`, `-`, `*`, `/`
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
 
+    A column formula skips any cell holding an alignment marker
+    (`<l>`, `<r>`, `<c>`, optionally with a width digit and in either
+    case), wherever in the table that cell sits.
+
     All table operations can also be invoked via the menu at
     `<LocalLeader>|`. See |organ-keymaps-org|.
 
@@ -2852,6 +2856,11 @@ Spreadsheet formula engine ~
     `vsum/vmean/vmax/vmin/vlen`.
     Why: Practical 80%; full Calc rarely needed in Neovim workflows.
 
+Column formulas over alignment markers ~
+    Emacs: Overwrites an `<l>` / `<r>` / `<c>` cell with the result.
+    organ.nvim: Leaves the marker cell alone.
+    Why: Recalculating shouldn't silently drop a column's alignment.
+
 Agenda multi-view dispatcher ~
     Emacs: Always shows dispatcher.
     organ.nvim: Shows `vim.ui.select` only when `agenda.views` is
@@ -3423,7 +3432,12 @@ TABLE EXTRAS                                            *organ-cmd-tables-ext*
 
 *:Org-table_import*
     `:Org table import <path>`
-    Insert table read from a CSV/TSV file at cursor.
+    Insert table read from a CSV/TSV file at cursor.  The inserted
+    table is aligned the way Emacs `org-table-align` aligns one, so
+    `:Org format` leaves it untouched: a column right-aligns when at
+    least half its non-empty cells look numeric, an `<l>` / `<r>` /
+    `<c>` marker cell fixes its column's alignment instead, and the
+    rule row crosses columns with `+`.
 
 *:Org-table_export*
     `:Org table export <path>`

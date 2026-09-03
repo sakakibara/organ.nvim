@@ -44,8 +44,8 @@ do
   vim.api.nvim_win_set_cursor(0, { 3, 3 }) -- in body
   tab.eval_formulas(b)
   local lines = get_lines(b)
-  assert(lines[3]:find("| 6"), "row 3 total = 6: " .. lines[3])
-  assert(lines[4]:find("| 15"), "row 4 total = 15: " .. lines[4])
+  assert_eq(lines[3], "| apple |   3 |     2 |     6 |", "row 3:")
+  assert_eq(lines[4], "| pear  |   5 |     3 |    15 |", "row 4:")
 end
 
 -- Cell formula: @N counts data rows only, so the hline on line 2 is
@@ -257,6 +257,42 @@ do
   local lines = get_lines(b)
   assert(lines[1]:find("| 5"), "$3 = 5: " .. lines[1])
   assert(lines[1]:find("| 10"), "$4 = 10: " .. lines[1])
+end
+
+-- Alignment markers are read the way Emacs reads them: the regexp
+-- `<[lrc][0-9]*>` matched case-insensitively, in any row.  A column
+-- formula leaves such a cell alone instead of overwriting the
+-- column's alignment.
+do
+  local b = mk_buf({
+    "| a    | b    |",
+    "|------+------|",
+    "| <R>  | <c9> |",
+    "| 3    |      |",
+    "#+TBLFM: $2=$1*2",
+  })
+  vim.api.nvim_win_set_cursor(0, { 4, 3 })
+  tab.eval_formulas(b)
+  local lines = get_lines(b)
+  assert_eq(cells(lines[3])[2], "<c9>", "uppercase / digit markers survive:")
+  assert_eq(cells(lines[4])[2], "6", "body row still computed:")
+end
+
+-- A marker may sit in a row that also holds data; only the marker cell
+-- is protected.
+do
+  local b = mk_buf({
+    "| a   | b |",
+    "|-----+---|",
+    "| <r> | 4 |",
+    "| 3   | 5 |",
+    "#+TBLFM: $1=$2*2",
+  })
+  vim.api.nvim_win_set_cursor(0, { 4, 3 })
+  tab.eval_formulas(b)
+  local lines = get_lines(b)
+  assert_eq(cells(lines[3])[1], "<r>", "marker cell in a data row survives:")
+  assert_eq(cells(lines[4])[1], "10", "sibling row still computed:")
 end
 
 io.write("table formula integration ok\n")

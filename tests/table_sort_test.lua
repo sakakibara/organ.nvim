@@ -35,7 +35,7 @@ do
   local lines = get_lines(b)
   -- Header row 1 + sep row 2 preserved.
   assert(lines[1]:find("name"), "header preserved: " .. lines[1])
-  assert(lines[2]:match("^|%-+|%-+|$"), "sep preserved: " .. lines[2])
+  assert(lines[2]:match("^|%-+%+%-+|$"), "sep preserved: " .. lines[2])
   -- Body sorted.
   assert(lines[3]:find("alice"), "row 3: " .. lines[3])
   assert(lines[4]:find("bob"))
@@ -94,10 +94,10 @@ do
   local lines = get_lines(b)
   assert_eq(#lines, 6)
   assert(lines[1]:find("name"), "header: " .. lines[1])
-  assert(lines[2]:match("^|%-+|%-+|$"), "first hline: " .. lines[2])
+  assert(lines[2]:match("^|%-+%+%-+|$"), "first hline: " .. lines[2])
   assert(lines[3]:find("| a"), "row 3: " .. lines[3])
   assert(lines[4]:find("| b"), "row 4: " .. lines[4])
-  assert(lines[5]:match("^|%-+|%-+|$"), "second hline: " .. lines[5])
+  assert(lines[5]:match("^|%-+%+%-+|$"), "second hline: " .. lines[5])
   assert(lines[6]:find("total"), "footer: " .. lines[6])
 end
 

@@ -35,7 +35,7 @@ do
   local lines = get_lines(b)
   assert_eq(lines[1], "before")
   assert_eq(lines[2], "| name  | age |")
-  assert_eq(lines[3], "| alice | 30  |")
+  assert_eq(lines[3], "| alice |  30 |")
   assert_eq(lines[4], "after")
 end
 

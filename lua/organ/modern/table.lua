@@ -78,16 +78,17 @@ local function is_rule_row(line)
   return is_table_line(line) and line:match("^%s*[|+%-]+%s*$") ~= nil
 end
 
--- An alignment row contains `<l>`/`<r>`/`<c>` cells and nothing
--- else.  Org-specific (Emacs `org-table-align`).  Each cell is
--- 3 chars between pipes.
+-- An alignment row holds only alignment markers, in the form
+-- `org-table-align` recognises: `<l>` / `<r>` / `<c>` in either case,
+-- with an optional width digit run.
 local function is_alignment_row(line)
   if not is_table_line(line) or is_rule_row(line) then
     return false
   end
+  local marker = require("organ.table_io").alignment_marker
   for cell in line:gmatch("|([^|]*)") do
     local trimmed = cell:gsub("^%s+", ""):gsub("%s+$", "")
-    if trimmed ~= "" and trimmed ~= "<l>" and trimmed ~= "<r>" and trimmed ~= "<c>" then
+    if trimmed ~= "" and not marker(trimmed) then
       return false
     end
   end
@@ -158,12 +159,13 @@ local function decorate_row(bufnr, row, line, p, edges)
       end
     end
   elseif is_alignment_row(line) then
-    -- Conceal `<l>`/`<r>`/`<c>` markers with arrows.  Each marker
-    -- is 3 bytes; collapse to a single visual char.
-    for pos, marker in line:gmatch("()(<[lrc]>)") do
-      local arrow = (marker == "<l>") and "←" or (marker == "<r>") and "→" or "·"
+    -- Collapse each marker to one visual char.  A width digit run is
+    -- part of the marker, so the span is measured, not assumed to be 3.
+    for pos, marker in line:gmatch("()(<[lrcLRC]%d*>)") do
+      local letter = marker:sub(2, 2):lower()
+      local arrow = (letter == "l") and "←" or (letter == "r") and "→" or "·"
       pcall(vim.api.nvim_buf_set_extmark, bufnr, NS, row, pos - 1, {
-        end_col = pos - 1 + 3,
+        end_col = pos - 1 + #marker,
         conceal = arrow,
         hl_group = "@org.table.delimiter",
       })

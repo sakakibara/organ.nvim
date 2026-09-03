@@ -12,7 +12,8 @@ local function assert_eq(a, b, msg)
   end
 end
 
--- Mixed-width cells pad to the longest.
+-- Mixed-width cells pad to the longest.  Column 2 right-aligns: half
+-- its non-empty cells are numbers.
 do
   local rows = {
     { cells = { "name", "age" }, sep = false },
@@ -20,7 +21,7 @@ do
   }
   local out = tab._align(rows, "")
   assert_eq(out[1], "| name  | age |")
-  assert_eq(out[2], "| alice | 30  |")
+  assert_eq(out[2], "| alice |  30 |")
 end
 
 -- Separator row matches column widths (count of dashes = width + 2).
@@ -32,7 +33,7 @@ do
   }
   local out = tab._align(rows, "")
   -- "alice" width 5 → 7 dashes; "age" width 3 → 5 dashes
-  assert_eq(out[2], "|-------|-----|", "separator dashes match widths +2")
+  assert_eq(out[2], "|-------+-----|", "separator dashes match widths +2")
 end
 
 -- Empty cells render as ' ' padded to column width.

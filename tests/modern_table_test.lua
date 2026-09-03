@@ -89,6 +89,23 @@ with_buf({
   check("alignment row: · present", (arrows["·"] or 0) >= 1)
 end)
 
+-- An uppercase marker and a width digit run are markers too, in the form
+-- `org-table-align` recognises.
+with_buf({
+  "| col1 | col2  | col3 |",
+  "| <R>  | <c12> | <L>  |",
+}, function(b)
+  local arrows = {}
+  for _, m in ipairs(marks(b)) do
+    if m[4] and m[4].conceal and m[4].conceal:match("[←→·]") then
+      arrows[m[4].conceal] = (arrows[m[4].conceal] or 0) + 1
+    end
+  end
+  check("uppercase <R> concealed", (arrows["→"] or 0) >= 1, vim.inspect(arrows))
+  check("width-digit <c12> concealed", (arrows["·"] or 0) >= 1, vim.inspect(arrows))
+  check("uppercase <L> concealed", (arrows["←"] or 0) >= 1, vim.inspect(arrows))
+end)
+
 -- Top + bottom virtual borders: 2 virt_lines extmarks per table.
 with_buf({
   "| a | b |",

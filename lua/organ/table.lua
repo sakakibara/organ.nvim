@@ -10,21 +10,7 @@ local tab = require("tablature")
 
 local ORG = { dialect = "org" }
 
-local function is_alignment_row(row)
-  if row.sep then
-    return false
-  end
-  local has_marker = false
-  for _, c in ipairs(row.cells) do
-    if c == "" then -- ok
-    elseif c == "<l>" or c == "<r>" or c == "<c>" then
-      has_marker = true
-    else
-      return false
-    end
-  end
-  return has_marker
-end
+local is_alignment_marker = require("organ.table_io").alignment_marker
 
 -- Thin pass-through wrappers so organ's command layer can keep calling
 -- M.realign / M.tab / etc. without depending on the tablature module
@@ -151,7 +137,7 @@ function M._cursor_to_cell(line_text, col_0_based)
   return #positions - 1
 end
 
--- Org-specific: TBLFM evaluation. is_alignment_row defined above.
+-- Org-specific: TBLFM evaluation.
 
 function M.find_tblfm(bufnr, table_range)
   local total = vim.api.nvim_buf_line_count(bufnr)
@@ -235,7 +221,7 @@ function M.eval_formulas(bufnr)
   for _, fm in ipairs(formulas) do
     if fm.kind == "col_formula" then
       for r = first_body, #data_rows do
-        if not is_alignment_row(data_rows[r]) then
+        if not is_alignment_marker(data_rows[r].cells[fm.col] or "") then
           set_cell(data_rows[r], fm.col, evaluate(fm.expr, r, fm.col))
         end
       end
