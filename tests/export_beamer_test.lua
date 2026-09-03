@@ -62,5 +62,31 @@ assert(
 assert_contains(body, "\\begin{frame}{Slide}")
 assert_contains(body, "\\end{frame}")
 
+-- Nested headlines become blocks, and every block is closed.
+do
+  local out2 = beamer.export(
+    { "* Frame", "** Block A", "text a", "** Block B", "text b" },
+    { body_only = true }
+  )
+  local _, opens = out2:gsub("\\begin{block}", "")
+  local _, closes = out2:gsub("\\end{block}", "")
+  assert(opens == 2 and closes == 2, "expected 2 open/close block pairs in:\n" .. out2)
+  assert(
+    out2:find("\\begin{block}{Block A}\ntext a\n\n\\end{block}", 1, true),
+    "block A closes before block B opens:\n" .. out2
+  )
+end
+
+-- Footnote bodies come from this document, not from an earlier LaTeX
+-- export in the same process.
+do
+  local src = "* Slide\nA claim[fn:1] here.\n\n[fn:1] the body\n"
+  local first = beamer.export(src)
+  assert_contains(first, "A claim\\footnote{the body} here.", "fresh beamer export")
+  require("organ.export.latex").export(src)
+  local second = beamer.export(src)
+  assert_contains(second, "A claim\\footnote{the body} here.", "beamer export after latex")
+end
+
 io.write("export beamer ok\n")
 os.exit(0)

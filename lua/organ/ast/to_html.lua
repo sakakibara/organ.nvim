@@ -6,6 +6,10 @@
 -- client-side MathJax build can typeset them; the loader script is
 -- emitted only when the document uses math (or the caller forces it).
 
+local A = require("organ.ast")
+local links = require("organ.ast.links")
+local ENTITIES = require("organ.ast.org_entities")
+
 local M = {}
 
 local DEFAULT_STYLE = [[
@@ -31,26 +35,64 @@ local function html_escape(s)
   return s
 end
 
--- Keep non-ASCII bytes (so a Japanese/accented phrase yields a distinct,
--- non-empty id instead of collapsing to ""); hex-fallback if still empty.
-local function slug(phrase)
-  local s = (phrase or ""):lower():gsub("[%s%p]+", "-"):gsub("^%-+", ""):gsub("%-+$", "")
-  if s == "" then
-    s = "r-"
-      .. (phrase or ""):gsub(".", function(c)
-        return string.format("%02x", string.byte(c))
-      end)
-  end
-  return s
-end
+local slug = links.slug
 
 -- Module-local flag flipped on whenever a math region is encountered.
 -- M.render checks this when assembling the document head so MathJax
 -- loads only when needed. Reset at the start of every render call.
 local _math_used = false
 
+-- Per-render link destinations and footnotes numbered by first reference.
+local _index
+local _fn = { numbers = {}, order = {} }
+
 local emit_inline
 local emit_block
+
+local function footnote_number(n)
+  local key = n.label or n
+  local num = _fn.numbers[key]
+  if not num then
+    num = #_fn.order + 1
+    _fn.numbers[key] = num
+    _fn.order[num] = { label = n.label, content = n.content }
+  elseif n.content and not _fn.order[num].content then
+    _fn.order[num].content = n.content
+  end
+  return num
+end
+
+-- ox-html keeps non-numeric labels in ids; numeric labels are replaced
+-- by the footnote number.
+local function footnote_id(label, num)
+  if label and not label:match("^%d+$") then
+    return label
+  end
+  return tostring(num)
+end
+
+local function render_link(n)
+  local desc = (n.description and #n.description > 0) and emit_inline(n.description) or nil
+  local r = links.resolve(n.target, _index, ".html")
+  if r.kind == "headline" then
+    return '<a href="#'
+      .. html_escape(r.anchor)
+      .. '">'
+      .. (desc or emit_inline(r.node.title))
+      .. "</a>"
+  elseif r.kind == "target" then
+    return '<a href="#'
+      .. html_escape(r.anchor)
+      .. '">'
+      .. (desc or html_escape(n.target))
+      .. "</a>"
+  elseif r.kind == "unresolved" then
+    return "<i>" .. (desc or html_escape(n.target)) .. "</i>"
+  end
+  local url = r.kind == "file" and (r.path .. (r.fragment and ("#" .. r.fragment) or "")) or r.url
+  local href = html_escape(url)
+  return '<a href="' .. href .. '">' .. (desc or href) .. "</a>"
+end
 
 function emit_inline(nodes)
   if not nodes or #nodes == 0 then
@@ -90,20 +132,16 @@ function emit_inline(nodes)
           .. emit_inline(n.description)
           .. "</a>"
       else
-        local target = html_escape(n.target or "")
-        if n.description and #n.description > 0 then
-          out[#out + 1] = '<a href="' .. target .. '">' .. emit_inline(n.description) .. "</a>"
-        else
-          out[#out + 1] = '<a href="' .. target .. '">' .. target .. "</a>"
-        end
+        out[#out + 1] = render_link(n)
       end
     elseif n.kind == "image" then
       local target = html_escape(n.target or "")
       local alt_src = n.alt and n.alt ~= "" and n.alt or (n.target or "")
       out[#out + 1] = '<img src="' .. target .. '" alt="' .. html_escape(alt_src) .. '">'
     elseif n.kind == "footnote_ref" then
-      local label = html_escape(n.label or "")
-      out[#out + 1] = '<sup><a href="#fn-' .. label .. '">[' .. label .. "]</a></sup>"
+      local num = footnote_number(n)
+      local id = html_escape(footnote_id(n.label, num))
+      out[#out + 1] = '<sup><a href="#fn-' .. id .. '">[' .. num .. "]</a></sup>"
     elseif n.kind == "math" then
       _math_used = true
       if n.display then
@@ -113,6 +151,24 @@ function emit_inline(nodes)
       end
     elseif n.kind == "linebreak" then
       out[#out + 1] = "<br>"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "<sub>" .. emit_inline(n.content) .. "</sub>"
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "<sup>" .. emit_inline(n.content) .. "</sup>"
+    elseif n.kind == "entity" then
+      local e = ENTITIES[n.name or ""]
+      out[#out + 1] = e and e.html or html_escape("\\" .. (n.name or ""))
+    elseif n.kind == "statistics_cookie" then
+      out[#out + 1] = "<code>" .. html_escape(n.value) .. "</code>"
+    elseif n.kind == "timestamp" then
+      out[#out + 1] = '<span class="timestamp-wrapper"><span class="timestamp">'
+        .. html_escape(n.value)
+        .. "</span></span>"
+    elseif n.kind == "target" then
+      out[#out + 1] = '<a id="' .. html_escape(links.target_anchor(n.name)) .. '"></a>'
+    elseif n.kind == "macro" then
+      local args = (n.args and #n.args > 0) and ("(" .. table.concat(n.args, ",") .. ")") or ""
+      out[#out + 1] = html_escape("{{{" .. (n.name or "") .. args .. "}}}")
     elseif n.kind == "raw_inline" then
       out[#out + 1] = html_escape(n.text or "")
     end
@@ -128,7 +184,8 @@ end
 local function emit_headline(node, out)
   local level = math.min(6, math.max(1, node.level or 1))
   local title = emit_inline(node.title or {})
-  out[#out + 1] = "<h" .. level .. ">" .. title .. "</h" .. level .. ">"
+  local id = html_escape(links.headline_anchor(node))
+  out[#out + 1] = "<h" .. level .. ' id="' .. id .. '">' .. title .. "</h" .. level .. ">"
   for _, c in ipairs(node.children or {}) do
     emit_block(c, out)
   end
@@ -150,27 +207,23 @@ local function emit_list(node, out)
     elseif item.checkbox == "part" then
       checkbox = '<input type="checkbox" disabled> '
     end
-    -- Compose the <li> content: first paragraph inline + any nested
-    -- lists + any continuation paragraphs.
+    -- Compose the <li> content: first paragraph inline, then every
+    -- further block rendered on its own.
     local pieces = {}
     local first_para_done = false
     for _, b in ipairs(item.content or {}) do
-      if b.kind == "paragraph" then
-        if not first_para_done then
-          pieces[#pieces + 1] = checkbox .. emit_inline(b.inline)
-          first_para_done = true
-        else
-          pieces[#pieces + 1] = emit_inline(b.inline)
-        end
-      elseif b.kind == "list" then
+      if b.kind == "paragraph" and not first_para_done then
+        pieces[#pieces + 1] = checkbox .. emit_inline(b.inline)
+        first_para_done = true
+      else
         local sub_out = {}
-        emit_list(b, sub_out)
+        emit_block(b, sub_out)
         pieces[#pieces + 1] = table.concat(sub_out, "\n")
       end
     end
     if not first_para_done and checkbox ~= "" then
       -- Edge case: item has no paragraph but has a checkbox.
-      pieces[#pieces + 1] = checkbox
+      table.insert(pieces, 1, checkbox)
     end
     out[#out + 1] = "<li>" .. table.concat(pieces, "\n") .. "</li>"
   end
@@ -276,27 +329,19 @@ local function emit_rule(_, out)
   out[#out + 1] = "<hr>"
 end
 
-local function emit_footnote_definition(node, out)
-  local label = node.label or ""
-  local label_esc = html_escape(label)
+local function emit_footnote_definition(id, num, content, out)
+  local id_esc = html_escape(id)
   local first_body = ""
-  if node.content and node.content[1] and node.content[1].kind == "paragraph" then
-    first_body = emit_inline(node.content[1].inline)
+  if content[1] and content[1].kind == "paragraph" then
+    first_body = emit_inline(content[1].inline)
   end
   local pieces = {
-    '<div class="footdef" id="fn-'
-      .. label_esc
-      .. '"><sup>['
-      .. label_esc
-      .. "]</sup> "
-      .. first_body,
+    '<div class="footdef" id="fn-' .. id_esc .. '"><sup>[' .. num .. "]</sup> " .. first_body,
   }
-  if node.content and #node.content > 1 then
-    for i = 2, #node.content do
-      local b = node.content[i]
-      if b.kind == "paragraph" then
-        pieces[#pieces + 1] = "<p>" .. emit_inline(b.inline) .. "</p>"
-      end
+  for i = 2, #content do
+    local b = content[i]
+    if b.kind == "paragraph" then
+      pieces[#pieces + 1] = "<p>" .. emit_inline(b.inline) .. "</p>"
     end
   end
   pieces[#pieces + 1] = "</div>"
@@ -328,10 +373,9 @@ function emit_block(node, out)
     emit_image_block(node, out)
   elseif kind == "rule" then
     emit_rule(node, out)
-  elseif kind == "footnote_definition" then
-    emit_footnote_definition(node, out)
   end
-  -- directive, drawer, comment, and unknown kinds drop silently.
+  -- footnote_definition renders in the footnotes section; directive,
+  -- drawer, comment, and unknown kinds drop silently.
 end
 
 local function find_title(doc)
@@ -345,23 +389,44 @@ local function find_title(doc)
   end
   for _, c in ipairs(doc.children) do
     if c.kind == "headline" then
-      return emit_inline(c.title or {})
+      return links.plain_text(c.title)
     end
   end
   return nil
 end
 
+-- Number footnotes by first reference and collect block definitions,
+-- in document order.
+local function prepare(doc)
+  _index = links.index(doc)
+  _fn = { numbers = {}, order = {} }
+  local defs = {}
+  A.walk(doc, function(n)
+    if n.kind == "footnote_ref" then
+      footnote_number(n)
+    elseif n.kind == "footnote_definition" then
+      defs[n.label or ""] = defs[n.label or ""] or n.content
+    end
+  end)
+  return defs
+end
+
 function M.render(doc, opts)
   opts = opts or {}
   _math_used = false
+  local defs = prepare(doc)
 
-  -- Title resolution may set _math_used if it falls back to a headline
-  -- whose title contains math; do it before assembling the head.
   local title = find_title(doc) or "Untitled"
 
   local body = {}
   for _, c in ipairs(doc.children or {}) do
     emit_block(c, body)
+  end
+  for num, entry in ipairs(_fn.order) do
+    local content = entry.content and { A.paragraph(entry.content) } or defs[entry.label or ""]
+    if content then
+      emit_footnote_definition(footnote_id(entry.label, num), num, content, body)
+    end
   end
 
   local style_block = opts.minimal_style == false and "" or "<style>" .. DEFAULT_STYLE .. "</style>"

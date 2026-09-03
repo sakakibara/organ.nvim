@@ -589,6 +589,46 @@ do
   check("paragraph rendered", out:find("body", 1, true) ~= nil)
 end
 
+-- Inline kinds: subscript, superscript, entity, cookie, timestamp, target, macro
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("H"),
+      A.subscript({ A.text("2") }),
+      A.text("O "),
+      A.entity("copy"),
+      A.text(" "),
+      A.entity("alpha"),
+      A.text(" "),
+      A.statistics_cookie("[2/3]"),
+      A.text(" "),
+      A.statistics_cookie("[50%]"),
+      A.text(" "),
+      A.timestamp("<2026-09-10 Thu>", "active"),
+      A.text(" "),
+      A.target("anchor"),
+      A.text(" "),
+      A.macro("title", {}),
+      A.text(" x"),
+      A.superscript({ A.text("2") }),
+      A.text(" "),
+      A.entity("nosuchentity"),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("texinfo subscript -> @math{_x}", out:find("H@math{_2}O", 1, true) ~= nil, "got: " .. out)
+  check("texinfo superscript -> @math{^x}", out:find("x@math{^2}", 1, true) ~= nil)
+  check(
+    "texinfo entity -> texinfo command or utf8",
+    out:find("@copyright{} \206\177", 1, true) ~= nil
+  )
+  check("texinfo cookie verbatim", out:find("[2/3] [50%]", 1, true) ~= nil)
+  check("texinfo timestamp -> @emph", out:find("@emph{<2026-09-10 Thu>}", 1, true) ~= nil)
+  check("texinfo target -> @anchor", out:find("@anchor{anchor}", 1, true) ~= nil)
+  check("texinfo macro kept as escaped text", out:find("@{@{@{title@}@}@}", 1, true) ~= nil)
+  check("texinfo unknown entity kept as text", out:find("\\nosuchentity", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

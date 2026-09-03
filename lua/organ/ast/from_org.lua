@@ -32,6 +32,63 @@ local function heading_level(node, src)
   return #(line:match("^(%*+)%s") or "")
 end
 
+-- org-element-normalize-contents for an item paragraph: drop the common
+-- indentation of its lines (the first line is ignored when the node
+-- starts mid-line, i.e. right after the bullet).
+local TAB_WIDTH = 8
+
+local function advance_col(col, ch)
+  if ch == "\t" then
+    return col + TAB_WIDTH - col % TAB_WIDTH
+  end
+  return col + 1
+end
+
+local function indent_cols(l)
+  local col = 0
+  for ch in l:match("^[ \t]*"):gmatch(".") do
+    col = advance_col(col, ch)
+  end
+  return col
+end
+
+-- Drop `min` columns of leading whitespace; a tab straddling the cut is
+-- expanded to spaces, whitespace-only lines become empty.
+local function strip_cols(l, min)
+  local ws = l:match("^[ \t]*")
+  if #ws == #l then
+    return ""
+  end
+  local col, i = 0, 1
+  while i <= #ws and col < min do
+    col = advance_col(col, ws:sub(i, i))
+    i = i + 1
+  end
+  return string.rep(" ", col - min) .. l:sub(i)
+end
+
+local function normalize_indent(text, first_line_indented)
+  local lines = vim.split(text, "\n", { plain = true })
+  local min
+  for i, l in ipairs(lines) do
+    if (i > 1 or first_line_indented) and l:match("%S") then
+      local n = indent_cols(l)
+      if not min or n < min then
+        min = n
+      end
+    end
+  end
+  if not min or min == 0 then
+    return text
+  end
+  for i, l in ipairs(lines) do
+    if i > 1 or first_line_indented then
+      lines[i] = strip_cols(l, min)
+    end
+  end
+  return table.concat(lines, "\n")
+end
+
 local function block_body(node, src)
   local sr, _, er = node:range()
   local lines = {}
@@ -68,13 +125,10 @@ local function clean_title(line, todo_keywords)
   -- Strip TODO keyword.
   local todo
   for _, kw in ipairs(todo_keywords or {}) do
-    if kw ~= "|" then
-      local pat = "^" .. kw .. "(%s+)"
-      if line:match(pat) then
-        todo = kw
-        line = line:gsub(pat, "")
-        break
-      end
+    if kw ~= "|" and line:sub(1, #kw) == kw and line:sub(#kw + 1):match("^%s+") then
+      todo = kw
+      line = line:sub(#kw + 1):gsub("^%s+", "")
+      break
     end
   end
   -- Strip priority cookie.
@@ -87,15 +141,15 @@ local function clean_title(line, todo_keywords)
   if line:match("^COMMENT%s+") then
     line = line:gsub("^COMMENT%s+", "")
   end
-  -- Strip trailing tags `:a:b:`.
-  local tags_str = line:match("%s+(:[%w_:@]+:)%s*$")
+  -- Strip trailing tags `:a:b:` (org-tag-re: alnum, _, @, #, %).
+  local tags_str = line:match("%s+(:[%w_@#%%\128-\255:]+:)%s*$")
   local tags
   if tags_str then
     tags = {}
-    for t in tags_str:gmatch(":([%w_@]+)") do
+    for t in tags_str:gmatch(":([%w_@#%%\128-\255]+)") do
       tags[#tags + 1] = t
     end
-    line = line:gsub("%s+:[%w_:@]+:%s*$", "")
+    line = line:gsub("%s+:[%w_@#%%\128-\255:]+:%s*$", "")
   end
   return line, todo, priority, tags
 end
@@ -153,11 +207,20 @@ do
 
     local node_to_inline
 
+    -- The newline after `\\` belongs to the line break (org-element
+    -- ends the object at the next line start), not to the text after it.
     local function map_children(node)
       local out = {}
       for c in node:iter_children() do
         if c:named() then
-          out[#out + 1] = node_to_inline(c)
+          local n = node_to_inline(c)
+          local prev = out[#out]
+          if prev and prev.kind == "linebreak" and n.kind == "text" then
+            n.text = n.text:gsub("^\n", "")
+          end
+          if not (n.kind == "text" and n.text == "") then
+            out[#out + 1] = n
+          end
         end
       end
       return out
@@ -298,9 +361,10 @@ local function parse_table(node, src)
   return { kind = "table", alignments = alignments, rows = rows }
 end
 
--- Scan the whole buffer for #+TODO directives so headline TODO
--- keywords (extended sequences) parse correctly.  Mirrors the same
--- helper in export/markdown.lua etc.
+-- Scan the whole buffer for #+TODO / #+SEQ_TODO / #+TYP_TODO lines so
+-- headline TODO keywords (extended sequences) parse correctly.  Every
+-- line accumulates and replaces the built-in default; fast-access
+-- annotations such as `TODO(t)` are stripped.
 local function scan_keywords(src)
   local kws = {
     "TODO",
@@ -315,12 +379,21 @@ local function scan_keywords(src)
     "CANCELED",
     "CLOSED",
   }
+  local from_file = false
   for _, line in ipairs(src) do
     local seq = line:match("^%s*#%+[Tt][Oo][Dd][Oo]:%s*(.+)$")
+      or line:match("^%s*#%+[Ss][Ee][Qq]_[Tt][Oo][Dd][Oo]:%s*(.+)$")
+      or line:match("^%s*#%+[Tt][Yy][Pp]_[Tt][Oo][Dd][Oo]:%s*(.+)$")
     if seq then
-      kws = {}
+      if not from_file then
+        kws = {}
+        from_file = true
+      end
       for word in seq:gmatch("(%S+)") do
-        kws[#kws + 1] = word
+        local bare = word:gsub("%(.-%)$", "")
+        if bare ~= "" then
+          kws[#kws + 1] = bare
+        end
       end
     end
   end
@@ -630,7 +703,9 @@ emit_section_child = function(node, src)
           elseif it == "item_tag" then
             tag = parse_inline(get_text(ic, src):gsub("%s+$", ""))
           elseif it == "paragraph" then
-            content[#content + 1] = A.paragraph(parse_inline(get_text(ic, src):gsub("\n+$", "")))
+            local _, col = ic:start()
+            local text = normalize_indent(get_text(ic, src):gsub("\n+$", ""), col == 0)
+            content[#content + 1] = A.paragraph(parse_inline(text))
           else
             local block = emit_section_child(ic, src)
             if block then

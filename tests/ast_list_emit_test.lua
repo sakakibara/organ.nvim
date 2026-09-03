@@ -68,4 +68,33 @@ check(
   "fallback unordered marker"
 )
 
+-- Continuation blocks: a blank line before a second paragraph, every
+-- block kind rendered at the item's content column.
+do
+  local out = emit(A.list_item({
+    marker = "-",
+    content = {
+      A.paragraph({ A.text("first para") }),
+      A.paragraph({ A.text("second para") }),
+    },
+  }))
+  check(
+    out:find("- first para\n\n  second para\n", 1, true) ~= nil,
+    "continuation paragraph after blank line"
+  )
+  local out2 = emit(A.list_item({
+    marker = "1.",
+    content = {
+      A.paragraph({ A.text("intro") }),
+      A.code_block("lua", "print(1)"),
+      A.list(false, { A.list_item({ marker = "-", content = para("nested") }) }),
+    },
+  }))
+  check(
+    out2:find("1. intro\n   #+begin_src lua\n   print(1)\n   #+end_src\n   - nested\n", 1, true)
+      ~= nil,
+    "code block and sublist at the content column"
+  )
+end
+
 print("ALL PASS: ast_list_emit")

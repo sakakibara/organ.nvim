@@ -27,6 +27,8 @@ local function emit_frame_children(headline, out)
     if c.kind == "headline" then
       out[#out + 1] = "\\begin{block}{" .. to_latex._emit_inline(c.title or {}) .. "}"
       emit_frame_children(c, out)
+      out[#out + 1] = "\\end{block}"
+      out[#out + 1] = ""
     else
       to_latex._emit_block(c, out)
     end
@@ -102,6 +104,7 @@ function M.export(src, opts)
     error("export.beamer: AST validation failed: " .. err)
   end
   ast = require("organ.ast.radio").resolve(ast)
+  to_latex._prepare(ast)
 
   local kw = collect_keywords(ast)
 

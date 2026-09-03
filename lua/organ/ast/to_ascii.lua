@@ -5,6 +5,8 @@
 -- shown as `text (url)`, inline images/footnote_refs dropped, math
 -- rendered as raw body text.
 
+local ENTITIES = require("organ.ast.org_entities")
+
 local M = {}
 
 local emit_inline
@@ -39,10 +41,22 @@ function emit_inline(nodes)
       out[#out + 1] = n.body or ""
     elseif n.kind == "linebreak" then
       out[#out + 1] = "\n"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "_" .. emit_inline(n.content)
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "^" .. emit_inline(n.content)
+    elseif n.kind == "entity" then
+      local e = ENTITIES[n.name or ""]
+      out[#out + 1] = e and e.ascii or ("\\" .. (n.name or ""))
+    elseif n.kind == "statistics_cookie" or n.kind == "timestamp" then
+      out[#out + 1] = n.value or ""
+    elseif n.kind == "macro" then
+      local args = (n.args and #n.args > 0) and ("(" .. table.concat(n.args, ",") .. ")") or ""
+      out[#out + 1] = "{{{" .. (n.name or "") .. args .. "}}}"
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""
     end
-    -- image / footnote_ref intentionally drop (no ascii syntax)
+    -- image / footnote_ref / target intentionally drop (no ascii syntax)
   end
   local s = table.concat(out)
   local ok, cite = pcall(require, "organ.cite")

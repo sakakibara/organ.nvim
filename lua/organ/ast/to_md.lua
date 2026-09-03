@@ -3,12 +3,86 @@
 -- Companion to from_org.lua.  Renders every AST kind that from_org
 -- emits, with GFM extensions (tables, strikethrough, task-list
 -- checkboxes) plus pandoc-style math ($...$ / $$...$$) and footnotes
--- ([^label] / [^label]: body).
+-- ([^n] / [^n]: body).  Inline kinds without a markdown form take
+-- their HTML form, as ox-md does.
+
+local A = require("organ.ast")
+local links = require("organ.ast.links")
+local ENTITIES = require("organ.ast.org_entities")
 
 local M = {}
 
 local emit_inline
 local emit_block
+
+local function html_escape(s)
+  if not s then
+    return ""
+  end
+  s = s:gsub("&", "&amp;")
+  s = s:gsub("<", "&lt;")
+  s = s:gsub(">", "&gt;")
+  s = s:gsub('"', "&quot;")
+  return s
+end
+
+-- org-md-plain-text
+local function escape_text(s)
+  if not s or s == "" then
+    return ""
+  end
+  s = s:gsub("[`*_\\]", "\\%0")
+  s = s:gsub("\n#", "\n\\#")
+  s = s:gsub("!%[", "\\![")
+  return s
+end
+
+local function raw_text(nodes, out)
+  for _, c in ipairs(nodes or {}) do
+    if c.kind == "text" or c.kind == "raw_inline" then
+      out[#out + 1] = c.text or ""
+    elseif c.content then
+      raw_text(c.content, out)
+    end
+  end
+  return out
+end
+
+-- Per-render state: link destinations, headlines that are linked to,
+-- and footnotes numbered by first reference.
+local _index
+local _referred = {}
+local _fn = { numbers = {}, order = {} }
+
+local function footnote_number(n)
+  local key = n.label or n
+  local num = _fn.numbers[key]
+  if not num then
+    num = #_fn.order + 1
+    _fn.numbers[key] = num
+    _fn.order[num] = { label = n.label, content = n.content }
+  elseif n.content and not _fn.order[num].content then
+    _fn.order[num].content = n.content
+  end
+  return num
+end
+
+local function render_link(n)
+  local desc = (n.description and #n.description > 0) and emit_inline(n.description) or nil
+  local r = links.resolve(n.target, _index, ".md")
+  if r.kind == "headline" then
+    return "[" .. (desc or emit_inline(r.node.title)) .. "](#" .. r.anchor .. ")"
+  elseif r.kind == "target" then
+    return "[" .. (desc or escape_text(n.target)) .. "](#" .. r.anchor .. ")"
+  elseif r.kind == "unresolved" then
+    return desc or escape_text(n.target)
+  end
+  local url = r.kind == "file" and (r.path .. (r.fragment and ("#" .. r.fragment) or "")) or r.url
+  if desc then
+    return "[" .. desc .. "](" .. url .. ")"
+  end
+  return "[" .. url .. "](" .. url .. ")"
+end
 
 function emit_inline(nodes)
   if not nodes or #nodes == 0 then
@@ -17,42 +91,39 @@ function emit_inline(nodes)
   local out = {}
   for _, n in ipairs(nodes) do
     if n.kind == "text" then
-      out[#out + 1] = n.text or ""
+      out[#out + 1] = escape_text(n.text)
     elseif n.kind == "emphasis" then
-      local inner = emit_inline(n.content)
       local s = n.style
-      if s == "bold" then
-        out[#out + 1] = "**" .. inner .. "**"
-      elseif s == "italic" then
-        out[#out + 1] = "*" .. inner .. "*"
-      elseif s == "underline" then
-        out[#out + 1] = "<u>" .. inner .. "</u>"
-      elseif s == "strike" then
-        out[#out + 1] = "~~" .. inner .. "~~"
-      elseif s == "verbatim" or s == "code" then
-        out[#out + 1] = "`" .. inner .. "`"
+      if s == "verbatim" or s == "code" then
+        out[#out + 1] = "`" .. table.concat(raw_text(n.content, {})) .. "`"
       else
-        out[#out + 1] = inner
+        local inner = emit_inline(n.content)
+        if s == "bold" then
+          out[#out + 1] = "**" .. inner .. "**"
+        elseif s == "italic" then
+          out[#out + 1] = "*" .. inner .. "*"
+        elseif s == "underline" then
+          out[#out + 1] = "<u>" .. inner .. "</u>"
+        elseif s == "strike" then
+          out[#out + 1] = "~~" .. inner .. "~~"
+        else
+          out[#out + 1] = inner
+        end
       end
     elseif n.kind == "radio_target" then
-      out[#out + 1] = n.phrase or ""
+      out[#out + 1] = escape_text(n.phrase)
     elseif n.kind == "link" then
       if n.form == "radio" then
         out[#out + 1] = emit_inline(n.description)
       else
-        local target = n.target or ""
-        if n.description and #n.description > 0 then
-          out[#out + 1] = "[" .. emit_inline(n.description) .. "](" .. target .. ")"
-        else
-          out[#out + 1] = "[" .. target .. "](" .. target .. ")"
-        end
+        out[#out + 1] = render_link(n)
       end
     elseif n.kind == "image" then
       local target = n.target or ""
       local alt = n.alt and n.alt ~= "" and n.alt or target
       out[#out + 1] = "![" .. alt .. "](" .. target .. ")"
     elseif n.kind == "footnote_ref" then
-      out[#out + 1] = "[^" .. (n.label or "") .. "]"
+      out[#out + 1] = "[^" .. footnote_number(n) .. "]"
     elseif n.kind == "math" then
       if n.display then
         out[#out + 1] = "$$" .. (n.body or "") .. "$$"
@@ -61,6 +132,24 @@ function emit_inline(nodes)
       end
     elseif n.kind == "linebreak" then
       out[#out + 1] = "  \n"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "<sub>" .. emit_inline(n.content) .. "</sub>"
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "<sup>" .. emit_inline(n.content) .. "</sup>"
+    elseif n.kind == "entity" then
+      local e = ENTITIES[n.name or ""]
+      out[#out + 1] = e and e.html or escape_text("\\" .. (n.name or ""))
+    elseif n.kind == "statistics_cookie" then
+      out[#out + 1] = "<code>" .. html_escape(n.value) .. "</code>"
+    elseif n.kind == "timestamp" then
+      out[#out + 1] = '<span class="timestamp-wrapper"><span class="timestamp">'
+        .. html_escape(n.value)
+        .. "</span></span>"
+    elseif n.kind == "target" then
+      out[#out + 1] = '<a id="' .. links.target_anchor(n.name) .. '"></a>'
+    elseif n.kind == "macro" then
+      local args = (n.args and #n.args > 0) and ("(" .. table.concat(n.args, ",") .. ")") or ""
+      out[#out + 1] = escape_text("{{{" .. (n.name or "") .. args .. "}}}")
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""
     end
@@ -75,19 +164,42 @@ end
 
 local function emit_headline(node, out)
   local level = math.min(6, math.max(1, node.level or 1))
-  local title = emit_inline(node.title or {})
-  out[#out + 1] = string.rep("#", level) .. " " .. title
+  local anchor = links.headline_anchor(node)
+  if _referred[anchor] then
+    out[#out + 1] = '<a id="' .. anchor .. '"></a>'
+    out[#out + 1] = ""
+  end
+  out[#out + 1] = string.rep("#", level) .. " " .. emit_inline(node.title or {})
   out[#out + 1] = ""
+end
+
+-- org-md-paragraph: a paragraph-leading `#` is protected.
+local function paragraph_text(node)
+  local txt = emit_inline(node.inline or {})
+  local first = node.inline and node.inline[1]
+  if first and first.kind == "text" and (first.text or ""):sub(1, 1) == "#" then
+    txt = "\\" .. txt
+  end
+  return txt
 end
 
 local function emit_paragraph(node, out)
-  out[#out + 1] = emit_inline(node.inline or {})
+  out[#out + 1] = paragraph_text(node)
   out[#out + 1] = ""
 end
 
-local function emit_list(node, out, depth)
-  depth = depth or 0
-  local indent = string.rep("  ", depth)
+-- Append `lines` (each may hold embedded newlines) to `out`, prefixing
+-- every non-blank line with `prefix`.
+local function indent_into(lines, prefix, out)
+  for _, l in ipairs(lines) do
+    for piece in (l .. "\n"):gmatch("([^\n]*)\n") do
+      out[#out + 1] = piece == "" and "" or (prefix .. piece)
+    end
+  end
+end
+
+local function emit_list(node, out, indent)
+  indent = indent or ""
   local n = 1
   for _, item in ipairs(node.items or {}) do
     local marker = node.ordered and (n .. ".") or "-"
@@ -99,26 +211,45 @@ local function emit_list(node, out, depth)
     elseif item.checkbox == "part" then
       checkbox = "[ ] "
     end
-    -- The list_item's content is a list of blocks; render the first
-    -- paragraph on the marker line, then recurse for nested lists +
-    -- continuation paragraphs.
+    local content_indent = indent .. string.rep(" ", #marker + 1)
     local first = true
-    for _, b in ipairs(item.content or {}) do
-      if b.kind == "paragraph" then
-        local txt = emit_inline(b.inline)
-        if first then
-          out[#out + 1] = indent .. marker .. " " .. checkbox .. txt
-          first = false
-        else
-          out[#out + 1] = indent .. "  " .. txt
-        end
-      elseif b.kind == "list" then
-        emit_list(b, out, depth + 1)
+    local function open_item(txt)
+      local head, rest = (txt or ""):match("^([^\n]*)\n?(.*)$")
+      out[#out + 1] = (indent .. marker .. " " .. checkbox .. head):gsub("%s+$", "")
+      if rest ~= "" then
+        indent_into({ rest }, content_indent, out)
       end
+      first = false
+    end
+    for _, b in ipairs(item.content or {}) do
+      if b.kind == "paragraph" and first then
+        open_item(paragraph_text(b))
+      elseif b.kind == "list" then
+        if first then
+          open_item()
+        end
+        emit_list(b, out, content_indent)
+      else
+        if first then
+          open_item()
+        end
+        out[#out + 1] = ""
+        local sub = {}
+        emit_block(b, sub)
+        while #sub > 0 and sub[#sub] == "" do
+          sub[#sub] = nil
+        end
+        indent_into(sub, content_indent, out)
+      end
+    end
+    if first then
+      open_item()
     end
     n = n + 1
   end
-  out[#out + 1] = ""
+  if indent == "" then
+    out[#out + 1] = ""
+  end
 end
 
 local function emit_code_block(node, out)
@@ -173,6 +304,8 @@ local function emit_org_block(node, out)
   -- export and unknown styles drop silently.
 end
 
+local ALIGN_CELL = { l = "---", r = "---:", c = ":---:" }
+
 local function emit_table(node, out)
   local rows = node.rows or {}
   local ncols = 0
@@ -187,25 +320,24 @@ local function emit_table(node, out)
     return
   end
 
-  local seen_divider = false
+  -- GFM needs exactly one delimiter row, right after the header row;
+  -- org separator rows carry no other information here.
+  local header_done = false
   for _, row in ipairs(rows) do
-    if row.sep then
-      if not seen_divider then
-        -- Emit the markdown divider after the first row we've seen.
-        local cells = {}
-        for _ = 1, ncols do
-          cells[#cells + 1] = "---"
-        end
-        out[#out + 1] = "| " .. table.concat(cells, " | ") .. " |"
-        seen_divider = true
-      end
-      -- Subsequent dividers are dropped (GFM allows only one).
-    else
+    if not row.sep then
       local cells = {}
       for i = 1, ncols do
         cells[i] = emit_inline(row.cells[i] or {})
       end
       out[#out + 1] = "| " .. table.concat(cells, " | ") .. " |"
+      if not header_done then
+        local delims = {}
+        for i = 1, ncols do
+          delims[i] = ALIGN_CELL[(node.alignments or {})[i]] or "---"
+        end
+        out[#out + 1] = "| " .. table.concat(delims, " | ") .. " |"
+        header_done = true
+      end
     end
   end
   out[#out + 1] = ""
@@ -223,18 +355,16 @@ local function emit_rule(_, out)
   out[#out + 1] = ""
 end
 
-local function emit_footnote_definition(node, out)
+local function emit_footnote_definition(label, content, out)
   local first_body = ""
-  if node.content and node.content[1] and node.content[1].kind == "paragraph" then
-    first_body = emit_inline(node.content[1].inline)
+  if content[1] and content[1].kind == "paragraph" then
+    first_body = emit_inline(content[1].inline)
   end
-  out[#out + 1] = "[^" .. (node.label or "") .. "]: " .. first_body
-  if node.content and #node.content > 1 then
-    for i = 2, #node.content do
-      local b = node.content[i]
-      if b.kind == "paragraph" then
-        out[#out + 1] = "    " .. emit_inline(b.inline)
-      end
+  out[#out + 1] = "[^" .. label .. "]: " .. first_body
+  for i = 2, #content do
+    local b = content[i]
+    if b.kind == "paragraph" then
+      out[#out + 1] = "    " .. emit_inline(b.inline)
     end
   end
   out[#out + 1] = ""
@@ -250,7 +380,7 @@ function emit_block(node, out)
   elseif kind == "paragraph" then
     emit_paragraph(node, out)
   elseif kind == "list" then
-    emit_list(node, out, 0)
+    emit_list(node, out, "")
   elseif kind == "code_block" then
     emit_code_block(node, out)
   elseif kind == "block" then
@@ -261,10 +391,9 @@ function emit_block(node, out)
     emit_image_block(node, out)
   elseif kind == "rule" then
     emit_rule(node, out)
-  elseif kind == "footnote_definition" then
-    emit_footnote_definition(node, out)
   end
-  -- Other kinds drop silently; per-kind branches added in subsequent tasks.
+  -- footnote_definition renders in the footnotes section; other kinds
+  -- drop silently.
 end
 
 local function collapse_blank_runs(lines)
@@ -287,10 +416,39 @@ local function collapse_blank_runs(lines)
   return collapsed
 end
 
-function M.render(doc, opts)
+-- Number footnotes by first reference, record linked-to headlines,
+-- and collect block definitions, all in document order.
+local function prepare(doc)
+  _index = links.index(doc)
+  _referred = {}
+  _fn = { numbers = {}, order = {} }
+  local defs = {}
+  A.walk(doc, function(n)
+    if n.kind == "footnote_ref" then
+      footnote_number(n)
+    elseif n.kind == "footnote_definition" then
+      defs[n.label or ""] = defs[n.label or ""] or n.content
+    elseif n.kind == "link" and n.form ~= "radio" then
+      local r = links.resolve(n.target, _index, ".md")
+      if r.kind == "headline" then
+        _referred[r.anchor] = true
+      end
+    end
+  end)
+  return defs
+end
+
+function M.render(doc, _opts)
+  local defs = prepare(doc)
   local out = {}
   for _, c in ipairs(doc.children or {}) do
     emit_block(c, out)
+  end
+  for num, entry in ipairs(_fn.order) do
+    local content = entry.content and { A.paragraph(entry.content) } or defs[entry.label or ""]
+    if content then
+      emit_footnote_definition(tostring(num), content, out)
+    end
   end
   local collapsed = collapse_blank_runs(out)
   return table.concat(collapsed, "\n") .. "\n"

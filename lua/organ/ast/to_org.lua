@@ -7,6 +7,8 @@
 
 local M = {}
 
+local emit_block
+
 local function emit_inline(nodes)
   if not nodes or #nodes == 0 then
     return ""
@@ -40,7 +42,7 @@ local function emit_inline(nodes)
         out[#out + 1] = "[[" .. (n.target or "") .. "]]"
       end
     elseif n.kind == "linebreak" then
-      out[#out + 1] = "\n"
+      out[#out + 1] = "\\\\\n"
     elseif n.kind == "image" then
       out[#out + 1] = "[[" .. (n.target or "") .. "]]"
     elseif n.kind == "entity" then
@@ -113,9 +115,21 @@ local function emit_code_block(node, out)
   out[#out + 1] = ""
 end
 
-local function emit_list(node, out, depth)
-  depth = depth or 0
-  local indent = string.rep("  ", depth)
+-- Append `lines` (each may hold embedded newlines) to `out`, prefixing
+-- every non-blank line with `prefix`.
+local function indent_into(lines, prefix, out)
+  for _, l in ipairs(lines) do
+    for piece in (l .. "\n"):gmatch("([^\n]*)\n") do
+      out[#out + 1] = piece == "" and "" or (prefix .. piece)
+    end
+  end
+end
+
+-- Item contents after the first paragraph sit at the item's content
+-- column (the bullet width, as org-element-item-interpreter indents);
+-- a further paragraph is separated by a blank line.
+local function emit_list(node, out, indent)
+  indent = indent or ""
   local n = 1
   for _, item in ipairs(node.items or {}) do
     local marker = item.marker or (node.ordered and (n .. ".") or "-")
@@ -130,30 +144,45 @@ local function emit_list(node, out, depth)
     end
     local tag = (item.tag and #item.tag > 0) and (emit_inline(item.tag) .. " :: ") or ""
     local prefix = marker .. " " .. counter .. checkbox .. tag
+    local content_indent = indent .. string.rep(" ", #marker + 1)
     local first = true
+    local function open_item(txt)
+      local head, rest = (txt or ""):match("^([^\n]*)\n?(.*)$")
+      out[#out + 1] = (indent .. prefix .. head):gsub("%s+$", "")
+      if rest ~= "" then
+        indent_into({ rest }, content_indent, out)
+      end
+      first = false
+    end
     for _, b in ipairs(item.content or {}) do
-      if b.kind == "paragraph" then
-        local txt = emit_inline(b.inline)
-        if first then
-          out[#out + 1] = indent .. prefix .. txt
-          first = false
-        else
-          out[#out + 1] = indent .. "  " .. txt
-        end
+      if b.kind == "paragraph" and first then
+        open_item(emit_inline(b.inline))
       elseif b.kind == "list" then
         if first then
-          out[#out + 1] = (indent .. prefix):gsub("%s+$", "")
-          first = false
+          open_item()
         end
-        emit_list(b, out, depth + 1)
+        emit_list(b, out, content_indent)
+      else
+        if first then
+          open_item()
+        end
+        if b.kind == "paragraph" then
+          out[#out + 1] = ""
+        end
+        local sub = {}
+        emit_block(b, sub)
+        while #sub > 0 and sub[#sub] == "" do
+          sub[#sub] = nil
+        end
+        indent_into(sub, content_indent, out)
       end
     end
     if first then
-      out[#out + 1] = (indent .. prefix):gsub("%s+$", "")
+      open_item()
     end
     n = n + 1
   end
-  if depth == 0 then
+  if indent == "" then
     out[#out + 1] = ""
   end
 end
@@ -236,11 +265,11 @@ local function emit_headline(node, out)
     out[#out + 1] = ":END:"
   end
   for _, c in ipairs(node.children or {}) do
-    M._emit_block(c, out)
+    emit_block(c, out)
   end
 end
 
-local function emit_block(node, out)
+function emit_block(node, out)
   if node.affiliated then
     for _, kw in ipairs(node.affiliated) do
       out[#out + 1] = "#+" .. kw.name .. ": " .. (kw.value or "")
@@ -253,7 +282,7 @@ local function emit_block(node, out)
   elseif node.kind == "code_block" then
     emit_code_block(node, out)
   elseif node.kind == "list" then
-    emit_list(node, out, 0)
+    emit_list(node, out, "")
   elseif node.kind == "rule" then
     out[#out + 1] = "-----"
     out[#out + 1] = ""

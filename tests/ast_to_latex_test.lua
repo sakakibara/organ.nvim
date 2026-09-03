@@ -553,53 +553,240 @@ do
   check("rule renders \\hrule", out:find("\\hrule", 1, true) ~= nil, "got: " .. out)
 end
 
--- footnote_definition
+-- footnotes: the body is emitted at the first reference (ox-latex),
+-- later references use \ref, definitions are not emitted on their own
 do
   local doc = A.document({
     A.paragraph({
       A.text("claim"),
-      { kind = "footnote_ref", label = "1" },
+      A.footnote_ref("1"),
+      A.text(" and"),
+      A.footnote_ref(nil, { A.text("inline text") }),
+      A.text(" again"),
+      A.footnote_ref("1"),
+      A.text("."),
     }),
     A.footnote_definition("1", { A.paragraph({ A.text("the body") }) }),
   })
-  local out = to_latex.render(doc, { body_only = true })
+  local out = to_latex.render(doc)
   check(
-    "footnote_ref produces \\footnotemark[1]",
-    out:find("\\footnotemark[1]", 1, true) ~= nil,
+    "first reference carries the body and a label",
+    out:find("claim\\footnote{the body\\label{fn:1}}", 1, true) ~= nil,
     "got: " .. out
   )
   check(
-    "footnote_definition produces \\footnotetext[1]",
-    out:find("\\footnotetext[1]{the body}", 1, true) ~= nil,
-    "got: " .. out
+    "inline footnote -> \\footnote{body}",
+    out:find("and\\footnote{inline text}", 1, true) ~= nil
   )
+  check(
+    "later reference -> \\textsuperscript{\\ref{}}",
+    out:find("again\\textsuperscript{\\ref{fn:1}}.", 1, true) ~= nil
+  )
+  check("no \\footnotetext", out:find("\\footnotetext", 1, true) == nil)
+  check("no \\footnotemark", out:find("\\footnotemark", 1, true) == nil)
 end
 
--- Multi-paragraph footnote: paragraphs joined
+-- Multi-paragraph footnote body, single reference: no label
 do
   local doc = A.document({
+    A.paragraph({ A.text("x"), A.footnote_ref("note") }),
     A.footnote_definition("note", {
       A.paragraph({ A.text("first") }),
       A.paragraph({ A.text("second") }),
     }),
   })
-  local out = to_latex.render(doc, { body_only = true })
+  local out = to_latex.render(doc)
   check(
-    "multi-paragraph footnote joined",
-    out:find("\\footnotetext[note]{first", 1, true) ~= nil and out:find("second}", 1, true) ~= nil,
+    "multi-paragraph footnote body",
+    out:find("x\\footnote{first\nsecond}", 1, true) ~= nil,
     "got: " .. out
   )
 end
 
--- Directive dropped
+-- Blank lines inside a verbatim block survive inside a footnote body
 do
   local doc = A.document({
-    A.directive("AUTHOR", "Jane"),
-    A.paragraph({ A.text("body") }),
+    A.paragraph({ A.text("x"), A.footnote_ref("note") }),
+    A.footnote_definition("note", {
+      A.paragraph({ A.text("para") }),
+      A.code_block("lua", "a\n\nb"),
+      A.paragraph({ A.text("after") }),
+    }),
+  })
+  local out = to_latex.render(doc)
+  check(
+    "footnote blocks separated by one newline, verbatim interior kept",
+    out:find("x\\footnote{para\n\\begin{verbatim}\na\n\nb\n\\end{verbatim}\nafter}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- A link to a headline whose title holds an anonymous footnote re-renders
+-- the title: the body is emitted once, the second occurrence is a \ref
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("Heading"), A.footnote_ref(nil, { A.text("a note") }) },
+      properties = { CUSTOM_ID = "foo" },
+      children = { A.paragraph({ A.text("See "), A.link("#foo"), A.text(" for more.") }) },
+    }),
+  })
+  local ok, out = pcall(to_latex.render, doc, { body_only = true })
+  check("anonymous footnote in linked title renders", ok, "got: " .. tostring(out))
+  check(
+    "anonymous footnote body emitted once with a numbered label",
+    ok and out:find("\\section{Heading\\footnote{a note\\label{fn:1}}}", 1, true) ~= nil,
+    "got: " .. tostring(out)
+  )
+  check(
+    "re-rendered title refers to the numbered label",
+    ok and out:find("\\hyperref[sec:foo]{Heading\\textsuperscript{\\ref{fn:1}}}", 1, true) ~= nil,
+    "got: " .. tostring(out)
+  )
+end
+
+-- Every block kind inside a list item renders
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("intro") }),
+          A.code_block("lua", "print(1)"),
+        },
+      }),
+    }),
   })
   local out = to_latex.render(doc, { body_only = true })
-  check("AUTHOR not in body", out:find("Jane", 1, true) == nil, "got: " .. out)
-  check("paragraph rendered", out:find("body", 1, true) ~= nil)
+  check(
+    "code block inside an item",
+    out:find("\\item intro\n\\begin{verbatim}\nprint(1)\n\\end{verbatim}\n\\end{itemize}", 1, true)
+      ~= nil,
+    "got: " .. out
+  )
+end
+
+-- A nested list closing an item is followed directly by the next \item
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("outer") }),
+          A.list(false, { A.list_item({ content = { A.paragraph({ A.text("inner") }) } }) }),
+        },
+      }),
+      A.list_item({ content = { A.paragraph({ A.text("next") }) } }),
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "no blank line between a nested list and the next item",
+    out:find("\\item inner\n\\end{itemize}\n\\item next\n\\end{itemize}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Internal links -> \hyperref with \label on headlines and targets
+do
+  local doc = A.document({
+    A.headline({ level = 1, title = { A.text("Target heading") } }),
+    A.headline({ level = 1, title = { A.text("Custom") }, properties = { CUSTOM_ID = "custom" } }),
+    A.paragraph({ A.text("see "), A.target("anchor"), A.text(" here") }),
+    A.paragraph({
+      A.link("file:notes.org", { A.text("Notes") }),
+      A.text(" "),
+      A.link("*Target heading", { A.text("internal") }),
+      A.text(" "),
+      A.link("#custom", { A.text("by id") }),
+      A.text(" "),
+      A.link("anchor", { A.text("to target") }),
+      A.text(" "),
+      A.link("anchor"),
+      A.text(" "),
+      A.link("*Missing", { A.text("gone") }),
+      A.text(" "),
+      A.link("https://x.y/a?b=1", { A.text("q") }),
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "headline gets \\label{sec:...}",
+    out:find("\\section{Target heading}\n\\label{sec:target-heading}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("CUSTOM_ID label", out:find("\\section{Custom}\n\\label{sec:custom}", 1, true) ~= nil)
+  check("file: prefix stripped", out:find("\\href{notes.org}{Notes}", 1, true) ~= nil)
+  check(
+    "*Title -> \\hyperref[sec:]",
+    out:find("\\hyperref[sec:target-heading]{internal}", 1, true) ~= nil
+  )
+  check(
+    "#custom -> \\hyperref[sec:custom]",
+    out:find("\\hyperref[sec:custom]{by id}", 1, true) ~= nil
+  )
+  check("target -> \\hyperref[name]", out:find("\\hyperref[anchor]{to target}", 1, true) ~= nil)
+  check("target without description -> \\ref", out:find("\\ref{anchor}", 1, true) ~= nil)
+  check("unresolved -> \\texttt{desc}", out:find("\\texttt{gone}", 1, true) ~= nil)
+  check("external kept", out:find("\\href{https://x.y/a?b=1}{q}", 1, true) ~= nil)
+end
+
+-- Inline kinds: subscript, superscript, entity, cookie, timestamp, target, macro
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("H"),
+      A.subscript({ A.text("2") }),
+      A.text("O "),
+      A.entity("copy"),
+      A.text(" "),
+      A.entity("alpha"),
+      A.text(" "),
+      A.statistics_cookie("[2/3]"),
+      A.text(" "),
+      A.statistics_cookie("[50%]"),
+      A.text(" "),
+      A.timestamp("<2026-09-10 Thu>", "active"),
+      A.text(" "),
+      A.target("anchor"),
+      A.text(" "),
+      A.macro("title", {}),
+      A.text(" x"),
+      A.superscript({ A.text("2") }),
+      A.text(" "),
+      A.entity("nosuchentity"),
+      A.text(" "),
+      A.entity("beta"),
+      A.entity("gamma"),
+      A.text("x"),
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "latex subscript -> \\textsubscript",
+    out:find("H\\textsubscript{2}O", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("latex superscript -> \\textsuperscript", out:find("x\\textsuperscript{2}", 1, true) ~= nil)
+  check("latex entity -> latex command", out:find("\\textcopyright{}", 1, true) ~= nil)
+  check("latex math entity wrapped in \\( \\)", out:find(" \\(\\alpha\\) ", 1, true) ~= nil)
+  check(
+    "adjacent math entities share one math block",
+    out:find(" \\(\\beta\\gamma\\)x", 1, true) ~= nil
+  )
+  check("latex cookie verbatim, % escaped", out:find("[2/3] [50\\%]", 1, true) ~= nil)
+  check(
+    "latex timestamp -> \\textit",
+    out:find("\\textit{\\textless{}2026-09-10 Thu\\textgreater{}}", 1, true) ~= nil
+  )
+  check("latex target -> \\label", out:find("\\label{anchor}", 1, true) ~= nil)
+  check("latex macro kept as escaped text", out:find("\\{\\{\\{title\\}\\}\\}", 1, true) ~= nil)
+  check(
+    "latex unknown entity passed through as a LaTeX macro",
+    out:find(" \\nosuchentity ", 1, true) ~= nil
+      and out:find("\\textbackslash{}nosuchentity", 1, true) == nil
+  )
 end
 
 if fails > 0 then

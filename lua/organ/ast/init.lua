@@ -304,10 +304,27 @@ function M.walk(root, fn)
       return
     end
     fn(n, parent, key, idx)
-    for _, slot in ipairs({ "children", "content", "inline", "title" }) do
+    for _, slot in ipairs({
+      "title",
+      "tag",
+      "description",
+      "inline",
+      "content",
+      "items",
+      "children",
+    }) do
       if n[slot] then
         for i, c in ipairs(n[slot]) do
           go(c, n, slot, i)
+        end
+      end
+    end
+    if n.kind == "table" then
+      for _, row in ipairs(n.rows or {}) do
+        for _, cell in ipairs(row.cells or {}) do
+          for i, c in ipairs(cell) do
+            go(c, row, "cells", i)
+          end
         end
       end
     end

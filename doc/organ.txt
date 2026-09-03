@@ -2083,6 +2083,16 @@ Markdown export                                                 *organ-export*
         org tables          → GitHub-flavoured markdown tables
         `-----`             → `---` (thematic break)
 
+    Links to `file:x.org` point at `x.md`. `*Heading`, `#custom-id`,
+    `id:` and `<<target>>` links become `#anchor` links; a headline's
+    anchor is its `CUSTOM_ID` or a slug of its title, and a linked-to
+    headline gets an `<a id="...">` line above it. Footnotes are
+    numbered by first reference, inline `[fn::body]` included, and
+    their bodies collect at the end as `[^n]: body`. Plain text is
+    escaped the way `ox-md` does (`` ` ``, `*`, `_`, `\`, line-leading
+    `#`, `![`); sub/superscripts, entities, statistics cookies and
+    timestamps take their HTML form.
+
     Drawers, planning lines (SCHEDULED / DEADLINE), `:PROPERTIES:` blocks,
     citations, and `#+keywords` are dropped. Pure-data plumbing for
     sharing notes outside org.
@@ -2097,6 +2107,12 @@ Markdown export                                                 *organ-export*
         tables              → `<thead>` / `<tbody>` with `<th>` / `<td>`
         src blocks          → `<pre><code class="language-X">`
         title (#+title)     → `<title>` and document head
+
+    Every heading carries an `id` (its `CUSTOM_ID` or a slug of the
+    title) so `*Heading`, `#custom-id`, `id:` and `<<target>>` links
+    resolve to `href="#..."`; `file:x.org` links point at `x.html`.
+    Footnote definitions collect after the body, numbered by first
+    reference.
 
     A small inline `<style>` block ships by default for sane
     typography; pass `minimal_style = false` programmatically (or
@@ -3376,7 +3392,10 @@ Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
     `:Org export latex[!] [path]`
     Export to a self-contained LaTeX article. Tables become
     `\begin{tabular}` blocks, src blocks become `\begin{minted}` (with
-    `minted` package) or `\begin{verbatim}` fallback.
+    `minted` package) or `\begin{verbatim}` fallback. Each section gets
+    a `\label{sec:...}` and internal links become `\hyperref`; a
+    footnote's body is emitted as `\footnote{...}` at its first
+    reference, as `ox-latex` does.
 
 *:Org-export_pdf*
     `:Org export pdf[!] [path]`

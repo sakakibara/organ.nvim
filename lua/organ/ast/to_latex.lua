@@ -6,6 +6,10 @@
 -- the body of \verb spans skips the special-char escape table since
 -- \verb provides its own no-escape semantics.
 
+local A = require("organ.ast")
+local links = require("organ.ast.links")
+local ENTITIES = require("organ.ast.org_entities")
+
 local M = {}
 
 -- Sectioning commands by headline level.  Beyond L5 we collapse to
@@ -74,15 +78,84 @@ local function verb_delim(body)
   return "|"
 end
 
+-- Per-render link destinations, footnote definitions, and footnotes
+-- numbered by first reference (ox-latex emits the body at the first
+-- reference and \ref for later ones).
+local _index
+local _defs = {}
+local _fn = { numbers = {}, refs = {}, emitted = {} }
+
 local emit_inline
 local emit_block
+
+local function footnote_key(n)
+  return n.label or n
+end
+
+local function footnote_label(n)
+  return "fn:" .. (n.label or _fn.numbers[footnote_key(n)])
+end
+
+local function pop_blank(out)
+  while #out > 0 and out[#out] == "" do
+    out[#out] = nil
+  end
+end
+
+local function footnote_body(n)
+  if n.content then
+    return emit_inline(n.content)
+  end
+  local blocks = _defs[n.label or ""]
+  if not blocks then
+    return ""
+  end
+  local sub = {}
+  for _, b in ipairs(blocks) do
+    emit_block(b, sub)
+    pop_blank(sub)
+  end
+  return (table.concat(sub, "\n"):gsub("^%s+", ""):gsub("%s+$", ""))
+end
+
+local function render_footnote_ref(n)
+  local key = footnote_key(n)
+  if _fn.emitted[key] then
+    return "\\textsuperscript{\\ref{" .. footnote_label(n) .. "}}"
+  end
+  _fn.emitted[key] = true
+  local label = ""
+  if (_fn.refs[key] or 0) > 1 then
+    label = "\\label{" .. footnote_label(n) .. "}"
+  end
+  return "\\footnote{" .. footnote_body(n) .. label .. "}"
+end
+
+local function render_link(n)
+  local desc = (n.description and #n.description > 0) and emit_inline(n.description) or nil
+  local r = links.resolve(n.target, _index)
+  if r.kind == "headline" then
+    return "\\hyperref[sec:" .. r.anchor .. "]{" .. (desc or emit_inline(r.node.title)) .. "}"
+  elseif r.kind == "target" then
+    if desc then
+      return "\\hyperref[" .. r.anchor .. "]{" .. desc .. "}"
+    end
+    return "\\ref{" .. r.anchor .. "}"
+  elseif r.kind == "unresolved" then
+    return "\\texttt{" .. (desc or escape_text(n.target)) .. "}"
+  end
+  local url = r.kind == "file" and (r.path .. (r.fragment and ("#" .. r.fragment) or "")) or r.url
+  return "\\href{" .. url .. "}{" .. (desc or escape_text(url)) .. "}"
+end
 
 function emit_inline(nodes)
   if not nodes or #nodes == 0 then
     return ""
   end
   local out = {}
+  local prev_math_entity = false
   for _, n in ipairs(nodes) do
+    local math_entity = false
     if n.kind == "text" then
       out[#out + 1] = escape_text(n.text or "")
     elseif n.kind == "emphasis" then
@@ -123,17 +196,12 @@ function emit_inline(nodes)
       if n.form == "radio" then
         out[#out + 1] = emit_inline(n.description)
       else
-        local target = n.target or ""
-        if n.description and #n.description > 0 then
-          out[#out + 1] = "\\href{" .. target .. "}{" .. emit_inline(n.description) .. "}"
-        else
-          out[#out + 1] = "\\href{" .. target .. "}{" .. escape_text(target) .. "}"
-        end
+        out[#out + 1] = render_link(n)
       end
     elseif n.kind == "image" then
       out[#out + 1] = "\\includegraphics{" .. (n.target or "") .. "}"
     elseif n.kind == "footnote_ref" then
-      out[#out + 1] = "\\footnotemark[" .. (n.label or "") .. "]"
+      out[#out + 1] = render_footnote_ref(n)
     elseif n.kind == "math" then
       if n.display then
         out[#out + 1] = "\\[" .. (n.body or "") .. "\\]"
@@ -142,9 +210,38 @@ function emit_inline(nodes)
       end
     elseif n.kind == "linebreak" then
       out[#out + 1] = "\\\\"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "\\textsubscript{" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "\\textsuperscript{" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "entity" then
+      local e = ENTITIES[n.name or ""]
+      if not e then
+        out[#out + 1] = "\\" .. (n.name or "")
+      elseif e.math then
+        -- Adjacent math entities share one math block (org-latex-math-block).
+        if prev_math_entity then
+          out[#out] = out[#out]:sub(1, -3) .. e.latex .. "\\)"
+        else
+          out[#out + 1] = "\\(" .. e.latex .. "\\)"
+        end
+        math_entity = true
+      else
+        out[#out + 1] = e.latex
+      end
+    elseif n.kind == "statistics_cookie" then
+      out[#out + 1] = (n.value or ""):gsub("%%", "\\%%")
+    elseif n.kind == "timestamp" then
+      out[#out + 1] = "\\textit{" .. escape_text(n.value) .. "}"
+    elseif n.kind == "target" then
+      out[#out + 1] = "\\label{" .. links.target_anchor(n.name) .. "}"
+    elseif n.kind == "macro" then
+      local args = (n.args and #n.args > 0) and ("(" .. table.concat(n.args, ",") .. ")") or ""
+      out[#out + 1] = escape_text("{{{" .. (n.name or "") .. args .. "}}}")
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""
     end
+    prev_math_entity = math_entity
   end
   local s = table.concat(out)
   local ok, cite = pcall(require, "organ.cite")
@@ -158,6 +255,7 @@ local function emit_headline(node, out)
   local level = math.max(1, node.level or 1)
   local cmd = SECTION_CMDS[math.min(level, 5)] or "\\subparagraph"
   out[#out + 1] = cmd .. "{" .. emit_inline(node.title or {}) .. "}"
+  out[#out + 1] = "\\label{sec:" .. links.headline_anchor(node) .. "}"
   out[#out + 1] = ""
   for _, c in ipairs(node.children or {}) do
     emit_block(c, out)
@@ -183,22 +281,21 @@ local function emit_list(node, out)
     end
     local first = true
     for _, b in ipairs(item.content or {}) do
-      if b.kind == "paragraph" then
+      if b.kind == "paragraph" and first then
+        out[#out + 1] = "\\item " .. checkbox .. emit_inline(b.inline)
+        first = false
+      else
         if first then
-          out[#out + 1] = "\\item " .. checkbox .. emit_inline(b.inline)
+          out[#out + 1] = ("\\item " .. checkbox):gsub("%s+$", "")
           first = false
-        else
-          out[#out + 1] = emit_inline(b.inline)
         end
-      elseif b.kind == "list" then
-        emit_list(b, out)
+        emit_block(b, out)
       end
     end
-    if first and checkbox ~= "" then
-      out[#out + 1] = "\\item " .. checkbox
-    elseif first then
-      out[#out + 1] = "\\item"
+    if first then
+      out[#out + 1] = ("\\item " .. checkbox):gsub("%s+$", "")
     end
+    pop_blank(out)
   end
   out[#out + 1] = "\\end{" .. env .. "}"
   out[#out + 1] = ""
@@ -305,18 +402,6 @@ local function emit_rule(_, out)
   out[#out + 1] = ""
 end
 
-local function emit_footnote_definition(node, out)
-  local label = node.label or ""
-  local parts = {}
-  for _, b in ipairs(node.content or {}) do
-    if b.kind == "paragraph" then
-      parts[#parts + 1] = emit_inline(b.inline)
-    end
-  end
-  out[#out + 1] = "\\footnotetext[" .. label .. "]{" .. table.concat(parts, " ") .. "}"
-  out[#out + 1] = ""
-end
-
 function emit_block(node, out)
   if not node or not node.kind then
     return
@@ -342,9 +427,8 @@ function emit_block(node, out)
     emit_image_block(node, out)
   elseif kind == "rule" then
     emit_rule(node, out)
-  elseif kind == "footnote_definition" then
-    emit_footnote_definition(node, out)
   end
+  -- footnote_definition bodies are emitted at their first reference;
   -- directive, drawer, comment intentionally drop.
 end
 
@@ -360,6 +444,46 @@ local function find_directive(doc, name)
   return nil
 end
 
+-- Collect footnote definitions and count references per label, so the
+-- first reference knows whether to carry a \label.  A description-less
+-- link to a headline re-renders that title, so its footnotes count as
+-- referenced again.
+local function prepare(doc)
+  _index = links.index(doc)
+  _defs = {}
+  _fn = { numbers = {}, refs = {}, emitted = {} }
+  local count = 0
+  local function count_ref(n)
+    local key = footnote_key(n)
+    _fn.refs[key] = (_fn.refs[key] or 0) + 1
+  end
+  A.walk(doc, function(n)
+    if n.kind == "footnote_ref" then
+      local key = footnote_key(n)
+      if not _fn.numbers[key] then
+        count = count + 1
+        _fn.numbers[key] = count
+      end
+      count_ref(n)
+    elseif n.kind == "footnote_definition" then
+      _defs[n.label or ""] = _defs[n.label or ""] or n.content
+    elseif
+      n.kind == "link"
+      and n.form ~= "radio"
+      and not (n.description and #n.description > 0)
+    then
+      local r = links.resolve(n.target, _index)
+      if r.kind == "headline" then
+        A.walk({ kind = "paragraph", inline = r.node.title }, function(t)
+          if t.kind == "footnote_ref" then
+            count_ref(t)
+          end
+        end)
+      end
+    end
+  end)
+end
+
 local PREAMBLE = [[\documentclass{article}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -372,6 +496,7 @@ local PREAMBLE = [[\documentclass{article}
 
 function M.render(doc, opts)
   opts = opts or {}
+  prepare(doc)
 
   local body = {}
   for _, c in ipairs(doc.children or {}) do
@@ -432,5 +557,6 @@ end
 M._emit_inline = emit_inline
 M._emit_block = emit_block
 M._escape_text = escape_text
+M._prepare = prepare
 
 return M

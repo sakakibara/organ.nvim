@@ -50,15 +50,18 @@ local function parse_org_ts(s)
     return nil
   end
   local out = { date = y .. m .. d }
-  local h1, mn1, h2, mn2 = raw:match("(%d%d):(%d%d)%-(%d%d):(%d%d)")
+  local function hhmm00(h, mn)
+    return string.format("%02d%s00", tonumber(h), mn)
+  end
+  local h1, mn1, h2, mn2 = raw:match("(%d%d?):(%d%d)%-(%d%d?):(%d%d)")
   if h1 then
-    out.start_time = h1 .. mn1 .. "00"
-    out.end_time = h2 .. mn2 .. "00"
+    out.start_time = hhmm00(h1, mn1)
+    out.end_time = hhmm00(h2, mn2)
     return out
   end
-  local h, mn = raw:match("(%d%d):(%d%d)")
+  local h, mn = raw:match("(%d%d?):(%d%d)")
   if h then
-    out.start_time = h .. mn .. "00"
+    out.start_time = hhmm00(h, mn)
     return out
   end
   out.all_day = true

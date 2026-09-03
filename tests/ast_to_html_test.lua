@@ -64,9 +64,13 @@ do
     A.headline({ level = 3, title = { A.text("Deep") } }),
   })
   local out = to_html.render(doc)
-  check("level 1 -> <h1>Top</h1>", out:find("<h1>Top</h1>", 1, true) ~= nil, "got: " .. out)
-  check("level 2 -> <h2>Sub</h2>", out:find("<h2>Sub</h2>", 1, true) ~= nil)
-  check("level 3 -> <h3>Deep</h3>", out:find("<h3>Deep</h3>", 1, true) ~= nil)
+  check(
+    "level 1 -> <h1>Top</h1>",
+    out:find('<h1 id="top">Top</h1>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("level 2 -> <h2>Sub</h2>", out:find('<h2 id="sub">Sub</h2>', 1, true) ~= nil)
+  check("level 3 -> <h3>Deep</h3>", out:find('<h3 id="deep">Deep</h3>', 1, true) ~= nil)
 end
 
 -- Headline level clamps to 6
@@ -75,7 +79,11 @@ do
     A.headline({ level = 9, title = { A.text("Way deep") } }),
   })
   local out = to_html.render(doc)
-  check("level 9 clamps to <h6>", out:find("<h6>Way deep</h6>", 1, true) ~= nil, "got: " .. out)
+  check(
+    "level 9 clamps to <h6>",
+    out:find('<h6 id="way-deep">Way deep</h6>', 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- Paragraph wrapped in <p>...</p>
@@ -547,6 +555,7 @@ end
 -- Multi-paragraph footnote
 do
   local doc = A.document({
+    A.paragraph({ A.text("x"), A.footnote_ref("note") }),
     A.footnote_definition("note", {
       A.paragraph({ A.text("first") }),
       A.paragraph({ A.text("second") }),
@@ -555,7 +564,7 @@ do
   local out = to_html.render(doc)
   check(
     "multi-paragraph footnote: first paragraph after label",
-    out:find("<sup>[note]</sup> first", 1, true) ~= nil,
+    out:find('id="fn-note"><sup>[1]</sup> first', 1, true) ~= nil,
     "got: " .. out
   )
   check(
@@ -574,6 +583,172 @@ do
   local out = to_html.render(doc)
   check("directive AUTHOR not rendered in body", out:find("Jane", 1, true) == nil, "got: " .. out)
   check("paragraph still rendered", out:find("<p>body</p>", 1, true) ~= nil)
+end
+
+-- <title> from a headline is plain text escaped once
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = {
+        A.text("Tom & "),
+        A.emphasis("bold", { A.text("Jerry") }),
+        A.text(" <3"),
+      },
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "headline title escaped once, markup stripped",
+    out:find("<title>Tom &amp; Jerry &lt;3</title>", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Inline kinds: subscript, superscript, entity, cookie, timestamp, target, macro
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("H"),
+      A.subscript({ A.text("2") }),
+      A.text("O "),
+      A.entity("copy"),
+      A.text(" "),
+      A.entity("alpha"),
+      A.text(" "),
+      A.statistics_cookie("[2/3]"),
+      A.text(" "),
+      A.statistics_cookie("[50%]"),
+      A.text(" "),
+      A.timestamp("<2026-09-10 Thu>", "active"),
+      A.text(" "),
+      A.target("anchor"),
+      A.text(" "),
+      A.macro("title", {}),
+      A.text(" x"),
+      A.superscript({ A.text("2") }),
+      A.text(" "),
+      A.entity("nosuchentity"),
+    }),
+  })
+  local out = to_html.render(doc)
+  check("html subscript -> <sub>", out:find("H<sub>2</sub>O", 1, true) ~= nil, "got: " .. out)
+  check("html superscript -> <sup>", out:find("x<sup>2</sup>", 1, true) ~= nil)
+  check("html entity -> html entity", out:find("&copy; &alpha;", 1, true) ~= nil)
+  check("html cookie -> <code>", out:find("<code>[2/3]</code> <code>[50%]</code>", 1, true) ~= nil)
+  check(
+    "html timestamp -> timestamp spans",
+    out:find(
+      '<span class="timestamp-wrapper"><span class="timestamp">&lt;2026-09-10 Thu&gt;</span></span>',
+      1,
+      true
+    ) ~= nil
+  )
+  check("html target -> anchor", out:find('<a id="anchor"></a>', 1, true) ~= nil)
+  check("html macro kept as text", out:find("{{{title}}}", 1, true) ~= nil)
+  check("html unknown entity kept as text", out:find("\\nosuchentity", 1, true) ~= nil)
+end
+
+-- Every block kind inside a list item renders
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("intro") }),
+          A.code_block("lua", "print(1)"),
+          A.block("quote", { content = { A.paragraph({ A.text("quoted") }) } }),
+        },
+      }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "code block inside <li>",
+    out:find('<li>intro\n<pre><code class="language-lua">print(1)</code></pre>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "quote inside <li>",
+    out:find("<blockquote>\n<p>quoted</p>\n</blockquote></li>", 1, true) ~= nil
+  )
+end
+
+-- Footnotes: numbered by first reference, inline bodies rendered,
+-- definitions collected at the end.
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      A.footnote_ref("note"),
+      A.text(" and"),
+      A.footnote_ref(nil, { A.text("inline body") }),
+      A.text("."),
+    }),
+    A.footnote_definition("note", { A.paragraph({ A.text("The definition.") }) }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "labelled ref numbered 1",
+    out:find('claim<sup><a href="#fn-note">[1]</a></sup>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("inline ref numbered 2", out:find('and<sup><a href="#fn-2">[2]</a></sup>', 1, true) ~= nil)
+  check(
+    "definitions after the body",
+    out:find(
+      '<p>after</p>\n<div class="footdef" id="fn-note"><sup>[1]</sup> The definition.</div>\n'
+        .. '<div class="footdef" id="fn-2"><sup>[2]</sup> inline body</div>',
+      1,
+      true
+    ) ~= nil
+  )
+end
+
+-- Internal and file links resolve to ids / .html paths
+do
+  local doc = A.document({
+    A.headline({ level = 1, title = { A.text("Target heading") } }),
+    A.headline({ level = 1, title = { A.text("Custom") }, properties = { CUSTOM_ID = "custom" } }),
+    A.headline({ level = 1, title = { A.text("By uuid") }, properties = { ID = "abc-123" } }),
+    A.paragraph({ A.text("see "), A.target("anchor"), A.text(" here") }),
+    A.paragraph({
+      A.link("file:notes.org", { A.text("Notes") }),
+      A.text(" "),
+      A.link("*Target heading", { A.text("internal") }),
+      A.text(" "),
+      A.link("#custom", { A.text("by id") }),
+      A.text(" "),
+      A.link("id:abc-123", { A.text("by uuid") }),
+      A.text(" "),
+      A.link("anchor", { A.text("to target") }),
+      A.text(" "),
+      A.link("*Target heading"),
+      A.text(" "),
+      A.link("*Missing", { A.text("gone") }),
+      A.text(" "),
+      A.link("https://x.y/a?b=1&c=2", { A.text("q") }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "headline id from title",
+    out:find('<h1 id="target-heading">Target heading</h1>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("headline id from CUSTOM_ID", out:find('<h1 id="custom">Custom</h1>', 1, true) ~= nil)
+  check("file:x.org -> x.html", out:find('<a href="notes.html">Notes</a>', 1, true) ~= nil)
+  check("*Title -> #id", out:find('<a href="#target-heading">internal</a>', 1, true) ~= nil)
+  check("#custom -> #custom", out:find('<a href="#custom">by id</a>', 1, true) ~= nil)
+  check("id: -> headline id", out:find('<a href="#by-uuid">by uuid</a>', 1, true) ~= nil)
+  check("target -> #name", out:find('<a href="#anchor">to target</a>', 1, true) ~= nil)
+  check(
+    "no description -> headline title",
+    out:find('<a href="#target-heading">Target heading</a>', 1, true) ~= nil
+  )
+  check("unresolved fuzzy -> <i>desc</i>", out:find("<i>gone</i>", 1, true) ~= nil)
+  check("external untouched", out:find('<a href="https://x.y/a?b=1&amp;c=2">q</a>', 1, true) ~= nil)
 end
 
 if fails > 0 then

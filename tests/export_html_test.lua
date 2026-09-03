@@ -23,9 +23,9 @@ do
 ** Sub
 *** Deep
 ]])
-  assert_contains(out, "<h1>Top</h1>")
-  assert_contains(out, "<h2>Sub</h2>")
-  assert_contains(out, "<h3>Deep</h3>")
+  assert_contains(out, '<h1 id="top">Top</h1>')
+  assert_contains(out, '<h2 id="sub">Sub</h2>')
+  assert_contains(out, '<h3 id="deep">Deep</h3>')
 end
 
 -- 2. Title pulled from #+title.

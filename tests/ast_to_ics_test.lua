@@ -203,6 +203,28 @@ do
   )
 end
 
+-- Single-digit hours (Emacs accepts `9:30` as well as `09:30`).
+do
+  local p = to_ics._parse_org_ts("<2026-05-02 Sat 9:30>")
+  check(
+    "parse single-digit hour",
+    p and not p.all_day and p.start_time == "093000",
+    "got: " .. vim.inspect(p)
+  )
+  local r = to_ics._parse_org_ts("<2026-05-02 Sat 9:30-10:00>")
+  check(
+    "parse single-digit hour range",
+    r and r.start_time == "093000" and r.end_time == "100000",
+    "got: " .. vim.inspect(r)
+  )
+  local r2 = to_ics._parse_org_ts("<2026-05-02 Sat 12:30-13:05>")
+  check(
+    "two-digit hours still parse",
+    r2 and r2.start_time == "123000" and r2.end_time == "130500",
+    "got: " .. vim.inspect(r2)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

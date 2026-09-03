@@ -177,4 +177,44 @@ do
   assert_roundtrip({ "- a", "- term ::", "- b" }, "content-less description item round-trips")
 end
 
+-- Continuation paragraphs and blocks inside an item round-trip
+do
+  local l = first_list({ "- first para", "", "  second para", "- other" })
+  check(l ~= nil and #l.items[1].content == 2, "two paragraphs captured in one item")
+  local second = {}
+  for _, n in ipairs(l and l.items[1].content[2].inline or {}) do
+    second[#second + 1] = n.text or ""
+  end
+  check(
+    table.concat(second) == "second para",
+    "continuation paragraph text carries no item indentation"
+  )
+  assert_roundtrip(
+    { "- first para", "", "  second para", "- other" },
+    "continuation paragraph round-trips"
+  )
+  assert_roundtrip(
+    { "- first line", "    second line", "", "  para two", "    more", "- other" },
+    "extra continuation indentation round-trips"
+  )
+  assert_roundtrip(
+    { "1. alpha", "   - nested", "2. beta" },
+    "sublist under an ordered item round-trips"
+  )
+end
+
+-- Common indentation is measured in columns (a tab spans to column 8),
+-- matching org-element-normalize-contents
+do
+  local l = first_list({ "- a", "", "\tb", "  c" })
+  local second = {}
+  for _, n in ipairs(l and l.items[1].content[2].inline or {}) do
+    second[#second + 1] = n.text or ""
+  end
+  check(
+    table.concat(second) == "      b\nc",
+    "tab-indented continuation keeps its column offset: " .. vim.inspect(table.concat(second))
+  )
+end
+
 print("ALL PASS: ast_list_roundtrip")

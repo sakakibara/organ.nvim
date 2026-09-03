@@ -240,4 +240,19 @@ do
   assert_roundtrip({ "Define <<<my phrase>>> here." }, "radio_target: definition round-trips")
 end
 
+-- Line break: the newline after `\\` belongs to the break, not to the
+-- following text, and the org form is re-emitted on round trip.
+do
+  local inl = inline_of({ "line one \\\\", "line two" })
+  local kinds = {}
+  for _, n in ipairs(inl) do
+    kinds[#kinds + 1] = n.kind
+  end
+  check(table.concat(kinds, ",") == "text,linebreak,text", "line_break: typed node between texts")
+  check(inl[3] and inl[3].text == "line two", "line_break: following text has no leading newline")
+  local rendered = to_org.render(from_org.from_lines({ "line one \\\\", "line two" }))
+  check(rendered == "line one \\\\\nline two\n", "line_break: to_org emits \\\\ at end of line")
+  assert_roundtrip({ "line one \\\\", "line two" }, "line_break: round-trips")
+end
+
 print("ALL PASS: ast_inline_roundtrip")

@@ -505,6 +505,238 @@ do
   end
 end
 
+-- Inline kinds without a markdown form take the HTML form (ox-md
+-- derives from ox-html); entities use their HTML names.
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("H"),
+      A.subscript({ A.text("2") }),
+      A.text("O "),
+      A.entity("copy"),
+      A.text(" "),
+      A.entity("alpha"),
+      A.text(" "),
+      A.statistics_cookie("[2/3]"),
+      A.text(" "),
+      A.statistics_cookie("[50%]"),
+      A.text(" "),
+      A.timestamp("<2026-09-10 Thu>", "active"),
+      A.text(" "),
+      A.target("anchor"),
+      A.text(" "),
+      A.macro("title", {}),
+      A.text(" x"),
+      A.superscript({ A.text("2") }),
+      A.text(" "),
+      A.entity("nosuchentity"),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("md subscript -> <sub>", out:find("H<sub>2</sub>O", 1, true) ~= nil, "got: " .. out)
+  check("md superscript -> <sup>", out:find("x<sup>2</sup>", 1, true) ~= nil)
+  check("md entity -> html entity", out:find("&copy; &alpha;", 1, true) ~= nil)
+  check("md cookie -> <code>", out:find("<code>[2/3]</code> <code>[50%]</code>", 1, true) ~= nil)
+  check(
+    "md timestamp -> timestamp spans",
+    out:find(
+      '<span class="timestamp-wrapper"><span class="timestamp">&lt;2026-09-10 Thu&gt;</span></span>',
+      1,
+      true
+    ) ~= nil
+  )
+  check("md target -> anchor", out:find('<a id="anchor"></a>', 1, true) ~= nil)
+  check("md macro kept as text", out:find("{{{title}}}", 1, true) ~= nil)
+  check("md unknown entity kept as text", out:find("\\nosuchentity", 1, true) ~= nil)
+end
+
+-- Table without an org separator still gets the GFM delimiter row.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l", "r", "c" },
+      rows = {
+        { sep = false, cells = { { A.text("a") }, { A.text("b") }, { A.text("c") } } },
+        { sep = false, cells = { { A.text("1") }, { A.text("2") }, { A.text("3") } } },
+        { sep = false, cells = { { A.text("4") }, { A.text("5") }, { A.text("6") } } },
+        { sep = true, cells = {} },
+        { sep = false, cells = { { A.text("7") }, { A.text("8") }, { A.text("9") } } },
+      },
+    },
+  })
+  local out = to_md.render(doc)
+  check(
+    "delimiter follows the first row",
+    out:find("| a | b | c |\n| --- | ---: | :---: |\n| 1 | 2 | 3 |", 1, true) ~= nil,
+    "got: " .. out
+  )
+  local n = 0
+  for line in out:gmatch("[^\n]+") do
+    if line:match("^| [:%-]") then
+      n = n + 1
+    end
+  end
+  check("exactly one delimiter row", n == 1, "got: " .. out)
+  check("rows after the org separator kept", out:find("| 7 | 8 | 9 |", 1, true) ~= nil)
+end
+
+-- Plain text escapes markdown-significant characters (org-md-plain-text).
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("2*3*4 snake_case `tick` back\\slash\n# not a heading ![not an image "),
+      A.emphasis("verbatim", { A.text("a_b*c") }),
+      A.emphasis("code", { A.text("d_e") }),
+    }),
+    A.paragraph({ A.text("# starts with hash") }),
+  })
+  local out = to_md.render(doc)
+  check("* escaped", out:find("2\\*3\\*4", 1, true) ~= nil, "got: " .. out)
+  check("_ escaped", out:find("snake\\_case", 1, true) ~= nil)
+  check("` escaped", out:find("\\`tick\\`", 1, true) ~= nil)
+  check("\\ escaped", out:find("back\\\\slash", 1, true) ~= nil)
+  check("line-leading # escaped", out:find("\n\\# not a heading", 1, true) ~= nil)
+  check("![ escaped", out:find("\\![not an image", 1, true) ~= nil)
+  check("verbatim content not escaped", out:find("`a_b*c`", 1, true) ~= nil)
+  check("code content not escaped", out:find("`d_e`", 1, true) ~= nil)
+  check("paragraph-leading # escaped", out:find("\n\\# starts with hash", 1, true) ~= nil)
+end
+
+-- List items: nested content indents to the parent's content column,
+-- continuation blocks are separated by a blank line, and every block
+-- kind inside an item is rendered.
+do
+  local doc = A.document({
+    A.list(true, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("alpha") }),
+          A.list(false, {
+            A.list_item({ content = { A.paragraph({ A.text("nested") }) } }),
+          }),
+        },
+      }),
+      A.list_item({ content = { A.paragraph({ A.text("beta") }) } }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check(
+    "sublist under an ordered item indents 3",
+    out:find("1. alpha\n   - nested\n2. beta", 1, true) ~= nil,
+    "got: " .. vim.inspect(out)
+  )
+
+  local doc2 = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("first para") }),
+          A.paragraph({ A.text("second para") }),
+        },
+      }),
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("intro") }),
+          A.code_block("lua", "print(1)"),
+          A.block("quote", { content = { A.paragraph({ A.text("quoted") }) } }),
+        },
+      }),
+    }),
+  })
+  local out2 = to_md.render(doc2)
+  check(
+    "continuation paragraph after a blank line at the content column",
+    out2:find("- first para\n\n  second para\n", 1, true) ~= nil,
+    "got: " .. vim.inspect(out2)
+  )
+  check(
+    "code block inside an item",
+    out2:find("- intro\n\n  ```lua\n  print(1)\n  ```\n", 1, true) ~= nil,
+    "got: " .. vim.inspect(out2)
+  )
+  check(
+    "quote block inside an item",
+    out2:find("\n  > quoted\n", 1, true) ~= nil,
+    "got: " .. vim.inspect(out2)
+  )
+end
+
+-- Footnotes are numbered by first reference; inline footnotes get a
+-- synthesised definition; definitions collect at the end.
+do
+  local doc = A.document({
+    A.paragraph({
+      A.text("claim"),
+      A.footnote_ref("note"),
+      A.text(" and"),
+      A.footnote_ref(nil, { A.text("inline body") }),
+      A.text(" again"),
+      A.footnote_ref("note"),
+      A.text("."),
+    }),
+    A.footnote_definition("note", { A.paragraph({ A.text("The definition.") }) }),
+    A.paragraph({ A.text("after") }),
+  })
+  local out = to_md.render(doc)
+  check(
+    "refs numbered by first reference",
+    out:find("claim[^1] and[^2] again[^1].", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "definitions at the end in number order",
+    out:find("after\n\n[^1]: The definition.\n\n[^2]: inline body\n", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Internal and file links resolve to markdown anchors / .md paths.
+do
+  local doc = A.document({
+    A.headline({ level = 1, title = { A.text("Target heading") } }),
+    A.headline({ level = 1, title = { A.text("Custom") }, properties = { CUSTOM_ID = "custom" } }),
+    A.headline({ level = 1, title = { A.text("By uuid") }, properties = { ID = "abc-123" } }),
+    A.headline({ level = 1, title = { A.text("Unreferenced") } }),
+    A.paragraph({ A.text("see "), A.target("anchor"), A.text(" here") }),
+    A.paragraph({
+      A.link("file:notes.org", { A.text("Notes") }),
+      A.text(" "),
+      A.link("*Target heading", { A.text("internal") }),
+      A.text(" "),
+      A.link("#custom", { A.text("by id") }),
+      A.text(" "),
+      A.link("id:abc-123", { A.text("by uuid") }),
+      A.text(" "),
+      A.link("anchor", { A.text("to target") }),
+      A.text(" "),
+      A.link("*Target heading"),
+      A.text(" "),
+      A.link("*Missing", { A.text("gone") }),
+      A.text(" "),
+      A.link("https://x.y/a?b=1&c=2", { A.text("q") }),
+    }),
+  })
+  local out = to_md.render(doc)
+  check("file:x.org -> x.md", out:find("[Notes](notes.md)", 1, true) ~= nil, "got: " .. out)
+  check("*Title -> #anchor", out:find("[internal](#target-heading)", 1, true) ~= nil)
+  check("#custom -> #custom", out:find("[by id](#custom)", 1, true) ~= nil)
+  check("id: -> headline anchor", out:find("[by uuid](#by-uuid)", 1, true) ~= nil)
+  check("target -> #name", out:find("[to target](#anchor)", 1, true) ~= nil)
+  check(
+    "no description -> headline title",
+    out:find("[Target heading](#target-heading)", 1, true) ~= nil
+  )
+  check("unresolved fuzzy -> description text", out:find(" gone ", 1, true) ~= nil)
+  check("external untouched", out:find("[q](https://x.y/a?b=1&c=2)", 1, true) ~= nil)
+  check(
+    "referred headline gets an anchor line",
+    out:find('<a id="target-heading"></a>\n\n# Target heading', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("unreferenced headline has no anchor", out:find('id="unreferenced"', 1, true) == nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

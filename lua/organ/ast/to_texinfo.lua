@@ -7,7 +7,53 @@
 -- @node lines are emitted to satisfy `info` navigation; the
 -- prev/next/up fields are inferred by texinfo or by post-processing.
 
+local ENTITIES = require("organ.ast.org_entities")
+
 local M = {}
+
+-- org-texinfo-entity: Texinfo commands where they exist, UTF-8 otherwise.
+local ENTITY_CMD = {
+  AElig = "@AE{}",
+  aelig = "@ae{}",
+  bull = "@bullet{}",
+  bullet = "@bullet{}",
+  copy = "@copyright{}",
+  deg = "@textdegree{}",
+  dots = "@dots{}",
+  hellip = "@dots{}",
+  equiv = "@equiv{}",
+  euro = "@euro{}",
+  EUR = "@euro{}",
+  ge = "@geq{}",
+  geq = "@geq{}",
+  laquo = "@guillemetleft{}",
+  iexcl = "@exclamdown{}",
+  imath = "@dotless{i}",
+  iquest = "@questiondown{}",
+  jmath = "@dotless{j}",
+  le = "@leq{}",
+  leq = "@leq{}",
+  lsaquo = "@guilsinglleft{}",
+  mdash = "---",
+  minus = "@minus{}",
+  nbsp = "@tie{}",
+  ndash = "--",
+  OElig = "@OE{}",
+  oelig = "@oe{}",
+  ordf = "@ordf{}",
+  ordm = "@ordm{}",
+  pound = "@pound{}",
+  raquo = "@guillemetright{}",
+  rArr = "@result{}",
+  Rightarrow = "@result{}",
+  reg = "@registeredsymbol{}",
+  rightarrow = "@arrow{}",
+  to = "@arrow{}",
+  rarr = "@arrow{}",
+  rsaquo = "@guilsinglright{}",
+  thorn = "@th{}",
+  THORN = "@TH{}",
+}
 
 local SECT = {
   [1] = "@chapter",
@@ -80,6 +126,31 @@ function emit_inline(nodes)
       out[#out + 1] = "@math{" .. (n.body or "") .. "}"
     elseif n.kind == "linebreak" then
       out[#out + 1] = "@*"
+    elseif n.kind == "subscript" then
+      out[#out + 1] = "@math{_" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "superscript" then
+      out[#out + 1] = "@math{^" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "entity" then
+      local name = n.name or ""
+      local e = ENTITIES[name]
+      if ENTITY_CMD[name] then
+        out[#out + 1] = ENTITY_CMD[name]
+      elseif e and name:sub(1, 1) == "_" then
+        out[#out + 1] = "@w{" .. name:sub(2) .. "}"
+      elseif e then
+        out[#out + 1] = escape_text(e.utf8)
+      else
+        out[#out + 1] = escape_text("\\" .. name)
+      end
+    elseif n.kind == "statistics_cookie" then
+      out[#out + 1] = escape_text(n.value)
+    elseif n.kind == "timestamp" then
+      out[#out + 1] = "@emph{" .. escape_text(n.value) .. "}"
+    elseif n.kind == "target" then
+      out[#out + 1] = "@anchor{" .. escape_text(n.name) .. "}"
+    elseif n.kind == "macro" then
+      local args = (n.args and #n.args > 0) and ("(" .. table.concat(n.args, ",") .. ")") or ""
+      out[#out + 1] = escape_text("{{{" .. (n.name or "") .. args .. "}}}")
     elseif n.kind == "raw_inline" then
       out[#out + 1] = n.text or ""
     end
