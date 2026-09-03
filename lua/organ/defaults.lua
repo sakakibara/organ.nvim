@@ -1413,9 +1413,13 @@ return {
   format = {
     enabled = true,
 
-    -- Prose rewrap.
+    -- Prose rewrap.  Off by default: `:Org format` normalises structure,
+    -- and joining lines the author chose to break is not a decision a
+    -- whole-buffer pass should make.  `gq` reflows regardless, being the
+    -- explicit range-scoped request that Emacs spells `M-q`.  Set this
+    -- true to have `:Org format` refill prose too.
     wrap = {
-      enabled = true,
+      enabled = false,
       -- Max line width.  `0` means "use the buffer's `textwidth`";
       -- `textwidth = 0` in turn is Vim for "do not hard-wrap", and only
       -- an explicitly requested reflow (`gq`) then falls back to 80.

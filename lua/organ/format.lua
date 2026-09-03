@@ -67,10 +67,10 @@ local function effective_width(bufnr, cfg, fallback)
   return fallback
 end
 
-local function format_cfg()
+local function format_cfg(bufnr)
   local ok, organ = pcall(require, "organ")
-  if ok and organ.config and require("organ.buf_config").read(nil, "format") then
-    return require("organ.buf_config").read(nil, "format")
+  if ok and organ.config and require("organ.buf_config").read(bufnr, "format") then
+    return require("organ.buf_config").read(bufnr, "format")
   end
   return {}
 end
@@ -198,7 +198,7 @@ function M.align_tag_block(left, tags, opts)
   opts = opts or {}
   local cfg_val = opts.tags_column
   if cfg_val == nil then
-    cfg_val = (format_cfg().headline or {}).tags_column
+    cfg_val = (format_cfg(opts.bufnr).headline or {}).tags_column
     if cfg_val == nil then
       cfg_val = "textwidth"
     end
@@ -1085,8 +1085,10 @@ local function repair_lists(bufnr)
   for i, l in ipairs(lines) do
     if i > skip_to and not verbatim[i] and l:match("^%s*%d+[%.%)]%s") then
       -- repair normalizes the whole structure and reports its range;
-      -- everything up to `e` is already canonical.
-      local ok, _, _, e = pcall(list_mod.repair, bufnr, i)
+      -- everything up to `e` is already canonical.  An unattended sweep
+      -- keeps each run's own first number, so prose opening with a year
+      -- or a page number is renumbered from itself, i.e. not at all.
+      local ok, _, _, e = pcall(list_mod.repair, bufnr, i, { preserve_start = true })
       if ok and e then
         skip_to = e
       end
@@ -1095,18 +1097,21 @@ local function repair_lists(bufnr)
 end
 
 function M.format_lines(lines, cfg, bufnr, opts)
-  cfg = cfg or format_cfg()
+  cfg = cfg or format_cfg(bufnr)
   cfg._effective_width = effective_width(bufnr, cfg, opts and opts.default_width)
 
   if cfg.trim_trailing_whitespace ~= false then
     lines = trim_trailing_whitespace(lines)
   end
   lines = normalize_headlines(lines, cfg)
+  if opts and opts.force_wrap and (cfg.wrap or {}).enabled == false then
+    cfg = vim.tbl_deep_extend("force", cfg, { wrap = { enabled = true } })
+  end
   lines = wrap_prose(lines, cfg, opts and opts.tail)
   do
-    local icfg = require("organ.buf_config").read(nil, "indent") or {}
+    local icfg = require("organ.buf_config").read(bufnr, "indent") or {}
     if icfg.adapt_indentation then
-      local pi = (require("organ.buf_config").read(nil, "todo") or {}).planning_indent
+      local pi = (require("organ.buf_config").read(bufnr, "todo") or {}).planning_indent
       lines = adapt_indentation(lines, icfg.adapt_indentation, pi)
     end
   end
@@ -1128,7 +1133,7 @@ function M.format_range(bufnr, lo, hi, opts)
   if hi < lo then
     return
   end
-  local cfg = format_cfg()
+  local cfg = format_cfg(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, lo - 1, hi, false)
   -- A drawer opened inside the range may be closed past its end.
   local range_opts = { tail = vim.api.nvim_buf_get_lines(bufnr, hi, total, false) }
@@ -1144,7 +1149,7 @@ end
 
 function M.format_buffer(bufnr)
   bufnr = bufnr or 0
-  local cfg = format_cfg()
+  local cfg = format_cfg(bufnr)
   M.format_range(bufnr, 1, vim.api.nvim_buf_line_count(bufnr))
   if (cfg.section or {}).normalize ~= false then
     normalize_section(bufnr)
@@ -1173,7 +1178,10 @@ function M.formatexpr()
     return 1
   end
   local bufnr = vim.api.nvim_get_current_buf()
-  local ok = pcall(M.format_range, bufnr, lnum, lnum + count - 1, { default_width = 80 })
+  -- `gq` is the explicit reflow request, so it fills whatever
+  -- `format.wrap.enabled` says about unattended whole-buffer passes.
+  local ok =
+    pcall(M.format_range, bufnr, lnum, lnum + count - 1, { default_width = 80, force_wrap = true })
   if ok then
     return 0
   end

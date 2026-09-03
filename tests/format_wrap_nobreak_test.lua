@@ -29,9 +29,12 @@ end
 
 local fmt = require("organ.format")
 
+-- An unattended pass leaves prose alone by default; every case here is
+-- about the wrap pass itself, so turn it on for the buffer under test.
 local function format_buf(textwidth, input)
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = textwidth
+  require("organ.buf_config").set(b, "format.wrap.enabled", true)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, input)
   fmt.format_buffer(b)
   local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)

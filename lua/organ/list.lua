@@ -242,7 +242,7 @@ end
 -- from 1, an `[@N]` counter on any member overriding the count there.
 -- Item body lines shift with their owning item.  Returns the number of
 -- changed lines.
-local function write_struct(bufnr, st, parent, group)
+local function write_struct(bufnr, st, parent, group, opts)
   local items = st.items
   local new_ind, new_bul = {}, {}
   local first_of, counters = {}, {}
@@ -257,7 +257,11 @@ local function write_struct(bufnr, st, parent, group)
     new_ind[i] = parent[i] and (new_ind[parent[i]] + #new_bul[parent[i]] + 1) or st.top_ind
     if fit.counter then
       local cookie = it.content:match("^%[@(%d+)%]")
-      local n = cookie and tonumber(cookie) or ((counters[gk] or 0) + 1)
+      local n = cookie and tonumber(cookie)
+      if not n and i == first and opts and opts.preserve_start then
+        n = tonumber(it.bullet:match("^(%d+)") or "")
+      end
+      n = n or ((counters[gk] or 0) + 1)
       counters[gk] = n
       new_bul[i] = tostring(n) .. fit.sep
     else
@@ -379,16 +383,20 @@ local function indent_op(bufnr, line, dir, tree)
 end
 
 -- Repair: normalize the whole structure at the cursor (Emacs
--- org-list-repair) — indentation, bullet styles, numbering.  Returns
+-- org-list-repair) -- indentation, bullet styles, numbering.  Returns
 -- the number of changed lines, plus the structure's line range so a
 -- caller sweeping a buffer can skip past it.
-function M.repair(bufnr, cursor_line)
+--
+-- `opts.preserve_start` numbers each ordered run from the number its
+-- first item already carries instead of restarting at 1, so a sweep over
+-- a whole buffer cannot rewrite prose that merely opens with a number.
+function M.repair(bufnr, cursor_line, opts)
   local st = parse_struct(bufnr, cursor_line)
   if not st then
     return 0
   end
   local parent, group = analyze(st)
-  return write_struct(bufnr, st, parent, group), st.s, st.e
+  return write_struct(bufnr, st, parent, group, opts), st.s, st.e
 end
 
 -- Sort items at the cursor's indent level. Sub-items move with their parent.

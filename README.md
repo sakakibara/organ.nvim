@@ -406,14 +406,19 @@ default) with example inputs.
 
 ## Formatting
 
-Paragraph rewrap that preserves headlines, list bullets, drawers, blocks,
-planning lines, and tables. Wraps to `textwidth` (or 80 if unset).
+Structural normalisation that preserves headlines, list bullets, drawers,
+blocks, planning lines, and tables: trailing whitespace, headline spacing,
+tag column, drawer values, list indentation, table alignment.
+
+Prose is left as written. Reflowing it is `gq`, the explicit request, which
+wraps to `format.wrap.width`, else `textwidth`. To have `:Org format` refill
+prose too, set `format = { wrap = { enabled = true } }`.
 
 | Trigger | Effect |
 |---------|--------|
 | `gq` motion (e.g. `gqip`) | Rewrap that paragraph (Vim's `formatexpr` is wired to organ.format). |
-| `:Org format` | Rewrap the whole buffer. |
-| `:'<,'>Org format` | Rewrap the visual selection. |
+| `:Org format` | Normalise the whole buffer. |
+| `:'<,'>Org format` | Normalise the visual selection. |
 | LSP `textDocument/formatting` | Same — `vim.lsp.buf.format()` works out of the box. |
 
 Auto‑format‑on‑save is intentionally not bundled. The organ in‑process

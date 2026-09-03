@@ -120,5 +120,68 @@ do
   assert(lines[4] == "  - sub of charlie", "charlie's sub follows: " .. lines[4])
 end
 
+-- 8. repair numbers a run from 1 (Emacs `org-list-repair`), while
+--    `preserve_start` numbers it from the first item's own number so an
+--    unattended sweep cannot rewrite prose that opens with a number.
+do
+  local function mk(lines)
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, lines)
+    return b
+  end
+  local b = mk({ "3. three", "9. nine", "7. seven" })
+  list.repair(b, 1)
+  assert(
+    vim.deep_equal(vim.api.nvim_buf_get_lines(b, 0, -1, false), {
+      "1. three",
+      "2. nine",
+      "3. seven",
+    }),
+    "repair restarts at 1: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  b = mk({ "3. three", "9. nine", "7. seven" })
+  list.repair(b, 1, { preserve_start = true })
+  assert(
+    vim.deep_equal(vim.api.nvim_buf_get_lines(b, 0, -1, false), {
+      "3. three",
+      "4. nine",
+      "5. seven",
+    }),
+    "preserve_start counts on from 3: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  -- Already sequential from its own start: nothing to change.
+  b = mk({ "1985. It was a good year.", "1986. The following year was quieter." })
+  list.repair(b, 1, { preserve_start = true })
+  assert(
+    vim.deep_equal(vim.api.nvim_buf_get_lines(b, 0, -1, false), {
+      "1985. It was a good year.",
+      "1986. The following year was quieter.",
+    }),
+    "year-numbered prose is untouched: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  -- A real list still gets repaired.
+  b = mk({ "1. one", "1. two", "1. three" })
+  list.repair(b, 1, { preserve_start = true })
+  assert(
+    vim.deep_equal(vim.api.nvim_buf_get_lines(b, 0, -1, false), {
+      "1. one",
+      "2. two",
+      "3. three",
+    }),
+    "a real list is still renumbered: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  -- An explicit [@N] counter still wins over the first item's number.
+  b = mk({ "2. [@7] seven", "1. eight" })
+  list.repair(b, 1, { preserve_start = true })
+  assert(
+    vim.api.nvim_buf_get_lines(b, 0, -1, false)[2] == "8. eight",
+    "counter wins: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+end
+
 io.write("list ok\n")
 os.exit(0)

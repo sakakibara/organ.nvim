@@ -1406,11 +1406,21 @@ Indent                                                   *organ-config-indent*
 Format                                                   *organ-config-format*
 
 Settings for the org formatter (`:Org format` / `gq` / LSP
-`textDocument/formatting`).  Paragraph rewrap that preserves
-headlines, drawers, blocks, planning lines, tables.  Wraps to
-`format.wrap.width`, else `textwidth`.  `textwidth = 0` is Vim for
-"do not hard-wrap", so paragraphs are then left as typed; `gq` asks
-for a reflow explicitly and falls back to 80.  Auto-format-on-save
+`textDocument/formatting`).  Structural normalisation that preserves
+headlines, drawers, blocks, planning lines, tables.
+
+Prose is left as the author wrote it: `format.wrap.enabled` is false,
+so `:Org format` does not join lines you chose to break.  `gq` reflows
+regardless, being the explicit range-scoped request (Emacs `M-q`), and
+wraps to `format.wrap.width`, else `textwidth`.  `textwidth = 0` is
+Vim for "do not hard-wrap", so a buffer-wide pass then leaves
+paragraphs alone while `gq` falls back to 80.  Set
+`format.wrap.enabled = true` to refill prose on every format.
+
+An unattended pass also numbers each ordered list from the number its
+own first item carries, so prose opening with a year or a page number
+keeps it; `:Org list repair` restarts at 1, as Emacs does.
+Auto-format-on-save
 is intentionally not bundled -- wire it via your formatter-runner of
 choice (conform.nvim / none-ls / a BufWritePre autocmd calling
 `require("organ.format").format_buffer(0)`).

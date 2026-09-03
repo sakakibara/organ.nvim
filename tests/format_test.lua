@@ -36,10 +36,11 @@ do
   )
 end
 
--- (b) Plain prose paragraph rewraps to textwidth.
+-- (b) With wrap turned on, a plain prose paragraph rewraps to textwidth.
 do
   local b = vim.api.nvim_create_buf(false, true)
   vim.bo[b].textwidth = 30
+  require("organ.buf_config").set(b, "format.wrap.enabled", true)
   vim.api.nvim_buf_set_lines(b, 0, -1, false, {
     "* Heading",
     "this is a single long line that should rewrap to thirty chars per line",
@@ -121,17 +122,29 @@ end
 
 -- (f) format_range exercises the same code path as formatexpr but
 -- without the v:lnum/v:count ceremony (those are read-only outside
--- a real `gq` invocation).
+-- a real `gq` invocation).  `gq` fills whatever `format.wrap.enabled`
+-- says, so it passes `force_wrap`; a ranged `:Org format` does not.
 do
-  local b = vim.api.nvim_create_buf(false, true)
-  vim.bo[b].textwidth = 25
-  vim.api.nvim_buf_set_lines(b, 0, -1, false, {
-    "* H",
-    "long line one that should wrap to twenty five chars across multiple",
-  })
-  fmt.format_range(b, 2, 2)
-  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
-  check("format_range: rewrapped line 2", #lines >= 2 and #lines[2] <= 25, vim.inspect(lines))
+  local function ranged(opts)
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.bo[b].textwidth = 25
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+      "* H",
+      "long line one that should wrap to twenty five chars across multiple",
+    })
+    fmt.format_range(b, 2, 2, opts)
+    local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+    vim.api.nvim_buf_delete(b, { force = true })
+    return out
+  end
+  local lines = ranged({ force_wrap = true })
+  check("gq path: rewrapped line 2", #lines >= 2 and #lines[2] <= 25, vim.inspect(lines))
+  local plain = ranged(nil)
+  check(
+    "ranged :Org format leaves prose as written",
+    #plain == 2 and #plain[2] > 25,
+    vim.inspect(plain)
+  )
 end
 
 -- Emacs-parity: `\\` at end of line is org's hard line-break syntax.
