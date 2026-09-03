@@ -423,7 +423,7 @@ function M.slugify(s)
   end
   s = table.concat(out)
   s = s:gsub("_+", "_"):gsub("^_", ""):gsub("_$", "")
-  s = s:lower()
+  s = vim.fn.tolower(s)
   return s == "" and "untitled" or s
 end
 

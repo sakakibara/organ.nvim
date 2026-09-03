@@ -76,6 +76,24 @@ do
   )
 end
 
+-- org-link-plain-re: the path must end with a non-punctuation char, a
+-- `/`, or a balanced paren group.
+do
+  local cases = {
+    { "see https://example.com/foo_ now", "https://example.com/foo_", "https://example.com/foo" },
+    { "see https://example.com/a- now", "https://example.com/a-", "https://example.com/a" },
+    { "see http://x.com/# now", "http://x.com/#", "http://x.com/" },
+    { "see https://example.com/foo~ now", "https://example.com/foo~", "https://example.com/foo" },
+    { "see https://x.com/path/ now", "https://x.com/path/", "https://x.com/path/" },
+    { "see https://x.com/a_(b) now", "https://x.com/a_(b)", "https://x.com/a_(b)" },
+    { "see https://x.com/a=1&b=2 now", "https://x.com/a=1&b=2", "https://x.com/a=1&b=2" },
+  }
+  for _, c in ipairs(cases) do
+    local got = target_at(c[1], 6)
+    check("trailing punctuation: " .. c[2], got == c[3], tostring(got))
+  end
+end
+
 do
   local line = "note: this is prose, deadline: tomorrow"
   check("unknown scheme is not a link", target_at(line, 2) == nil, tostring(target_at(line, 2)))
@@ -153,6 +171,23 @@ do
   link.follow()
   vim.ui.open = saved
   check("bracket link wins over plain match", opened == "https://bracket.example", tostring(opened))
+end
+
+-- org-link-bracket-re allows `]` inside the description; the cursor on
+-- the description still resolves the bracket target.
+do
+  local opened
+  local saved = vim.ui.open
+  vim.ui.open = function(url)
+    opened = url
+  end
+  buf_with({
+    "see [[https://bracket.example][Intro [v2] notes]] here",
+  })
+  vim.api.nvim_win_set_cursor(0, { 1, 40 })
+  link.follow()
+  vim.ui.open = saved
+  check("bracket description containing ]", opened == "https://bracket.example", tostring(opened))
 end
 
 if fails > 0 then

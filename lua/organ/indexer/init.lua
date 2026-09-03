@@ -539,8 +539,10 @@ M.commands = {
         notify_msg(
           "force-rescan: clearing index for " .. require("organ.buf_config").read(nil, "org_dir")
         )
-        local s = h:prepare("SELECT path FROM files WHERE path LIKE ?")
-        s:bind_text(1, require("organ.buf_config").read(nil, "org_dir") .. "%")
+        local org_dir = require("organ.buf_config").read(nil, "org_dir")
+        local prefix = (require("organ.path").canonical(org_dir) or org_dir):gsub("/+$", "") .. "/"
+        local s = h:prepare("SELECT path FROM files WHERE path LIKE ? ESCAPE '\\'")
+        s:bind_text(1, (prefix:gsub("[\\%%_]", "\\%0")) .. "%")
         local paths = {}
         while s:step() == require("organ.db").SQLITE_ROW do
           paths[#paths + 1] = s:column_text(0)

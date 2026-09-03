@@ -174,6 +174,55 @@ do
   vim.api.nvim_win_close(w, true)
 end
 
+-- ─── Test 5: `~` in the source path is expanded ──────────────────────────────
+do
+  local home = tmp .. "/home"
+  vim.fn.mkdir(home, "p")
+  local saved_home = vim.env.HOME
+  vim.env.HOME = home
+  assert(vim.fn.expand("~") == home, "test5: HOME override not applied")
+  local fh = assert(io.open(home .. "/tilde.txt", "w"))
+  fh:write("tilde")
+  fh:close()
+
+  local org_path = tmp .. "/attach5.org"
+  local b = make_buf("* Headline D\n  body\n", org_path)
+  local orig_cfg = require("organ").config.attach
+  require("organ").config.attach = vim.tbl_extend("force", orig_cfg, { auto_insert_link = false })
+
+  local err = attach.attach(b, 1, "~/tilde.txt")
+  assert(err == nil, "test5: attach returned error: " .. tostring(err))
+  local files = attach.list(b, 1)
+  assert(files and #files == 1, "test5: expected 1 attached file")
+  assert(vim.fn.fnamemodify(files[1], ":t") == "tilde.txt", "test5: got " .. files[1])
+
+  require("organ").config.attach = orig_cfg
+  vim.env.HOME = saved_home
+end
+
+-- ─── Test 6: unreadable source returns an error before touching the buffer ───
+do
+  local org_path = tmp .. "/attach6.org"
+  local b = make_buf("* Headline E\n  body\n", org_path)
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  local orig_cfg = require("organ").config.attach
+  require("organ").config.attach = vim.tbl_extend("force", orig_cfg, { auto_insert_link = false })
+
+  local ok, err = pcall(attach.attach, b, 1, tmp .. "/does-not-exist.txt")
+  assert(ok, "test6: attach raised: " .. tostring(err))
+  assert(
+    type(err) == "string" and err:find("does-not-exist.txt", 1, true),
+    "test6: err=" .. tostring(err)
+  )
+  local after = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  assert(
+    vim.deep_equal(after, before),
+    "test6: buffer modified on failed attach: " .. vim.inspect(after)
+  )
+
+  require("organ").config.attach = orig_cfg
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("attach ok\n")
 os.exit(0)

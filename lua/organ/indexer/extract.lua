@@ -65,36 +65,25 @@ local function extractor_version()
 end
 M._extractor_version = extractor_version -- exposed for tests
 
-local DEFAULT_TODO_KEYWORDS = {
-  TODO = true,
-  DONE = true,
-  NEXT = true,
-  WAITING = true,
-  CANCELLED = true,
-  HOLD = true,
-  PROJ = true,
-}
-
 local function parse_heading_line(line, todo_keywords)
-  todo_keywords = todo_keywords or DEFAULT_TODO_KEYWORDS
   local level, rest = require("organ.headline").split(line)
   if not level then
     return nil
   end
   local result =
     { level = level, todo = nil, priority = nil, title = "", tags = {}, commented = false }
-  local body, tag_run = rest:match("^(.-)%s*(:[%w_@#%%]+:.*)$")
-  if body and tag_run and tag_run:match("^:[%w_@#%%]+:[%w_@#%%:]*$") then
+  local body, tag_run = rest:match("^(.-)%s*(:[%w_@#%%\128-\255]+:.*)$")
+  if body and tag_run and tag_run:match("^:[%w_@#%%\128-\255]+:[%w_@#%%\128-\255:]*$") then
     local valid = true
     for tag in tag_run:gmatch(":([^:]+)") do
-      if not tag:match("^[%w_@#%%]+$") then
+      if not tag:match("^[%w_@#%%\128-\255]+$") then
         valid = false
         break
       end
     end
     if valid then
       rest = body
-      for tag in tag_run:gmatch(":([%w_@#%%]+)") do
+      for tag in tag_run:gmatch(":([%w_@#%%\128-\255]+)") do
         result.tags[#result.tags + 1] = tag
       end
     end
@@ -214,9 +203,35 @@ local function scan_todo_keywords(src)
           }
         end
       end
+      -- Emacs `org-set-regexps-and-options`: absent a `|`, the last
+      -- keyword of the sequence is the done state.
+      if not in_done and ord > 0 then
+        rows[#rows].is_done = 1
+      end
     end
   end
   return rows
+end
+
+-- Keyword set for `parse_heading_line`: the file's own `#+TODO:` lines
+-- replace the configured sequences (Emacs per-file `org-todo-keywords`).
+local function todo_keyword_set(src)
+  local set = {}
+  if type(src) == "number" then
+    src = table.concat(vim.api.nvim_buf_get_lines(src, 0, -1, false), "\n")
+  end
+  local rows = scan_todo_keywords(src)
+  if #rows > 0 then
+    for _, r in ipairs(rows) do
+      set[r.keyword] = true
+    end
+    return set
+  end
+  local todo = require("organ.todo")
+  for _, k in ipairs(todo.all_keywords(todo.effective_sequences(nil))) do
+    set[k] = true
+  end
+  return set
 end
 
 local function trim_trailing_ws(s)
@@ -498,7 +513,7 @@ local function collect_habit_completions(heading_node, src, src_lines)
         -- limited to uppercase.  Match `[%w_-]+` so `Verified`,
         -- `in_progress`, etc. all work.
         local kw, date =
-          l:match('^%s*%-%s*State%s+"([%w_%-]+)"%s+from%s+"[%w_%-]*"%s*%[(%d%d%d%d%-%d%d%-%d%d)')
+          l:match('^%s*%-%s*State%s+"([%w_%-]+)"%s+from%s*"?[^"%s%[]*"?%s*%[(%d%d%d%d%-%d%d%-%d%d)')
         if kw and DONE_KEYWORDS[kw] and not seen[date] then
           seen[date] = true
           out[#out + 1] = date
@@ -576,7 +591,10 @@ local function collect_state_changes(heading_node, src, src_lines)
         in_drawer = false
       else
         local to_kw, from_kw, ts_body =
-          l:match('^%s*%-%s*State%s+"([%w_%-]*)"%s+from%s+"([%w_%-]*)"%s*%[([^%]]+)%]')
+          l:match('^%s*%-%s*State%s+"([%w_%-]*)"%s+from%s*"?([^"%s%[]*)"?%s*%[([^%]]+)%]')
+        if from_kw == "(none)" then
+          from_kw = ""
+        end
         if to_kw and to_kw ~= "" then
           flush()
           local ts = parse_logbook_ts(ts_body)
@@ -610,8 +628,8 @@ local function collect_state_changes(heading_node, src, src_lines)
 end
 
 local function parse_link_text(text)
-  local target, desc = text:match("^%[%[([^%]]+)%]%[([^%]]+)%]%]$")
-  if target then
+  local _, e, target, desc = text:find("^%[%[([^%]]+)%]%[(.-.)%]%]")
+  if target and e == #text then
     return { target = target, description = desc }
   end
   local t2 = text:match("^%[%[([^%]]+)%]%]$")
@@ -912,6 +930,7 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
 
   local headlines = {}
   local stack = {}
+  local todo_keywords = todo_keyword_set(src_for_text)
 
   -- File-level node (org-roam-style file with :ID: + #+title: in a
   -- property drawer before any heading). Emit before per-heading records
@@ -927,7 +946,7 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
     end
     local full_text = get_text(hnode, src_for_text) or ""
     local first_line = full_text:match("^[^\n]*") or ""
-    local parsed = parse_heading_line(first_line)
+    local parsed = parse_heading_line(first_line, todo_keywords)
     if not parsed then
       goto continue
     end

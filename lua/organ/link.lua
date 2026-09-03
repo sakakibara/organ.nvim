@@ -142,8 +142,21 @@ end
 --
 -- `opts.abbrev` (table) is consulted for #+LINK: abbreviations; pass
 -- M.parse_abbrev(bufnr) when you want buffer-local abbrevs to apply.
+-- `opts.bufnr` / `opts.line` locate the headline whose attachment
+-- directory resolves `attachment:` links (default: cursor position).
 function M.open(target_text, source_file_path, opts)
   local ttype, target, anchor = M.resolve(target_text, opts)
+
+  if ttype == "attachment" then
+    local bufnr = (opts and opts.bufnr) or vim.api.nvim_get_current_buf()
+    local line = (opts and opts.line) or vim.api.nvim_win_get_cursor(0)[1]
+    local file, att_anchor = target:match("^(.-)::(.+)$")
+    local dir, err = require("organ.attach").dir(bufnr, line, { create = false })
+    if not dir then
+      return { kind = "error", reason = "attachment: " .. err }
+    end
+    return { kind = "edit_file", path = dir .. "/" .. (file or target), anchor = att_anchor }
+  end
 
   if ttype == "id" then
     local query = require("organ.query")
@@ -243,6 +256,31 @@ function M.dispatch_unsafe(action)
   end
 end
 
+-- Search-string form used by `org-link-search`: statistics cookies
+-- dropped, whitespace collapsed, case folded.
+local function normalize_search_string(s)
+  s = s:gsub("%[%d*%%%]", " "):gsub("%[%d*/%d*%]", " ")
+  s = s:gsub("[ \t]+", " "):match("^%s*(.-)%s*$")
+  return s:upper()
+end
+
+-- Headline text without TODO keyword, priority, COMMENT and tags
+-- (`(org-get-heading t t t t)`), or nil when `line` is not a headline.
+local function headline_search_text(line, todo_keywords)
+  local level, rest = require("organ.headline").split(line)
+  if not level then
+    return nil
+  end
+  rest = rest:gsub("[ \t]+:[%w_@#%%:\128-\255]+:[ \t]*$", "")
+  local first, after = rest:match("^(%S+)%s*(.*)$")
+  if first and todo_keywords[first] then
+    rest = after
+  end
+  rest = rest:gsub("^%[#[%u%d]%][ \t]*", "")
+  rest = rest:gsub("^COMMENT[ \t]+", "")
+  return rest
+end
+
 function M.dispatch_edit_file(action)
   vim.cmd("edit " .. vim.fn.fnameescape(action.path))
   if not action.anchor then
@@ -268,9 +306,10 @@ function M.dispatch_edit_file(action)
   if lookup.kind == "headline" or lookup.kind == "custom_id" then
     local query = require("organ.query")
     if lookup.kind == "headline" then
+      local wanted = normalize_search_string(lookup.value)
       local rows = query.headlines({ file = action.path, title_match = lookup.value })
       for _, r in ipairs(rows) do
-        if r.title == lookup.value then
+        if normalize_search_string(r.title) == wanted then
           row = r
           break
         end
@@ -303,10 +342,20 @@ function M.dispatch_edit_file(action)
   end
 
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local wanted, todo_keywords
+  if lookup.kind == "headline" then
+    wanted = normalize_search_string(lookup.value)
+    todo_keywords = {}
+    local todo = require("organ.todo")
+    for _, k in ipairs(todo.all_keywords(todo.effective_sequences(0))) do
+      todo_keywords[k] = true
+    end
+  end
   for i, line in ipairs(lines) do
     local hit = false
     if lookup.kind == "headline" then
-      hit = line:match("^%*+%s+" .. vim.pesc(lookup.value) .. "%s*$") ~= nil
+      local text = headline_search_text(line, todo_keywords)
+      hit = text ~= nil and normalize_search_string(text) == wanted
     elseif lookup.kind == "custom_id" then
       hit = line:match("^%s*:CUSTOM_ID:%s+" .. vim.pesc(lookup.value) .. "%s*$") ~= nil
     elseif lookup.kind == "regex" then
@@ -442,13 +491,13 @@ function M.plain_link_at(line_text, col)
     end
     local prev = s > 1 and line_text:sub(s - 1, s - 1) or ""
     if not prev:match("%w") and PLAIN_SCHEMES[scheme] then
-      -- Trim trailing sentence punctuation; keep a `)` that closes a
-      -- paren opened inside the path (org-link-plain-re semantics).
+      -- org-link-plain-re: the path ends with a non-punctuation char,
+      -- a `/`, or a `)` closing a paren opened inside the path.
       local target = scheme .. ":" .. path
       while #target > 0 do
         local last = target:sub(-1)
-        if last:match("[%.,;:!%?'\"]") then
-          target = target:sub(1, -2)
+        if last == "/" then
+          break
         elseif last == ")" then
           local _, opens = target:gsub("%(", "")
           local _, closes = target:gsub("%)", "")
@@ -457,6 +506,8 @@ function M.plain_link_at(line_text, col)
           else
             break
           end
+        elseif last:match("%p") then
+          target = target:sub(1, -2)
         else
           break
         end
@@ -489,7 +540,7 @@ function M.follow(opts)
   local line_text = vim.api.nvim_buf_get_lines(bufnr, line - 1, line, false)[1] or ""
   local links, pos2 = {}, 1
   while true do
-    local s, e, target, desc = line_text:find("%[%[([^%]]+)%]%[([^%]]+)%]%]", pos2)
+    local s, e, target, desc = line_text:find("%[%[([^%]]+)%]%[(.-.)%]%]", pos2)
     local s2, e2, target2 = line_text:find("%[%[([^%]]+)%]%]", pos2)
     local pick_full = s and (not s2 or s <= s2)
     if pick_full then
@@ -526,7 +577,8 @@ function M.follow(opts)
     return
   end
   local source = vim.api.nvim_buf_get_name(bufnr)
-  local action = M.open(target_text, source, { abbrev = M.parse_abbrev(bufnr) })
+  local action =
+    M.open(target_text, source, { abbrev = M.parse_abbrev(bufnr), bufnr = bufnr, line = line })
   M.dispatch(action)
 end
 
@@ -616,7 +668,7 @@ function M.insert_link()
 
   local labels = {}
   for _, e in ipairs(entries) do
-    labels[#labels + 1] = e.title
+    labels[#labels + 1] = e.title or e.url
   end
 
   vim.ui.select(labels, { prompt = "Insert link: " }, function(choice, idx)
@@ -627,6 +679,12 @@ function M.insert_link()
     local link_text
     if e.kind == "id" then
       link_text = "[[id:" .. e.id .. "][" .. e.title .. "]]"
+    elseif e.kind == "url" then
+      if e.title and e.title ~= "" then
+        link_text = "[[" .. e.url .. "][" .. e.title .. "]]"
+      else
+        link_text = "[[" .. e.url .. "]]"
+      end
     elseif e.kind == "file_headline" then
       link_text = "[[file:" .. e.file_path .. "::*" .. e.headline .. "][" .. e.title .. "]]"
     else

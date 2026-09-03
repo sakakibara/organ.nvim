@@ -1,7 +1,7 @@
 -- Footnote operations.  Compatible with Emacs `org-footnote-action`.
 --
 -- Reference forms recognised:
---   [fn:LABEL]              named reference (LABEL = ALPHA / DIGIT / _ / -)
+--   [fn:LABEL]              named reference (LABEL = word chars / _ / -)
 --   [fn:LABEL: text]        inline-defined reference (definition embedded)
 --   [fn::text]              anonymous inline footnote
 --   [fn:N]                  numeric reference (LABEL = digits only)
@@ -25,7 +25,7 @@ local M = {}
 local obuf = require("organ.buf")
 -- Pattern building blocks
 
-local DEF_LINE_PATTERN = "^%[fn:([%w_%-]+)%]%s"
+local DEF_LINE_PATTERN = "^%[fn:([%w_%-\128-\255]+)%]%s"
 
 local function get_line(bufnr, lnum)
   return vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
@@ -39,7 +39,7 @@ end
 function M.ref_at(text, col)
   local i = 1
   while i <= #text do
-    local s, e, _ = text:find("(%[fn:[%w_%-]*[:%]])", i)
+    local s, e, _ = text:find("(%[fn:[%w_%-\128-\255]*[:%]])", i)
     if not s then
       return nil
     end
@@ -57,7 +57,7 @@ function M.ref_at(text, col)
       end
     end
     if col >= s and col <= closing then
-      local lbl = text:sub(s, closing):match("^%[fn:([%w_%-]*)")
+      local lbl = text:sub(s, closing):match("^%[fn:([%w_%-\128-\255]*)")
       return { label = lbl or "", start_col = s, end_col = closing }
     end
     i = closing + 1
@@ -298,7 +298,7 @@ function M.normalize_inline(bufnr, opts)
     local out = {}
     local pos = 1
     while pos <= #ln do
-      local s, e, label, body = ln:find("%[fn:([%w_%-]*):([^%]]*)%]", pos)
+      local s, e, label, body = ln:find("%[fn:([%w_%-\128-\255]*):([^%]]*)%]", pos)
       if not s then
         out[#out + 1] = ln:sub(pos)
         break
@@ -357,7 +357,7 @@ function M.sort()
   for i = 1, total do
     local txt = get_line(bufnr, i)
     if not txt:match(DEF_LINE_PATTERN) then
-      for label in txt:gmatch("%[fn:([%w_%-]+)[:%]]") do
+      for label in txt:gmatch("%[fn:([%w_%-\128-\255]+)[:%]]") do
         if not seen[label] then
           seen[label] = true
           order[#order + 1] = label

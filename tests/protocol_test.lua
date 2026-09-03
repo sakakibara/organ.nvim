@@ -44,8 +44,38 @@ do
   proto.handle("org-protocol://store-link?url=https%3A%2F%2Fexample.com&title=Example")
   local entries = require("organ.link_store").list()
   assert(#entries == 1, "expected 1 link in store; got " .. #entries)
-  assert(entries[1].target == "https://example.com", "target: " .. tostring(entries[1].target))
-  assert(entries[1].description == "Example", "description: " .. tostring(entries[1].description))
+  assert(entries[1].kind == "url", "kind: " .. tostring(entries[1].kind))
+  assert(entries[1].url == "https://example.com", "url: " .. tostring(entries[1].url))
+  assert(entries[1].title == "Example", "title: " .. tostring(entries[1].title))
+end
+
+-- 4b. A stored org-protocol link inserts as [[url][title]] (Emacs
+-- `org-protocol-store-link` pushes `(url title)` onto `org-stored-links`).
+do
+  local store = require("organ.link_store")
+  store.clear()
+  store.push({ kind = "file_line", file_path = "/x/src.org", line = 2, title = "src.org:2" })
+  proto.handle("org-protocol://store-link?url=https%3A%2F%2Fexample.com&title=Example")
+  proto.handle("org-protocol://store-link?url=https%3A%2F%2Funtitled.example")
+
+  local labels
+  local saved_select = vim.ui.select
+  vim.ui.select = function(items, _opts, cb)
+    labels = items
+    cb(items[2], 2)
+  end
+  local b = vim.api.nvim_create_buf(true, true)
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "" })
+  require("organ.link").insert_link()
+  vim.ui.select = saved_select
+
+  assert(
+    vim.deep_equal(labels, { "https://untitled.example", "Example", "src.org:2" }),
+    "labels: " .. vim.inspect(labels)
+  )
+  local line = vim.api.nvim_buf_get_lines(b, 0, 1, false)[1]
+  assert(line == "[[https://example.com][Example]]", "inserted: " .. tostring(line))
 end
 
 -- 5. handle: capture stashes the body so the template can pull it.

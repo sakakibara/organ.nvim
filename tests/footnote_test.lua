@@ -77,6 +77,30 @@ fn.jump()
 cur = vim.api.nvim_win_get_cursor(0)
 eq(cur[1], 1, "def → ref landed on reference line")
 
+-- Labels are `[-_[:word:]]+` (Emacs `org-footnote-re`), so non-ASCII
+-- word characters are valid.
+r = fn.ref_at("see [fn:注釈] here", 6)
+assert(r, "non-ASCII label ref expected")
+eq(r.label, "注釈", "label 注釈")
+
+setup_buf({
+  "Text with ref[fn:注釈] here.",
+  "",
+  "[fn:注釈] the definition",
+}, 3, 0)
+ctx = fn.find_at_cursor()
+assert(ctx, "non-ASCII definition detected")
+eq(ctx.kind, "def", "kind def (non-ASCII)")
+eq(ctx.label, "注釈", "def label 注釈")
+
+vim.api.nvim_win_set_cursor(0, { 1, 15 })
+fn.jump()
+cur = vim.api.nvim_win_get_cursor(0)
+eq(cur[1], 3, "non-ASCII ref → def")
+fn.jump()
+cur = vim.api.nvim_win_get_cursor(0)
+eq(cur[1], 1, "non-ASCII def → ref")
+
 -- ──────────────────────────────────────────────────────────────────
 -- insert: numeric reference + stub def
 -- ──────────────────────────────────────────────────────────────────

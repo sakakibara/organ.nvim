@@ -17,6 +17,7 @@ require("organ").setup({
   notify = false,
   scan_on_startup = false,
   debounce_ms = 0,
+  attach = { dir = tmp .. "/data" },
 })
 require("organ").scan_blocking(org_dir, 5000)
 
@@ -72,6 +73,41 @@ do
   local a = link.open("weird:thing")
   assert(a.kind == "property_value", vim.inspect(a))
   assert(a.key == "weird" and a.value == "thing", vim.inspect(a))
+end
+
+-- attachment: → edit_file under the headline's attachment directory
+-- (Emacs `org-attach-follow` -> `org-attach-expand` + `org-link-open-as-file`).
+do
+  local att_path = org_dir .. "/att.org"
+  local f = assert(io.open(att_path, "w"))
+  f:write(table.concat({
+    "* With id",
+    "  :PROPERTIES:",
+    "  :ID:       0192abcdef1234567890abcdef123456",
+    "  :END:",
+    "  [[attachment:report.pdf]]",
+    "* Without id",
+    "  [[attachment:other.pdf]]",
+    "",
+  }, "\n"))
+  f:close()
+  local b = vim.fn.bufadd(att_path)
+  vim.fn.bufload(b)
+  local expect_dir = tmp .. "/data/01/92abcdef1234567890abcdef123456"
+
+  local a = link.open("attachment:report.pdf", att_path, { bufnr = b, line = 5 })
+  assert(a.kind == "edit_file", vim.inspect(a))
+  assert(a.path == expect_dir .. "/report.pdf", vim.inspect(a))
+  assert(a.anchor == nil, vim.inspect(a))
+
+  a = link.open("attachment:notes.org::*Sec", att_path, { bufnr = b, line = 5 })
+  assert(a.kind == "edit_file", vim.inspect(a))
+  assert(a.path == expect_dir .. "/notes.org" and a.anchor == "*Sec", vim.inspect(a))
+
+  a = link.open("attachment:other.pdf", att_path, { bufnr = b, line = 7 })
+  assert(a.kind == "error", vim.inspect(a))
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  assert(#lines == 7 and lines[6] == "* Without id", "follow must not create an ID drawer")
 end
 
 vim.fn.delete(tmp, "rf")

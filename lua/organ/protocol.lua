@@ -80,19 +80,22 @@ end
 
 M.handlers = {}
 
+-- Stored-link entry shape consumed by `link.insert_link` (Emacs pushes
+-- `(url title)` onto `org-stored-links`).
+local function url_entry(params)
+  local title = params.title
+  if title == "" then
+    title = nil
+  end
+  return { kind = "url", url = params.url, title = title }
+end
+
 function M.handlers.capture(params)
   -- Drop the captured URL/title/body into the link store so the capture
   -- template can pull them via %a / %i / %t placeholders. We reuse the
   -- link_store module rather than threading params through capture.
-  if params.url then
-    pcall(function()
-      require("organ.link_store").push({
-        target = params.url,
-        description = params.title or params.url,
-        source_file = nil,
-        source_line = nil,
-      })
-    end)
+  if params.url and params.url ~= "" then
+    require("organ.link_store").push(url_entry(params))
   end
   -- Capture body text gets stashed as the visual region content via a
   -- module-local hook; capture template's %i interpolation reads it.
@@ -119,12 +122,7 @@ M.handlers["store-link"] = function(params)
     require("organ.notify").warn("store-link missing url")
     return
   end
-  require("organ.link_store").push({
-    target = params.url,
-    description = params.title or params.url,
-    source_file = nil,
-    source_line = nil,
-  })
+  require("organ.link_store").push(url_entry(params))
   require("organ.notify").info("organ: stored link " .. params.url)
 end
 

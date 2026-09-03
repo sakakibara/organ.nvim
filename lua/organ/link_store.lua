@@ -3,8 +3,10 @@
 -- Mirrors Emacs's `org-stored-links`.
 --
 -- Each entry is one of:
---   { kind = "id",        id, title, file_path }
---   { kind = "file_line", file_path, line, title }
+--   { kind = "id",            id, title, file_path }
+--   { kind = "file_headline", file_path, headline, title }
+--   { kind = "file_line",     file_path, line, title }
+--   { kind = "url",           url, title? }
 --
 -- LIFO order (newest first); bounded at MAX_ENTRIES.
 

@@ -63,5 +63,28 @@ assert(
     .. tostring(g and #g)
 )
 
+-- org-link-bracket-re lets the description contain `]`.
+local src_desc = table.concat({
+  "* Delta",
+  "  :PROPERTIES:",
+  "  :ID:       delta-id",
+  "  :REF:      [[id:beta-id][ref [v2] note]]",
+  "  :END:",
+  "",
+}, "\n")
+
+local headlines_desc = indexer.extract(src_desc, "prop-link-desc.org", parser_path)
+local d
+for _, hl in ipairs(headlines_desc) do
+  if hl.title == "Delta" then
+    d = hl.links or {}
+  end
+end
+assert(
+  d and #d == 1,
+  "Delta should carry the bracketed-description link, got " .. tostring(d and #d)
+)
+assert(d[1].target == "id:beta-id" and d[1].description == "ref [v2] note", vim.inspect(d[1]))
+
 io.write("indexer links property ok\n")
 os.exit(0)

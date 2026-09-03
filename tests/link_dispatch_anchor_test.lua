@@ -179,6 +179,44 @@ do
   assert(ok, "should not raise on out-of-range line anchor")
 end
 
+-- 9. Scan fallback ignores TODO keyword, priority, statistics cookie,
+-- COMMENT and tags, and compares words case-insensitively
+-- (Emacs `org-link-search` matches against `(org-get-heading t t t t)`).
+do
+  local orphan_dir = tmp .. "/orphan2"
+  vim.fn.mkdir(orphan_dir, "p")
+  local orphan = vim.fn.resolve(orphan_dir .. "/decorated.org")
+  local f = assert(io.open(orphan, "w"))
+  f:write(table.concat({
+    "#+TODO: INBOX | ARCHIVED",
+    "* Intro",
+    "* INBOX [#A] Deep dive [1/2] :work:",
+    "  body",
+    "* COMMENT Draft   notes",
+    "",
+  }, "\n"))
+  f:close()
+
+  local function line_after(anchor)
+    link.dispatch_edit_file({ kind = "edit_file", path = orphan, anchor = anchor })
+    local line = vim.api.nvim_win_get_cursor(0)[1]
+    return vim.api.nvim_buf_get_lines(0, line - 1, line, false)[1]
+  end
+
+  local got = line_after("*Deep dive")
+  assert(
+    got == "* INBOX [#A] Deep dive [1/2] :work:",
+    "expected decorated headline via scan fallback; got " .. tostring(got)
+  )
+  got = line_after("*deep DIVE")
+  assert(
+    got == "* INBOX [#A] Deep dive [1/2] :work:",
+    "expected case-insensitive headline match; got " .. tostring(got)
+  )
+  got = line_after("*Draft notes")
+  assert(got == "* COMMENT Draft   notes", "expected COMMENT headline; got " .. tostring(got))
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("link dispatch anchor ok\n")
 os.exit(0)

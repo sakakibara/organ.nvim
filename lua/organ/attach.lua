@@ -26,12 +26,20 @@ function M.dir_for_id(base_dir, id)
 end
 
 -- Return the attachment directory for the headline containing `line` in `bufnr`.
--- Creates an :ID: if necessary.  Returns (dir, err).
-function M.dir(bufnr, line)
+-- Creates an :ID: if necessary unless `opts.create == false`.  Returns (dir, err).
+function M.dir(bufnr, line, opts)
   local id_mod = require("organ.id")
-  local id = id_mod.get_or_create(bufnr, line)
-  if not id then
-    return nil, "could not get or create headline ID"
+  local id
+  if opts and opts.create == false then
+    id = id_mod.get(bufnr, line)
+    if not id then
+      return nil, "headline has no ID"
+    end
+  else
+    id = id_mod.get_or_create(bufnr, line)
+    if not id then
+      return nil, "could not get or create headline ID"
+    end
   end
 
   local base = (require("organ.buf_config").read(nil, "attach") or {}).dir
@@ -80,6 +88,11 @@ end
 function M.attach(bufnr, line, src_path)
   local attach_cfg = require("organ.buf_config").read(nil, "attach") or {}
 
+  src_path = vim.fn.fnamemodify(src_path, ":p")
+  if not vim.loop.fs_stat(src_path) then
+    return "no such file: " .. src_path
+  end
+
   local d, err = M.dir(bufnr, line)
   if err then
     return err
@@ -99,8 +112,10 @@ function M.attach(bufnr, line, src_path)
       return "symlink failed: " .. src_path .. " → " .. dest
     end
   else
-    -- Use vim.fn.readfile / writefile for cross-platform copy.
-    local content = vim.fn.readfile(src_path, "b")
+    local ok, content = pcall(vim.fn.readfile, src_path, "b")
+    if not ok then
+      return "cannot read " .. src_path
+    end
     vim.fn.writefile(content, dest, "b")
   end
 

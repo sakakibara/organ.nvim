@@ -50,6 +50,11 @@ check("Łódź", "łodz")
 check("Bjørk", "bjørk")
 check("Caffè E Æpistola", "caffe_e_æpistola")
 
+-- Emacs `downcase` lowercases every script, not only ASCII.
+check("Москва", "москва")
+check("ΑΘΗΝΑ", "αθηνα")
+check("Straße", "straße")
+
 -- Whitespace runs collapse to a single `_`.
 check("  multiple   spaces  ", "multiple_spaces")
 
