@@ -183,5 +183,76 @@ do
   )
 end
 
+-- 9. A raw block body inside an item is not list structure: verse /
+--    src / example / export / comment bodies are raw text, so a `1.`
+--    line there is not an item (Emacs `org-at-item-p` is nil inside
+--    them, t inside a quote block or a drawer).  An unterminated
+--    `#+begin_` opens nothing, so its "body" is ordinary text.
+do
+  local function mk(lines)
+    local b = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, lines)
+    return b
+  end
+
+  local b = mk({
+    "1. one",
+    "   #+begin_src text",
+    "   1. not a list",
+    "   1. also not",
+    "   #+end_src",
+    "1. two",
+  })
+  list.repair(b, 1)
+  assert(
+    vim.deep_equal(vim.api.nvim_buf_get_lines(b, 0, -1, false), {
+      "1. one",
+      "   #+begin_src text",
+      "   1. not a list",
+      "   1. also not",
+      "   #+end_src",
+      "2. two",
+    }),
+    "src body untouched, list continues past it: "
+      .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  -- The cursor sitting on a raw body line finds no structure at all.
+  b = mk({ "1. one", "   #+begin_example", "   1. not a list", "   #+end_example" })
+  assert(list.repair(b, 3) == 0, "no structure inside a block body")
+
+  -- Quote blocks and drawers hold real elements.
+  b = mk({ "1. one", "   #+begin_quote", "   1. real", "   1. real2", "   #+end_quote" })
+  list.repair(b, 1)
+  assert(
+    vim.api.nvim_buf_get_lines(b, 0, -1, false)[4] == "   2. real2",
+    "quote body is a real list: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  b = mk({ "1. one", "   :MYD:", "   1. real", "   1. real2", "   :END:" })
+  list.repair(b, 1)
+  assert(
+    vim.api.nvim_buf_get_lines(b, 0, -1, false)[4] == "   2. real2",
+    "drawer body is a real list: " .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  b = mk({ "1. one", "   #+begin_src text", "   1. real", "   1. real2" })
+  list.repair(b, 1)
+  assert(
+    vim.api.nvim_buf_get_lines(b, 0, -1, false)[4] == "   2. real2",
+    "unterminated begin_src opens nothing: "
+      .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+
+  -- A block does not span a headline, so neither does its raw body.
+  b = mk({ "1. one", "   #+begin_src text", "   1. real", "   1. real2", "* H", "   #+end_src" })
+  list.repair(b, 1)
+  assert(
+    vim.api.nvim_buf_get_lines(b, 0, -1, false)[4] == "   2. real2",
+    "close past a headline does not close: "
+      .. vim.inspect(vim.api.nvim_buf_get_lines(b, 0, -1, false))
+  )
+end
+
 io.write("list ok\n")
 os.exit(0)

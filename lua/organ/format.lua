@@ -9,6 +9,7 @@ local M = {}
 
 local obuf = require("organ.buf")
 local list = require("organ.list")
+local block = require("organ.block")
 local function is_headline(line)
   return line:match("^%*+%s") ~= nil
 end
@@ -656,7 +657,7 @@ local function wrap_prose(lines, cfg, tail)
     return lines
   end
   local out = {}
-  local in_block = false
+  local block_end = nil
   local in_drawer = false
   local para_lines, para_first, para_cont, para_kind = {}, nil, nil, nil
   local para_bullet_col = nil
@@ -731,11 +732,15 @@ local function wrap_prose(lines, cfg, tail)
   end
 
   for idx, line in ipairs(lines) do
-    if in_block then
+    -- Only a verbatim body is protected from filling.  A quote or center
+    -- block holds ordinary paragraphs, and Emacs fills them.
+    local open = block.open_name(line)
+    local closes_at = open and block.VERBATIM[open] and block.close_row(lines, idx, tail)
+    if block_end then
       flush()
       out[#out + 1] = line
-      if is_block_close(line) then
-        in_block = false
+      if idx >= block_end then
+        block_end = nil
       end
     elseif in_drawer then
       flush()
@@ -743,10 +748,10 @@ local function wrap_prose(lines, cfg, tail)
       if is_drawer_close(line) then
         in_drawer = false
       end
-    elseif is_block_open(line) then
+    elseif closes_at then
       flush()
       out[#out + 1] = line
-      in_block = true
+      block_end = closes_at
     elseif is_drawer_open(line) and not is_drawer_close(line) and drawer_closed(idx) then
       flush()
       out[#out + 1] = line
@@ -808,48 +813,6 @@ local function wrap_prose(lines, cfg, tail)
   end
   flush()
   return out
-end
-
--- Blocks whose body org-element parses as raw text rather than as
--- elements, so a `|` or `1.` line inside one is NOT a table or a list
--- item.  Every other block name is a special block (a greater element),
--- and drawers hold elements too -- verified against
--- `org-element-at-point` / `org-at-table-p` / `org-at-item-p`.
-local VERBATIM_BLOCKS = {
-  comment = true,
-  example = true,
-  export = true,
-  src = true,
-  verse = true,
-}
-
--- Set of 1-based row numbers that fall inside a verbatim block body.
--- An unterminated `#+begin_` opens nothing, matching org-element.
-local function verbatim_rows(lines)
-  local rows = {}
-  local i, n = 1, #lines
-  while i <= n do
-    local name = lines[i]:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_([%a][%w-]*)")
-    local body_end
-    if name and VERBATIM_BLOCKS[name:lower()] then
-      local close = "^%s*#%+[Ee][Nn][Dd]_" .. name:lower() .. "%s*$"
-      for j = i + 1, n do
-        if lines[j]:lower():match(close) then
-          body_end = j
-          break
-        end
-      end
-    end
-    if body_end then
-      for j = i + 1, body_end - 1 do
-        rows[j] = true
-      end
-      i = body_end + 1
-    else
-      i = i + 1
-    end
-  end
-  return rows
 end
 
 local function adapt_indentation(lines, mode, planning_indent_cfg)
@@ -929,7 +892,7 @@ local function align_drawer_values(lines, cfg)
     return lines
   end
   local property = require("organ.property")
-  local verbatim = verbatim_rows(lines)
+  local verbatim = block.verbatim_rows(lines)
   local out = {}
   local i, n = 1, #lines
   while i <= n do
@@ -1037,7 +1000,7 @@ local function realign_tables(bufnr, lo, hi)
   end
   lo = lo or 1
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local verbatim = verbatim_rows(lines)
+  local verbatim = block.verbatim_rows(lines)
   local i, n = 1, #lines
   while i <= n do
     if not verbatim[i] and lines[i]:match("^%s*|") then
@@ -1080,7 +1043,7 @@ local function repair_lists(bufnr)
   end
   local total = vim.api.nvim_buf_line_count(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, total, false)
-  local verbatim = verbatim_rows(lines)
+  local verbatim = block.verbatim_rows(lines)
   local skip_to = 0
   for i, l in ipairs(lines) do
     if i > skip_to and not verbatim[i] and l:match("^%s*%d+[%.%)]%s") then

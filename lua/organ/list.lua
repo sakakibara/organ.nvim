@@ -111,7 +111,8 @@ end
 -- two consecutive blanks end it.
 local function parse_struct(bufnr, line)
   local buf_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  if not M.parse_item(buf_lines[line] or "") then
+  local verbatim = require("organ.block").verbatim_rows(buf_lines)
+  if verbatim[line] or not M.parse_item(buf_lines[line] or "") then
     return nil
   end
   -- Up-walk with a descending ceiling: a non-item line at `ws` closes
@@ -122,19 +123,23 @@ local function parse_struct(bufnr, line)
   local limit = math.huge
   for i = line - 1, 1, -1 do
     local ln = buf_lines[i] or ""
-    local p = M.parse_item(ln)
-    if p then
-      if #p.indent < limit then
-        s = i
-      end
-    elseif ln:match("^%s*$") then
-      if i == 1 or (buf_lines[i - 1] or ""):match("^%s*$") then
+    -- A raw block body says nothing about the structure -- the
+    -- `#+begin_` line above it already lowered the ceiling.
+    if not verbatim[i] then
+      local p = M.parse_item(ln)
+      if p then
+        if #p.indent < limit then
+          s = i
+        end
+      elseif ln:match("^%s*$") then
+        if i == 1 or (buf_lines[i - 1] or ""):match("^%s*$") then
+          break
+        end
+      elseif ln:match("^%*+%s") or #ln:match("^(%s*)") == 0 then
         break
+      else
+        limit = math.min(limit, #ln:match("^(%s*)"))
       end
-    elseif ln:match("^%*+%s") or #ln:match("^(%s*)") == 0 then
-      break
-    else
-      limit = math.min(limit, #ln:match("^(%s*)"))
     end
   end
   local top_ind = #M.parse_item(buf_lines[s]).indent
@@ -143,7 +148,9 @@ local function parse_struct(bufnr, line)
   for i = s, #buf_lines do
     local ln = buf_lines[i] or ""
     local p = M.parse_item(ln)
-    if p then
+    if verbatim[i] then
+      e = i
+    elseif p then
       items[#items + 1] = {
         row = i,
         ind = #p.indent,

@@ -1466,11 +1466,18 @@ breaks between characters under kinsoku rules.
     title) to a single space.
 
                                                 *organ-config-format-verbatim*
-    Table realign and ordered-list renumbering skip the body of a
-    `verse`, `src`, `example`, `export` or `comment` block: org-element
-    keeps those bodies as raw text, so a `|` or `1.` line inside one is
-    neither a table nor a list item.  Every other block, and every
-    drawer, holds real elements and is formatted normally.
+    Table realign and list structure (renumbering, promote / demote,
+    move) skip the body of a `verse`, `src`, `example`, `export` or
+    `comment` block: org-element keeps those bodies as raw text, so a
+    `|` or `1.` line inside one is neither a table nor a list item.
+    Every other block, and every drawer, holds real elements and is
+    formatted normally.
+
+    A `#+begin_x` opens a block only when a matching `#+end_x` follows
+    before the next headline.  Without one, org reads the line as
+    ordinary text, so a stray `#+begin_src` does not shield the rest of
+    the buffer -- prose under it still wraps and tables under it still
+    realign.
 
 ------------------------------------------------------------------------------
 Emphasis                                               *organ-config-emphasis*
