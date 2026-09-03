@@ -26,20 +26,16 @@ end
 function M.week()
   local cfg = (require("organ.buf_config").read(nil, "agenda") or {})
   local sow = span.resolve_week_anchor(cfg.week_starts_on)
-  local now_ts = os.time()
-  local week_start_ts
-  if sow == nil then
-    week_start_ts = now_ts
-  else
-    local w = tonumber(os.date("%w", now_ts))
+  local today = dates.today_iso()
+  local week_start = today
+  if sow ~= nil then
+    local w = tonumber(os.date("%w", dates.iso_to_ts(today)))
     local iso = (w == 0) and 7 or w
-    local back = (iso - sow) % 7
-    week_start_ts = now_ts - back * 86400
+    week_start = dates.add_days(today, -((iso - sow) % 7))
   end
-  local week_end_ts = week_start_ts + 6 * 86400
   local view = vim.tbl_extend("force", {}, cfg.default_view or {}, {
-    from = os.date("%Y-%m-%d", week_start_ts),
-    to = os.date("%Y-%m-%d", week_end_ts),
+    from = week_start,
+    to = dates.add_days(week_start, 6),
   })
   require("organ.agenda").open(view, "week")
 end

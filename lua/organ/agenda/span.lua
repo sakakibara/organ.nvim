@@ -91,8 +91,7 @@ function M.resolve_span(block, agenda_cfg)
     end
     local sign, n = s:match("^([%+%-])(%d+)d$")
     if sign and n then
-      local off = tonumber(n) * 86400 * (sign == "-" and -1 or 1)
-      return os.date("%Y-%m-%d", dates.now_ts() + off)
+      return dates.add_days(dates.today_iso(), tonumber(n) * (sign == "-" and -1 or 1))
     end
     if s:match("^%d%d%d%d%-%d%d%-%d%d") then
       return s:sub(1, 10)

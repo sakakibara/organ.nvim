@@ -81,4 +81,38 @@ do
   assert_eq(visible[4], nil, "B (no TODO) hidden")
 end
 
+-- Regex path: every tag in the trailing block is read, including `@`/`#`
+-- tags, and the title excludes the block.
+do
+  local lines = { "* Foo :work:home:", "* Bar :@phone:", "* Baz :a:b:c:", "* Time 10:30:45" }
+  local seen = {}
+  sparse._compute_visible(lines, function(h)
+    seen[h.line] = { tags = h.tags, title = h.title }
+    return false
+  end)
+  assert_eq(table.concat(seen[1].tags, ","), "work,home", "two tags")
+  assert_eq(seen[1].title, "Foo", "title without tag block")
+  assert_eq(table.concat(seen[2].tags, ","), "@phone", "@ tag")
+  assert_eq(seen[2].title, "Bar", "title without @ tag block")
+  assert_eq(table.concat(seen[3].tags, ","), "a,b,c", "three tags")
+  assert_eq(#seen[4].tags, 0, "clock text is not a tag block")
+  assert_eq(seen[4].title, "Time 10:30:45", "title keeps colon text")
+end
+
+-- Regex path: whitespace after the tag block is not part of the title.
+do
+  local lines = { "* Foo :a:b: ", "* Baz  :x_y:  ", "* :onlytags:\t" }
+  local seen = {}
+  sparse._compute_visible(lines, function(h)
+    seen[h.line] = { tags = h.tags, title = h.title }
+    return false
+  end)
+  assert_eq(table.concat(seen[1].tags, ","), "a,b", "tags before trailing space")
+  assert_eq(seen[1].title, "Foo", "title with trailing space after block")
+  assert_eq(table.concat(seen[2].tags, ","), "x_y", "tag before trailing spaces")
+  assert_eq(seen[2].title, "Baz", "title with trailing spaces after block")
+  assert_eq(table.concat(seen[3].tags, ","), "onlytags", "tags-only line with trailing tab")
+  assert_eq(seen[3].title, "", "tags-only title is empty")
+end
+
 io.write("sparse visible ok\n")

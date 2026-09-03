@@ -102,28 +102,39 @@ function M.find_spec(bufnr, hl_line)
   return nil, nil
 end
 
+local TAG_BLOCK = "(:[%w_@#%%\128-\255:]+:)%s*$"
+
 -- Read a single property value for a headline (line index 1-based).
 -- Built-ins: ITEM, TODO, PRIORITY, TAGS. Otherwise reads from PROPERTIES drawer.
-local function get_prop(lines, hl_line, prop_name)
+-- `keywords` is the set of TODO keywords in effect for the buffer.
+local function get_prop(lines, hl_line, prop_name, keywords)
   local heading = lines[hl_line] or ""
+  local function todo_keyword()
+    local kw = heading:match("^%*+%s+(%S+)")
+    if kw and keywords[kw] then
+      return kw
+    end
+    return nil
+  end
   if prop_name == "ITEM" then
-    -- Strip stars + TODO + priority + tags.
     local body = heading:gsub("^%*+%s+", "")
-    body = body:gsub("^[A-Z][A-Z_]*%s+", "")
+    local kw = todo_keyword()
+    if kw then
+      body = body:sub(#kw + 1):gsub("^%s+", "")
+    end
     body = body:gsub("^%[#%w%]%s*", "")
-    body = body:gsub("%s+:[%w_:@]+:%s*$", "")
+    body = body:gsub("%s+" .. TAG_BLOCK, "")
+    body = body:gsub("^" .. TAG_BLOCK, "")
     return body
   end
   if prop_name == "TODO" then
-    local kw = heading:match("^%*+%s+([A-Z][A-Z_]+)%s") or ""
-    return kw
+    return todo_keyword() or ""
   end
   if prop_name == "PRIORITY" then
     return heading:match("%[#(%w)%]") or ""
   end
   if prop_name == "TAGS" then
-    local trail = heading:match("(:[%w_@#%%]+:)%s*$") or ""
-    return trail
+    return heading:match("%s" .. TAG_BLOCK) or ""
   end
   -- Custom property: read from PROPERTIES drawer via element.lua
   -- (TS-first; regex fallback inside the helper).
@@ -162,6 +173,11 @@ end
 -- Returns { { hl_line, level, values = { col_idx -> string } } }
 function M.collect(bufnr, root_line, columns)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local todo = require("organ.todo")
+  local keywords = {}
+  for _, kw in ipairs(todo.all_keywords(todo.effective_sequences(bufnr))) do
+    keywords[kw] = true
+  end
   local rows = {}
   local root_level
   if root_line then
@@ -183,7 +199,7 @@ function M.collect(bufnr, root_line, columns)
       if include then
         local values = {}
         for ci, col in ipairs(columns) do
-          values[ci] = get_prop(lines, i, col.property)
+          values[ci] = get_prop(lines, i, col.property, keywords)
         end
         rows[#rows + 1] = { hl_line = i, level = level, values = values }
       end

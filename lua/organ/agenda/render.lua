@@ -7,8 +7,11 @@ local M = {}
 local dates = require("organ.agenda.dates")
 local format = require("organ.agenda.format")
 
-local function compare_desc(a, b)
-  return tostring(a) > tostring(b)
+local function less_than(a, b)
+  if type(a) == type(b) and (type(a) == "number" or type(a) == "string") then
+    return a < b
+  end
+  return tostring(a) < tostring(b)
 end
 
 local function sort_records(records, order_spec)
@@ -25,9 +28,9 @@ local function sort_records(records, order_spec)
           return dir == "asc"
         end
         if dir == "asc" then
-          return av < bv
+          return less_than(av, bv)
         else
-          return compare_desc(av, bv)
+          return less_than(bv, av)
         end
       end
     end
@@ -50,8 +53,9 @@ local function fit_todo_width(rows)
           disp = formatted
         end
       end
-      if #disp > max then
-        max = #disp
+      local w = vim.fn.strdisplaywidth(disp)
+      if w > max then
+        max = w
       end
     end
   end
@@ -94,8 +98,9 @@ end
 -- date appears in the agenda; users who track daily habits / weekly chores
 -- see nothing on the days between. Toggle with `agenda.show_future_repeats`
 -- (default true; matches Emacs `org-agenda-show-future-repeats`). Returns
--- `rows` unchanged when expansion does not apply.
-local function expand_repeaters(rows, block)
+-- `rows` unchanged when expansion does not apply.  A repeater that does not
+-- advance the date (`+0d`) is void, as in Emacs `org-closest-date`.
+local function expand_repeaters(rows, block, today)
   local show_repeats = (
     (require("organ.buf_config").read(nil, "agenda") or {}).show_future_repeats ~= false
   )
@@ -128,6 +133,13 @@ local function expand_repeaters(rows, block)
     end
     return os.time(d)
   end
+  local function step(ts, rep)
+    local sec_period = period_seconds(rep)
+    if sec_period then
+      return ts + sec_period
+    end
+    return bump_calendar(ts, rep.value, rep.unit)
+  end
   local expanded = {}
   for _, r in ipairs(rows) do
     local rep = r.scheduled and r.scheduled ~= "" and repeater_mod.parse(r.scheduled) or nil
@@ -136,44 +148,37 @@ local function expand_repeaters(rows, block)
         and dates.iso_to_ts(r.scheduled_date)
       or nil
     local emit_clones = false
-    if rep and rep.value and rep.unit and origin_ts then
+    if rep and rep.value and rep.unit and origin_ts and step(origin_ts, rep) > origin_ts then
       local time_part = (r.scheduled_date and #r.scheduled_date >= 11 and r.scheduled_date:sub(11))
         or ""
       local cursor = origin_ts
-      local sec_period = period_seconds(rep)
       -- Walk forward to first occurrence >= from_ts.
       while cursor < from_ts do
-        if sec_period then
-          cursor = cursor + sec_period
-        else
-          cursor = bump_calendar(cursor, rep.value, rep.unit)
-        end
+        cursor = step(cursor, rep)
       end
       -- If origin is BEFORE the window, emit an EXTRA overdue-carryover
-      -- row bucketed on `from_ts`'s day, keeping the ORIGINAL
-      -- scheduled_date so `sched_label_for` shows the real `Sched. Nx:`
-      -- days-late count -- matching Emacs. This is additional to (not a
-      -- substitute for) the walked occurrence below: the repeater's
-      -- next in-window date (e.g. a week later) still gets its own
-      -- normal `Scheduled:` row on its own day.
+      -- row on today's line, keeping the ORIGINAL scheduled_date so
+      -- `sched_label_for` shows the real `Sched. Nx:` days-late count --
+      -- matching Emacs. The repeater's in-window occurrences still get
+      -- their own `Scheduled:` rows, except the one falling on today,
+      -- which Emacs shows only as the overdue reminder.
       local origin_pre_window = origin_ts < from_ts
       if origin_pre_window then
         emit_clones = true
         local carryover = vim.deepcopy(r)
-        carryover._bucket_date = os.date("%Y-%m-%d", from_ts)
+        carryover._bucket_date = today
         expanded[#expanded + 1] = carryover
       end
       while cursor <= to_ts do
         emit_clones = true
-        local clone = vim.deepcopy(r)
-        clone.scheduled_date = os.date("%Y-%m-%d", cursor) .. time_part
-        clone._synthetic_repeater = (cursor ~= origin_ts)
-        expanded[#expanded + 1] = clone
-        if sec_period then
-          cursor = cursor + sec_period
-        else
-          cursor = bump_calendar(cursor, rep.value, rep.unit)
+        local day = os.date("%Y-%m-%d", cursor)
+        if not (origin_pre_window and day == today) then
+          local clone = vim.deepcopy(r)
+          clone.scheduled_date = day .. time_part
+          clone._synthetic_repeater = (cursor ~= origin_ts)
+          expanded[#expanded + 1] = clone
         end
+        cursor = step(cursor, rep)
       end
     end
     if not emit_clones then
@@ -377,38 +382,50 @@ end
 
 -- Partition `effective` rows into per-day buckets keyed by ISO date, plus a
 -- no-date list. Handles the scheduled-vs-deadline double-bucketing, the
--- early-warning deadline fanout, optional overdue roll-forward, and backfill
+-- early-warning deadline fanout, overdue items on today's line, and backfill
 -- of empty days across the [block.from, block.to] window. Returns
 -- `buckets, order, no_date` with `order` sorted ascending. Pure: emits
 -- nothing, mutates only the row clones it creates.
+--
+-- Days outside the window are never rendered.  Items dated before the
+-- window (overdue scheduled rows when `agenda.show_overdue_scheduled` is
+-- on, overdue deadlines) and deadline pre-warnings belong to today's line,
+-- as in Emacs `org-agenda-get-scheduled` / `org-agenda-get-deadlines`, so
+-- they disappear when today is not inside the window.
 local function build_day_buckets(effective, block, today)
-  -- Optional: items whose scheduled date is BEFORE the visible
-  -- window collapse into the today bucket. Emacs default does NOT
-  -- do this for non-repeating SCHEDULED items (they just disappear
-  -- from the window -- users see "Sched. Nx:" only for repeating
-  -- ones). Toggle via `agenda.show_overdue_scheduled = true` for
-  -- the more user-friendly "stale items keep showing" behavior.
   local roll_overdue = (require("organ.buf_config").read(nil, "agenda") or {}).show_overdue_scheduled
     == true
-  local window_from = block.from
-    and dates.date_only(
-      (require("organ.query").parse_date and require("organ.query").parse_date(block.from))
-        or block.from
-    )
+  local q = require("organ.query")
+  local function window_edge(v)
+    return v and dates.date_only((q.parse_date and q.parse_date(v)) or v)
+  end
+  local window_from, window_to = window_edge(block.from), window_edge(block.to)
+  local function in_window(key)
+    return (not window_from or key >= window_from) and (not window_to or key <= window_to)
+  end
   local buckets, order, no_date = {}, {}, {}
   local function add_to_bucket(r, key)
-    if roll_overdue and key and window_from and key < window_from then
-      key = window_from
-    end
-    if key then
-      if not buckets[key] then
-        buckets[key] = {}
-        order[#order + 1] = key
-      end
-      table.insert(buckets[key], r)
-    else
+    if not key then
       no_date[#no_date + 1] = r
+      return
     end
+    if not in_window(key) then
+      return
+    end
+    if not buckets[key] then
+      buckets[key] = {}
+      order[#order + 1] = key
+    end
+    table.insert(buckets[key], r)
+  end
+  local function before_window(key)
+    return key and window_from and key < window_from
+  end
+  local function day_for(key)
+    if before_window(key) then
+      return today
+    end
+    return key
   end
   -- Deadline-warning fanout: a row whose deadline is N days from
   -- today (1 <= N <= deadline_warning_days, default 14) gets an
@@ -442,11 +459,14 @@ local function build_day_buckets(effective, block, today)
   for _, r in ipairs(effective) do
     local sched_key = dates.date_only(r.scheduled_date)
     local dead_key = dates.date_only(r.deadline_date)
+    local sched_shown = sched_key and (roll_overdue or not before_window(sched_key))
     if r._bucket_date then
       -- `_bucket_date` is set by the repeater-overdue carryover path
       -- to force the row onto today's bucket while preserving the
       -- original scheduled_date for the `Sched. Nx:` label.
       add_to_bucket(r, r._bucket_date)
+    elseif not (sched_key or dead_key) then
+      add_to_bucket(r, nil)
     elseif sched_key and dead_key and sched_key ~= dead_key then
       -- Mirrors Emacs: a row with BOTH scheduled and deadline
       -- appears in BOTH buckets (different prefixes per bucket via
@@ -459,12 +479,14 @@ local function build_day_buckets(effective, block, today)
       -- day occurrence for rows that ALSO render on the deadline
       -- day, eliminating the duplicate when the deadline is the
       -- "real" event the user cares about.
-      if not skip_sched_if_dl_shown then
-        add_to_bucket(r, sched_key)
+      if sched_shown and not skip_sched_if_dl_shown then
+        add_to_bucket(r, day_for(sched_key))
       end
-      add_to_bucket(r, dead_key)
-    else
-      add_to_bucket(r, sched_key or dead_key)
+      add_to_bucket(r, day_for(dead_key))
+    elseif dead_key then
+      add_to_bucket(r, day_for(dead_key))
+    elseif sched_shown then
+      add_to_bucket(r, day_for(sched_key))
     end
     -- Early-warning: deadline within the warning window AND the row
     -- has no scheduled_date (so it wouldn't otherwise appear before
@@ -778,7 +800,7 @@ end
 -- Per-block primitive: overdue bucket, group_by day/none, sort, format_line.
 local function render_block(rows, block, now_override)
   block = block or {}
-  local today = now_override or dates.today_iso()
+  local today = now_override and dates.date_only(now_override) or dates.today_iso()
   local opts = format.render_opts()
 
   -- Auto-fit TODO column to the longest keyword actually present in this
@@ -847,7 +869,7 @@ local function render_block(rows, block, now_override)
     return { lines = lines, extmarks = extmarks, line_index = line_index }
   end
 
-  rows = expand_repeaters(rows, block)
+  rows = expand_repeaters(rows, block, today)
 
   -- 1. Overdue bucket
   emit_overdue(rows, block, today, fmt, emit_line)

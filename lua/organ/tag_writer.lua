@@ -1,14 +1,17 @@
 -- Headline tag-block reader/writer. Pure buffer operations.
 --
 -- A headline's tag block is a trailing run of `:tag1:tag2:` separated from the
--- title by whitespace. tag chars match `[%w_@#%%]+`. This module finds the
--- headline owning a line, parses its current tags, and rewrites the trailing
--- tag block — leaving stars / TODO state / priority / title intact.
+-- title by whitespace (or standing alone after the stars). Tag chars match
+-- `[%w_@#%%]` plus non-ASCII bytes. This module finds the headline owning a
+-- line, parses its current tags, and rewrites the trailing tag block,
+-- leaving stars / TODO state / priority / title intact.
 
 local M = {}
 
 local obuf = require("organ.buf")
-local TAG_CHARS = "[%w_@#%%]"
+local TAG_SET = "%w_@#%%\128-\255"
+local TAG_CHARS = "[" .. TAG_SET .. "]"
+local TAG_BLOCK = "(:[" .. TAG_SET .. ":]+:)%s*$"
 
 local function find_headline(buf_lines, line)
   local hl = line
@@ -28,27 +31,19 @@ local function parse_headline(line)
   if not stars then
     return nil
   end
-  local body, tag_run = rest:match("^(.-)%s*(:" .. TAG_CHARS .. "+:.*)$")
-  if body and tag_run and tag_run:match("^:" .. TAG_CHARS .. "+:" .. TAG_CHARS .. "*:?$") then
-    -- Validate every chunk; reject if any non-tag content sneaks in.
-    local valid = true
-    for chunk in tag_run:gmatch(":([^:]+)") do
-      if not chunk:match("^" .. TAG_CHARS .. "+$") then
-        valid = false
-        break
-      end
-    end
-    if valid then
-      local tags = {}
-      for tag in tag_run:gmatch(":(" .. TAG_CHARS .. "+)") do
-        tags[#tags + 1] = tag
-      end
-      -- Trim trailing whitespace in body.
-      body = body:gsub("%s+$", "")
-      return { stars = stars, body = body, tags = tags }
-    end
+  local body, tag_run = rest:match("^(.-)%s+" .. TAG_BLOCK)
+  if not body then
+    tag_run = rest:match("^" .. TAG_BLOCK)
+    body = tag_run and "" or nil
   end
-  return { stars = stars, body = rest:gsub("%s+$", ""), tags = {} }
+  if not tag_run then
+    return { stars = stars, body = rest:gsub("%s+$", ""), tags = {} }
+  end
+  local tags = {}
+  for tag in tag_run:gmatch(":(" .. TAG_CHARS .. "+)") do
+    tags[#tags + 1] = tag
+  end
+  return { stars = stars, body = body:gsub("%s+$", ""), tags = tags }
 end
 
 -- Render the tag block for the right edge of the headline.

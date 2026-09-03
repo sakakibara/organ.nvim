@@ -3452,6 +3452,37 @@ SPARSE TREE (extra)                                          *organ-cmd-match*
         `:Org sparse_tree match +work-{home}|gtd`
         `:Org sparse_tree match +PRIORITY="A"+TODO="NEXT"`
 
+    `|` separates alternatives (OR); a blank one matches nothing.
+    `/` starts the TODO part; `/!` keeps entries whose state is
+    active under the buffer's own `#+TODO:` keywords.
+
+PROPERTY TERMS                                          *organ-match-property*
+    A property term is `PROP OP VALUE`. `OP` is one of `<` `<=` `=` `==`
+    `>=` `>` `<>` `!=` `/=`, optionally followed by `*` to also require
+    the property to exist. `VALUE` is one of:
+        `"text"`          string comparison
+        `"<timestamp>"`   time comparison (see below)
+        `{pattern}`       Lua pattern match (`<>`, `!=`, `/=` negate)
+        `42`              numeric comparison; a missing or non-numeric
+                          property reads as 0
+    `LEVEL`, `TODO`, `CATEGORY`, `ITEM` (the title) and `PRIORITY` read
+    as properties. A headline with no priority cookie reads as
+    `config.priority.default` ("B" out of the box), so `PRIORITY="B"`
+    matches it too (Emacs `org-priority-default`).
+
+TIMESTAMP OPERANDS                                          *organ-match-time*
+    A quoted operand that opens with `<` or `[` and holds a date or one
+    of `now`, `today`, `tomorrow`, `yesterday`, `+2d`, `-3w` compares as
+    time rather than as text (Emacs `org-matcher-time`). Offset units
+    are `h` `d` `w` `m` `y`, counted from midnight today (`h` from now).
+    Both sides must parse as a timestamp, so a missing or non-timestamp
+    property never matches: >
+
+        :Org sparse_tree match DEADLINE<"<today>"
+        :Org sparse_tree match SCHEDULED>="<-1w>"
+        :Org agenda tags DEADLINE<"<2026-09-03 Thu>"
+<
+
 ==============================================================================
 ROAM EXTRAS                                               *organ-cmd-roam-ext*
 
@@ -3984,8 +4015,10 @@ VISUAL                                                   *organ-agenda-visual*
     `sticky`            Reuse the same agenda buffer when opening
                         the same view name again. Default true.
     `show_overdue_scheduled`
-                        Roll overdue scheduled rows into today's
-                        bucket. Default false (matches Emacs).
+                        Show scheduled rows dated before the window
+                        on today's line with a `Sched. Nx:` label,
+                        as Emacs does; they are absent when today is
+                        outside the window. Default true.
 
 REPEATER EXPANSION                                    *organ-agenda-repeaters*
     Recurring tasks (`+1d`, `++1w`, `.+1d`, `.+7d`, ...) generate
@@ -4001,7 +4034,7 @@ PREFIX FORMAT                                            *organ-agenda-prefix*
         "Scheduled:"    today's scheduled rows
         "Deadline:"     today's deadlines
         "In   N d.:"    future scheduled / deadline within 14 days
-        "Sched. Nx:"    overdue scheduled (N repeat-cycles late)
+        "Sched. Nx:"    overdue scheduled (N days late)
         "Past due:"     overdue deadlines
     For day-grouped views, the reference date is the BUCKET's date,
     not today — Tuesday's row reads "Scheduled:" because Tuesday IS

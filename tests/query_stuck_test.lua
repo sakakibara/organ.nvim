@@ -77,4 +77,22 @@ do
   assert_titles(stuck, { "NotProject", "Proj2", "Proj3" })
 end
 
+-- A NEXT entry anywhere in the subtree unsticks the project (Emacs searches
+-- the whole subtree), not only a direct child.
+do
+  indexer.index_file_sync(write_file(
+    "deep.org",
+    [[
+* Deep :project:
+** Phase 1
+*** NEXT Do the thing
+* Shallow :project:
+** Phase 1
+*** TODO Not yet
+]]
+  ))
+  local stuck = query.stuck_projects()
+  assert_titles(stuck, { "Proj2", "Proj3", "Shallow" })
+end
+
 io.write("query stuck ok\n")

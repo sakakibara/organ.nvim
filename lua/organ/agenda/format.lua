@@ -567,8 +567,9 @@ local function append_todo(parts, marks, col, r, todo_width)
     end
   end
   local todo_padded = todo_disp
-  if #todo_disp < todo_width then
-    todo_padded = todo_disp .. string.rep(" ", todo_width - #todo_disp)
+  local disp_width = vim.fn.strdisplaywidth(todo_disp)
+  if disp_width < todo_width then
+    todo_padded = todo_disp .. string.rep(" ", todo_width - disp_width)
   end
   table.insert(parts, todo_padded)
   if r.todo_state then

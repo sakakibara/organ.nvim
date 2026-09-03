@@ -24,6 +24,26 @@ do
   assert(cs[5].label == "Effort" and cs[5].summary == ":", "EFFORT(Effort){:} label/summary parse")
 end
 
+-- Built-in columns: TODO is a configured keyword, not any capitalised word;
+-- TAGS is the whole trailing block.
+do
+  local b = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, {
+    "* API design review :work:home:",
+    "* TODO NASA launch :a:",
+    "* Plain",
+  })
+  vim.api.nvim_set_current_buf(b)
+  local rows = cv.collect(b, nil, cv.parse_spec("%ITEM %TODO %TAGS"))
+  assert(rows[1].values[1] == "API design review", "ITEM keeps a capitalised first word")
+  assert(rows[1].values[2] == "", "TODO is empty without a keyword")
+  assert(rows[1].values[3] == ":work:home:", "TAGS is the whole block: " .. rows[1].values[3])
+  assert(rows[2].values[1] == "NASA launch", "ITEM strips the keyword only")
+  assert(rows[2].values[2] == "TODO", "TODO keyword")
+  assert(rows[2].values[3] == ":a:", "single tag")
+  assert(rows[3].values[3] == "", "no tags")
+end
+
 -- End-to-end with a fixture.
 local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp, "p")

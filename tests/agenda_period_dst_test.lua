@@ -56,4 +56,48 @@ end
 -- Unparseable input is returned unchanged (preserves the prior contract).
 check(dates.add_days("not-a-date", 1) == "not-a-date", "add_days passes through unparseable input")
 
+-- `start_day = "+Nd"` and the week view step by calendar days, not by
+-- 86400-second multiples that slip across the 25h / 23h days.
+local tmp = vim.fn.tempname()
+vim.fn.mkdir(tmp, "p")
+require("organ").setup({
+  db_path = tmp .. "/x.db",
+  org_dir = tmp,
+  notify = false,
+  scan_on_startup = false,
+  debounce_ms = 0,
+  watcher = { enabled = false },
+  agenda = { now_override = "2025-11-02T00:30", week_starts_on = "sunday" },
+})
+local span = require("organ.agenda.span")
+local agenda_cfg = require("organ.buf_config").read(nil, "agenda")
+do
+  local from, to = span.resolve_span({ span = 1, start_day = "+1d" }, agenda_cfg)
+  check(
+    from == "2025-11-03" and to == "2025-11-03",
+    "start_day +1d from the fall-back day: " .. tostring(from)
+  )
+  from = span.resolve_span({ span = 1, start_day = "-1d" }, agenda_cfg)
+  check(from == "2025-11-01", "start_day -1d from the fall-back day: " .. tostring(from))
+end
+do
+  -- Monday 00:30 right after the 2026-03-08 spring-forward.
+  require("organ").config.agenda.now_override = "2026-03-09T00:30"
+  local agenda = require("organ.agenda")
+  local captured
+  local orig_open = agenda.open
+  agenda.open = function(view)
+    captured = view
+  end
+  agenda.week()
+  agenda.open = orig_open
+  check(
+    captured and captured.from == "2026-03-08" and captured.to == "2026-03-14",
+    "week view anchored on Sunday across spring-forward: "
+      .. tostring(captured and captured.from)
+      .. ".."
+      .. tostring(captured and captured.to)
+  )
+end
+
 print("agenda_period_dst_test: PASS")

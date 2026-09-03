@@ -5,8 +5,8 @@ local M = {}
 
 local exec = require("organ.query.exec")
 
--- Returns headlines matching project_filter that have NO direct child whose
--- todo_state is in next_states. Pure read; no DB writes.
+-- Returns headlines matching project_filter with NO entry in their subtree
+-- whose todo_state is in next_states. Pure read; no DB writes.
 function M.stuck_projects(opts)
   opts = opts or {}
   local cfg = (require("organ.buf_config").read(nil, "stuck") or {})
@@ -37,17 +37,21 @@ function M.stuck_projects(opts)
 
   local h = exec.default_db()
 
-  -- Build a single SQL query that returns parent_ids that DO have an active child.
+  -- Every ancestor, at any depth, of a headline in an active state.
   local placeholders = {}
   for _ = 1, #next_states do
     placeholders[#placeholders + 1] = "?"
   end
   local sql = string.format(
     [[
-    SELECT DISTINCT parent_id
-      FROM headlines
-     WHERE parent_id IS NOT NULL
-       AND todo_state IN (%s)
+    WITH RECURSIVE ancestors(id) AS (
+      SELECT parent_id FROM headlines
+       WHERE parent_id IS NOT NULL AND todo_state IN (%s)
+      UNION
+      SELECT h.parent_id FROM headlines h JOIN ancestors a ON h.id = a.id
+       WHERE h.parent_id IS NOT NULL
+    )
+    SELECT id FROM ancestors
   ]],
     table.concat(placeholders, ",")
   )
@@ -327,7 +331,7 @@ function M.clock_entries(opts)
     group_sql = "GROUP BY ce.headline_id"
     order_sql = "ORDER BY total_seconds DESC"
   elseif group_by == "day" then
-    select_sql = "DATE(ce.start_ts, 'unixepoch') AS day, "
+    select_sql = "DATE(ce.start_ts, 'unixepoch', 'localtime') AS day, "
       .. "SUM(COALESCE(ce.duration_seconds, 0) + "
       .. active_dur
       .. ") AS total_seconds"
@@ -335,7 +339,7 @@ function M.clock_entries(opts)
     order_sql = "ORDER BY day"
   elseif group_by == "headline_day" then
     select_sql = "ce.headline_id AS headline_id, h.title AS title, "
-      .. "DATE(ce.start_ts, 'unixepoch') AS day, "
+      .. "DATE(ce.start_ts, 'unixepoch', 'localtime') AS day, "
       .. "SUM(COALESCE(ce.duration_seconds, 0) + "
       .. active_dur
       .. ") AS total_seconds"

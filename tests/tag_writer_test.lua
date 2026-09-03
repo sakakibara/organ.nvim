@@ -35,6 +35,23 @@ local cases = {
     body = "Title with: colon",
     tags = {},
   },
+  -- A tag block needs whitespace before it.
+  ["* Meet at 10:30:45"] = {
+    stars = "*",
+    body = "Meet at 10:30:45",
+    tags = {},
+  },
+  ["* Ratio:a:b:"] = {
+    stars = "*",
+    body = "Ratio:a:b:",
+    tags = {},
+  },
+  -- A headline that is only a tag block.
+  ["* :only:tags:"] = {
+    stars = "*",
+    body = "",
+    tags = { "only", "tags" },
+  },
 }
 for line, want in pairs(cases) do
   local got = writer._parse_headline(line)

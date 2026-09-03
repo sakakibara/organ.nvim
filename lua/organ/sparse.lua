@@ -31,6 +31,7 @@ function M._compute_visible(buf_lines, predicate, bufnr)
         line = h.line_start + 1, -- 1-based
         level = h.level,
         todo_state = h.todo_state,
+        priority = h.priority,
         tags = h.tags or {},
         title = h.title,
         _node = h.node,
@@ -39,39 +40,43 @@ function M._compute_visible(buf_lines, predicate, bufnr)
   else
     -- Regex path (parser not loaded, e.g. early boot or scratch buffer).
     headlines = {}
+    local todo = require("organ.todo")
+    local keywords = {}
+    for _, k in ipairs(todo.all_keywords(todo.effective_sequences(bufnr))) do
+      keywords[k] = true
+    end
     for i, line in ipairs(buf_lines) do
       local stars, body = line:match("^(%*+)%s+(.*)$")
       if stars then
         local todo_state, rest
         local first_token, after = body:match("^(%S+)%s+(.*)$")
-        if first_token then
-          local cfg_todo = (require("organ.buf_config").read(nil, "todo") or {}).sequence
-            or { "TODO", "DONE" }
-          local is_todo = false
-          for _, k in ipairs(cfg_todo) do
-            if k ~= "|" and k == first_token then
-              is_todo = true
-              break
-            end
-          end
-          if is_todo then
-            todo_state = first_token
-            rest = after
-          else
-            rest = body
-          end
+        if first_token and keywords[first_token] then
+          todo_state = first_token
+          rest = after
         else
           rest = body
         end
-        local tags = {}
-        for tag in (rest or ""):gmatch(":(%w+):") do
-          tags[#tags + 1] = tag
+        local priority, after_priority = (rest or ""):match("^%[#(.)%]%s*(.*)$")
+        if priority then
+          rest = after_priority
         end
-        local title = (rest or ""):gsub("%s+:%w[:%w]*:%s*$", "")
+        local tags = {}
+        local title = rest or ""
+        local bs, be = title:find("^%s*:[%w_@#%%\128-\255:]+:%s*$")
+        if not bs then
+          bs, be = title:find("%s+:[%w_@#%%\128-\255:]+:%s*$")
+        end
+        if bs then
+          for tag in title:sub(bs, be):gmatch(":([%w_@#%%\128-\255]+)") do
+            tags[#tags + 1] = tag
+          end
+          title = title:sub(1, bs - 1):gsub("%s+$", "")
+        end
         headlines[#headlines + 1] = {
           line = i,
           level = #stars,
           todo_state = todo_state,
+          priority = priority,
           tags = tags,
           title = title,
         }
@@ -231,6 +236,9 @@ end
 ---@param bufnr  integer    buffer number
 ---@param predicate function predicate(headline) -> bool
 function M.apply(bufnr, predicate)
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local visible = M._compute_visible(lines, predicate, bufnr)
 
@@ -257,6 +265,9 @@ end
 ---
 ---@param bufnr integer  buffer number
 function M.clear(bufnr)
+  if bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
   local s = vim.b[bufnr].organ_sparse
   if not s then
     return
@@ -313,13 +324,13 @@ function M.show_regex(bufnr, pattern)
 end
 
 --- Show headlines matching an Emacs `org-match` query
---- (e.g. `+work-home/+NEXT|+@phone+EFFORT<60`). See lua/organ/match.lua
---- for the supported subset.
+--- (e.g. `+work-home+EFFORT<60/+NEXT|-DONE`). See lua/organ/match.lua
+--- for the grammar.
 ---
 ---@param bufnr  integer
 ---@param query  string
 function M.show_match(bufnr, query)
-  local pred = require("organ.match").predicate(query)
+  local pred = require("organ.match").predicate(query, { bufnr = bufnr })
   M.apply(bufnr, pred)
 end
 

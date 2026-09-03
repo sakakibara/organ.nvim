@@ -77,4 +77,28 @@ do
   assert_eq(s.visible[5], nil, "TS property non-match hidden")
 end
 
+-- bufnr 0 means the current buffer: apply/clear switch the current window.
+do
+  mk_buf({ "* first", "* TODO x" })
+  local b = mk_buf({ "* TODO X", "* Y" })
+  vim.wo.foldmethod = "manual"
+  sparse.show_todo(0)
+  assert(vim.b[b].organ_sparse, "state set on current buffer")
+  assert_eq(vim.wo.foldmethod, "expr", "current window switched to expr folding")
+  sparse.clear(0)
+  assert_eq(vim.b[b].organ_sparse, nil, "state cleared on current buffer")
+  assert_eq(vim.wo.foldmethod, "manual", "foldmethod restored")
+end
+
+-- show_match `/!` reads the buffer's own `#+TODO` keywords.
+do
+  local b = mk_buf({ "#+TODO: TODO WAIT | DONE", "* WAIT one", "* DONE two", "* three" })
+  sparse.show_match(b, "/!")
+  local s = vim.b[b].organ_sparse
+  assert(s, "state set (match /!)")
+  assert_eq(s.visible[2], true, "buffer-local active keyword visible")
+  assert_eq(s.visible[3], nil, "done keyword hidden")
+  assert_eq(s.visible[4], nil, "no keyword hidden")
+end
+
 io.write("sparse buffer ok\n")
