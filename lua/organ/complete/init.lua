@@ -75,6 +75,22 @@ local function relpath(p)
   return vim.fn.fnamemodify(p, ":.")
 end
 
+-- Directory a `file:` link written in `bufnr` resolves against: the
+-- buffer's own directory (organ.link and Emacs expand relative targets
+-- there), or the cwd for an unnamed buffer.
+local function link_base_dir(bufnr)
+  local name = vim.api.nvim_buf_get_name(bufnr or 0)
+  if name == "" then
+    return vim.fn.getcwd()
+  end
+  return vim.fn.fnamemodify(name, ":p:h")
+end
+
+-- `p` relative to the walk root `base` it was found under.
+local function link_relpath(p, base)
+  return p:sub(#base + 2)
+end
+
 -- Walk a directory recursively, collecting up to `cap` file paths whose
 -- relative form contains `query` (substring; case-insensitive).
 local function walk_files(root_dir, query, cap)
@@ -101,7 +117,7 @@ local function walk_files(root_dir, query, cap)
         if t == "directory" then
           visit(full)
         elseif t == "file" then
-          local rel = relpath(full)
+          local rel = link_relpath(full, root_dir)
           if q_lower == "" or rel:lower():find(q_lower, 1, true) then
             results[#results + 1] = rel
           end
@@ -148,7 +164,9 @@ local function list_dir(dir, query)
   return results
 end
 
-function M.items_for(kind, query)
+-- `bufnr` (default current) is the buffer the completion is for; file
+-- items are relative to its directory.
+function M.items_for(kind, query, bufnr)
   local query_cap = get_config().query_max_results or 500
   if kind == "id" then
     local rows = require("organ.query").headlines({ has_id = true, limit = query_cap })
@@ -194,7 +212,7 @@ function M.items_for(kind, query)
     -- asynchronously via open_picker so it never blocks the keystroke.
     local cfg = get_config()
     local cap = cfg.file_walk_max_results or 500
-    return file_items(walk_files(vim.fn.getcwd(), query, cap))
+    return file_items(walk_files(link_base_dir(bufnr), query, cap))
   end
 
   if kind == "attachment" then
@@ -289,14 +307,14 @@ end
 local function open_file_picker_async(bufnr, trigger, dedupe_key)
   local cfg = get_config()
   local cap = cfg.file_walk_max_results or 500
-  local root = vim.fn.getcwd()
+  local root = link_base_dir(bufnr)
   local q_lower = (trigger.query or ""):lower()
   local paths = {}
   require("organ.walk").walk_async(root, FILE_WALK_BATCH, nil, function(full, _st)
     if #paths >= cap then
       return
     end
-    local rel = relpath(full)
+    local rel = link_relpath(full, root)
     if q_lower == "" or rel:lower():find(q_lower, 1, true) then
       paths[#paths + 1] = rel
     end

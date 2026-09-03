@@ -286,8 +286,8 @@ end
 -- O(N tree nodes) and triggers a redraw per drawer.  Tagging each
 -- call with a fresh token and short-circuiting earlier schedules
 -- drops all but the final one.
-local function _schedule_drawer_close(bufnr)
-  if (require("organ.buf_config").read(nil, "fold") or {}).close_drawers_on_open == false then
+local function _schedule_drawer_close(winid, bufnr)
+  if (require("organ.buf_config").read(bufnr, "fold") or {}).close_drawers_on_open == false then
     return
   end
   local tok = {}
@@ -296,8 +296,12 @@ local function _schedule_drawer_close(bufnr)
     if M._drawer_close_tok[bufnr] ~= tok then
       return
     end
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      M.close_all_drawers(bufnr)
+    if
+      vim.api.nvim_buf_is_valid(bufnr)
+      and vim.api.nvim_win_is_valid(winid)
+      and vim.api.nvim_win_get_buf(winid) == bufnr
+    then
+      M.close_all_drawers(bufnr, winid)
     end
   end)
 end
@@ -315,21 +319,21 @@ end
 function M.apply_overview(winid, bufnr)
   _leave_contents_if_active(winid)
   _set_local_foldlevel(winid, 0)
-  _schedule_drawer_close(bufnr)
+  _schedule_drawer_close(winid, bufnr)
   _invalidate_visible_cache(bufnr)
 end
 
 function M.apply_content(winid, bufnr)
   _set_local_foldlevel(winid, 99)
   require("organ.fold.contents").enter(winid)
-  _schedule_drawer_close(bufnr)
+  _schedule_drawer_close(winid, bufnr)
   _invalidate_visible_cache(bufnr)
 end
 
 function M.apply_show_all(winid, bufnr)
   _leave_contents_if_active(winid)
   _set_local_foldlevel(winid, 99)
-  _schedule_drawer_close(bufnr)
+  _schedule_drawer_close(winid, bufnr)
   _invalidate_visible_cache(bufnr)
 end
 
@@ -418,8 +422,17 @@ M._drawer_close_tok = {}
 -- which silently collapses the parent heading instead of the
 -- drawer.  Skipping drawers whose start line is inside a closed
 -- fold keeps the operation idempotent across foldlevel changes.
-function M.close_all_drawers(bufnr)
+function M.close_all_drawers(bufnr, winid)
   bufnr = nbuf(bufnr)
+  if winid and winid ~= 0 and winid ~= vim.api.nvim_get_current_win() then
+    if not vim.api.nvim_win_is_valid(winid) then
+      return
+    end
+    vim.api.nvim_win_call(winid, function()
+      M.close_all_drawers(bufnr)
+    end)
+    return
+  end
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
     return
@@ -501,7 +514,7 @@ local function build_fold_levels(bufnr)
   local cur_level = 0
   for i = 1, nlines do
     local line = lines[i] or ""
-    local stars = line:match("^(%*+)%s")
+    local stars = line:match("^(%*+) ")
     if stars then
       cur_level = #stars
       levels[i] = ">" .. cur_level
@@ -529,7 +542,7 @@ local function build_fold_levels(bufnr)
     local trailing_start = nil
     for i = 1, nlines do
       local line = lines[i] or ""
-      local stars = line:match("^(%*+)%s")
+      local stars = line:match("^(%*+) ")
       if stars then
         -- Demote trailing blanks only when the next heading is a
         -- sibling or shallower (`#stars <= section_level`).  When
@@ -750,7 +763,7 @@ end
 -- so both visual states render the ellipsis in the same color as
 -- the heading text it follows.
 function M.heading_title_hl(line)
-  local stars = line and line:match("^(%*+)%s")
+  local stars = line and line:match("^(%*+) ")
   if not stars then
     return "Folded"
   end
@@ -798,7 +811,7 @@ end
 -- foldtext has to reproduce their star treatment to match.  Returns
 -- (display_string, level).
 local function star_display_for(bufnr, line)
-  local stars = line:match("^(%*+)%s") or line:match("^(%*+)$")
+  local stars = line:match("^(%*+) ") or line:match("^(%*+)$")
   if not stars then
     return nil
   end
@@ -1086,7 +1099,7 @@ _G._organ_statuscolumn = function()
 end
 
 -- Org-aware fold-marker for custom statuscolumns.  In org buffers,
--- only heading lines (`^%*+%s`) get a fold-start marker; body lines
+-- only heading lines (`^%*+ `) get a fold-start marker; body lines
 -- never do (the body-level fold layer enables CONTENTS view but is
 -- visual noise on the foldcolumn).  Non-org buffers fall back to
 -- level-compare (`foldlevel(lnum) > foldlevel(lnum - 1)`).
@@ -1105,7 +1118,7 @@ local function _marker_impl(lnum, hl)
   end
   if vim.bo.filetype == "org" then
     local line = vim.api.nvim_buf_get_lines(0, lnum - 1, lnum, false)[1] or ""
-    if not line:match("^%*+%s") then
+    if not line:match("^%*+ ") then
       return " "
     end
     -- CONTENTS view hides body via `conceal_lines` extmarks, not

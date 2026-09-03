@@ -948,11 +948,10 @@ return {
   -- Priority cookies on headlines. Mirrors Emacs `org-priority-{highest,
   -- lowest, default}`. Letters can be any ASCII range; the convention
   -- is alphabetical (A=highest because it's the "top" letter), but
-  -- numeric ranges (1..9) also work. `default` is the priority used
-  -- when raising from "no cookie" via inline_edit.raise_priority on a
-  -- headline that has no current cookie — actually we use highest for
-  -- that, matching Emacs's `^` raise; `default` is reserved for future
-  -- features that explicitly need a "default priority" value.
+  -- numeric ranges (1..9) also work. Raising from "no cookie" uses
+  -- `highest`, matching Emacs's `^` raise; a `PRIORITY` term in a
+  -- tag-match query reads an absent cookie as `default`, as Emacs's
+  -- `org-entry-get` returns `org-priority-default`.
   priority = {
     highest = "A",
     lowest = "C",

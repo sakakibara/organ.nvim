@@ -177,6 +177,39 @@ with_buffer({ "regular text" }, function(b)
   check("directive: nil on non-`#+` line", p == nil)
 end)
 
+-- TODO source reads the EFFECTIVE sequences: annotations stripped,
+-- buffer `#+TODO:` directives win over config.
+do
+  local saved_seq = require("organ").config.todo.sequence
+  require("organ").config.todo.sequence = { "TODO(t)", "NEXT(n)", "|", "DONE(d)" }
+  with_buffer({ "* ", "  body" }, function(b)
+    local items = todo.completion_items("", b)
+    local inserts = {}
+    for _, it in ipairs(items) do
+      inserts[#inserts + 1] = it.insertText
+    end
+    check(
+      "todo: annotated todo.sequence yields bare keywords",
+      vim.deep_equal(inserts, { "TODO", "NEXT", "DONE" }),
+      vim.inspect(inserts)
+    )
+    check("todo: DONE flagged as done state", items[3] and items[3].done == true)
+  end)
+  with_buffer({ "#+TODO: WAIT | FIXED", "* " }, function(b)
+    local items = todo.completion_items("", b)
+    local inserts = {}
+    for _, it in ipairs(items) do
+      inserts[#inserts + 1] = it.insertText
+    end
+    check(
+      "todo: buffer #+TODO keywords win over config",
+      vim.deep_equal(inserts, { "WAIT", "FIXED" }),
+      vim.inspect(inserts)
+    )
+  end)
+  require("organ").config.todo.sequence = saved_seq
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

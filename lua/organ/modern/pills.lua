@@ -72,12 +72,10 @@ local function get_headline_query()
 end
 
 local function todo_keywords_set(bufnr)
-  local seq = require("organ.buf_config").read(bufnr, "todo.sequence") or {}
+  local todo = require("organ.todo")
   local set = {}
-  for _, k in ipairs(seq) do
-    if k ~= "|" then
-      set[k] = true
-    end
+  for _, k in ipairs(todo.all_keywords(todo.effective_sequences(bufnr))) do
+    set[k] = true
   end
   return set
 end
@@ -173,12 +171,12 @@ end
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   register_pill_highlights()
-  require("organ.modern.render").attach(bufnr)
+  require("organ.modern.render").attach(bufnr, "pills")
 end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  require("organ.modern.render").detach(bufnr)
+  require("organ.modern.render").detach(bufnr, "pills")
 end
 
 function M.toggle(bufnr)

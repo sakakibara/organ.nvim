@@ -931,7 +931,13 @@ function M.setup(opts)
       opts = vim.tbl_extend("force", opts, { modern = m })
     end
   end
+  -- `agenda.views` is a named map, which tbl_deep_extend would merge
+  -- with the defaults; the documented contract is replace-on-assign.
+  local user_views = type(opts.agenda) == "table" and opts.agenda.views or nil
   M.config = vim.tbl_deep_extend("force", M.config, opts)
+  if user_views ~= nil then
+    M.config.agenda.views = user_views
+  end
   setup_validate_config()
 
   -- Remove subcommands for any feature whose `enabled` flag is false.

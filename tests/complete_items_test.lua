@@ -92,6 +92,32 @@ require("organ").setup({
 local empty = complete.items_for("attachment", "")
 assert(#empty == 0, "missing attachment_dir: expected 0, got " .. #empty)
 
+-- file source: paths are relative to the current buffer's directory (the
+-- base `file:` links resolve against), not the cwd.
+vim.fn.mkdir(tmp .. "/notes", "p")
+vim.fn.writefile({ "* A", "" }, tmp .. "/notes/a.org")
+vim.fn.writefile({ "* B" }, tmp .. "/notes/b.org")
+vim.fn.mkdir(tmp .. "/notes/sub", "p")
+vim.fn.writefile({ "* C" }, tmp .. "/notes/sub/c.org")
+local saved_cwd = vim.fn.getcwd()
+vim.fn.chdir(tmp)
+vim.cmd("edit " .. tmp .. "/notes/a.org")
+local rel = complete.items_for("file", "b.org")
+assert(#rel == 1, "file relative: expected 1 item, got " .. #rel)
+assert(rel[1].insert_text == "b.org", "file relative: expected b.org, got " .. rel[1].insert_text)
+local sub = complete.items_for("file", "c.org")
+assert(
+  #sub == 1 and sub[1].insert_text == "sub/c.org",
+  "file relative (subdir): expected sub/c.org, got " .. vim.inspect(sub)
+)
+vim.cmd("enew")
+local unnamed = complete.items_for("file", "b.org")
+assert(
+  #unnamed == 1 and unnamed[1].insert_text == "notes/b.org",
+  "file from unnamed buffer: expected notes/b.org, got " .. vim.inspect(unnamed)
+)
+vim.fn.chdir(saved_cwd)
+
 vim.fn.delete(tmp, "rf")
 io.write("complete items ok\n")
 os.exit(0)

@@ -43,7 +43,8 @@ package.loaded["organ.query"] = {
       if
         (not filt.id or r.id == filt.id)
         and (not filt.title or r.title == filt.title)
-        and (not filt.file_path or r.file_path == filt.file_path)
+        and (not filt.title_match or r.title:find(filt.title_match, 1, true) ~= nil)
+        and (not filt.file or r.file_path == filt.file)
         and (not filt.has_id or r.id)
       then
         out[#out + 1] = r
@@ -51,7 +52,19 @@ package.loaded["organ.query"] = {
     end
     return out
   end,
-  links_to = function(_id)
+  -- Rows carry the source file under `source_headline`, like the real
+  -- query builder.  Records the id asked for.
+  links_to = function(id)
+    _G.LINKS_TO_ASKED = id
+    if id == "id-gamma" then
+      return {
+        {
+          line = 8,
+          target = id,
+          source_headline = { file_path = "/tmp/lsp/foo.org", line_start = 5 },
+        },
+      }
+    end
     return {}
   end,
   files = function()
@@ -324,6 +337,137 @@ local refs = H["textDocument/references"]({
   position = { line = 0, character = 5 },
 })
 check("references: returns table (may be empty under stub)", type(refs) == "table")
+
+-- 12. Handlers scope headline lookups to the requesting document with
+-- the `file` filter (the key the query builder honours).  bar.org holds
+-- only Gamma at row 0; foo.org's Alpha also sits at row 0.
+local BAR_URI = vim.uri_from_fname("/tmp/lsp/bar.org")
+_G.LINKS_TO_ASKED = nil
+local bar_refs = H["textDocument/references"]({
+  textDocument = { uri = BAR_URI },
+  position = { line = 0, character = 2 },
+})
+check(
+  "references: resolves the headline in the requesting file",
+  _G.LINKS_TO_ASKED == "id-gamma",
+  "asked for " .. tostring(_G.LINKS_TO_ASKED)
+)
+check(
+  "references: id-link rows use the source headline's file",
+  bar_refs[1] and bar_refs[1].uri == URI and bar_refs[1].range.start.line == 7,
+  vim.inspect(bar_refs)
+)
+local bar_syms = H["textDocument/documentSymbol"]({ textDocument = { uri = BAR_URI } })
+check(
+  "documentSymbol (unloaded file): only that file's headlines",
+  #bar_syms == 1 and bar_syms[1].name == "Gamma",
+  vim.inspect(bar_syms)
+)
+
+-- 13. Symbol kinds follow the EFFECTIVE todo sequences (annotations
+-- stripped): DONE is a done-set keyword -> Constant (14).
+do
+  local saved_seq = require("organ").config.todo.sequence
+  require("organ").config.todo.sequence = { "TODO(t)", "NEXT(n)", "|", "DONE(d)" }
+  local syms_ann = H["textDocument/documentSymbol"]({ textDocument = { uri = URI } })
+  local beta
+  for _, s in ipairs(syms_ann) do
+    if s.name == "Beta" then
+      beta = s
+    end
+  end
+  check(
+    "documentSymbol: DONE headline is Constant under an annotated sequence",
+    beta and beta.kind == 14,
+    beta and ("kind=" .. beta.kind)
+  )
+  require("organ").config.todo.sequence = saved_seq
+end
+
+-- 14. definition: `file:` links resolve against the document's directory.
+vim.fn.mkdir("/tmp/lsp/sub", "p")
+local rel_src = "/tmp/lsp/sub/src.org"
+vim.fn.writefile({ "* S", "see [[file:target.org][t]]" }, rel_src)
+local rel_bufnr = vim.fn.bufadd(rel_src)
+vim.fn.bufload(rel_bufnr)
+local def_file = H["textDocument/definition"]({
+  textDocument = { uri = vim.uri_from_fname(rel_src) },
+  position = { line = 1, character = 8 },
+})
+check(
+  "definition: file:target.org resolves next to the document",
+  def_file and def_file.uri == vim.uri_from_fname("/tmp/lsp/sub/target.org"),
+  def_file and def_file.uri
+)
+
+-- 14b. definition: `file:path::*Heading` lands on the headline whose
+-- title is exactly the anchor, and `./` in the path is normalised.
+do
+  local n = #SAMPLE_HEADLINES
+  SAMPLE_HEADLINES[n + 1] =
+    { id = "id-top", title = "Top", file_path = "/tmp/lsp/sub/t.org", line_start = 0 }
+  SAMPLE_HEADLINES[n + 2] =
+    { id = "id-header", title = "Header", file_path = "/tmp/lsp/sub/t.org", line_start = 1 }
+  SAMPLE_HEADLINES[n + 3] =
+    { id = "id-head", title = "Head", file_path = "/tmp/lsp/sub/t.org", line_start = 2 }
+  local anchor_src = "/tmp/lsp/sub/src2.org"
+  vim.fn.writefile({ "* S", "see [[file:./t.org::*Head][t]]" }, anchor_src)
+  local anchor_bufnr = vim.fn.bufadd(anchor_src)
+  vim.fn.bufload(anchor_bufnr)
+  local def_anchor = H["textDocument/definition"]({
+    textDocument = { uri = vim.uri_from_fname(anchor_src) },
+    position = { line = 1, character = 8 },
+  })
+  check(
+    "definition: file:./t.org::*Head normalises the path",
+    def_anchor and def_anchor.uri == vim.uri_from_fname("/tmp/lsp/sub/t.org"),
+    def_anchor and def_anchor.uri
+  )
+  check(
+    "definition: file:./t.org::*Head lands on the exact title",
+    def_anchor and def_anchor.range.start.line == 2,
+    def_anchor and ("line " .. tostring(def_anchor.range.start.line))
+  )
+  for _ = 1, 3 do
+    table.remove(SAMPLE_HEADLINES)
+  end
+end
+
+-- 15. foldingRange: a block's closing line belongs to its fold.
+local blocks_path = "/tmp/lsp/blocks.org"
+vim.fn.writefile({
+  "* H",
+  "#+begin_src lua",
+  "print(1)",
+  "#+end_src",
+  "text",
+  ":PROPERTIES:",
+  ":ID: y",
+  ":END:",
+  "tail",
+}, blocks_path)
+local blocks_bufnr = vim.fn.bufadd(blocks_path)
+vim.fn.bufload(blocks_bufnr)
+local block_folds =
+  H["textDocument/foldingRange"]({ textDocument = { uri = vim.uri_from_fname(blocks_path) } })
+local src_fold, drawer_fold
+for _, f in ipairs(block_folds) do
+  if f.startLine == 1 then
+    src_fold = f
+  elseif f.startLine == 5 then
+    drawer_fold = f
+  end
+end
+check(
+  "foldingRange: src block fold ends on #+end_src (line 3)",
+  src_fold and src_fold.endLine == 3,
+  src_fold and ("endLine=" .. src_fold.endLine)
+)
+check(
+  "foldingRange: drawer fold ends on :END: (line 7)",
+  drawer_fold and drawer_fold.endLine == 7,
+  drawer_fold and ("endLine=" .. drawer_fold.endLine)
+)
 
 vim.fn.delete("/tmp/lsp", "rf")
 

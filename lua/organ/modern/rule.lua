@@ -115,12 +115,12 @@ end
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   _hl_dirty = true
-  require("organ.modern.render").attach(bufnr)
+  require("organ.modern.render").attach(bufnr, "rule")
 end
 
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  require("organ.modern.render").detach(bufnr)
+  require("organ.modern.render").detach(bufnr, "rule")
 end
 
 function M.toggle(bufnr)

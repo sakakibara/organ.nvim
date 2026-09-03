@@ -1237,7 +1237,9 @@ this mode.
                       hidden -- otherwise vim's default would reveal
                       body the moment `j` lands there.  Prior values
                       are saved per-window and restored on exit on
-                      every window currently displaying the buffer.
+                      every window currently displaying the buffer;
+                      a window that has moved to another buffer gets
+                      its restore the next time it shows this one.
 
   Cursor redirect     A buffer-local `CursorMoved` autocmd watches
                       every motion (j / k / arrows / gj / gk /

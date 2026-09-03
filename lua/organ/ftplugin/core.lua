@@ -93,11 +93,10 @@ local function setup_todo_keymaps(bufnr, cfg, map)
     require("organ.todo")._fast_select(bufnr, line)
   end, "Fast TODO state pick (one keystroke)")
   map(km_todo.set, function()
+    local todo = require("organ.todo")
     local choices = { "(none)" }
-    for _, k in ipairs((cfg.todo or {}).sequence or {}) do
-      if k ~= "|" then
-        choices[#choices + 1] = k
-      end
+    for _, k in ipairs(todo.all_keywords(todo.effective_sequences(bufnr))) do
+      choices[#choices + 1] = k
     end
     vim.ui.select(choices, { prompt = "TODO state: " }, function(choice)
       if not choice then

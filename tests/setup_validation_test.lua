@@ -70,6 +70,33 @@ do
   check("valid agenda view: setup succeeds", ok, "err: " .. tostring(err))
 end
 
+-- 3b. Assigning `agenda.views` REPLACES the default set (Rule 1).
+do
+  fresh_setup({
+    db_path = vim.fn.tempname() .. ".db",
+    notify = false,
+    scan_on_startup = false,
+    debounce_ms = 0,
+    watcher = { enabled = false },
+    agenda = { views = { mine = { types = { "any" }, group_by = "none" } } },
+  })
+  local keys = vim.tbl_keys(require("organ").config.agenda.views)
+  table.sort(keys)
+  check(
+    "agenda.views: user assignment replaces the defaults",
+    vim.deep_equal(keys, { "mine" }),
+    "got " .. vim.inspect(keys)
+  )
+  -- A later setup() without `views` keeps the user's set.
+  require("organ").setup({ notify = false })
+  keys = vim.tbl_keys(require("organ").config.agenda.views)
+  check(
+    "agenda.views: setup() without views keeps the user's set",
+    vim.deep_equal(keys, { "mine" }),
+    "got " .. vim.inspect(keys)
+  )
+end
+
 -- 4. todo.sequence missing `|` divider → warns but does NOT error.
 do
   local notes = {}

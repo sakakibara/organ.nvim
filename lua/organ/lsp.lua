@@ -80,18 +80,19 @@ local KIND = {
 }
 
 -- Map TODO state → kind (visual hint in outline plugins).
-local function todo_kind(todo_state)
+local function todo_kind(todo_state, bufnr)
   if not todo_state then
     return KIND.String
   end
   -- Treat done-set states as Constants (often greyed in outlines).
-  local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
-  local in_done = false
-  for _, kw in ipairs(seq) do
-    if kw == "|" then
-      in_done = true
-    elseif kw == todo_state and in_done then
-      return KIND.Constant
+  for _, seq in ipairs(require("organ.todo").effective_sequences(bufnr)) do
+    local in_done = false
+    for _, kw in ipairs(seq) do
+      if kw == "|" then
+        in_done = true
+      elseif kw == todo_state and in_done then
+        return KIND.Constant
+      end
     end
   end
   return KIND.Method
@@ -110,7 +111,7 @@ handlers["textDocument/documentSymbol"] = function(params)
   if bufnr == -1 or not vim.api.nvim_buf_is_loaded(bufnr) then
     -- Fall back to indexed data when buffer isn't loaded.
     local q = require("organ.query")
-    local rows = q.headlines({ file_path = path })
+    local rows = q.headlines({ file = path })
     local symbols = {}
     for _, r in ipairs(rows) do
       symbols[#symbols + 1] = {
@@ -138,7 +139,7 @@ handlers["textDocument/documentSymbol"] = function(params)
     local sym = {
       name = title,
       detail = h.todo_state,
-      kind = todo_kind(h.todo_state),
+      kind = todo_kind(h.todo_state, bufnr),
       range = lsp_range(h.line_start + 1, 0, (h.line_end or h.line_start) + 1, 0),
       selectionRange = lsp_range(h.line_start + 1, 0, h.line_start + 1, 0),
       children = {},
@@ -161,7 +162,7 @@ handlers["textDocument/documentSymbol"] = function(params)
     local it_sym = {
       name = title,
       detail = it.todo_state and (it.todo_state .. "  (inline)") or "(inline)",
-      kind = todo_kind(it.todo_state),
+      kind = todo_kind(it.todo_state, bufnr),
       range = lsp_range(it.line_start + 1, 0, (it.line_end or it.line_start) + 1, 0),
       selectionRange = lsp_range(it.line_start + 1, 0, it.line_start + 1, 0),
       children = {},
@@ -229,6 +230,17 @@ handlers["workspace/symbol"] = function(params)
   return out
 end
 
+-- `query.headlines` matches titles as a substring (`title_match`), so
+-- the exact-title row a link anchor names is picked out here.
+local function headline_by_title(q, title, file)
+  for _, r in ipairs(q.headlines({ file = file, title_match = title }) or {}) do
+    if r.title == title then
+      return r
+    end
+  end
+  return nil
+end
+
 -- definition: parse the link under cursor, resolve to its target.
 handlers["textDocument/definition"] = function(params)
   local path = uri_to_path(params.textDocument.uri)
@@ -263,9 +275,8 @@ handlers["textDocument/definition"] = function(params)
   do
     local hl = target_part:match("^%*(.+)$")
     if hl then
-      local rows = q.headlines({ title = hl })
-      if rows and rows[1] then
-        local r = rows[1]
+      local r = headline_by_title(q, hl)
+      if r then
         return {
           uri = path_to_uri(r.file_path),
           range = lsp_range((r.line_start or 0) + 1, 0, (r.line_start or 0) + 1, 0),
@@ -281,13 +292,20 @@ handlers["textDocument/definition"] = function(params)
       fpath = target_part:match("^file:(.+)$")
     end
     if fpath then
-      local full = vim.fn.fnamemodify(fpath, ":p")
+      -- Relative `file:` targets resolve against the document's own
+      -- directory (Emacs `org-link-expand-abbrev` + `expand-file-name`
+      -- with `default-directory`), as organ.link does when following.
+      local full = vim.fn.expand(fpath)
+      if full:sub(1, 1) ~= "/" then
+        full = vim.fn.fnamemodify(path, ":h") .. "/" .. full
+      end
+      full = vim.fn.simplify(full)
       local target_row = 1
       if anchor then
         local a = anchor:match("^%*(.+)$") or anchor
-        local rows = q.headlines({ file_path = full, title = a })
-        if rows and rows[1] then
-          target_row = (rows[1].line_start or 0) + 1
+        local r = headline_by_title(q, a, full)
+        if r then
+          target_row = (r.line_start or 0) + 1
         end
       end
       return {
@@ -306,7 +324,7 @@ handlers["textDocument/references"] = function(params)
   local row = params.position.line + 1
   local q = require("organ.query")
   -- Find the headline at or above the cursor row.
-  local rows = q.headlines({ file_path = path })
+  local rows = q.headlines({ file = path })
   local target = nil
   for _, r in ipairs(rows or {}) do
     if (r.line_start or 0) + 1 <= row then
@@ -323,7 +341,7 @@ handlers["textDocument/references"] = function(params)
   if target.id and q.links_to then
     for _, l in ipairs(q.links_to(target.id) or {}) do
       out[#out + 1] = {
-        uri = path_to_uri(l.file_path),
+        uri = path_to_uri(l.source_headline.file_path),
         range = lsp_range((l.line or 1), 0, (l.line or 1), 0),
       }
     end
@@ -395,7 +413,7 @@ handlers["textDocument/completion"] = function(params)
   local todo = require("organ.complete.todo")
   local p = todo.cursor_partial(bufnr, row, col)
   if p ~= nil then
-    for _, it in ipairs(todo.completion_items(p)) do
+    for _, it in ipairs(todo.completion_items(p, bufnr)) do
       add(it.label, it.insertText, KIND.Keyword, "TODO state", it.filterText)
     end
   end
@@ -445,8 +463,8 @@ handlers["textDocument/completion"] = function(params)
   local complete = require("organ.complete")
   local trig = complete.trigger_at_cursor(bufnr)
   if trig then
-    local raw = trig.kind == "property_value" and complete.items_for(trig.kind, trig)
-      or complete.items_for(trig.kind, trig.query)
+    local raw = trig.kind == "property_value" and complete.items_for(trig.kind, trig, bufnr)
+      or complete.items_for(trig.kind, trig.query, bufnr)
     for _, it in ipairs(raw) do
       add(
         it.display,
@@ -470,7 +488,7 @@ handlers["textDocument/rename"] = function(params)
     return nil
   end
   local q = require("organ.query")
-  local rows = q.headlines({ file_path = path })
+  local rows = q.headlines({ file = path })
   local target = nil
   for _, r in ipairs(rows or {}) do
     if (r.line_start or 0) + 1 == row then
@@ -552,11 +570,14 @@ handlers["textDocument/foldingRange"] = function(params)
   local element = require("organ.element")
   local out = {}
   local function add_range(node)
-    local sr, _, er, _ = node:range()
-    if er > sr then
+    local sr, _, er, ec = node:range()
+    -- A node ending at column 0 stops before that row; one ending
+    -- mid-row (a block's closing line) includes it.
+    local last = (ec == 0) and er - 1 or er
+    if last > sr then
       out[#out + 1] = {
         startLine = sr,
-        endLine = er - 1,
+        endLine = last,
         kind = "region",
       }
     end
@@ -726,9 +747,19 @@ end
 
 -- ── server boilerplate ────────────────────────────────────────────────
 
-local function make_server()
+-- `on_exit` reports the server's exit through the client's
+-- dispatchers so Neovim drops the client (`:Org lsp stop`, `client:stop()`).
+local function make_server(dispatchers, on_exit)
   local closing = false
   local srv = {}
+  local function close()
+    if closing then
+      return
+    end
+    closing = true
+    on_exit()
+    dispatchers.on_exit(0, 0)
+  end
   function srv.request(method, params, callback)
     if method == "initialize" then
       callback(nil, {
@@ -779,7 +810,7 @@ local function make_server()
   end
   function srv.notify(method, _params)
     if method == "exit" then
-      closing = true
+      close()
     end
     -- didOpen / didChange / didClose: no-op (we read buffers live).
   end
@@ -787,7 +818,7 @@ local function make_server()
     return closing
   end
   function srv.terminate()
-    closing = true
+    close()
   end
   return srv
 end
@@ -826,10 +857,15 @@ function M.attach(bufnr)
     vim.lsp.buf_attach_client(bufnr, existing)
     return existing
   end
-  local client_id = vim.lsp.start({
+  local client_id
+  client_id = vim.lsp.start({
     name = SERVER_NAME,
-    cmd = function(_dispatchers)
-      return make_server()
+    cmd = function(dispatchers)
+      return make_server(dispatchers, function()
+        if clients_by_root[root] == client_id then
+          clients_by_root[root] = nil
+        end
+      end)
     end,
     root_dir = root,
     filetypes = { "org" },

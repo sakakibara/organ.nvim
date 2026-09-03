@@ -41,18 +41,23 @@ local saved_conceallevel = {}
 
 local function raise_conceallevel()
   local win = vim.api.nvim_get_current_win()
+  local cur = vim.api.nvim_get_option_value("conceallevel", { win = win })
   if saved_conceallevel[win] == nil then
-    saved_conceallevel[win] = vim.wo[win].conceallevel
+    saved_conceallevel[win] = cur
   end
-  if vim.wo[win].conceallevel < 2 then
-    vim.wo[win].conceallevel = 2
+  if cur < 2 then
+    vim.api.nvim_set_option_value("conceallevel", 2, { win = win, scope = "local" })
   end
 end
 
 local function restore_conceallevel()
   local win = vim.api.nvim_get_current_win()
   if saved_conceallevel[win] ~= nil then
-    vim.wo[win].conceallevel = saved_conceallevel[win]
+    vim.api.nvim_set_option_value(
+      "conceallevel",
+      saved_conceallevel[win],
+      { win = win, scope = "local" }
+    )
     saved_conceallevel[win] = nil
   end
 end
@@ -126,8 +131,17 @@ function M.refresh(bufnr, immediate)
   )
 end
 
-function M.attach(bufnr)
+-- bufnr -> set of element names attached to the engine.  The engine is
+-- shared by every element, so it is torn down only when the last one
+-- detaches.
+local attached = {}
+
+function M.attach(bufnr, name)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  attached[bufnr] = attached[bufnr] or {}
+  if name then
+    attached[bufnr][name] = true
+  end
   raise_conceallevel()
   if groups[bufnr] then
     M.refresh(bufnr, true)
@@ -156,8 +170,19 @@ function M.attach(bufnr)
   M.refresh(bufnr, true)
 end
 
-function M.detach(bufnr)
+-- Detach `name` (or every element when nil).  Other elements still
+-- attached keep the engine; they are re-rendered without `name`.
+function M.detach(bufnr, name)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local set = attached[bufnr]
+  if name and set then
+    set[name] = nil
+    if next(set) then
+      M.refresh(bufnr, true)
+      return
+    end
+  end
+  attached[bufnr] = nil
   if groups[bufnr] then
     pcall(vim.api.nvim_del_augroup_by_id, groups[bufnr])
     groups[bufnr] = nil

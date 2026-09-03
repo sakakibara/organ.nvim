@@ -434,7 +434,7 @@ function M.attach(bufnr)
   -- the user has it set higher already.
   for _, win in ipairs(vim.fn.win_findbuf(bufnr) or {}) do
     if vim.api.nvim_get_option_value("conceallevel", { win = win }) < 2 then
-      pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = win })
+      pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = win, scope = "local" })
     end
   end
   M.refresh(bufnr)

@@ -44,19 +44,22 @@ function M.cursor_partial(bufnr, row, col)
   return first_word
 end
 
--- Build keyword list from config.todo.sequence, dropping the `|`
--- separator. Each item carries a `done` flag for icon hints.
-function M.completion_items(partial)
+-- Build the keyword list from the buffer's effective TODO sequences
+-- (`#+TODO:` directives, else config; annotations stripped), dropping
+-- the `|` separator. Each item carries a `done` flag for icon hints.
+-- `bufnr` defaults to the current buffer.
+function M.completion_items(partial, bufnr)
   partial = (partial or ""):upper()
-  local cfg = require("organ").config or {}
-  local seq = (cfg.todo or {}).sequence or { "TODO", "DONE" }
-  local in_done = false
+  if bufnr == nil or bufnr == 0 then
+    bufnr = vim.api.nvim_get_current_buf()
+  end
   local items = {}
-  for _, kw in ipairs(seq) do
-    if kw == "|" then
-      in_done = true
-    else
-      if partial == "" or kw:upper():find(partial, 1, true) == 1 then
+  for _, seq in ipairs(require("organ.todo").effective_sequences(bufnr)) do
+    local in_done = false
+    for _, kw in ipairs(seq) do
+      if kw == "|" then
+        in_done = true
+      elseif partial == "" or kw:upper():find(partial, 1, true) == 1 then
         items[#items + 1] = {
           label = kw,
           insertText = kw,

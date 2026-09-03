@@ -32,16 +32,23 @@ function M.attach(bufnr)
       if not handled then
         local line = vim.fn.line(".")
         local cur_lines = vim.api.nvim_buf_get_lines(0, line - 1, line, false)
-        local on_heading = cur_lines[1] and cur_lines[1]:match("^%*+%s") ~= nil
+        local on_heading = cur_lines[1] and cur_lines[1]:match("^%*+ ") ~= nil
         local is_normal = vim.fn.mode() == "n"
 
         if direction == "next" then
-          -- <Tab>: cycle local fold ONLY on a heading; elsewhere fall
-          -- through to the default <Tab> (insert-mode tab, normal-mode noop).
-          if on_heading then
+          -- <Tab>: in normal mode this map shadows the fold-cycle map from
+          -- ftplugin/core, so dispatch the same way: let `fold.cycle`
+          -- decide (headings, drawers, body under `cycle_emulate_tab =
+          -- false`) and feed the native key only when it declines.  In
+          -- insert mode cycle only on a heading; elsewhere insert a tab.
+          local seq = vim.api.nvim_replace_termcodes("<Tab>", true, false, true)
+          if is_normal then
+            if not require("organ.fold").cycle(0, line) then
+              vim.api.nvim_feedkeys(seq, "n", false)
+            end
+          elseif on_heading then
             require("organ.fold").cycle(0, line)
           else
-            local seq = vim.api.nvim_replace_termcodes("<Tab>", true, false, true)
             vim.api.nvim_feedkeys(seq, "n", false)
           end
         else

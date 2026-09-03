@@ -222,11 +222,11 @@ function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if vim.wo.conceallevel ~= 0 then
     M.detach(bufnr)
-    vim.wo.conceallevel = 0
+    vim.api.nvim_set_option_value("conceallevel", 0, { win = 0, scope = "local" })
     return false
   end
   apply(bufnr)
-  vim.wo.conceallevel = 2
+  vim.api.nvim_set_option_value("conceallevel", 2, { win = 0, scope = "local" })
   return true
 end
 

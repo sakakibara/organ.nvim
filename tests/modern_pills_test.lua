@@ -83,6 +83,44 @@ pills.detach(bufnr)
 local after = vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, {})
 check("detach() clears marks", #after == 0)
 
+-- Keywords come from the EFFECTIVE sequences: annotated config entries
+-- are stripped, and a buffer `#+TODO:` directive wins over config.
+local function marks_matching(pat)
+  local n = 0
+  for _, m in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })) do
+    if m[4] and m[4].hl_group and m[4].hl_group:find(pat) then
+      n = n + 1
+    end
+  end
+  return n
+end
+local saved_seq = require("organ").config.todo.sequence
+require("organ").config.todo.sequence = { "TODO(t)", "NEXT(n)", "|", "DONE(d)" }
+pills._apply(bufnr)
+check(
+  "annotated todo.sequence: TODO/NEXT/DONE still get pills",
+  marks_matching("pill%.todo$") > 0
+    and marks_matching("pill%.next$") > 0
+    and marks_matching("pill%.done$") > 0,
+  "todo="
+    .. marks_matching("pill%.todo$")
+    .. " next="
+    .. marks_matching("pill%.next$")
+    .. " done="
+    .. marks_matching("pill%.done$")
+)
+vim.api.nvim_buf_set_lines(
+  bufnr,
+  0,
+  -1,
+  false,
+  { "#+TODO: WAIT | DONE", "* WAIT Blocked", "* TODO Old" }
+)
+pills._apply(bufnr)
+check("buffer #+TODO keyword WAIT gets a pill", marks_matching("pill%.wait$") > 0)
+check("keyword absent from the buffer's #+TODO gets no pill", marks_matching("pill%.todo$") == 0)
+require("organ").config.todo.sequence = saved_seq
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")
