@@ -94,12 +94,11 @@ function M.new_ctx(opts)
   return { backend = opts and opts.backend or "default" }
 end
 
--- Render a single parsed cite block.
-function M.render_cite(parsed, bib_index, style_name, ctx)
-  ctx = ctx or M.new_ctx()
-  local style = get_style(style_name)
-  -- Track every key the document references so render_bibliography
-  -- can include them.
+-- Record the keys a parsed cite block references so render_bibliography
+-- includes them and year disambiguation sees every cited entry. Callers
+-- rendering a whole document register every block before rendering
+-- the first one.
+function M.register_cite(parsed, ctx)
   ctx._used = ctx._used or {}
   ctx._used_set = ctx._used_set or {}
   for _, r in ipairs(parsed.refs or {}) do
@@ -107,6 +106,16 @@ function M.render_cite(parsed, bib_index, style_name, ctx)
       ctx._used_set[r.key] = true
       ctx._used[#ctx._used + 1] = r.key
     end
+  end
+end
+
+-- Render a single parsed cite block.
+function M.render_cite(parsed, bib_index, style_name, ctx)
+  ctx = ctx or M.new_ctx()
+  local style = get_style(style_name)
+  M.register_cite(parsed, ctx)
+  if parsed.style == "nocite" then
+    return ""
   end
   return finalize(style.render_cite(parsed, bib_index, ctx), ctx.backend)
 end
@@ -128,6 +137,9 @@ function M.render_text(text, bib_index, style_name, opts)
   local cite = require("organ.cite")
   local hits = cite.scan(text)
   local ctx = M.new_ctx(opts)
+  for _, h in ipairs(hits) do
+    M.register_cite(h.parsed, ctx)
+  end
   local out = {}
   local pos = 1
   for _, h in ipairs(hits) do

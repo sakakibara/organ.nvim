@@ -150,6 +150,9 @@ local function decorate_line(bufnr, lnum, line)
     end
     local literal = "\\" .. name
     local glyph = M.lookup(literal)
+    if line:sub(e + 1, e + 2) == "{}" then
+      e = e + 2
+    end
     if glyph then
       vim.api.nvim_buf_set_extmark(bufnr, NS, lnum - 1, s - 1, {
         end_col = e,
@@ -172,23 +175,32 @@ local function decorate_buffer(bufnr)
   end
 end
 
+-- bufnr -> per-attach token; a listener whose token is gone detaches.
 local attached = {}
 
+local function resolve(bufnr)
+  if bufnr == nil or bufnr == 0 then
+    return vim.api.nvim_get_current_buf()
+  end
+  return bufnr
+end
+
 function M.attach(bufnr)
+  bufnr = resolve(bufnr)
   if attached[bufnr] then
     return
   end
-  attached[bufnr] = true
+  local token = {}
+  attached[bufnr] = token
   require("organ.debounce").apply_initial(bufnr, decorate_buffer)
 
   vim.api.nvim_buf_attach(bufnr, false, {
     on_lines = function(_, b, _, first, _, last_new)
-      if not vim.api.nvim_buf_is_valid(b) then
-        attached[b] = nil
+      if attached[b] ~= token or not vim.api.nvim_buf_is_valid(b) then
         return true
       end
       require("organ.errors").schedule("organ.entities", function()
-        if not vim.api.nvim_buf_is_valid(b) then
+        if attached[b] ~= token or not vim.api.nvim_buf_is_valid(b) then
           return
         end
         vim.api.nvim_buf_clear_namespace(b, NS, first, last_new)
@@ -204,13 +216,15 @@ function M.attach(bufnr)
     -- positions.  Stay attached and redecorate the whole buffer.
     on_reload = function(_, b)
       require("organ.errors").schedule("organ.entities", function()
-        if vim.api.nvim_buf_is_valid(b) then
+        if attached[b] == token and vim.api.nvim_buf_is_valid(b) then
           decorate_buffer(b)
         end
       end)
     end,
     on_detach = function(_, b)
-      attached[b] = nil
+      if attached[b] == token then
+        attached[b] = nil
+      end
     end,
   })
 
@@ -220,12 +234,13 @@ function M.attach(bufnr)
 end
 
 function M.detach(bufnr)
+  bufnr = resolve(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   attached[bufnr] = nil
 end
 
 function M.toggle(bufnr)
-  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  bufnr = resolve(bufnr)
   if attached[bufnr] then
     M.detach(bufnr)
   else

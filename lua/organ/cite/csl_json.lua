@@ -12,9 +12,26 @@ local M = {}
 
 local function decode_json(text)
   if vim and vim.json and vim.json.decode then
-    return vim.json.decode(text)
+    return vim.json.decode(text, { luanil = { object = true, array = true } })
   end
   error("organ.cite.csl_json: needs vim.json (Neovim 0.10+)")
+end
+
+-- CSL name objects may carry `literal` (institutions) instead of
+-- family/given; shape every name the way the bibtex parser does.
+local function normalize_names(list)
+  if type(list) ~= "table" then
+    return nil
+  end
+  local out = {}
+  for _, a in ipairs(list) do
+    out[#out + 1] = {
+      family = a.family or a.literal or a.name or "",
+      given = a.given or "",
+      suffix = a.suffix,
+    }
+  end
+  return out
 end
 
 -- Returns a list of CSL-JSON entries. Each entry has at minimum
@@ -40,8 +57,8 @@ function M.parse(text)
       type = e.type or "article",
       key = e.id,
       fields = {},
-      author = e.author,
-      editor = e.editor,
+      author = normalize_names(e.author),
+      editor = normalize_names(e.editor),
     }
     -- CSL `issued` is a date object: { ["date-parts"] = { { 2020 } } }.
     if e.issued and type(e.issued) == "table" and e.issued["date-parts"] then

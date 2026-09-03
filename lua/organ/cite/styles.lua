@@ -31,30 +31,33 @@ local M = {}
 
 -- Helpers shared by multiple styles.
 
-local function authors_short_apa(authors)
-  if not authors or #authors == 0 then
-    return ""
+-- Author list, else editor list (as `org-cite-basic--get-author`), else nil.
+local function names_of(e)
+  local names = e.author or e.editor
+  if names and #names > 0 then
+    return names
   end
-  if #authors == 1 then
-    return authors[1].family
-  end
-  if #authors == 2 then
-    return authors[1].family .. " & " .. authors[2].family
-  end
-  return authors[1].family .. " et al."
+  return nil
 end
 
-local function authors_short_chicago(authors)
-  if not authors or #authors == 0 then
-    return ""
+-- Title (else key) stands in for a missing author, as CSL does.
+local function author_fallback(e)
+  return (e.fields and e.fields.title) or e.key or ""
+end
+
+local function authors_short(e, joiner)
+  local authors = names_of(e)
+  if not authors then
+    return author_fallback(e)
   end
+  local first = authors[1].family or ""
   if #authors == 1 then
-    return authors[1].family
+    return first
   end
   if #authors == 2 then
-    return authors[1].family .. " and " .. authors[2].family
+    return first .. joiner .. (authors[2].family or "")
   end
-  return authors[1].family .. " et al."
+  return first .. " et al."
 end
 
 local function initials(given)
@@ -78,7 +81,8 @@ local function authors_full_apa(authors)
   end
   local pieces = {}
   for _, a in ipairs(authors) do
-    pieces[#pieces + 1] = a.family .. (a.given ~= "" and ", " .. initials(a.given) or "")
+    local ini = initials(a.given)
+    pieces[#pieces + 1] = (a.family or "") .. (ini ~= "" and ", " .. ini or "")
   end
   if #pieces == 1 then
     return pieces[1]
@@ -95,10 +99,11 @@ local function authors_full_chicago(authors)
   end
   local pieces = {}
   for i, a in ipairs(authors) do
+    local family, given = a.family or "", a.given or ""
     if i == 1 then
-      pieces[i] = a.family .. (a.given ~= "" and ", " .. a.given or "")
+      pieces[i] = family .. (given ~= "" and ", " .. given or "")
     else
-      pieces[i] = (a.given ~= "" and a.given .. " " or "") .. a.family
+      pieces[i] = (given ~= "" and given .. " " or "") .. family
     end
   end
   if #pieces == 1 then
@@ -116,7 +121,8 @@ local function authors_full_ieee(authors)
   end
   local pieces = {}
   for _, a in ipairs(authors) do
-    pieces[#pieces + 1] = (a.given ~= "" and initials(a.given) .. " " or "") .. a.family
+    local ini = initials(a.given)
+    pieces[#pieces + 1] = (ini ~= "" and ini .. " " or "") .. (a.family or "")
   end
   if #pieces == 1 then
     return pieces[1]
@@ -145,31 +151,34 @@ local function italic(s)
 end
 
 -- Compute year suffixes: { ["doe2020a"] = "a", ["doe2020b"] = "b", ... }.
--- A suffix is added only when two or more entries share the (family, year)
--- pair. Stored on ctx so we don't recompute per-cite.
+-- A suffix is added only when two or more cited entries share the
+-- (family, year) pair. Cached on ctx until another key is cited.
 local function year_suffixes(ctx, bib_index)
-  if ctx._year_suffixes then
+  local used = ctx._used or {}
+  if ctx._year_suffixes and ctx._year_suffixes_n == #used then
     return ctx._year_suffixes
   end
-  -- group by family|year
   local groups = {}
-  for k, e in pairs(bib_index) do
-    local family = (e.author and e.author[1] and e.author[1].family) or ""
-    local year = e.year or ""
-    local g = family .. "|" .. year
-    groups[g] = groups[g] or {}
-    groups[g][#groups[g] + 1] = k
+  for _, k in ipairs(used) do
+    local e = bib_index[k]
+    if e then
+      local family = (e.author and e.author[1] and e.author[1].family) or ""
+      local g = family .. "|" .. (e.year or "")
+      groups[g] = groups[g] or {}
+      groups[g][#groups[g] + 1] = k
+    end
   end
   local out = {}
   for _, keys in pairs(groups) do
     if #keys > 1 then
-      table.sort(keys) -- deterministic
+      table.sort(keys)
       for i, k in ipairs(keys) do
-        out[k] = string.char(96 + i) -- 'a','b','c',...
+        out[k] = string.char(96 + i)
       end
     end
   end
   ctx._year_suffixes = out
+  ctx._year_suffixes_n = #used
   return out
 end
 
@@ -194,11 +203,62 @@ end
 -- Sort key for alphabetical bibliographies. Combines family + year so
 -- multiple entries by the same author are grouped chronologically, then
 -- the disambiguation suffix breaks ties.
+local CASEFOLD = require("organ.ast.unicode_casefold")
+
+-- Base letters for U+00C0..U+00FF and U+0100..U+017F, one per code
+-- point ("-" for the two operators); ligatures are overridden below.
+local LATIN_BASE = "aaaaaaaceeeeiiiidnooooo-ouuuuytsaaaaaaaceeeeiiiidnooooo-ouuuuyty"
+  .. "aaaaaaccccccccddddeeeeeeeeeegggggggghhhhiiiiiiiiiiiijjkkk"
+  .. "llllllllllnnnnnnnnnoooooooorrrrrrsssssssstttttt"
+  .. "uuuuuuuuuuuuwwyyyzzzzzzs"
+local ACCENT_BASE = {}
+for i = 1, 64 do
+  ACCENT_BASE[0xBF + i] = LATIN_BASE:sub(i, i)
+end
+for i = 1, 128 do
+  ACCENT_BASE[0xFF + i] = LATIN_BASE:sub(64 + i, 64 + i)
+end
+for cp, base in pairs({
+  [0xC6] = "ae",
+  [0xE6] = "ae",
+  [0xDE] = "th",
+  [0xFE] = "th",
+  [0xDF] = "ss",
+  [0x132] = "ij",
+  [0x133] = "ij",
+  [0x152] = "oe",
+  [0x153] = "oe",
+}) do
+  ACCENT_BASE[cp] = base
+end
+
+-- Collation key: strip Latin accents, then Unicode-casefold.
+local function fold(s)
+  local out = {}
+  local i, n = 1, #s
+  while i <= n do
+    local b = s:byte(i)
+    local len = (b < 0x80 and 1) or (b < 0xE0 and 2) or (b < 0xF0 and 3) or 4
+    local piece = s:sub(i, i + len - 1)
+    local cp = b
+    if len > 1 then
+      cp = b % (2 ^ (7 - len))
+      for j = i + 1, i + len - 1 do
+        cp = cp * 64 + (s:byte(j) or 0x80) % 64
+      end
+    end
+    out[#out + 1] = ACCENT_BASE[cp] or CASEFOLD[cp] or piece
+    i = i + len
+  end
+  return table.concat(out)
+end
+
 local function alpha_key(e, sfx_map)
-  local family = (e.author and e.author[1] and e.author[1].family) or e.key or ""
+  local names = names_of(e)
+  local family = (names and names[1].family) or author_fallback(e)
   local year = e.year or 0
   local sfx = sfx_map[e.key] or ""
-  return string.lower(family) .. "\0" .. string.format("%08d", year) .. sfx
+  return fold(family) .. "\0" .. string.format("%08d", year) .. sfx
 end
 
 -- APA
@@ -216,9 +276,11 @@ function M.apa.render_cite(parsed, bib_index, ctx)
       if parsed.style == "noauthor" or parsed.style == "year" then
         body = year
       elseif parsed.style == "author" then
-        body = authors_short_apa(entry.author)
+        body = authors_short(entry, " & ")
+      elseif parsed.style == "text" then
+        body = authors_short(entry, " & ") .. (year ~= "" and " (" .. year .. ")" or "")
       else
-        body = authors_short_apa(entry.author) .. (year ~= "" and ", " .. year or "")
+        body = authors_short(entry, " & ") .. (year ~= "" and ", " .. year or "")
       end
     else
       body = r.key
@@ -232,7 +294,7 @@ function M.apa.render_cite(parsed, bib_index, ctx)
     end
     refs[#refs + 1] = body
   end
-  if parsed.style == "author" then
+  if parsed.style == "author" or parsed.style == "text" then
     -- Bare authors don't sit inside parens.
     return table.concat(refs, "; ")
   end
@@ -240,14 +302,15 @@ function M.apa.render_cite(parsed, bib_index, ctx)
 end
 
 local function apa_format_entry(e, ctx, bib_index)
-  local s = authors_full_apa(e.author)
+  local names = names_of(e)
+  local s = names and authors_full_apa(names) or (author_fallback(e) .. ".")
   local year = disambiguated_year_str(ctx, bib_index, e)
   if year then
     s = s .. " (" .. year .. ")."
-  else
+  elseif s:sub(-1) ~= "." then
     s = s .. "."
   end
-  if e.fields.title then
+  if e.fields.title and names then
     s = s .. " " .. e.fields.title .. "."
   end
   if e.fields.journal then
@@ -324,9 +387,11 @@ function M.chicago.render_cite(parsed, bib_index, ctx)
       if parsed.style == "noauthor" or parsed.style == "year" then
         body = year
       elseif parsed.style == "author" then
-        body = authors_short_chicago(entry.author)
+        body = authors_short(entry, " and ")
+      elseif parsed.style == "text" then
+        body = authors_short(entry, " and ") .. (year ~= "" and " (" .. year .. ")" or "")
       else
-        body = authors_short_chicago(entry.author) .. (year ~= "" and " " .. year or "")
+        body = authors_short(entry, " and ") .. (year ~= "" and " " .. year or "")
       end
     else
       body = r.key
@@ -339,19 +404,20 @@ function M.chicago.render_cite(parsed, bib_index, ctx)
     end
     refs[#refs + 1] = body
   end
-  if parsed.style == "author" then
+  if parsed.style == "author" or parsed.style == "text" then
     return table.concat(refs, "; ")
   end
   return "(" .. table.concat(refs, "; ") .. ")"
 end
 
 local function chicago_format_entry(e, ctx, bib_index)
-  local s = authors_full_chicago(e.author) .. "."
+  local names = names_of(e)
+  local s = (names and authors_full_chicago(names) or author_fallback(e)) .. "."
   local year = disambiguated_year_str(ctx, bib_index, e)
   if year then
     s = s .. " " .. year .. "."
   end
-  if e.fields.title then
+  if e.fields.title and names then
     s = s .. ' "' .. e.fields.title .. '."'
   end
   if e.fields.journal then
@@ -438,9 +504,12 @@ function M.ieee.render_cite(parsed, bib_index, ctx)
 end
 
 local function ieee_format_entry(e, i)
-  local s = "[" .. i .. "] " .. authors_full_ieee(e.author)
+  local names = names_of(e)
+  local s = "[" .. i .. "] " .. (names and authors_full_ieee(names) or "")
   if e.fields.title then
-    s = s .. ', "' .. e.fields.title .. ',"'
+    s = s .. (names and ', "' or '"') .. e.fields.title .. ',"'
+  elseif not names then
+    s = s .. e.key
   end
   if e.fields.journal then
     s = s .. " " .. italic(e.fields.journal)

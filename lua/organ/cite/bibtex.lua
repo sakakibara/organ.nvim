@@ -5,10 +5,11 @@
 --     ...
 --   }
 --
--- with nested braces inside field values, // and % line-comment
--- handling, and `and`-joined author lists. Returns one parsed entry
--- per `@` block; M.normalize splits author / editor / year strings
--- into structured form usable by the renderer.
+-- Values may be joined with `#`; bare tokens resolve against earlier
+-- `@string` definitions. Text outside entries is a comment. Returns
+-- one parsed entry per `@` block; M.normalize splits author / editor /
+-- year strings into structured form usable by the renderer, decodes
+-- LaTeX accent commands and drops the remaining braces.
 
 local M = {}
 
@@ -16,40 +17,169 @@ local function trim(s)
   return (s:gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
--- Strip outer braces and superfluous whitespace.  "{John Doe}" → "John Doe".
--- BibTeX uses braces both for delimiting AND for case-protection; we
--- discard the outermost level only, which preserves single inner
--- braces around proper nouns (e.g. "{Linux}").
-local function strip_outer_braces(s)
-  s = trim(s)
-  while #s >= 2 and s:sub(1, 1) == "{" and s:sub(-1) == "}" do
-    -- Only strip if the outer braces are matched as a single pair.
-    local depth = 0
-    local matched = true
-    for i = 1, #s do
-      local c = s:sub(i, i)
-      if c == "{" then
-        depth = depth + 1
-      elseif c == "}" then
-        depth = depth - 1
-        if depth == 0 and i ~= #s then
-          matched = false
-          break
-        end
-      end
+local function collapse_ws(s)
+  return (s:gsub("[ \t\r\n]+", " "))
+end
+
+local ACCENTS = {
+  ['"'] = {
+    a = "ä",
+    e = "ë",
+    i = "ï",
+    o = "ö",
+    u = "ü",
+    y = "ÿ",
+    A = "Ä",
+    E = "Ë",
+    I = "Ï",
+    O = "Ö",
+    U = "Ü",
+    Y = "Ÿ",
+  },
+  ["'"] = {
+    a = "á",
+    e = "é",
+    i = "í",
+    o = "ó",
+    u = "ú",
+    y = "ý",
+    c = "ć",
+    n = "ń",
+    s = "ś",
+    z = "ź",
+    A = "Á",
+    E = "É",
+    I = "Í",
+    O = "Ó",
+    U = "Ú",
+    Y = "Ý",
+    C = "Ć",
+    N = "Ń",
+    S = "Ś",
+    Z = "Ź",
+  },
+  ["`"] = {
+    a = "à",
+    e = "è",
+    i = "ì",
+    o = "ò",
+    u = "ù",
+    A = "À",
+    E = "È",
+    I = "Ì",
+    O = "Ò",
+    U = "Ù",
+  },
+  ["^"] = {
+    a = "â",
+    e = "ê",
+    i = "î",
+    o = "ô",
+    u = "û",
+    A = "Â",
+    E = "Ê",
+    I = "Î",
+    O = "Ô",
+    U = "Û",
+  },
+  ["~"] = { a = "ã", n = "ñ", o = "õ", A = "Ã", N = "Ñ", O = "Õ" },
+  ["="] = {
+    a = "ā",
+    e = "ē",
+    i = "ī",
+    o = "ō",
+    u = "ū",
+    A = "Ā",
+    E = "Ē",
+    I = "Ī",
+    O = "Ō",
+    U = "Ū",
+  },
+  ["."] = { c = "ċ", e = "ė", g = "ġ", z = "ż", C = "Ċ", E = "Ė", G = "Ġ", Z = "Ż" },
+  u = { a = "ă", g = "ğ", A = "Ă", G = "Ğ" },
+  v = {
+    c = "č",
+    d = "ď",
+    e = "ě",
+    n = "ň",
+    r = "ř",
+    s = "š",
+    t = "ť",
+    z = "ž",
+    C = "Č",
+    D = "Ď",
+    E = "Ě",
+    N = "Ň",
+    R = "Ř",
+    S = "Š",
+    T = "Ť",
+    Z = "Ž",
+  },
+  H = { o = "ő", u = "ű", O = "Ő", U = "Ű" },
+  c = { c = "ç", s = "ş", t = "ţ", C = "Ç", S = "Ş", T = "Ţ" },
+  k = { a = "ą", e = "ę", A = "Ą", E = "Ę" },
+  r = { a = "å", u = "ů", A = "Å", U = "Ů" },
+}
+
+local COMMANDS = {
+  ss = "ß",
+  o = "ø",
+  O = "Ø",
+  ae = "æ",
+  AE = "Æ",
+  oe = "œ",
+  OE = "Œ",
+  aa = "å",
+  AA = "Å",
+  l = "ł",
+  L = "Ł",
+  i = "ı",
+}
+
+local function accent(kind, base)
+  base = base:gsub("[{}]", ""):gsub("^\\([ij])$", "%1")
+  return ACCENTS[kind][base]
+end
+
+-- Decode LaTeX accent commands and escaped specials, then drop the
+-- remaining braces the way `org-cite-basic--print-bibtex-string` does.
+local function decode_latex(s)
+  s = s:gsub("\\{", "\2"):gsub("\\}", "\3")
+  s = s:gsub("\\([\"'`%^~=%.])(%b{})", accent)
+  s = s:gsub("\\([\"'`%^~=%.])(\\?%a)", accent)
+  s = s:gsub("\\([uvHckr])(%b{})", accent)
+  s = s:gsub("\\([uvHckr]) (%a)", accent)
+  s = s:gsub("\\(%a+)%f[%A]", COMMANDS)
+  s = s:gsub("\\([&%%%$_#])", "%1")
+  s = s:gsub("[{}]", "")
+  return (s:gsub("\2", "{"):gsub("\3", "}"))
+end
+
+-- Split `s` at every depth-0 character for which `is_sep` holds.
+local function split_depth0(s, is_sep)
+  local out, buf, depth = {}, {}, 0
+  for i = 1, #s do
+    local c = s:sub(i, i)
+    if c == "{" then
+      depth = depth + 1
+    elseif c == "}" then
+      depth = depth - 1
     end
-    if matched then
-      s = trim(s:sub(2, -2))
+    if depth == 0 and is_sep(c) then
+      out[#out + 1] = table.concat(buf)
+      buf = {}
     else
-      break
+      buf[#buf + 1] = c
     end
   end
-  return s
+  out[#out + 1] = table.concat(buf)
+  return out
 end
 
 -- Split a BibTeX name list joined by `and` into individual names.
 -- Aware of brace-protected names (`{van der Berg}`).
 local function split_names(s)
+  s = collapse_ws(s)
   local out = {}
   local depth = 0
   local buf = ""
@@ -77,60 +207,56 @@ local function split_names(s)
   return out
 end
 
--- Parse a single BibTeX name into { family = ..., given = ... }.
--- Supports both BibTeX conventions:
---   "Doe, John"           → family="Doe", given="John"
---   "John Doe"            → family="Doe", given="John"
---   "Doe, John, Sr."      → family="Doe", given="John", suffix="Sr."
---   "{van der Berg}, Jan" → family="van der Berg", given="Jan"
+local function clean(s)
+  return trim(decode_latex(s))
+end
+
+-- Parse a single BibTeX name into { family = ..., given = ..., suffix = ... }.
+--   "Doe, John"             -> family="Doe", given="John"
+--   "John Doe"              -> family="Doe", given="John"
+--   "Doe, Jr., John"        -> family="Doe", given="John", suffix="Jr."
+--   "{van der Berg}, Jan"   -> family="van der Berg", given="Jan"
+--   "Ludwig van Beethoven"  -> family="van Beethoven", given="Ludwig"
 local function parse_name(s)
-  s = strip_outer_braces(s)
-  -- Comma form
-  local parts = {}
-  local depth = 0
-  local buf = ""
-  for i = 1, #s do
-    local c = s:sub(i, i)
-    if c == "{" then
-      depth = depth + 1
-      buf = buf .. c
-    elseif c == "}" then
-      depth = depth - 1
-      buf = buf .. c
-    elseif c == "," and depth == 0 then
-      parts[#parts + 1] = trim(buf)
-      buf = ""
-    else
-      buf = buf .. c
-    end
+  s = collapse_ws(trim(s))
+  local parts = split_depth0(s, function(c)
+    return c == ","
+  end)
+  if #parts >= 3 then
+    return { family = clean(parts[1]), suffix = clean(parts[2]), given = clean(parts[3]) }
+  elseif #parts == 2 then
+    return { family = clean(parts[1]), given = clean(parts[2]) }
   end
-  parts[#parts + 1] = trim(buf)
-  if #parts >= 2 then
-    return {
-      family = strip_outer_braces(parts[1]),
-      given = strip_outer_braces(parts[2]),
-      suffix = parts[3] and strip_outer_braces(parts[3]) or nil,
-    }
-  end
-  -- "First Last" form: last word is family.
   local words = {}
-  for w in s:gmatch("%S+") do
-    words[#words + 1] = w
+  for _, w in
+    ipairs(split_depth0(s, function(c)
+      return c == " "
+    end))
+  do
+    if w ~= "" then
+      words[#words + 1] = w
+    end
   end
   if #words == 0 then
     return { family = "", given = "" }
   end
   if #words == 1 then
-    return { family = words[1], given = "" }
+    return { family = clean(words[1]), given = "" }
+  end
+  -- "First von Last": the family part starts at the first
+  -- lowercase-initial word, else at the last word.
+  local family_start = #words
+  for i = 1, #words - 1 do
+    if words[i]:match("^%l") then
+      family_start = i
+      break
+    end
   end
   return {
-    family = words[#words],
-    given = table.concat(words, " ", 1, #words - 1),
+    family = clean(table.concat(words, " ", family_start, #words)),
+    given = family_start > 1 and clean(table.concat(words, " ", 1, family_start - 1)) or "",
   }
 end
-
--- Tokeniser-friendly entry parser. Tracks position with explicit `pos`
--- so we can recover from junk between entries.
 
 local function skip_ws(text, pos)
   while pos <= #text do
@@ -138,7 +264,6 @@ local function skip_ws(text, pos)
     if c == " " or c == "\t" or c == "\n" or c == "\r" then
       pos = pos + 1
     elseif c == "%" then
-      -- BibTeX line comment.
       while pos <= #text and text:sub(pos, pos) ~= "\n" do
         pos = pos + 1
       end
@@ -166,23 +291,33 @@ local function read_braced(text, pos)
       pos = pos + 1
     end
   end
-  return text:sub(start, pos - 1), pos + 1 -- skip closing }
+  return text:sub(start, pos - 1), pos + 1
 end
 
+-- Read a quoted value; a `"` inside braces does not terminate it.
 local function read_quoted(text, pos)
   local start = pos + 1
+  local depth = 0
   pos = pos + 1
-  while pos <= #text and text:sub(pos, pos) ~= '"' do
+  while pos <= #text do
+    local c = text:sub(pos, pos)
+    if c == "{" then
+      depth = depth + 1
+    elseif c == "}" then
+      depth = depth - 1
+    elseif c == '"' and depth <= 0 then
+      break
+    end
     pos = pos + 1
   end
-  return text:sub(start, pos - 1), pos + 1 -- skip closing "
+  return text:sub(start, pos - 1), pos + 1
 end
 
 local function read_bare(text, pos)
   local start = pos
   while pos <= #text do
     local c = text:sub(pos, pos)
-    if c == "," or c == "}" or c == ")" or c == " " or c == "\t" or c == "\n" or c == "\r" then
+    if c == "," or c == "}" or c == ")" or c == "#" or c:match("%s") then
       break
     end
     pos = pos + 1
@@ -190,12 +325,53 @@ local function read_bare(text, pos)
   return text:sub(start, pos - 1), pos
 end
 
-local function parse_entry(text, pos)
-  -- Already past `@`. Read entry type.
+-- Read a field value: one or more `#`-joined pieces, each braced,
+-- quoted, or a bare token (number or `@string` macro).
+local function read_value(text, pos, strings)
+  local parts = {}
+  while true do
+    pos = skip_ws(text, pos)
+    local first = text:sub(pos, pos)
+    local piece
+    if first == "{" then
+      piece, pos = read_braced(text, pos)
+    elseif first == '"' then
+      piece, pos = read_quoted(text, pos)
+    else
+      piece, pos = read_bare(text, pos)
+      piece = strings[piece:lower()] or piece
+    end
+    parts[#parts + 1] = piece
+    pos = skip_ws(text, pos)
+    if text:sub(pos, pos) ~= "#" then
+      break
+    end
+    pos = pos + 1
+  end
+  return table.concat(parts), pos
+end
+
+local function skip_to_closer(text, pos, opener, closer)
+  local depth = 1
+  while pos <= #text and depth > 0 do
+    local c = text:sub(pos, pos)
+    if c == opener then
+      depth = depth + 1
+    elseif c == closer then
+      depth = depth - 1
+    end
+    if depth > 0 then
+      pos = pos + 1
+    end
+  end
+  return pos + 1
+end
+
+local function parse_entry(text, pos, strings)
   local tstart = pos
   while pos <= #text do
     local c = text:sub(pos, pos)
-    if c == "{" or c == "(" or c == " " or c == "\t" or c == "\n" or c == "\r" then
+    if c == "{" or c == "(" or c:match("%s") then
       break
     end
     pos = pos + 1
@@ -210,25 +386,23 @@ local function parse_entry(text, pos)
   pos = pos + 1
   pos = skip_ws(text, pos)
 
-  -- Special entry types: @string, @comment, @preamble. Skip them.
-  if etype == "string" or etype == "comment" or etype == "preamble" then
-    -- Skip to matching closer.
-    local depth = 1
-    while pos <= #text and depth > 0 do
-      local c = text:sub(pos, pos)
-      if c == opener then
-        depth = depth + 1
-      elseif c == closer then
-        depth = depth - 1
-      end
-      if depth > 0 then
-        pos = pos + 1
-      end
+  if etype == "string" then
+    local nstart = pos
+    while pos <= #text and text:sub(pos, pos) ~= "=" and text:sub(pos, pos) ~= closer do
+      pos = pos + 1
     end
-    return nil, pos + 1
+    if text:sub(pos, pos) == "=" then
+      local name = trim(text:sub(nstart, pos - 1)):lower()
+      local value
+      value, pos = read_value(text, pos + 1, strings)
+      strings[name] = value
+    end
+    return nil, skip_to_closer(text, pos, opener, closer)
+  end
+  if etype == "comment" or etype == "preamble" then
+    return nil, skip_to_closer(text, pos, opener, closer)
   end
 
-  -- Read citation key.
   local kstart = pos
   while pos <= #text do
     local c = text:sub(pos, pos)
@@ -261,19 +435,9 @@ local function parse_entry(text, pos)
       break
     end
     local fname = trim(text:sub(fstart, pos - 1)):lower()
-    pos = pos + 1 -- past `=`
-    pos = skip_ws(text, pos)
-
     local value
-    local first = text:sub(pos, pos)
-    if first == "{" then
-      value, pos = read_braced(text, pos)
-    elseif first == '"' then
-      value, pos = read_quoted(text, pos)
-    else
-      value, pos = read_bare(text, pos)
-    end
-    fields[fname] = value
+    value, pos = read_value(text, pos + 1, strings)
+    fields[fname] = collapse_ws(value)
 
     pos = skip_ws(text, pos)
     if text:sub(pos, pos) == "," then
@@ -288,16 +452,15 @@ function M.parse(text)
   if not text or text == "" then
     return {}
   end
-  local entries = {}
+  local entries, strings = {}, {}
   local pos = 1
-  while pos <= #text do
-    pos = skip_ws(text, pos)
-    if text:sub(pos, pos) ~= "@" then
+  while true do
+    pos = text:find("@", pos, true)
+    if not pos then
       break
     end
-    pos = pos + 1
     local entry
-    entry, pos = parse_entry(text, pos)
+    entry, pos = parse_entry(text, pos + 1, strings)
     if entry then
       entries[#entries + 1] = entry
     end
@@ -316,46 +479,36 @@ function M.parse_file(path)
   return M.parse(text)
 end
 
+local function parse_names(s)
+  local out = {}
+  for _, name in ipairs(split_names(s)) do
+    out[#out + 1] = parse_name(name)
+  end
+  return out
+end
+
 -- Walk parsed entries; pull author / editor name lists into structured
--- form, parse year as a number where possible. Returns the input list
--- (mutated in place) for chainability.
+-- form, parse year as a number where possible, decode LaTeX in every
+-- field. Returns the input list (mutated in place) for chainability.
 function M.normalize(entries)
   for _, e in ipairs(entries) do
     if e.fields.author then
-      e.author = {}
-      for _, name in ipairs(split_names(e.fields.author)) do
-        e.author[#e.author + 1] = parse_name(name)
-      end
+      e.author = parse_names(e.fields.author)
     end
     if e.fields.editor then
-      e.editor = {}
-      for _, name in ipairs(split_names(e.fields.editor)) do
-        e.editor[#e.editor + 1] = parse_name(name)
-      end
+      e.editor = parse_names(e.fields.editor)
     end
     if e.fields.year then
       e.year = tonumber(e.fields.year:match("%d+"))
     end
-    -- Strip outer braces from common text fields so renderers don't
-    -- see them.
-    for _, fname in ipairs({
-      "title",
-      "journal",
-      "booktitle",
-      "publisher",
-      "address",
-      "note",
-      "abstract",
-    }) do
-      if e.fields[fname] then
-        e.fields[fname] = strip_outer_braces(e.fields[fname])
-      end
+    for fname, value in pairs(e.fields) do
+      e.fields[fname] = clean(value)
     end
   end
   return entries
 end
 
--- Build an O(1)-lookup index from key → entry.
+-- Build an O(1)-lookup index from key -> entry.
 function M.index(entries)
   local out = {}
   for _, e in ipairs(entries) do

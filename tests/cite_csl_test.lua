@@ -88,8 +88,8 @@ do
   -- "Last, First" form
   n = bibtex._parse_name("Einstein, Albert")
   assert(n.family == "Einstein" and n.given == "Albert")
-  -- "Last, First, Suffix"
-  n = bibtex._parse_name("King, Martin Luther, Jr.")
+  -- "Last, Suffix, First"
+  n = bibtex._parse_name("King, Jr., Martin Luther")
   assert(n.family == "King" and n.given == "Martin Luther" and n.suffix == "Jr.")
 end
 
@@ -254,14 +254,9 @@ do
 @article{doe2021,  author = {Doe, J}, title = {Third},  year = {2021}}
   ]]))
   local idx = bibtex.index(entries)
-  local ctx = render.new_ctx()
-  local a = render.render_cite(cite.parse("[cite:@doe2020a]"), idx, "apa", ctx)
-  local b = render.render_cite(cite.parse("[cite:@doe2020b]"), idx, "apa", ctx)
-  local c = render.render_cite(cite.parse("[cite:@doe2021]"), idx, "apa", ctx)
-  assert(a == "(Doe, 2020a)", "first: " .. a)
-  assert(b == "(Doe, 2020b)", "second: " .. b)
-  assert(c == "(Doe, 2021)", "no suffix when unambiguous: " .. c)
-  local bib = render.render_bibliography(idx, "apa", ctx)
+  local out, bib =
+    render.render_text("[cite:@doe2020a] [cite:@doe2020b] [cite:@doe2021]", idx, "apa")
+  assert(out == "(Doe, 2020a) (Doe, 2020b) (Doe, 2021)", "disambiguated cites: " .. out)
   assert(#bib == 3)
   -- bib lines in alpha order — same author, so chronological by year+suffix
   assert(bib[1]:match("2020a"), "bib line 1: " .. bib[1])
@@ -597,6 +592,178 @@ do
 
   os.remove(bib_path)
   cite.clear_cache()
+end
+
+-- BibTeX `#` concatenation and @string macros
+
+do
+  local src = [[
+@string{aw = "Addison-Wesley"}
+@string(jn = "Journal of " # "Things")
+@book{a, title = "Foo" # " Bar", publisher = aw, journal = jn, year = 1999 }
+@book{b, title = {Second}, year = 2000 }
+  ]]
+  local entries = bibtex.normalize(bibtex.parse(src))
+  assert(#entries == 2, "hash-concat: two entries; got " .. #entries)
+  assert(entries[1].fields.title == "Foo Bar", "concat: " .. tostring(entries[1].fields.title))
+  assert(
+    entries[1].fields.publisher == "Addison-Wesley",
+    "@string: " .. tostring(entries[1].fields.publisher)
+  )
+  assert(
+    entries[1].fields.journal == "Journal of Things",
+    "@string concat: " .. tostring(entries[1].fields.journal)
+  )
+  assert(entries[2].key == "b", "second entry parsed")
+end
+
+-- `and` followed by a newline still splits authors
+
+do
+  local entries = bibtex.normalize(
+    bibtex.parse(
+      "@article{x,\n  author = {John Doe and\n            Jane Roe},\n  year = 2001\n}\n"
+    )
+  )
+  assert(#entries[1].author == 2, "and-newline: " .. vim.inspect(entries[1].author))
+  assert(entries[1].author[1].family == "Doe", "first author")
+  assert(
+    entries[1].author[2].family == "Roe" and entries[1].author[2].given == "Jane",
+    "second author: " .. vim.inspect(entries[1].author[2])
+  )
+end
+
+-- Text outside entries is a comment
+
+do
+  local entries = bibtex.parse("This file was created by Foo.\n@article{y, title={T}, year=2002}\n")
+  assert(#entries == 1, "junk-before: " .. #entries)
+  entries = bibtex.parse(
+    "@article{y1, title={T}, year=2002}\nsome text\n@article{y2, title={U}, year=2003}\n"
+  )
+  assert(#entries == 2 and entries[2].key == "y2", "junk-between: " .. #entries)
+end
+
+-- Braces protect quotes inside a quoted value
+
+do
+  local entries = bibtex.parse(
+    '@article{z, title = "The {"}quoted{"} word", year = 2004}\n'
+      .. "@article{z2, title = {Next}, year = 2005}\n"
+  )
+  assert(#entries == 2, "quote-brace: " .. #entries)
+  assert(
+    entries[1].fields.title == 'The {"}quoted{"} word',
+    "quote-brace title: " .. tostring(entries[1].fields.title)
+  )
+  assert(entries[2].key == "z2", "entry after quote-brace")
+end
+
+-- Name parsing: brace groups, von parts, `Last, Jr, First`
+
+do
+  local n = bibtex._parse_name("Jan {van der Berg}")
+  assert(n.family == "van der Berg" and n.given == "Jan", "brace group: " .. vim.inspect(n))
+  n = bibtex._parse_name("King, Jr., Martin Luther")
+  assert(
+    n.family == "King" and n.given == "Martin Luther" and n.suffix == "Jr.",
+    "Last, Jr, First: " .. vim.inspect(n)
+  )
+  n = bibtex._parse_name("Ludwig van Beethoven")
+  assert(n.family == "van Beethoven" and n.given == "Ludwig", "von part: " .. vim.inspect(n))
+end
+
+-- LaTeX accent commands decode to unicode; leftover braces are dropped
+
+do
+  local entries = bibtex.normalize(
+    bibtex.parse(
+      "@article{s, author = {Erwin Schr{\\\"o}dinger and Jos{\\'e} {\\~N}u{\\~n}ez},\n"
+        .. ' title = {\\"Uber das Ph{\\"a}nomen of {Linux} \\& \\v{C}apek}, journal = {J}, year = 1926}\n'
+    )
+  )
+  local e = entries[1]
+  assert(e.author[1].family == "Schrödinger", "accent family: " .. e.author[1].family)
+  assert(
+    e.author[2].family == "Ñuñez" and e.author[2].given == "José",
+    "accent author 2: " .. vim.inspect(e.author[2])
+  )
+  assert(
+    e.fields.title == "Über das Phänomen of Linux & Čapek",
+    "accent title: " .. e.fields.title
+  )
+end
+
+-- CSL-JSON authors without given/family and JSON null fields
+
+do
+  local entries = csl_json.parse([=[
+[
+ {"id":"fam","type":"book","title":"Fam Only","author":[{"family":"Doe"}],"issued":{"date-parts":[[2020]]}},
+ {"id":"lit","type":"report","title":"WHO Report","author":[{"literal":"World Health Organization"}],"issued":{"date-parts":[[2021]]}},
+ {"id":"nul","type":"article-journal","title":"Null issue","author":[{"family":"Roe","given":"Jane"}],"container-title":"J","volume":3,"issue":null,"page":null,"issued":{"date-parts":[[2022]]}}
+]
+]=])
+  local idx = csl_json.index(entries)
+  assert(idx.nul.fields.number == nil and idx.nul.fields.pages == nil, "null fields dropped")
+  for _, style in ipairs({ "apa", "chicago", "ieee" }) do
+    local c, b = render.render_text("[cite:@fam;@lit;@nul]", idx, style)
+    b = table.concat(b, "\n")
+    assert(
+      style == "ieee" or c:find("World Health Organization", 1, true),
+      style .. " literal author cite: " .. c
+    )
+    assert(b:find("World Health Organization", 1, true), style .. " literal author bib: " .. b)
+    assert(not b:find("vim.NIL", 1, true), style .. " bib: " .. b)
+  end
+  local _, b = render.render_text("[cite:@fam]", idx, "apa")
+  assert(b[1]:match("^Doe %(2020%)"), "family-only apa bib: " .. b[1])
+end
+
+-- Year suffixes consider cited entries only
+
+do
+  local idx = bibtex.index(bibtex.normalize(bibtex.parse([[
+@article{doe_a, author = {Doe, J}, title = {A}, year = {2020}}
+@article{doe_b, author = {Doe, J}, title = {B}, year = {2020}}
+  ]])))
+  local out, bib = render.render_text("[cite:@doe_b]", idx, "apa")
+  assert(out == "(Doe, 2020)", "lone cite gets no suffix: " .. out)
+  assert(bib[1]:match("%(2020%)%."), "lone bib entry: " .. bib[1])
+end
+
+-- Entries without author fall back to the title
+
+do
+  local idx = { m = { key = "m", type = "misc", fields = { title = "Anon report" }, year = 2019 } }
+  local out, bib = render.render_text("[cite:@m]", idx, "apa")
+  assert(out == "(Anon report, 2019)", "apa no-author cite: " .. out)
+  assert(bib[1] == "Anon report. (2019).", "apa no-author bib: " .. bib[1])
+  out, bib = render.render_text("[cite:@m]", idx, "chicago")
+  assert(out == "(Anon report 2019)", "chicago no-author cite: " .. out)
+  assert(bib[1] == "Anon report. 2019.", "chicago no-author bib: " .. bib[1])
+  out, bib = render.render_text("[cite:@m]", idx, "ieee")
+  assert(bib[1]:match('^%[1%] "Anon report,"'), "ieee no-author bib: " .. bib[1])
+end
+
+-- Alphabetical bibliographies fold accents when sorting
+
+do
+  local function entry(key, family)
+    return {
+      key = key,
+      type = "article",
+      fields = { title = key },
+      author = { { family = family, given = "A" } },
+      year = 2000,
+    }
+  end
+  local idx = { z = entry("z", "Zola"), e = entry("e", "Émile"), b = entry("b", "Brown") }
+  local _, bib = render.render_text("[cite:@z;@e;@b]", idx, "apa")
+  assert(
+    bib[1]:match("^Brown") and bib[2]:match("^Émile") and bib[3]:match("^Zola"),
+    "accent-folded order: " .. table.concat(bib, " | ")
+  )
 end
 
 io.write("cite csl ok\n")

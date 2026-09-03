@@ -28,9 +28,18 @@ do
   f:close()
 end
 
+-- A symlinked directory outside the project proves symlinks are followed,
+-- so a terminating walk cannot mean "symlinks were skipped".
+local ext = tmp .. "/ext"
+vim.fn.mkdir(ext, "p")
+do
+  local f = assert(io.open(ext .. "/b.org", "w"))
+  f:write("* Ext\nbody\n")
+  f:close()
+end
 -- Create a symlink loop: base/loop → base
 local loop_target = base .. "/loop"
-local ok = vim.uv.fs_symlink(base, loop_target)
+local ok = vim.uv.fs_symlink(base, loop_target) and vim.uv.fs_symlink(ext, base .. "/ext")
 if not ok then
   io.write(
     "(skipped: cannot create symlink — fs may not allow)\npublish_symlink_loop_test: SKIP\n"
@@ -91,10 +100,12 @@ check(
 )
 if result then
   check(
-    "publish: indexed the real file exactly once",
-    result.total == 1,
+    "publish: indexed the real file and the symlinked file exactly once each",
+    result.total == 2,
     "got total=" .. tostring(result.total)
   )
+  check("publish: followed the symlinked directory", vim.uv.fs_stat(out .. "/ext/b.txt") ~= nil)
+  check("publish: did not descend into the loop", vim.uv.fs_stat(out .. "/loop") == nil)
 end
 
 vim.fn.delete(tmp, "rf")

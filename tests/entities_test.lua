@@ -51,5 +51,61 @@ assert(seen:find("β", 1, true), "β expected: " .. seen)
 assert(seen:find("γ", 1, true), "γ expected: " .. seen)
 assert(seen:find("→", 1, true), "→ expected: " .. seen)
 
+local function count(b)
+  return #vim.api.nvim_buf_get_extmarks(b, NS, 0, -1, {})
+end
+
+-- Detach stops re-decoration on later edits; re-attach works again.
+do
+  local b = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "x \\alpha y" })
+  ent.attach(b)
+  vim.wait(50)
+  assert(count(b) == 1, "attached: " .. count(b))
+  ent.detach(b)
+  assert(count(b) == 0, "detach clears marks: " .. count(b))
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "x \\beta y" })
+  vim.wait(50)
+  assert(count(b) == 0, "detached buffer must not be re-decorated; got " .. count(b))
+  ent.attach(b)
+  vim.wait(50)
+  assert(count(b) == 1, "re-attached: " .. count(b))
+end
+
+-- toggle(0) acts on the current buffer, not on a slot keyed by 0.
+do
+  local b2 = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(b2)
+  vim.api.nvim_buf_set_lines(b2, 0, -1, false, { "\\gamma" })
+  ent.toggle(0)
+  vim.wait(50)
+  assert(count(b2) == 1, "first toggle attaches: " .. count(b2))
+  local b3 = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(b3)
+  vim.api.nvim_buf_set_lines(b3, 0, -1, false, { "\\delta" })
+  ent.toggle(0)
+  vim.wait(50)
+  assert(count(b3) == 1, "toggle in a second buffer attaches it: " .. count(b3))
+  assert(count(b2) == 1, "first buffer stays attached: " .. count(b2))
+  ent.toggle(0)
+  vim.wait(50)
+  assert(count(b3) == 0, "second toggle detaches: " .. count(b3))
+end
+
+-- `\alpha{}` conceals the braces along with the name.
+do
+  local b4 = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b4, 0, -1, false, { "a\\alpha{}b \\beta{c}" })
+  ent.attach(b4)
+  vim.wait(50)
+  local ms = vim.api.nvim_buf_get_extmarks(b4, NS, 0, -1, { details = true })
+  assert(#ms == 2, "two marks: " .. #ms)
+  assert(ms[1][3] == 1 and ms[1][4].end_col == 9, "braces concealed: " .. vim.inspect(ms[1]))
+  assert(
+    ms[2][3] == 11 and ms[2][4].end_col == 16,
+    "brace with content kept: " .. vim.inspect(ms[2])
+  )
+end
+
 io.write("entities ok\n")
 os.exit(0)

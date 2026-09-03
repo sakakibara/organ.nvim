@@ -49,7 +49,8 @@ local function expand(p)
 end
 
 -- Walk base_directory; collect .org files (recursive by default).
--- A `seen` set keyed by realpath defuses symlink loops (e.g. base/x → base).
+-- Symlinks are followed; a `seen` set keyed by realpath defuses loops
+-- (e.g. base/x -> base).
 local function walk_org_files(base, recursive, exclude)
   local out = {}
   local seen = {}
@@ -70,14 +71,19 @@ local function walk_org_files(base, recursive, exclude)
       end
       if not name:match("^%.") then
         local sub_rel = rel == "" and name or (rel .. "/" .. name)
+        local path = d .. "/" .. name
+        if t == "link" then
+          local st = vim.uv.fs_stat(path)
+          t = st and st.type or t
+        end
         if exclude and sub_rel:match(exclude) then
           -- skip
         elseif t == "directory" then
           if recursive then
-            visit(d .. "/" .. name, sub_rel)
+            visit(path, sub_rel)
           end
         elseif t == "file" and name:match("%.org$") then
-          out[#out + 1] = { abs = d .. "/" .. name, rel = sub_rel }
+          out[#out + 1] = { abs = path, rel = sub_rel }
         end
       end
     end

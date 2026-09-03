@@ -51,10 +51,15 @@ local function trim(s)
   return (s or ""):gsub("^%s+", ""):gsub("%s+$", "")
 end
 
--- Parse a single ref segment: "prefix @KEY suffix" → { key, prefix, suffix }.
+-- Characters allowed in a key, after `org-element-citation-key-re`:
+-- word characters (any script) plus a fixed set of punctuation.
+local KEY_CHARS = "[%w\128-\255%-%.:%?!`'/%*@%+|%(%)%{%}<>&_%^%$#%%~]"
+M.KEY_CHARS = KEY_CHARS
+
+-- Parse a single ref segment: "prefix @KEY suffix" -> { key, prefix, suffix }.
 local function parse_ref(seg)
   seg = trim(seg)
-  local s, e = seg:find("@[%w_:%.%-]+")
+  local s, e = seg:find("@" .. KEY_CHARS .. "+")
   if not s then
     return nil
   end
@@ -68,8 +73,19 @@ local function parse_ref(seg)
   }
 end
 
+-- Short style and variant names from `org-cite-basic` `:cite-styles`.
+local STYLE_ALIASES = {
+  a = "author",
+  na = "noauthor",
+  n = "nocite",
+  ft = "note",
+  nb = "numeric",
+  t = "text",
+}
+local VARIANT_ALIASES = { b = "bare", c = "caps", bc = "bare-caps" }
+
 -- Parse the body of a `[cite/STYLE:body]` block. Returns parsed record.
-local function parse_body(style, body)
+local function parse_body(style_part, body)
   local refs_raw = split_refs(body)
   local refs = {}
   for _, seg in ipairs(refs_raw) do
@@ -78,38 +94,57 @@ local function parse_body(style, body)
       refs[#refs + 1] = r
     end
   end
-  return { style = style or "default", refs = refs }
+  local style, variant
+  if style_part and style_part ~= "" then
+    style, variant = style_part:match("^([^/]+)/?(.*)$")
+    style = STYLE_ALIASES[style] or style
+    variant = variant ~= "" and (VARIANT_ALIASES[variant] or variant) or nil
+  end
+  return { style = style or "default", variant = variant, refs = refs }
+end
+
+-- Position of the `]` closing a citation whose body starts at `pos`,
+-- balancing nested square brackets the way Emacs `scan-lists` does.
+local function find_close(text, pos)
+  local depth = 0
+  for i = pos, #text do
+    local c = text:sub(i, i)
+    if c == "[" then
+      depth = depth + 1
+    elseif c == "]" then
+      if depth == 0 then
+        return i
+      end
+      depth = depth - 1
+    end
+  end
+  return nil
 end
 
 -- Find every citation in `text`. Returns { { start, end, parsed } }, where
--- positions are 1-based byte offsets.
+-- positions are 1-based byte offsets. A citation is `[cite` + optional
+-- `/STYLE` + `:` + at least one `@key`, as in `org-element-citation-prefix-re`.
 function M.scan(text)
   local out = {}
   local pos = 1
   while pos <= #text do
-    local s = text:find("%[cite", pos)
+    local s = text:find("[cite", pos, true)
     if not s then
       break
     end
-    -- Style: optional `/STYLE` between `cite` and `:`.
-    local body_open = text:find(":", s + 5)
+    pos = s + 1
+    local style_part, body_open = "", text:match("^%[cite:()", s)
     if not body_open then
-      break
+      style_part, body_open = text:match("^%[cite/([%w/_%-]+):()", s)
     end
-    local style_part = text:sub(s + 5, body_open - 1)
-    local style = (style_part:sub(1, 1) == "/") and style_part:sub(2) or "default"
-    -- Find the matching `]` (non-nested, since cite bodies don't nest).
-    local body_close = text:find("]", body_open + 1, true)
-    if not body_close then
-      break
+    local body_close = body_open and find_close(text, body_open)
+    if body_close then
+      local parsed = parse_body(style_part, text:sub(body_open, body_close - 1))
+      if #parsed.refs > 0 then
+        out[#out + 1] = { s = s, e = body_close, parsed = parsed }
+        pos = body_close + 1
+      end
     end
-    local body = text:sub(body_open + 1, body_close - 1)
-    out[#out + 1] = {
-      s = s,
-      e = body_close,
-      parsed = parse_body(style, body),
-    }
-    pos = body_close + 1
   end
   return out
 end
@@ -134,6 +169,8 @@ function RENDERERS.latex(p)
     cmd = "\\citeauthor"
   elseif p.style == "text" then
     cmd = "\\citet"
+  elseif p.style == "nocite" then
+    cmd = "\\nocite"
   end
   local keys = {}
   for _, r in ipairs(p.refs) do
@@ -166,10 +203,15 @@ function RENDERERS.ascii(p)
   return "[" .. table.concat(keys, ", ") .. "]"
 end
 
+RENDERERS.texinfo = RENDERERS.ascii
+
 function M.render(parsed, backend)
   local fn = RENDERERS[backend]
   if not fn then
     return "[cite]"
+  end
+  if parsed.style == "nocite" and backend ~= "latex" then
+    return ""
   end
   return fn(parsed)
 end
@@ -332,6 +374,9 @@ function M.preprocess_native(text, opts)
   -- substitution after the exporter is done escaping text.
   local hits = M.scan(text)
   local ctx = render.new_ctx({ backend = "raw" })
+  for _, h in ipairs(hits) do
+    render.register_cite(h.parsed, ctx)
+  end
   local cite_stash = {}
   for i, h in ipairs(hits) do
     cite_stash[i] = render.render_cite(h.parsed, idx, style, ctx)
@@ -370,6 +415,24 @@ function M.preprocess_native(text, opts)
     }
 end
 
+local function html_escape(s)
+  s = s:gsub("&", "&amp;")
+  s = s:gsub("<", "&lt;")
+  s = s:gsub(">", "&gt;")
+  s = s:gsub('"', "&quot;")
+  return s
+end
+
+-- Rendered citation text is substituted after the exporter has escaped
+-- the document, so it is escaped here. LaTeX gets bibliography fields
+-- raw, like `org-cite-basic--get-field` for LaTeX-derived backends.
+local ESCAPES = {
+  html = html_escape,
+  texinfo = function(s)
+    return require("organ.ast.to_texinfo")._escape_text(s)
+  end,
+}
+
 -- Substitute sentinels in the export output and apply backend-specific
 -- italic finalisation to any residual `\1IT\1...\1IT\1` markers.
 -- Joins bibliography lines with double newlines so each entry becomes
@@ -378,16 +441,23 @@ function M.finalize_native(out_text, native_ctx)
   if not native_ctx then
     return out_text
   end
+  local escape = ESCAPES[native_ctx.backend] or function(s)
+    return s
+  end
   -- Cite sentinels. \1 is not a Lua-pattern metacharacter, so it can
   -- appear in the pattern verbatim.
   out_text = out_text:gsub("\1NCITE\1(%d+)\1NCITE\1", function(id)
-    return native_ctx.cite_stash[tonumber(id)] or ""
+    return escape(native_ctx.cite_stash[tonumber(id)] or "")
   end)
-  -- Bibliography sentinel — joined as separate paragraphs. Use a
+  -- Bibliography sentinel: joined as separate paragraphs. Use a
   -- replacement function so the bib content (which can contain `%`)
   -- bypasses the gsub `%n` capture rules.
   if native_ctx.has_bib_directive then
-    local joined = table.concat(native_ctx.bib_lines, "\n\n")
+    local lines = {}
+    for i, l in ipairs(native_ctx.bib_lines) do
+      lines[i] = escape(l)
+    end
+    local joined = table.concat(lines, "\n\n")
     out_text = out_text:gsub("\1NBIB\1", function()
       return joined
     end)
@@ -569,7 +639,7 @@ function M.trigger_at_cursor(bufnr)
       at_pos = i
       break
     end
-    if not c:match("[%w_:%.%-]") then
+    if not c:match(KEY_CHARS) then
       break
     end
   end

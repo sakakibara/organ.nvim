@@ -27,6 +27,14 @@ write(base .. "/index.org", "* Index\nbody one\n")
 write(base .. "/sub/post.org", "* Post\nbody two\n")
 write(base .. "/draft/wip.org", "* WIP\nbody three\n")
 
+-- Symlinked files and directories are followed like Emacs ox-publish.
+local elsewhere = tmp .. "/elsewhere"
+vim.fn.mkdir(elsewhere, "p")
+write(elsewhere .. "/linked.org", "* Linked\nbody four\n")
+write(elsewhere .. "/inside.org", "* Inside\nbody five\n")
+assert(vim.uv.fs_symlink(elsewhere .. "/linked.org", base .. "/linked.org"))
+assert(vim.uv.fs_symlink(elsewhere, base .. "/ext"))
+
 require("organ").setup({
   db_path = tmp .. "/x.db",
   notify = false,
@@ -50,12 +58,18 @@ require("organ").setup({
 local pub = require("organ.publish")
 local result = pub.publish("site")
 assert(result, "publish returned nil")
-assert(result.ok == 2, "expected 2 ok files (index + post; draft excluded); got " .. result.ok)
+assert(
+  result.ok == 5,
+  "expected 5 ok files (index, post, linked, ext/linked, ext/inside; draft excluded); got "
+    .. result.ok
+)
 assert(#result.errors == 0, "errors: " .. vim.inspect(result.errors))
 
 -- Verify outputs exist with expected extension.
 assert(vim.uv.fs_stat(out .. "/index.md"), "index.md missing")
 assert(vim.uv.fs_stat(out .. "/sub/post.md"), "sub/post.md missing")
+assert(vim.uv.fs_stat(out .. "/linked.md"), "symlinked file not published")
+assert(vim.uv.fs_stat(out .. "/ext/inside.md"), "symlinked directory not followed")
 assert(not vim.uv.fs_stat(out .. "/draft/wip.md"), "draft/ should have been excluded")
 
 -- Sitemap was written and rendered.
