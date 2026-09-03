@@ -46,17 +46,16 @@ do
   assert_eq(#lines, 3, "no extra lines added")
 end
 
--- 3. Set deadline when planning line already has SCHEDULED only —
---    canonical rewrite produces separate aligned lines in order:
---    SCHEDULED first, DEADLINE second.
+-- 3. Set deadline when the planning line already has SCHEDULED: one
+--    planning line, the keyword being set first (Emacs
+--    `org-add-planning-info`).
 do
   local b = mk_buf({ "* Task", "SCHEDULED: <2026-04-28 Tue>", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
-  assert_eq(lines[3], "  DEADLINE: <2026-05-01 Fri>")
-  assert_eq(lines[4], "  body")
-  assert_eq(#lines, 4, "one extra line from canonical separate-line format")
+  assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri> SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[3], "  body")
+  assert_eq(#lines, 3, "planning stays on one line")
 end
 
 -- 4. Cancel (callback nil) — no buffer change.

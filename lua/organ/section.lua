@@ -40,28 +40,58 @@ function M.where(bufnr, headline_row, kind)
   error("section.where: unknown kind " .. tostring(kind))
 end
 
--- Canonical planning order.
-local PLANNING_ORDER = { "SCHEDULED", "DEADLINE", "CLOSED" }
+-- Keyword order of org-element-planning-interpreter.
+local PLANNING_ORDER = { "DEADLINE", "SCHEDULED", "CLOSED" }
 
--- Render the canonical planning block: one keyword per line, in fixed
--- order, exactly one space after the colon (Emacs form, matching the
--- to_org exporter), prefixed with `indent`. `entries` maps lower-case
--- keyword -> timestamp string (e.g. "<...>" or "[...]").
-function M.render_planning(entries, indent)
-  local out = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local ts = entries[kw:lower()]
-    if ts then
-      out[#out + 1] = indent .. kw .. ": " .. ts
-    end
+-- One planning line from ordered `{ kw, ts }` entries.
+local function join_entries(list, indent)
+  local parts = {}
+  for _, e in ipairs(list) do
+    parts[#parts + 1] = e.kw .. ": " .. e.ts
   end
-  return out
+  return indent .. table.concat(parts, " ")
 end
 
 -- Pull the timestamp for `kw` (e.g. "SCHEDULED") out of a planning line,
 -- handling both active <...> and inactive [...] forms. nil if absent.
 local function ts_on_line(line, kw)
   return line:match(kw .. ":%s*(<[^>]*>)") or line:match(kw .. ":%s*(%b[])")
+end
+
+-- Sorted, de-duplicated 1-based rows carrying planning entries.
+local function planning_rows(p)
+  local seen, rows = {}, {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local r = p[kw:lower()]
+    if r and not seen[r] then
+      seen[r] = true
+      rows[#rows + 1] = r
+    end
+  end
+  table.sort(rows)
+  return rows
+end
+
+-- Planning entries `{ kw, ts }` in buffer order (row, then column).
+local function planning_entries(bufnr, p)
+  local found = {}
+  for _, kw in ipairs(PLANNING_ORDER) do
+    local row = p[kw:lower()]
+    if row then
+      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+      local ts = ts_on_line(line, kw)
+      if ts then
+        found[#found + 1] = { kw = kw, ts = ts, row = row, col = line:find("%f[%w]" .. kw .. ":") }
+      end
+    end
+  end
+  table.sort(found, function(a, b)
+    if a.row ~= b.row then
+      return a.row < b.row
+    end
+    return a.col < b.col
+  end)
+  return found
 end
 
 -- Section-indent string for a headline of the given `level`, honoring the
@@ -101,47 +131,43 @@ function M.planning_indent(bufnr, headline_row)
 end
 
 -- Set/update/clear one planning keyword under the headline at 0-based
--- `headline_row`, then rewrite the whole planning block in canonical form.
--- `kind` is "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp
--- string, or nil to remove that keyword.
+-- `headline_row`, the way org-add-planning-info does: the keyword is
+-- removed from the planning line and re-inserted at its start, the other
+-- keywords keep their order, and everything ends up on one line. `kind`
+-- is "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp string,
+-- or nil to remove that keyword.
 function M.set_planning(bufnr, headline_row, kind, ts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local model = M.parse(bufnr, headline_row)
-  local p = model.planning
+  local p = M.parse(bufnr, headline_row).planning
 
   local entries = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local row = p[kw:lower()]
-    if row then
-      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
-      entries[kw:lower()] = ts_on_line(line, kw)
+  if ts then
+    entries[1] = { kw = kind, ts = ts }
+  end
+  for _, e in ipairs(planning_entries(bufnr, p)) do
+    if e.kw ~= kind then
+      entries[#entries + 1] = e
     end
   end
-  entries[kind:lower()] = ts
 
-  local indent = M.planning_indent(bufnr, headline_row)
-
-  local block = M.render_planning(entries, indent)
-
-  local rows = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    if p[kw:lower()] then
-      rows[#rows + 1] = p[kw:lower()]
-    end
+  local block = {}
+  if #entries > 0 then
+    block[1] = join_entries(entries, M.planning_indent(bufnr, headline_row))
   end
-  if #rows > 0 then
-    local lo, hi = rows[1], rows[1]
-    for _, r in ipairs(rows) do
-      lo, hi = math.min(lo, r), math.max(hi, r)
-    end
-    obuf.set_lines(bufnr, lo - 1, hi, block)
-  else
+
+  local rows = planning_rows(p)
+  if #rows == 0 then
     obuf.set_lines(bufnr, headline_row + 1, headline_row + 1, block)
+    return
   end
+  for i = #rows, 2, -1 do
+    obuf.set_lines(bufnr, rows[i] - 1, rows[i], {})
+  end
+  obuf.set_lines(bufnr, rows[1] - 1, rows[1], block)
 end
 
 -- Reorder a headline's recognized prefix elements into canonical order:
--- planning (re-rendered canonical) -> property drawer -> LOGBOOK. CONSERVATIVE:
+-- planning (merged onto one line) -> property drawer -> LOGBOOK. CONSERVATIVE:
 -- it only rewrites a contiguous region made up ENTIRELY of recognized element
 -- lines; if any other line (blank, comment, body, unknown drawer) falls inside
 -- that region it ABORTS without changes, so content is never lost or mangled.
@@ -187,16 +213,12 @@ function M.canonicalize(bufnr, headline_row)
     end
   end
 
-  local entries = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local r = p[kw:lower()]
-    if r then
-      local line = vim.api.nvim_buf_get_lines(bufnr, r - 1, r, false)[1] or ""
-      entries[kw:lower()] = ts_on_line(line, kw)
-    end
-  end
   local indent = M.planning_indent(bufnr, headline_row)
-  local block = M.render_planning(entries, indent)
+  local block = {}
+  local entries = planning_entries(bufnr, p)
+  if #entries > 0 then
+    block[1] = join_entries(entries, indent)
+  end
   if pd then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, pd.start_line - 1, pd.end_line, false)) do
       block[#block + 1] = indent .. l:gsub("^%s*", "")

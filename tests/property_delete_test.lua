@@ -58,6 +58,15 @@ do
   assert_eq(#lines, 2)
 end
 
+-- Delete matches the key case-insensitively (org-entry-delete).
+do
+  local b = mk_buf({ "* A", ":PROPERTIES:", ":effort: 0:30", ":ID: x", ":END:" })
+  assert_eq(prop.delete(b, 1, "EFFORT"), nil)
+  local lines = get_lines(b)
+  assert_eq(lines[3], ":ID: x")
+  assert_eq(#lines, 4)
+end
+
 -- Delete non-existent key returns error.
 do
   local b = mk_buf({ "* A", ":PROPERTIES:", ":ID: a", ":END:" })

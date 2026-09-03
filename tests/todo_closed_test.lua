@@ -73,28 +73,11 @@ vim.fn.bufload(b2)
 assert(todo.set(b2, 1, "DONE") == nil)
 local lines2 = vim.api.nvim_buf_get_lines(b2, 0, -1, false)
 assert(lines2[1] == "* DONE Task", "headline: " .. lines2[1])
-local found_scheduled_after_done = false
-local found_closed_after_done = false
-local scheduled_row_after_done = nil
-local closed_row_after_done = nil
-for i, ln in ipairs(lines2) do
-  if ln:match("SCHEDULED:") then
-    found_scheduled_after_done = true
-    scheduled_row_after_done = i
-  end
-  if ln:match("^%s*CLOSED:%s+%[") then
-    found_closed_after_done = true
-    closed_row_after_done = i
-  end
-end
-assert(found_scheduled_after_done, "SCHEDULED missing after active->DONE")
-assert(found_closed_after_done, "CLOSED missing after active->DONE")
+-- Emacs `org-add-planning-info` keeps one planning line and puts the
+-- keyword being set first: `CLOSED: [...] SCHEDULED: <...>`.
 assert(
-  scheduled_row_after_done < closed_row_after_done,
-  "expected SCHEDULED before CLOSED; SCHEDULED row "
-    .. tostring(scheduled_row_after_done)
-    .. ", CLOSED row "
-    .. tostring(closed_row_after_done)
+  lines2[2]:match("^%s*CLOSED: %[[^%]]+%] SCHEDULED: <2026%-05%-06 Wed>$"),
+  "expected CLOSED then SCHEDULED on the planning line; got: " .. lines2[2]
 )
 
 -- DONE -> active: CLOSED removed, SCHEDULED still present.

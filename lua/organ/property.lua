@@ -33,6 +33,11 @@ local function parse_property_line(text)
   return key, value
 end
 
+-- Property keys compare case-insensitively (org-entry-put / org-entry-get).
+local function same_key(a, b)
+  return a ~= nil and b ~= nil and a:upper() == b:upper()
+end
+
 function M.list(bufnr, line)
   local hl = find_headline(bufnr, line)
   if not hl then
@@ -85,7 +90,7 @@ function M.set(bufnr, line, key, value)
     for i = drawer.start_line + 1, drawer.end_line - 1 do
       local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
       local k = parse_property_line(txt)
-      if k == key then
+      if same_key(k, key) then
         local cur = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
         local lead = cur:match("^(%s*)") or ""
         local new = lead .. M.format_line(key, value)
@@ -127,7 +132,7 @@ function M.delete(bufnr, line, key)
   for i = drawer.start_line + 1, drawer.end_line - 1 do
     local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
     local k = parse_property_line(txt)
-    if k == key then
+    if same_key(k, key) then
       key_line = i
       break
     end
@@ -241,7 +246,7 @@ function M.set_interactive(bufnr, line)
     local existing = M.list(bufnr, hl) or {}
     local default = ""
     for _, p in ipairs(existing) do
-      if p.key == key then
+      if same_key(p.key, key) then
         default = p.value
         break
       end

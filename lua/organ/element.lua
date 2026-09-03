@@ -817,21 +817,18 @@ function M.planning_lines(bufnr, headline_row)
     if ln:match("^%*+%s") then
       break
     end
-    if ln:match("%f[%w]SCHEDULED:%s*[<%[]") then
-      out.scheduled = i
-    end
-    if ln:match("%f[%w]DEADLINE:%s*[<%[]") then
-      out.deadline = i
-    end
-    if ln:match("%f[%w]CLOSED:%s*[<%[]") then
-      out.closed = i
-    end
-    if
-      ln:match("^%s*SCHEDULED:")
-      or ln:match("^%s*DEADLINE:")
-      or ln:match("^%s*CLOSED:")
-      or ln:match("^%s*$")
-    then
+    if ln:match("^%s*SCHEDULED:") or ln:match("^%s*DEADLINE:") or ln:match("^%s*CLOSED:") then
+      if ln:match("%f[%w]SCHEDULED:%s*[<%[]") then
+        out.scheduled = i
+      end
+      if ln:match("%f[%w]DEADLINE:%s*[<%[]") then
+        out.deadline = i
+      end
+      if ln:match("%f[%w]CLOSED:%s*[<%[]") then
+        out.closed = i
+      end
+      i = i + 1
+    elseif ln:match("^%s*$") then
       i = i + 1
     elseif ln:match("^%s*:[%w_%-]+:%s*$") then
       -- Skip a drawer (e.g. :PROPERTIES:) so planning placed after it

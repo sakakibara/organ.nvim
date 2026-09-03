@@ -125,38 +125,9 @@ do
   )
 end
 
--- 4. render_planning: canonical aligned block, fixed order, only present keys.
-do
-  local lines = section.render_planning({
-    scheduled = "<2026-05-06 Wed>",
-    deadline = "<2026-05-07 Thu>",
-    closed = "[2026-05-04 Mon 12:00]",
-  }, "  ")
-  check(
-    "render: three aligned lines in order",
-    vim.deep_equal(lines, {
-      "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE: <2026-05-07 Thu>",
-      "  CLOSED: [2026-05-04 Mon 12:00]",
-    }),
-    vim.inspect(lines)
-  )
-end
-do
-  local lines = section.render_planning({ deadline = "<2026-05-07 Thu>" }, "  ")
-  check(
-    "render: single keyword still aligned to SCHEDULED width",
-    vim.deep_equal(lines, {
-      "  DEADLINE: <2026-05-07 Thu>",
-    }),
-    vim.inspect(lines)
-  )
-end
-do
-  check("render: empty entries -> no lines", vim.deep_equal(section.render_planning({}, "  "), {}))
-end
-
--- 5. set_planning: collapse a combined line into canonical separate lines.
+-- 5. set_planning follows org-add-planning-info: the keyword being set is
+-- removed from the single planning line and re-inserted at its start; the
+-- other keywords keep their order.
 do
   local b = buf_with({
     "* TODO Combined",
@@ -166,11 +137,89 @@ do
   section.set_planning(b, 0, "DEADLINE", "<2026-05-08 Fri>")
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "set_planning: combined line becomes two aligned lines, deadline updated",
+    "set_planning: updated keyword moves to the front of the one planning line",
     vim.deep_equal(got, {
       "* TODO Combined",
-      "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE: <2026-05-08 Fri>",
+      "  DEADLINE: <2026-05-08 Fri> SCHEDULED: <2026-05-06 Wed>",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+do
+  local b = buf_with({ "* T", "body" })
+  section.set_planning(b, 0, "SCHEDULED", "<2025-01-02 Thu>")
+  section.set_planning(b, 0, "DEADLINE", "<2025-01-01 Wed>")
+  section.set_planning(b, 0, "SCHEDULED", "<2025-01-09 Thu>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: schedule, deadline, reschedule -> Emacs layout",
+    vim.deep_equal(got, {
+      "* T",
+      "  SCHEDULED: <2025-01-09 Thu> DEADLINE: <2025-01-01 Wed>",
+      "body",
+    }),
+    vim.inspect(got)
+  )
+  check(
+    "set_planning: grammar sees one planning node ending before the body",
+    require("organ.element").planning_end_line(b, 0) == 3,
+    "got " .. tostring(require("organ.element").planning_end_line(b, 0))
+  )
+  section.set_planning(b, 0, "SCHEDULED", nil)
+  got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: removing one keyword keeps the rest",
+    vim.deep_equal(got, { "* T", "  DEADLINE: <2025-01-01 Wed>", "body" }),
+    vim.inspect(got)
+  )
+  section.set_planning(b, 0, "DEADLINE", nil)
+  got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: removing the last keyword deletes the planning line",
+    vim.deep_equal(got, { "* T", "body" }),
+    vim.inspect(got)
+  )
+end
+do
+  local b = buf_with({
+    "* TODO Legacy",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  DEADLINE: <2026-05-07 Thu>",
+    "  body",
+  })
+  section.set_planning(b, 0, "CLOSED", "[2026-05-04 Mon 12:00]")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: one-keyword-per-line planning collapses to a single line",
+    vim.deep_equal(got, {
+      "* TODO Legacy",
+      "  CLOSED: [2026-05-04 Mon 12:00] SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
+      "  body",
+    }),
+    vim.inspect(got)
+  )
+end
+do
+  local b = buf_with({
+    "* TODO Habit",
+    "  SCHEDULED: <2026-05-06 Wed>",
+    "  :PROPERTIES:",
+    "  :STYLE: habit",
+    "  :END:",
+    "  CLOSED: [2026-05-04 Mon 12:00]",
+    "  body",
+  })
+  section.set_planning(b, 0, "DEADLINE", "<2026-05-07 Thu>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning: planning split around a drawer merges without touching the drawer",
+    vim.deep_equal(got, {
+      "* TODO Habit",
+      "  DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed> CLOSED: [2026-05-04 Mon 12:00]",
+      "  :PROPERTIES:",
+      "  :STYLE: habit",
+      "  :END:",
       "  body",
     }),
     vim.inspect(got)
@@ -195,11 +244,10 @@ do
   section.set_planning(b, 0, "SCHEDULED", "<2026-05-06 Wed>")
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "set_planning: preserves CLOSED, emits canonical order",
+    "set_planning: preserves CLOSED after the new keyword",
     vim.deep_equal(got, {
       "* DONE Keep",
-      "  SCHEDULED: <2026-05-06 Wed>",
-      "  CLOSED: [2026-05-04 Mon 12:00]",
+      "  SCHEDULED: <2026-05-06 Wed> CLOSED: [2026-05-04 Mon 12:00]",
       "  body",
     }),
     vim.inspect(got)
@@ -220,9 +268,7 @@ end
 do
   local b = buf_with({
     "* DONE Task",
-    "  SCHEDULED: <2026-05-06 Wed>",
-    "  DEADLINE: <2026-05-07 Thu>",
-    "  CLOSED: [2026-05-04 Mon 12:00]",
+    "  CLOSED: [2026-05-04 Mon 12:00] SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
     "  :PROPERTIES:",
     "  :FOO: bar",
     "  :END:",
@@ -265,21 +311,22 @@ do
   )
 end
 
--- 9. canonicalize: collapse a combined planning line.
+-- 9. canonicalize: one-keyword-per-line planning collapses to a single
+-- line, keeping the keyword order.
 do
   local b = buf_with({
     "* TODO Task",
-    "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
+    "  DEADLINE: <2026-05-07 Thu>",
+    "  SCHEDULED:   <2026-05-06 Wed>",
     "  body",
   })
   section.canonicalize(b, 0)
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "canonicalize: combined planning split to canonical lines",
+    "canonicalize: planning lines merged into one",
     vim.deep_equal(got, {
       "* TODO Task",
-      "  SCHEDULED: <2026-05-06 Wed>",
-      "  DEADLINE: <2026-05-07 Thu>",
+      "  DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>",
       "  body",
     }),
     vim.inspect(got)

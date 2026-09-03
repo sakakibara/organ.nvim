@@ -193,6 +193,36 @@ do
   )
 end
 
+-- to_org writes planning as a single line in org-element order
+-- (DEADLINE SCHEDULED CLOSED); org-element reads only the first line.
+do
+  local to_org = require("organ.ast.to_org")
+  local doc = from_org.from_lines({
+    "* DONE All three",
+    "CLOSED: [2026-05-06 Wed 10:00] SCHEDULED: <2026-05-04 Mon> DEADLINE: <2026-05-08 Fri>",
+  })
+  local out = to_org.render(doc)
+  check(
+    "one planning line, DEADLINE SCHEDULED CLOSED order",
+    out:find(
+      "* DONE All three\nDEADLINE: <2026-05-08 Fri> SCHEDULED: <2026-05-04 Mon> CLOSED: [2026-05-06 Wed 10:00]\n",
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
+  local back = from_org.from_lines(vim.split(out, "\n", { plain = true }))
+  local h = back.children[1]
+  check(
+    "re-parsed planning keeps all three entries",
+    h.planning
+      and h.planning.scheduled == "<2026-05-04 Mon>"
+      and h.planning.deadline == "<2026-05-08 Fri>"
+      and h.planning.closed == "[2026-05-06 Wed 10:00]",
+    vim.inspect(h.planning)
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

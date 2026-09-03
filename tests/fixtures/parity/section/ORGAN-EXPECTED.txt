@@ -4,9 +4,7 @@
 
 ==> 02-plan.org
 * DONE Plan me
-  SCHEDULED: <2026-05-06 Wed>
-  DEADLINE: <2026-05-07 Thu>
-  CLOSED: [2026-05-04 Mon 12:00]
+  CLOSED: [2026-05-04 Mon 12:00] DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>
 
 ==> 03-prop-then-plan.org
 * TODO Prop then plan
@@ -24,9 +22,7 @@
 
 ==> 05-full.org
 * DONE Full house
-  SCHEDULED: <2026-05-06 Wed>
-  DEADLINE: <2026-05-07 Thu>
-  CLOSED: [2026-05-04 Mon 12:00]
+  CLOSED: [2026-05-04 Mon 12:00] DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>
   :PROPERTIES:
   :FOO:      bar
   :END:

@@ -1,13 +1,18 @@
 -- Statistics cookies: `[N/M]` and `[XX%]` markers that auto-track progress.
 --
 -- Two contexts:
---   1. Headline cookie: counts direct child headlines whose TODO state is in
---      the configured "done" set vs total child headlines that have any TODO
---      state. (Headlines with no TODO state are skipped — matches Emacs.)
---   2. List-item cookie: counts checked checkboxes among descendant list
---      items vs total checkboxed items.
+--   1. Headline cookie: top-level checkbox items of the lists in the
+--      headline's section whenever the section holds a checkbox item at
+--      any depth (org-update-checkbox-count), otherwise direct child
+--      headlines whose TODO state is in the configured "done" set vs
+--      child headlines that have any TODO state
+--      (org-update-parent-todo-statistics). A `:COOKIE_DATA:` property
+--      containing `todo` or `checkbox` forces the source; `recursive`
+--      counts nested checkbox items too.
+--   2. List-item cookie: checked vs total checkbox items among the item's
+--      direct children.
 --
--- Either form may use `[N/M]` (numerator/denominator) or `[XX%]` (rounded
+-- Either form may use `[N/M]` (numerator/denominator) or `[XX%]` (floored
 -- percent). Both forms cohabit: `Foo [1/3] [33%]` is valid and both update.
 
 local M = {}
@@ -129,13 +134,14 @@ end
 
 -- List-item cookie counts.
 
+local function is_item(s)
+  return (s or ""):match("^%s*[%-%+%*]%s") ~= nil or (s or ""):match("^%s*%d+[%.%)]%s") ~= nil
+end
+
 -- Returns the list-block range [s, e] (1-based) covering the line at `lnum`.
 -- A list block is a contiguous run of list items at indent ≥ first item's
 -- indent, optionally interrupted by continuation lines.
 local function list_block(lines, lnum)
-  local function is_item(s)
-    return (s or ""):match("^%s*[%-%+%*]%s") ~= nil or (s or ""):match("^%s*%d+[%.%)]%s") ~= nil
-  end
   if not is_item(lines[lnum]) then
     return nil, nil
   end
@@ -158,39 +164,50 @@ local function list_block(lines, lnum)
     end
   end
   for i = lnum + 1, #lines do
-    if is_item(lines[i]) then
-      local ind = #((lines[i] or ""):match("^(%s*)") or "")
-      if ind >= center_indent then
-        e = i
-      else
+    local ln = lines[i] or ""
+    local ind = #(ln:match("^(%s*)") or "")
+    if is_item(ln) then
+      if ind < center_indent then
         break
       end
-    elseif (lines[i] or ""):match("^%s*$") then
-      break
-    else
+      e = i
+    elseif ln:match("^%s*$") or ind <= center_indent then
       break
     end
   end
   return s, e
 end
 
-local function count_checkboxes(lines, lnum)
-  -- Owner of the cookie can be a list item; we count checkboxed items at
-  -- the same indent as that owner's children (one level deeper) when
-  -- `recursive` is false; otherwise we count every checkboxed descendant
-  -- in the contiguous list block. Default: hierarchical (Emacs default).
+-- Indent and checkbox mark of a checkbox list item, or nil.
+local function checkbox_item(line)
+  local ind, mark = (line or ""):match("^(%s*)[%-%+%*]%s+%[([ Xx%-])%]")
+  if not ind then
+    ind, mark = (line or ""):match("^(%s*)%d+[%.%)]%s+%[([ Xx%-])%]")
+  end
+  if ind then
+    return #ind, mark
+  end
+end
+
+-- Checkbox items among the direct children of the list item at `lnum`
+-- (every descendant when `recursive`).
+local function count_checkboxes(lines, lnum, recursive)
   local s, e = list_block(lines, lnum)
   if not s then
     return 0, 0
   end
   local owner_indent = #((lines[lnum] or ""):match("^(%s*)") or "")
+  local child_indent
   local total, checked = 0, 0
-  for i = s, e do
+  for i = lnum + 1, e do
     local ind = #((lines[i] or ""):match("^(%s*)") or "")
-    if i ~= lnum and ind > owner_indent then
-      local mark = (lines[i] or ""):match("^%s*[%-%+%*]%s+%[([ Xx%-])%]")
-        or (lines[i] or ""):match("^%s*%d+[%.%)]%s+%[([ Xx%-])%]")
-      if mark then
+    if ind <= owner_indent then
+      break
+    end
+    if is_item(lines[i]) then
+      child_indent = child_indent or ind
+      local _, mark = checkbox_item(lines[i])
+      if mark and (recursive or ind == child_indent) then
         total = total + 1
         if mark == "X" or mark == "x" then
           checked = checked + 1
@@ -199,6 +216,60 @@ local function count_checkboxes(lines, lnum)
     end
   end
   return checked, total
+end
+
+-- Checkbox items in the section under the headline at `hl_line`, up to the
+-- next headline of any level: the top-level items of each list, or every
+-- item when `recursive` (org-update-checkbox-count).  The third return
+-- reports whether the section holds a checkbox item at any depth.
+local function count_section_checkboxes(lines, hl_line, recursive)
+  local total, checked = 0, 0
+  local any_box = false
+  local top_indent
+  local blanks = 0
+  for i = hl_line + 1, #lines do
+    local ln = lines[i] or ""
+    if ln:match("^%*+%s") then
+      break
+    end
+    local ind = #(ln:match("^(%s*)") or "")
+    if ln:match("^%s*$") then
+      blanks = blanks + 1
+      if blanks >= 2 then
+        top_indent = nil
+      end
+    else
+      blanks = 0
+      if is_item(ln) then
+        if not top_indent or ind < top_indent then
+          top_indent = ind
+        end
+        local _, mark = checkbox_item(ln)
+        if mark then
+          any_box = true
+          if recursive or ind == top_indent then
+            total = total + 1
+            if mark == "X" or mark == "x" then
+              checked = checked + 1
+            end
+          end
+        end
+      elseif top_indent and ind <= top_indent then
+        top_indent = nil
+      end
+    end
+  end
+  return checked, total, any_box
+end
+
+-- Lower-cased `:COOKIE_DATA:` of the headline at `hl_line`, or "".
+local function cookie_data(bufnr, hl_line)
+  for k, v in pairs(require("organ.element").properties_under(bufnr, hl_line - 1)) do
+    if k:upper() == "COOKIE_DATA" then
+      return tostring(v):lower()
+    end
+  end
+  return ""
 end
 
 -- Cookie rewriting.
@@ -210,7 +281,7 @@ local function format_cookie(kind, num, den)
     if den == 0 then
       return "[0%]"
     end
-    return string.format("[%d%%]", math.floor((num * 100 / den) + 0.5))
+    return string.format("[%d%%]", math.floor(num * 100 / den))
   end
   return ""
 end
@@ -230,8 +301,11 @@ end
 
 -- Public API.
 
--- Update cookies for a single line (1-based) in bufnr. Picks counting
--- strategy based on whether the line is a headline or a list item.
+-- Update cookies for a single line (1-based) in bufnr. A headline cookie
+-- counts section checkboxes when there are any, else TODO children;
+-- `opts.mode = "todo"` counts TODO children regardless (the org-todo
+-- path), unless `:COOKIE_DATA:` names a source. `opts.recursive` (or
+-- `recursive` in COOKIE_DATA) counts nested items and headlines.
 function M.update_line(bufnr, lnum, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   opts = opts or {}
@@ -244,9 +318,20 @@ function M.update_line(bufnr, lnum, opts)
 
   local num, den
   if line:match("^%*+%s") then
-    num, den = count_children(lines, lnum, opts)
+    local data = cookie_data(bufnr, lnum)
+    local recursive = opts.recursive or data:find("recursive", 1, true) ~= nil
+    local forced_checkbox = data:find("checkbox", 1, true) ~= nil
+    local use_todo = data:find("todo", 1, true) ~= nil
+      or (opts.mode == "todo" and not forced_checkbox)
+    local any_box
+    if not use_todo then
+      num, den, any_box = count_section_checkboxes(lines, lnum, recursive)
+    end
+    if not den or (den == 0 and not forced_checkbox and not any_box) then
+      num, den = count_children(lines, lnum, { recursive = recursive })
+    end
   else
-    num, den = count_checkboxes(lines, lnum)
+    num, den = count_checkboxes(lines, lnum, opts.recursive)
   end
   local new = rewrite_cookies(line, num, den)
   if new ~= line then
@@ -274,15 +359,17 @@ end
 
 -- Helper called from todo state changes / checkbox toggles. Walks every
 -- ancestor headline of `lnum` and updates each that carries a cookie.
--- Cheap because most files have few cookies.
+-- A headline origin is a TODO change, so those cookies count TODO
+-- children; a list-item origin is a checkbox toggle.
 function M.update_ancestors(bufnr, lnum)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local mode = (lines[lnum] or ""):match("^%*+%s") and "todo" or nil
   local i = lnum
   while i >= 1 do
     local ln = lines[i] or ""
     if ln:match("^%*+%s") and #cookies_in(ln) > 0 then
-      M.update_line(bufnr, i)
+      M.update_line(bufnr, i, { mode = mode })
     end
     if ln:match("^%*+%s") then
       -- Climb to parent: find the previous headline with strictly fewer stars.

@@ -23,6 +23,16 @@ local function assert_eq(a, b, msg)
   end
 end
 
+-- Keys match case-insensitively; the line is rewritten with the given key
+-- (org-entry-put).
+do
+  local b = mk_buf({ "* H", ":PROPERTIES:", ":effort:   0:30", ":END:" })
+  assert_eq(prop.set(b, 1, "EFFORT", "1:00"), nil)
+  local lines = get_lines(b)
+  assert_eq(#lines, 4, "no duplicate key line")
+  assert_eq(lines[3], ":EFFORT:   1:00")
+end
+
 -- Set creates drawer when absent.
 do
   local b = mk_buf({ "* A", "  body" })

@@ -112,5 +112,23 @@ do
   assert(ec.prev_headline(b, 1) == nil, "A has no prev")
 end
 
+-- 8. A bare "**" line is not a headline (org-outline-regexp needs a space).
+do
+  local b = buf({
+    "* A",
+    "** B",
+    "**",
+    "text",
+    "** C",
+  })
+  local h = ec.headlines(b)
+  assert(#h == 3, "expected 3 headlines, got " .. #h)
+  assert(
+    ec.subtree_end(b, 2) == 4,
+    "B subtree spans the bare ** line, got " .. ec.subtree_end(b, 2)
+  )
+  assert(ec.containing(b, 3).line == 2, "bare ** line belongs to B")
+end
+
 io.write("element cache ok\n")
 os.exit(0)

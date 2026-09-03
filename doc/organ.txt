@@ -2733,7 +2733,9 @@ Property-value link match ~
 
 Property key case ~
     Emacs: Lenient.
-    organ.nvim: Case-sensitive.
+    organ.nvim: Setting or deleting a property matches an existing
+    key case-insensitively (`org-entry-put`); link and index lookups
+    are case-sensitive.
     Why: Avoid `:Title:` matching `[[title:...]]`.
 
 TODO repeater skip filters ~
@@ -3310,7 +3312,10 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
 *:Org-update_statistics*
     `:Org update_statistics`
     Recompute `[N/M]` and `[X%]` cookies on the headline at cursor
-    based on its descendant TODO/checkbox states.
+    from the top-level checkbox items in its section, or from its
+    child TODO headlines when the section has none.  A `:COOKIE_DATA:`
+    property containing `todo` or `checkbox` picks the source;
+    `recursive` counts nested items.  Percentages are floored.
 
 *:Org-inline_task_insert*
     `:Org inline_task_insert`

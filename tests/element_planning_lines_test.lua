@@ -124,6 +124,56 @@ do
   )
 end
 
+-- A body line that contains keyword + timestamp mid-line is prose too:
+-- Emacs org-planning-line-re anchors the first keyword at line start.
+do
+  local b = noparser_buf({
+    "* Task",
+    "Was SCHEDULED: <2024-01-01 Mon> originally, see CLOSED: [2024-02-02 Fri] note",
+    "more body",
+  })
+  vim.treesitter.get_parser = no_parser
+  element.invalidate(b)
+  local pl = element.planning_lines(b, 0)
+  vim.treesitter.get_parser = orig_get_parser
+  element.invalidate(b)
+  check(
+    "prose with mid-line 'SCHEDULED: <ts>' is not planning",
+    pl.scheduled == nil and pl.closed == nil,
+    vim.inspect(pl)
+  )
+  require("organ.section").set_planning(b, 0, "DEADLINE", "<2025-01-01 Wed>")
+  local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  check(
+    "set_planning inserts a new line and leaves the prose intact",
+    vim.deep_equal(got, {
+      "* Task",
+      "  DEADLINE: <2025-01-01 Wed>",
+      "Was SCHEDULED: <2024-01-01 Mon> originally, see CLOSED: [2024-02-02 Fri] note",
+      "more body",
+    }),
+    vim.inspect(got)
+  )
+end
+
+-- A planning line still reports every keyword it carries.
+do
+  local b = noparser_buf({
+    "* Task",
+    "  CLOSED: [2024-02-02 Fri] DEADLINE: <2024-01-05 Fri> SCHEDULED: <2024-01-01 Mon>",
+  })
+  vim.treesitter.get_parser = no_parser
+  element.invalidate(b)
+  local pl = element.planning_lines(b, 0)
+  vim.treesitter.get_parser = orig_get_parser
+  element.invalidate(b)
+  check(
+    "combined planning line reports all three keywords",
+    pl.scheduled == 2 and pl.deadline == 2 and pl.closed == 2,
+    vim.inspect(pl)
+  )
+end
+
 -- RESCHEDULED: is a distinct keyword, not SCHEDULED: with a prefix --
 -- the word-frontier anchor must reject it.
 do

@@ -7,11 +7,6 @@ local function parse_headline_line(text)
   if level then
     return { level = level, title_text = rest }
   end
-  -- Bare "*+" with no title: tolerate but ignore the (empty) title.
-  local stars = text:match("^(%*+)$")
-  if stars then
-    return { level = #stars, title_text = "" }
-  end
   return nil
 end
 

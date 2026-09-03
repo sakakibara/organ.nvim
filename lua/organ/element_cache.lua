@@ -29,10 +29,6 @@ local function parse_line(text)
   if stars then
     return #stars, rest
   end
-  stars = text:match("^(%*+)$")
-  if stars then
-    return #stars, ""
-  end
 end
 
 local function rebuild(bufnr)

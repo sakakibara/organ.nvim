@@ -203,17 +203,22 @@ local function emit_headline(node, out)
   end
   local format = require("organ.format")
   out[#out + 1] = format.align_tag_block(left, block)
-  -- Planning, one keyword per line in canonical order; timestamp strings
-  -- already carry their <...> / [...] brackets.
+  -- Planning is one line (org-element reads only the line after the
+  -- headline), keywords in org-element-planning-interpreter order;
+  -- timestamp strings already carry their <...> / [...] brackets.
   if node.planning then
-    if node.planning.scheduled then
-      out[#out + 1] = "SCHEDULED: " .. node.planning.scheduled
-    end
+    local parts = {}
     if node.planning.deadline then
-      out[#out + 1] = "DEADLINE: " .. node.planning.deadline
+      parts[#parts + 1] = "DEADLINE: " .. node.planning.deadline
+    end
+    if node.planning.scheduled then
+      parts[#parts + 1] = "SCHEDULED: " .. node.planning.scheduled
     end
     if node.planning.closed then
-      out[#out + 1] = "CLOSED: " .. node.planning.closed
+      parts[#parts + 1] = "CLOSED: " .. node.planning.closed
+    end
+    if #parts > 0 then
+      out[#out + 1] = table.concat(parts, " ")
     end
   end
   -- Properties drawer; keys sorted for deterministic output (the AST

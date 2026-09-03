@@ -195,4 +195,24 @@ do
   assert_eq(pos[1], 1, "cursor at moved subtree's new headline (move_up)")
 end
 
+-- A bare "**" line is body text, so it moves with its subtree.
+do
+  local b = mk_buf({ "* A", "** B", "**", "text", "** C", "after" })
+  vim.api.nvim_set_current_buf(b)
+  local err = structure.move_subtree_down({ bufnr = b, line = 2 })
+  assert_eq(err, nil)
+  local lines = get_lines(b)
+  assert_eq(table.concat(lines, "\n"), "* A\n** C\nafter\n** B\n**\ntext", "bare ** moves with B")
+end
+
+-- promote_subtree on a bare "**" line acts on the enclosing headline.
+do
+  local b = mk_buf({ "* A", "** B", "**", "text", "** C" })
+  vim.api.nvim_set_current_buf(b)
+  local err = structure.promote_subtree({ bufnr = b, line = 3 })
+  assert_eq(err, nil)
+  local lines = get_lines(b)
+  assert_eq(table.concat(lines, "\n"), "* A\n* B\n**\ntext\n** C", "B promoted, bare ** untouched")
+end
+
 io.write("structure move ok\n")
