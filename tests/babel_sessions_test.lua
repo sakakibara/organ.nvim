@@ -116,6 +116,34 @@ else
   print("SKIP  python session test (python3 not on PATH)")
 end
 
+-- 5b. An eval consumes the sentinel's whole line, so no byte of it stays in
+-- flight to land at the head of the next eval's output.
+-- (`sh -i` writes its prompt to stderr, which sh sessions merge, so only
+-- the sentinel invariants are asserted here, not overall cleanliness.)
+do
+  local out1 = sessions.eval("sh", "drain", "echo one", 5000) or ""
+  check("drain: first eval sees its output", out1:find("one", 1, true) ~= nil, vim.inspect(out1))
+  check(
+    "drain: the sentinel never reaches the caller",
+    not out1:find("__ORG_BABEL_END_", 1, true),
+    vim.inspect(out1)
+  )
+  for _, s in pairs(sessions._sessions) do
+    check(
+      "drain: no sentinel line left buffered",
+      not s.out:find("__ORG_BABEL_END_", 1, true),
+      vim.inspect(s.out)
+    )
+  end
+  local out2 = sessions.eval("sh", "drain", "echo two", 5000) or ""
+  check(
+    "drain: next eval does not inherit the sentinel's newline",
+    out2:sub(1, 1) ~= "\n",
+    vim.inspect(out2)
+  )
+  check("drain: next eval sees its own output", out2:find("two", 1, true) ~= nil, vim.inspect(out2))
+end
+
 -- 6. stop_all wipes all sessions.
 sessions.stop_all()
 check("stop_all() leaves zero active sessions", #sessions.list() == 0)

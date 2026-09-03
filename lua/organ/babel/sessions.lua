@@ -189,13 +189,20 @@ function M.eval(lang, name, body, timeout_ms)
     body = s.conf.body_fn(body)
   end
   vim.uv.write(s.stdin, body .. "\n" .. marker .. "\n")
+  -- Wait for the newline that ends the sentinel's own line too: returning
+  -- on the sentinel alone leaves that byte in flight, and it lands at the
+  -- head of the next eval's output.
+  local at
   local got = vim.wait(timeout_ms or 10000, function()
-    return s.out:find(sentinel, 1, true) ~= nil
+    at = s.out:find(sentinel, 1, true)
+    return at ~= nil and s.out:find("\n", at + #sentinel, true) ~= nil
   end, 20)
   if not got then
     return nil, "timed out waiting for session output (sentinel: " .. sentinel .. ")"
   end
-  local before = s.out:match("^(.-)" .. sentinel) or s.out
+  local before = s.out:sub(1, at - 1)
+  local eol = s.out:find("\n", at + #sentinel, true)
+  s.out = s.out:sub(eol + 1)
   if s.conf.clean then
     before = s.conf.clean(before)
   end
