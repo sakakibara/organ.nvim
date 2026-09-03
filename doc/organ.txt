@@ -123,6 +123,14 @@ REQUIREMENTS                                              *organ-requirements*
  - `git` + `make` + a C compiler to build the tree-sitter grammars.
    No Node / npm / pnpm needed: each grammar repo commits the
    generated parser.c; install clones the repos and runs `make`.
+ - tablature.nvim, kept up to date.                 *organ-requires-tablature*
+   Every table operation is delegated to it, and organ checks first
+   that the installed copy can do what organ expects. An older copy
+   rewrites a table wrongly -- a row whose cells hold `-` turns into a
+   horizontal rule and its contents are gone -- so organ disables the
+   table commands and says so once rather than let that reach your
+   file. Update tablature.nvim through your plugin manager and restart
+   Neovim; `:checkhealth organ` reports the same state at any time.
 
 ==============================================================================
 INSTALLATION                                              *organ-installation*
@@ -1872,6 +1880,9 @@ Property                                                  *organ-cmd-property*
 
 ------------------------------------------------------------------------------
 Tables                                                      *organ-cmd-tables*
+
+Every command below is carried out by tablature.nvim, which has to be
+up to date for organ to use it; see |organ-requires-tablature|.
 
 *:Org-table_insert_row*
     Insert a row below the cursor row.

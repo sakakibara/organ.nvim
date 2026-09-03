@@ -147,6 +147,15 @@ to build the tree-sitter grammars.  No Node / npm / pnpm — the grammar
 repos (`tree-sitter-organ`, `tree-sitter-organ-inline`) commit the
 generated `parser.c`; install clones them and runs `make`.
 
+**Keep `tablature.nvim` up to date.**  organ delegates every table
+operation to it and checks first that the installed copy can do what
+organ expects.  An older copy rewrites a table wrongly -- a row whose
+cells hold `-` turns into a horizontal rule and its contents are gone --
+so organ disables the table commands and says so once instead of letting
+that reach your file.  If you see that message, update tablature.nvim
+through your plugin manager and restart Neovim.  `:checkhealth organ`
+reports the same state at any time.
+
 <details open>
 <summary><strong>lazy.nvim</strong></summary>
 

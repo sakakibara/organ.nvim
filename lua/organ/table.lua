@@ -6,57 +6,152 @@
 local M = {}
 
 local obuf = require("organ.buf")
-local tab = require("tablature")
+
+-- The user installs tablature themselves, so any revision -- or none --
+-- can be on disk. Absence is reported by the table commands, not raised
+-- at load: organ registers this module at startup and tables are one
+-- feature among many.
+local has_tablature, tab = pcall(require, "tablature")
+if not has_tablature then
+  tab = {}
+end
 
 local ORG = { dialect = "org" }
 
 local is_alignment_marker = require("organ.table_io").alignment_marker
+
+-- Behaviour these commands rely on, declared by tablature as named
+-- flags (`:h tablature-api-capabilities`). A tablature that predates
+-- the flags declares none, which reads as too old.
+local REQUIRED_CAPABILITIES = { "org_table_align", "org_positional_hrule" }
+
+local ABSENT_MESSAGE = "table editing is disabled: tablature.nvim is not installed. "
+  .. "Add sakakibara/tablature.nvim to your plugin manager and restart Neovim. "
+  .. "Every other organ feature works without it."
+
+local TOO_OLD_MESSAGE = "table editing is disabled: the installed tablature.nvim is older "
+  .. "than organ needs and can silently drop a table row. Update it with your plugin manager "
+  .. "(lazy.nvim `:Lazy update tablature.nvim`, vim.pack `vim.pack.update()`) and restart "
+  .. "Neovim. Every other organ feature is unaffected."
+
+local warned = false
+
+local function missing_capabilities()
+  local caps = type(tab.capabilities) == "table" and tab.capabilities or {}
+  local missing = {}
+  for _, name in ipairs(REQUIRED_CAPABILITIES) do
+    if caps[name] ~= true then
+      missing[#missing + 1] = name
+    end
+  end
+  return missing
+end
+
+-- Refusing beats delegating. Every operation here rewrites the whole
+-- table block, so an older tablature's mistakes land in the buffer with
+-- nothing on screen to show for them, while a refusal costs the user a
+-- plugin update and no data.
+local function blocked()
+  if #missing_capabilities() == 0 then
+    return false
+  end
+  if not warned then
+    warned = true
+    require("organ.notify").error(has_tablature and TOO_OLD_MESSAGE or ABSENT_MESSAGE)
+  end
+  return true
+end
+
+-- Whether tablature is installed, and which required capability flags
+-- it does not declare. Read by :checkhealth organ.
+function M.tablature_status()
+  return has_tablature, missing_capabilities()
+end
 
 -- Thin pass-through wrappers so organ's command layer can keep calling
 -- M.realign / M.tab / etc. without depending on the tablature module
 -- directly.
 
 function M.realign(bufnr, line)
+  if blocked() then
+    return false
+  end
   return tab.realign(bufnr, line, ORG)
 end
 
 function M.tab(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.tab(bufnr, ORG)
 end
 
 function M.shift_tab(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.shift_tab(bufnr, ORG)
 end
 
 function M.insert_row_below(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.insert_row_below(bufnr, nil, ORG)
 end
 function M.insert_row_above(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.insert_row_above(bufnr, nil, ORG)
 end
 function M.delete_row(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.delete_row(bufnr, nil, ORG)
 end
 function M.move_row_up(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.move_row_up(bufnr, nil, ORG)
 end
 function M.move_row_down(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.move_row_down(bufnr, nil, ORG)
 end
 
 function M.insert_column_right(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.insert_column_right(bufnr, nil, ORG)
 end
 function M.insert_column_left(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.insert_column_left(bufnr, nil, ORG)
 end
 function M.delete_column(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.delete_column(bufnr, nil, ORG)
 end
 function M.move_column_left(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.move_column_left(bufnr, nil, ORG)
 end
 function M.move_column_right(bufnr)
+  if blocked() then
+    return false
+  end
   return tab.move_column_right(bufnr, nil, ORG)
 end
 
@@ -64,6 +159,9 @@ end
 -- cursor column (Emacs `org-table-sort-lines`). Everything outside that
 -- block, including every hline, keeps its position.
 function M.sort_by_current_column(bufnr, direction)
+  if blocked() then
+    return false
+  end
   local lnum = vim.fn.line(".")
   local col = vim.fn.col(".") - 1
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -110,10 +208,16 @@ end
 -- evaluator below) that want the parsed structure directly.
 
 function M._parse(buf_lines, line)
+  if not has_tablature then
+    return nil
+  end
   return tab.parse(buf_lines, line, ORG)
 end
 
 function M._align(rows, indent)
+  if blocked() then
+    return nil
+  end
   return tab.align(rows, indent, ORG)
 end
 
@@ -156,6 +260,9 @@ function M.find_tblfm(bufnr, table_range)
 end
 
 function M.eval_formulas(bufnr)
+  if blocked() then
+    return false
+  end
   local lnum = vim.fn.line(".")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local t = tab.parse(lines, lnum, ORG)
@@ -326,6 +433,9 @@ local TABLE_MENU_OPS = {
 }
 
 function M.open_menu()
+  if blocked() then
+    return
+  end
   local labels = {}
   for _, op in ipairs(TABLE_MENU_OPS) do
     labels[#labels + 1] = op.label

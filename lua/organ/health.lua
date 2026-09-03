@@ -1,4 +1,5 @@
 -- :checkhealth organ support. Reports on:
+--   - tablature.nvim is installed and new enough for the table commands
 --   - libsqlite3 loads successfully
 --   - grammar/org.so is present
 --   - DB is reachable and writable
@@ -48,6 +49,30 @@ local function check_parser()
         )
       )
     end
+  end
+end
+
+-- tablature.nvim backs every table command. The user installs it
+-- separately, so report both whether it is there and whether the copy
+-- on disk declares the behaviour organ delegates to it.
+local function check_tablature()
+  local installed, missing = require("organ.table").tablature_status()
+  if not installed then
+    health.error(
+      "tablature.nvim is not installed -- organ's table commands are disabled\n"
+        .. "  fix: add sakakibara/tablature.nvim to your plugin manager and restart Neovim"
+    )
+  elseif #missing > 0 then
+    health.error(
+      "tablature.nvim is older than organ needs -- table commands are disabled rather than\n"
+        .. "  risk silently dropping a table row\n"
+        .. "  fix: update it (lazy.nvim `:Lazy update tablature.nvim`, vim.pack"
+        .. " `vim.pack.update()`) and restart Neovim\n"
+        .. "  capabilities it does not declare: "
+        .. table.concat(missing, ", ")
+    )
+  else
+    health.ok("tablature.nvim loaded with the capabilities organ's table commands need")
   end
 end
 
@@ -514,6 +539,8 @@ end
 
 function M.check()
   local organ = require("organ")
+
+  check_tablature()
 
   local db = check_sqlite()
   if not db then

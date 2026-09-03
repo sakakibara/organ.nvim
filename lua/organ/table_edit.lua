@@ -50,6 +50,9 @@ local function commit(bufnr, ctx, new_text)
   new_text = (new_text or ""):gsub("[\n\r]+", " "):gsub("^%s+", ""):gsub("%s+$", "")
   ctx.table.rows[ctx.row_idx].cells[ctx.col_idx] = new_text
   local new_lines = table_mod._align(ctx.table.rows, ctx.table.indent)
+  if not new_lines then
+    return
+  end
   obuf.set_lines(bufnr, ctx.table.start_line - 1, ctx.table.end_line, new_lines)
 end
 
