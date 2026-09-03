@@ -109,13 +109,24 @@ test-cov: deps grammar
 	@luacov
 	@tail -n 12 luacov.report.out
 
+# Lints the tracked markdown, which is what CI's checkout contains --
+# a local tree also holds ignored notes and vendored grammars whose
+# style is not this repo's business.  Falls back to `npx` so a checkout
+# with node but no global install still lints; CI runs the same rules
+# through markdownlint-cli2-action.
 lint-md:
-	@command -v markdownlint-cli2 >/dev/null || { \
-	  echo "markdownlint-cli2 not on PATH — install one of:"; \
+	@files=$$(git ls-files '*.md'); \
+	if [ -z "$$files" ]; then echo "no tracked markdown"; exit 0; fi; \
+	if command -v markdownlint-cli2 >/dev/null; then \
+	  markdownlint-cli2 $$files; \
+	elif command -v npx >/dev/null; then \
+	  npx --yes markdownlint-cli2 $$files; \
+	else \
+	  echo "markdownlint-cli2 not on PATH and no npx — install one of:"; \
 	  echo "  npm install -g markdownlint-cli2"; \
 	  echo "  brew install markdownlint-cli2"; \
-	  exit 1; }
-	@markdownlint-cli2 "**/*.md" "#node_modules" "#tests/deps"
+	  exit 1; \
+	fi
 
 lint-doc:
 	@test -d $(DEPS_DIR)/vim-vimhelplint || (echo "vim-vimhelplint not in $(DEPS_DIR)/ -- run 'make deps'" && exit 1)

@@ -16,12 +16,23 @@ config:
   MD034: false
   # Files don't need a single h1.
   MD025: false
+  # Don't enforce a table column style.  Padding these tables into
+  # aligned columns is unreadable in the source when one cell runs to
+  # several hundred characters, and the agenda parity fixture under
+  # tests/fixtures/ is compared byte for byte, so it cannot be restyled
+  # at all.
+  MD060: false
 
-globs:
-  - "**/*.md"
+# No `globs` key: the caller decides what to lint.  `make lint-md` passes
+# the tracked markdown, and CI passes its own globs to the action.  A
+# `globs` here would be unioned with those, dragging in the ignored
+# notes and vendored grammars a local tree happens to hold.
 
 ignores:
   - "node_modules/**"
   - "tests/deps/**"
   - "org-mode/**"
   - "org-roam/**"
+  - "tree-sitter-org*/**"
+  - ".superpowers/**"
+  - ".git/**"
