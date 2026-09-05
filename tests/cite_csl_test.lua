@@ -766,5 +766,85 @@ do
   )
 end
 
+-- LaTeX markup in .bib fields: braces inside a fragment are part of the
+-- fragment, and a LaTeX-derived backend takes every field as written.
+
+do
+  local bib_path = root .. "/tests/fixtures/cite/latex-specials.bib"
+  local decoded = bibtex.index(bibtex.normalize(assert(bibtex.parse_file(bib_path))))
+  local raw = bibtex.index(bibtex.normalize(assert(bibtex.parse_file(bib_path)), { raw = true }))
+
+  assert(
+    decoded.specials2020.fields.title
+      == "Save 50% Now & Later: $x^{12}$ in DNA with under_score and #hash and bare # too",
+    "decoded title: " .. decoded.specials2020.fields.title
+  )
+  assert(
+    decoded.mathbook2021.fields.title
+      == "Display \\[E = mc^{2}\\] beside inline \\(a_{1}\\) and \\textbf{Bold}",
+    "decoded fragment title: " .. decoded.mathbook2021.fields.title
+  )
+  assert(
+    decoded.specials2020.author[1].family == "Müller",
+    "decoded family: " .. decoded.specials2020.author[1].family
+  )
+
+  assert(
+    raw.specials2020.fields.title
+      == "Save 50\\% Now \\& Later: $x^{12}$ in {DNA} with under\\_score and \\#hash and bare # too",
+    "raw title: " .. raw.specials2020.fields.title
+  )
+  assert(
+    raw.specials2020.author[1].family == 'M{\\"u}ller',
+    "raw family: " .. raw.specials2020.author[1].family
+  )
+  assert(raw.specials2020.year == 2020, "raw year still parsed")
+end
+
+-- The same fixture through the export pipeline: LaTeX verbatim, the
+-- other backends decoded but with their math fragments intact.
+
+do
+  local bib_path = root .. "/tests/fixtures/cite/latex-specials.bib"
+  local org_src = table.concat({
+    "#+title: Specials",
+    "#+bibliography: " .. bib_path,
+    "",
+    "* Intro",
+    "See [cite:@specials2020] and [cite:@mathbook2021].",
+    "",
+    "#+print_bibliography:",
+  }, "\n")
+  local opts = { cite_native = true, cite_style = "apa" }
+
+  local tex = require("organ.export.latex").export(org_src, opts)
+  assert(tex:find("Save 50\\% Now \\& Later", 1, true), "latex escaped specials: " .. tex)
+  assert(tex:find("$x^{12}$", 1, true), "latex math braces: " .. tex)
+  assert(tex:find("in {DNA} with", 1, true), "latex capitalisation braces: " .. tex)
+  assert(tex:find("under\\_score", 1, true), "latex escaped underscore: " .. tex)
+  assert(tex:find("\\#hash", 1, true), "latex escaped hash: " .. tex)
+  assert(tex:find("\\textbf{Bold}", 1, true), "latex command argument: " .. tex)
+  assert(tex:find("\\[E = mc^{2}\\]", 1, true), "latex display math: " .. tex)
+  -- A `%` with no backslash in front opens a LaTeX comment that eats the
+  -- rest of the line, so the bibliography must not grow one.
+  for line in tex:gmatch("[^\n]+") do
+    if line:find("Save 50", 1, true) then
+      assert(not line:find("[^\\]%%"), "bare % in latex bibliography: " .. line)
+    end
+  end
+
+  local html = require("organ.export.html").export(org_src, opts)
+  assert(html:find("$x^{12}$", 1, true), "html math braces: " .. html)
+  assert(html:find("in DNA with", 1, true), "html drops capitalisation braces: " .. html)
+  assert(html:find("50% Now &amp; Later", 1, true), "html decoded specials: " .. html)
+  assert(html:find("under_score and #hash", 1, true), "html decoded underscore/hash: " .. html)
+  assert(html:find("\\textbf{Bold}", 1, true), "html command argument: " .. html)
+
+  local md = require("organ.export.markdown").export(org_src, opts)
+  assert(md:find("$x^{12}$", 1, true), "markdown math braces: " .. md)
+  assert(md:find("in DNA with", 1, true), "markdown drops capitalisation braces: " .. md)
+  assert(md:find("50% Now & Later", 1, true), "markdown decoded specials: " .. md)
+end
+
 io.write("cite csl ok\n")
 os.exit(0)

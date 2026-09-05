@@ -9,7 +9,8 @@
 -- `@string` definitions. Text outside entries is a comment. Returns
 -- one parsed entry per `@` block; M.normalize splits author / editor /
 -- year strings into structured form usable by the renderer, decodes
--- LaTeX accent commands and drops the remaining braces.
+-- LaTeX accent commands and drops the braces left outside a LaTeX
+-- fragment -- or, under `opts.raw`, leaves every value as written.
 
 local M = {}
 
@@ -141,18 +142,57 @@ local function accent(kind, base)
   return ACCENTS[kind][base]
 end
 
--- Decode LaTeX accent commands and escaped specials, then drop the
--- remaining braces the way `org-cite-basic--print-bibtex-string` does.
+-- Spans org reads as a LaTeX fragment: math, and a command with a braced
+-- argument.  Their braces are markup rather than BibTeX capitalisation
+-- guards, so they pass through untouched -- verified by exporting a .bib
+-- through Emacs and reading the output.
+local FRAGMENTS = {
+  "%$%$.-%$%$",
+  "\\%[.-\\%]",
+  "\\%(.-\\%)",
+  "%$.-%$",
+  "\\%a+%b{}",
+}
+
+-- Earliest fragment at or after `init`; the longest one wins a tie so
+-- `$$x$$` reads as display math rather than two empty inline ones.
+local function next_fragment(s, init)
+  local bs, be
+  for _, pat in ipairs(FRAGMENTS) do
+    local a, b = s:find(pat, init)
+    if a and (not bs or a < bs or (a == bs and b > be)) then
+      bs, be = a, b
+    end
+  end
+  return bs, be
+end
+
+local function decode_outside_fragments(s)
+  s = s:gsub("\\(%a+)%f[%A]", COMMANDS)
+  s = s:gsub("\\([&%%_#])", "%1")
+  return (s:gsub("[{}]", ""))
+end
+
+-- Decode LaTeX accent commands and escaped specials, then drop the braces
+-- left outside any LaTeX fragment.
 local function decode_latex(s)
-  s = s:gsub("\\{", "\2"):gsub("\\}", "\3")
+  s = s:gsub("\\{", "\2"):gsub("\\}", "\3"):gsub("\\%$", "\4")
   s = s:gsub("\\([\"'`%^~=%.])(%b{})", accent)
   s = s:gsub("\\([\"'`%^~=%.])(\\?%a)", accent)
   s = s:gsub("\\([uvHckr])(%b{})", accent)
   s = s:gsub("\\([uvHckr]) (%a)", accent)
-  s = s:gsub("\\(%a+)%f[%A]", COMMANDS)
-  s = s:gsub("\\([&%%%$_#])", "%1")
-  s = s:gsub("[{}]", "")
-  return (s:gsub("\2", "{"):gsub("\3", "}"))
+  local out, pos = {}, 1
+  while true do
+    local a, b = next_fragment(s, pos)
+    if not a then
+      break
+    end
+    out[#out + 1] = decode_outside_fragments(s:sub(pos, a - 1))
+    out[#out + 1] = s:sub(a, b)
+    pos = b + 1
+  end
+  out[#out + 1] = decode_outside_fragments(s:sub(pos))
+  return (table.concat(out):gsub("\2", "{"):gsub("\3", "}"):gsub("\4", "$"))
 end
 
 -- Split `s` at every depth-0 character for which `is_sep` holds.
@@ -217,15 +257,16 @@ end
 --   "Doe, Jr., John"        -> family="Doe", given="John", suffix="Jr."
 --   "{van der Berg}, Jan"   -> family="van der Berg", given="Jan"
 --   "Ludwig van Beethoven"  -> family="van Beethoven", given="Ludwig"
-local function parse_name(s)
+local function parse_name(s, tidy)
+  tidy = tidy or clean
   s = collapse_ws(trim(s))
   local parts = split_depth0(s, function(c)
     return c == ","
   end)
   if #parts >= 3 then
-    return { family = clean(parts[1]), suffix = clean(parts[2]), given = clean(parts[3]) }
+    return { family = tidy(parts[1]), suffix = tidy(parts[2]), given = tidy(parts[3]) }
   elseif #parts == 2 then
-    return { family = clean(parts[1]), given = clean(parts[2]) }
+    return { family = tidy(parts[1]), given = tidy(parts[2]) }
   end
   local words = {}
   for _, w in
@@ -241,7 +282,7 @@ local function parse_name(s)
     return { family = "", given = "" }
   end
   if #words == 1 then
-    return { family = clean(words[1]), given = "" }
+    return { family = tidy(words[1]), given = "" }
   end
   -- "First von Last": the family part starts at the first
   -- lowercase-initial word, else at the last word.
@@ -253,8 +294,8 @@ local function parse_name(s)
     end
   end
   return {
-    family = clean(table.concat(words, " ", family_start, #words)),
-    given = family_start > 1 and clean(table.concat(words, " ", 1, family_start - 1)) or "",
+    family = tidy(table.concat(words, " ", family_start, #words)),
+    given = family_start > 1 and tidy(table.concat(words, " ", 1, family_start - 1)) or "",
   }
 end
 
@@ -479,10 +520,10 @@ function M.parse_file(path)
   return M.parse(text)
 end
 
-local function parse_names(s)
+local function parse_names(s, tidy)
   local out = {}
   for _, name in ipairs(split_names(s)) do
-    out[#out + 1] = parse_name(name)
+    out[#out + 1] = parse_name(name, tidy)
   end
   return out
 end
@@ -490,19 +531,23 @@ end
 -- Walk parsed entries; pull author / editor name lists into structured
 -- form, parse year as a number where possible, decode LaTeX in every
 -- field. Returns the input list (mutated in place) for chainability.
-function M.normalize(entries)
+--
+-- `opts.raw` keeps every value exactly as the .bib wrote it, for backends
+-- that compile the LaTeX themselves.
+function M.normalize(entries, opts)
+  local tidy = (opts and opts.raw) and trim or clean
   for _, e in ipairs(entries) do
     if e.fields.author then
-      e.author = parse_names(e.fields.author)
+      e.author = parse_names(e.fields.author, tidy)
     end
     if e.fields.editor then
-      e.editor = parse_names(e.fields.editor)
+      e.editor = parse_names(e.fields.editor, tidy)
     end
     if e.fields.year then
       e.year = tonumber(e.fields.year:match("%d+"))
     end
     for fname, value in pairs(e.fields) do
-      e.fields[fname] = clean(value)
+      e.fields[fname] = tidy(value)
     end
   end
   return entries

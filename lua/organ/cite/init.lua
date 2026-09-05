@@ -272,13 +272,18 @@ function M.find_cite_export(text)
   return nil, nil
 end
 
+-- Backends whose output the LaTeX compiler reads: they get bibliography
+-- fields verbatim, since `\%`, `$x^{12}$` and `{DNA}` are markup there
+-- and decoding them produces a document LaTeX misreads.
+local RAW_FIELD_BACKENDS = { latex = true }
+
 -- Load + merge multiple bibliography sources. Each path's extension
 -- selects the parser: .bib → bibtex, .json → csl-json. Returns a
 -- combined { key = entry } index. Later files override earlier on key
 -- collision (matches CSL behaviour). On read errors, the path is
 -- silently skipped — caller can pre-validate paths if strictness
--- matters.
-function M.load_bibliographies(paths)
+-- matters. `opts.raw` is passed through to bibtex.normalize.
+function M.load_bibliographies(paths, opts)
   local bibtex = require("organ.cite.bibtex")
   local csl_json = require("organ.cite.csl_json")
   local idx = {}
@@ -289,7 +294,7 @@ function M.load_bibliographies(paths)
     else
       entries = bibtex.parse_file(p)
       if entries then
-        entries = bibtex.normalize(entries)
+        entries = bibtex.normalize(entries, opts)
       end
     end
     if entries then
@@ -324,7 +329,7 @@ function M.process(text, opts)
     idx = opts.bib_index
   else
     local paths = opts.bib_files or M.find_bibliographies(text)
-    idx = M.load_bibliographies(paths)
+    idx = M.load_bibliographies(paths, { raw = RAW_FIELD_BACKENDS[opts.backend] })
   end
   local style = opts.style or M.find_cite_export(text) or "apa"
   return render.render_text(text, idx, style, { backend = opts.backend })
@@ -360,14 +365,17 @@ local NBIB = "\1NBIB\1"
 function M.preprocess_native(text, opts)
   opts = opts or {}
   local render = require("organ.cite.render")
+  local backend = opts.backend or "default"
   local idx
   if opts.bib_index then
     idx = opts.bib_index
   else
-    idx = M.load_bibliographies(opts.bib_files or M.find_bibliographies(text))
+    idx = M.load_bibliographies(
+      opts.bib_files or M.find_bibliographies(text),
+      { raw = RAW_FIELD_BACKENDS[backend] }
+    )
   end
   local style = opts.style or M.find_cite_export(text) or "apa"
-  local backend = opts.backend or "default"
 
   -- Phase 1: scan + render. We render with backend="raw" so the
   -- italic sentinels stay raw — finalize_native applies the backend
