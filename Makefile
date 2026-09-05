@@ -64,12 +64,14 @@ test: deps grammar test-only
 # the end and exits non-zero if any failed.
 # `-k 5` follows the TERM with a KILL: a wedged nvim can ignore TERM, and
 # orphaned pairs have outlived their timeout by days, blocking later runs.
+# The budget is generous because a parity test spawns emacs once per case
+# and legitimately runs for half a minute; it bounds a wedge, not slowness.
 test-only:
 	@fails=0; failed=""; \
 	for t in $(TEST_DIR)/*_test.lua $(TEST_DIR)/behavioral/*_test.lua; do \
 	  [ -f "$$t" ] || continue; \
 	  printf '\033[2m--- %s\033[0m\n' "$$t"; \
-	  if ! timeout -k 5 30 $(NVIM) --headless -l "$$t" </dev/null; then \
+	  if ! timeout -k 5 120 $(NVIM) --headless -l "$$t" </dev/null; then \
 	    fails=$$((fails+1)); failed="$$failed $$t"; \
 	  fi; \
 	done; \
