@@ -140,8 +140,9 @@ end
 
 -- Returns the list-block range [s, e] (1-based) covering the line at `lnum`.
 -- A list block is a contiguous run of list items at indent ≥ first item's
--- indent, optionally interrupted by continuation lines.
-local function list_block(lines, lnum)
+-- indent, optionally interrupted by continuation lines.  Rows inside a
+-- verbatim block are raw text, so a `- ` there opens nothing.
+local function list_block(lines, lnum, verbatim)
   if not is_item(lines[lnum]) then
     return nil, nil
   end
@@ -149,7 +150,7 @@ local function list_block(lines, lnum)
   local center_indent = #indent
   local s, e = lnum, lnum
   for i = lnum - 1, 1, -1 do
-    if is_item(lines[i]) then
+    if is_item(lines[i]) and not verbatim[i] then
       local ind = #((lines[i] or ""):match("^(%s*)") or "")
       if ind <= center_indent then
         s = i
@@ -166,7 +167,7 @@ local function list_block(lines, lnum)
   for i = lnum + 1, #lines do
     local ln = lines[i] or ""
     local ind = #(ln:match("^(%s*)") or "")
-    if is_item(ln) then
+    if is_item(ln) and not verbatim[i] then
       if ind < center_indent then
         break
       end
@@ -191,8 +192,8 @@ end
 
 -- Checkbox items among the direct children of the list item at `lnum`
 -- (every descendant when `recursive`).
-local function count_checkboxes(lines, lnum, recursive)
-  local s, e = list_block(lines, lnum)
+local function count_checkboxes(lines, lnum, recursive, verbatim)
+  local s, e = list_block(lines, lnum, verbatim)
   if not s then
     return 0, 0
   end
@@ -204,7 +205,7 @@ local function count_checkboxes(lines, lnum, recursive)
     if ind <= owner_indent then
       break
     end
-    if is_item(lines[i]) then
+    if is_item(lines[i]) and not verbatim[i] then
       child_indent = child_indent or ind
       local _, mark = checkbox_item(lines[i])
       if mark and (recursive or ind == child_indent) then
@@ -222,7 +223,7 @@ end
 -- next headline of any level: the top-level items of each list, or every
 -- item when `recursive` (org-update-checkbox-count).  The third return
 -- reports whether the section holds a checkbox item at any depth.
-local function count_section_checkboxes(lines, hl_line, recursive)
+local function count_section_checkboxes(lines, hl_line, recursive, verbatim)
   local total, checked = 0, 0
   local any_box = false
   local top_indent
@@ -240,7 +241,7 @@ local function count_section_checkboxes(lines, hl_line, recursive)
       end
     else
       blanks = 0
-      if is_item(ln) then
+      if is_item(ln) and not (verbatim and verbatim[i]) then
         if not top_indent or ind < top_indent then
           top_indent = ind
         end
@@ -310,6 +311,8 @@ function M.update_line(bufnr, lnum, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   opts = opts or {}
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  -- A `- [X]` inside a src or example block is text, not an item.
+  local verbatim = opts.verbatim or require("organ.block").verbatim_rows(lines)
   local line = lines[lnum] or ""
   local cks = cookies_in(line)
   if #cks == 0 then
@@ -325,13 +328,13 @@ function M.update_line(bufnr, lnum, opts)
       or (opts.mode == "todo" and not forced_checkbox)
     local any_box
     if not use_todo then
-      num, den, any_box = count_section_checkboxes(lines, lnum, recursive)
+      num, den, any_box = count_section_checkboxes(lines, lnum, recursive, verbatim)
     end
     if not den or (den == 0 and not forced_checkbox and not any_box) then
       num, den = count_children(lines, lnum, { recursive = recursive })
     end
   else
-    num, den = count_checkboxes(lines, lnum, opts.recursive)
+    num, den = count_checkboxes(lines, lnum, opts.recursive, verbatim)
   end
   local new = rewrite_cookies(line, num, den)
   if new ~= line then
@@ -347,9 +350,12 @@ function M.update_buffer(bufnr, opts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local n_changed = 0
+  local shared = vim.tbl_extend("keep", opts or {}, {
+    verbatim = require("organ.block").verbatim_rows(lines),
+  })
   for i, ln in ipairs(lines) do
-    if #cookies_in(ln) > 0 then
-      if M.update_line(bufnr, i, opts) then
+    if #cookies_in(ln) > 0 and not shared.verbatim[i] then
+      if M.update_line(bufnr, i, shared) then
         n_changed = n_changed + 1
       end
     end
