@@ -62,12 +62,14 @@ test: deps grammar test-only
 # Walks tests/*_test.lua AND tests/behavioral/*_test.lua, running each
 # in a clean nvim --headless invocation.  Reports the failing files at
 # the end and exits non-zero if any failed.
+# `-k 5` follows the TERM with a KILL: a wedged nvim can ignore TERM, and
+# orphaned pairs have outlived their timeout by days, blocking later runs.
 test-only:
 	@fails=0; failed=""; \
 	for t in $(TEST_DIR)/*_test.lua $(TEST_DIR)/behavioral/*_test.lua; do \
 	  [ -f "$$t" ] || continue; \
 	  printf '\033[2m--- %s\033[0m\n' "$$t"; \
-	  if ! timeout 30 $(NVIM) --headless -l "$$t" </dev/null; then \
+	  if ! timeout -k 5 30 $(NVIM) --headless -l "$$t" </dev/null; then \
 	    fails=$$((fails+1)); failed="$$failed $$t"; \
 	  fi; \
 	done; \
