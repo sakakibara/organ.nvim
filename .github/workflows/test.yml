@@ -141,6 +141,17 @@ jobs:
         with:
           node-version: '22'
 
+      - name: parser vs org-element diff sweep
+        # The matrixed `test` job installs no emacs, so this test skips
+        # there; this job is the only place it actually runs.  Fail on a
+        # SKIP too -- a parity gate that did not run is not a pass.
+        run: |
+          set -eo pipefail
+          make deps grammar
+          out=$(nvim --headless -l tests/parser_emacs_diff_test.lua </dev/null 2>&1)
+          echo "$out"
+          echo "$out" | grep -q "^parser emacs diff ok"
+
       - name: parity-check
         run: make parity-check
 

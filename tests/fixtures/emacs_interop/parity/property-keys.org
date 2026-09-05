@@ -1,0 +1,37 @@
+* Key with a dot keeps the rest of the drawer
+:PROPERTIES:
+:ID: keep-me
+:A.B: v
+:END:
+
+* Babel header arguments split at the last colon
+:PROPERTIES:
+:header-args:python: :session s
+:header-args: :results output
+:END:
+
+* Non-ASCII key
+:PROPERTIES:
+:日本語プロパティ: v
+:ID: still-here
+:END:
+
+* Punctuation keys org itself writes
+:PROPERTIES:
+:CUSTOM_ID: anchor
+:MY-PROP: y
+:EFFORT+: 0:30
+:X%: percent
+:END:
+
+* Single-character key with no value
+:PROPERTIES:
+:a:
+:ID: after-a
+:END:
+
+* A line that is not a property poisons the drawer, as in Emacs
+:PROPERTIES:
+:ID: lost
+ID: no-leading-colon
+:END:

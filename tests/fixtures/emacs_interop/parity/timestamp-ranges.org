@@ -1,0 +1,20 @@
+* Scheduled over a range
+SCHEDULED: <2026-05-04 Mon>--<2026-05-06 Wed>
+
+* Deadline range with times
+DEADLINE: <2026-05-04 Mon 09:00>--<2026-05-06 Wed 17:00>
+
+* Inactive closed range
+CLOSED: [2026-05-04 Mon]--[2026-05-06 Wed]
+
+* Range whose first half carries a repeater
+SCHEDULED: <2026-05-04 Mon +1w>--<2026-05-06 Wed>
+
+* Two keywords on one line, the first a range
+SCHEDULED: <2026-05-04 Mon>--<2026-05-06 Wed> DEADLINE: <2026-05-08 Fri>
+
+* A half that is not a timestamp stays outside it
+SCHEDULED: <2026-05-04 Mon>--<later>
+
+* A dash run that is not a range
+SCHEDULED: <2026-05-04 Mon>--
