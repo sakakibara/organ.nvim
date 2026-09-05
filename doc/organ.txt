@@ -2026,13 +2026,29 @@ up to date for organ to use it; see |organ-requires-tablature|.
      `$N`               column N reference
      `@R`               row R reference
      `@R$N`             cell reference
-     Ranges             e.g. `$1..$3`
+     `@I`, `@II`        first, second horizontal line
+     `@<`, `@>`         first, last row
+     `$<`, `$>`         first, last column
+     `@-1`, `$+2`       row / column relative to the current field
+     `@#`, `$#`         current row / column number
+     Ranges             e.g. `$1..$3`, `@I$2..@II$2`
      Arithmetic         `+`, `-`, `*`, `/`
+     Numbers            `12`, `1.5`, `1e12`
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
+     `;%.2f`            printf format for the result
+     `;N`               read every field as a number (empty is 0)
 
     A column formula skips any cell holding an alignment marker
     (`<l>`, `<r>`, `<c>`, optionally with a width digit and in either
     case), wherever in the table that cell sits.
+
+    A malformed right-hand side writes `#ERROR` into its target field,
+    as org does. Valid org syntax organ has not implemented -- the
+    other `;` mode flags, `remote()`, hlines relative to the current
+    row -- is refused with a message and the table is left exactly as
+    it was. Exact integer results are capped where Emacs caps them
+    (65536 bits); past that the formula is refused as an arithmetic
+    overflow instead of computed.
 
     All table operations can also be invoked via the menu at
     `<LocalLeader>|`. See |organ-keymaps-org|.
@@ -3063,8 +3079,9 @@ Table row/col operations ~
 
 Spreadsheet formula engine ~
     Emacs: Full Emacs Calc (lookups, remote refs, lisp).
-    organ.nvim: Subset: `$N`/`@R`/`@R$N`, ranges, arithmetic,
-    `vsum/vmean/vmax/vmin/vlen`.
+    organ.nvim: Subset: `$N`/`@R`/`@R$N`/`@I`/`@<`/`@>`/`@#`, ranges,
+    arithmetic, `vsum/vmean/vmax/vmin/vlen`, `;N` and `;%f` modes.
+    What it does not implement it refuses, leaving the table as it was.
     Why: Practical 80%; full Calc rarely needed in Neovim workflows.
 
 Column formulas over alignment markers ~

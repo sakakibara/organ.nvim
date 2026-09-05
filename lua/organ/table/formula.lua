@@ -8,6 +8,38 @@ local function calc()
   return _calc
 end
 
+-- Raised for org syntax organ parses but cannot evaluate. Callers that
+-- would otherwise write a result must leave the field alone instead:
+-- refusing an unimplemented formula costs the user a message, writing
+-- over the field costs them their data.
+local function refuse(what)
+  error({ refuse = what }, 0)
+end
+
+-- The reason string when `err` (from a pcall around parse / eval) is a
+-- refusal rather than a genuinely malformed formula, else nil.
+function M.refused(err)
+  if type(err) == "table" then
+    return err.refuse
+  end
+  if _calc and err == _calc.OVERFLOW then
+    return "arithmetic overflow"
+  end
+  return nil
+end
+
+-- Row / column descriptor after `@` or `$`: an absolute index (`3`),
+-- one relative to the current field (`-2`, `+1`), an edge (`<`, `>>`),
+-- an hline (`I`, `III`, `-I`), or `#` for the current row / column
+-- number.
+local function descriptor(s, i)
+  return s:match("^#", i)
+    or s:match("^<+", i)
+    or s:match("^>+", i)
+    or s:match("^[%+%-]?I+", i)
+    or s:match("^[%+%-]?%d+", i)
+end
+
 local function tokenize(s)
   local tokens, i = {}, 1
   while i <= #s do
@@ -38,12 +70,13 @@ local function tokenize(s)
     elseif c == "=" then
       tokens[#tokens + 1] = { type = "eq" }
       i = i + 1
-    elseif c == "$" then
-      tokens[#tokens + 1] = { type = "dollar" }
-      i = i + 1
-    elseif c == "@" then
-      tokens[#tokens + 1] = { type = "at" }
-      i = i + 1
+    elseif c == "$" or c == "@" then
+      local d = descriptor(s, i + 1)
+      if not d then
+        error("formula tokenizer: missing descriptor after '" .. c .. "' at pos " .. i)
+      end
+      tokens[#tokens + 1] = { type = c == "$" and "dollar" or "at", desc = d }
+      i = i + 1 + #d
     elseif c == "(" then
       tokens[#tokens + 1] = { type = "lparen" }
       i = i + 1
@@ -65,12 +98,16 @@ local function tokenize(s)
         end
         j = j + 1
       end
-      local value = tonumber(s:sub(i, j - 1))
-      if not value then
-        error("formula tokenizer: malformed number '" .. s:sub(i, j - 1) .. "' at pos " .. i)
+      local exponent = s:match("^[eE][%+%-]?%d+", j)
+      if exponent then
+        j = j + #exponent
       end
-      tokens[#tokens + 1] =
-        { type = "num", value = value, float = s:sub(i, j - 1):find(".", 1, true) ~= nil }
+      local text = s:sub(i, j - 1)
+      local value = tonumber(text)
+      if not value then
+        error("formula tokenizer: malformed number '" .. text .. "' at pos " .. i)
+      end
+      tokens[#tokens + 1] = { type = "num", value = value, float = text:find("[%.eE]") ~= nil }
       i = j
     elseif c:match("[%a_]") then
       local j = i
@@ -110,21 +147,37 @@ function Parser:expect(type)
   return t
 end
 
+-- Absolute descriptors keep their plain numeric `row` / `col` field so
+-- consumers of the parsed tree see the shape they always have; every
+-- other form resolves against the table at evaluation time.
+local function ref_part(node, key, desc)
+  node[key .. "_desc"] = desc
+  node[key] = desc:match("^%d+$") and tonumber(desc) or nil
+end
+
 function Parser:parse_cell_ref()
-  local row, col
+  local node = { kind = "ref" }
   local t = self:peek()
   if t and t.type == "at" then
     self:advance()
-    row = self:expect("num").value
+    ref_part(node, "row", t.desc)
     if self:peek() and self:peek().type == "dollar" then
-      self:advance()
-      col = self:expect("num").value
+      ref_part(node, "col", self:advance().desc)
     end
   elseif t and t.type == "dollar" then
     self:advance()
-    col = self:expect("num").value
+    ref_part(node, "col", t.desc)
   end
-  return { kind = "ref", row = row and math.floor(row), col = col and math.floor(col) }
+  return node
+end
+
+local function range_end(ref)
+  return {
+    row = ref.row,
+    col = ref.col,
+    row_desc = ref.row_desc,
+    col_desc = ref.col_desc,
+  }
 end
 
 function Parser:parse_ref_or_range()
@@ -132,11 +185,7 @@ function Parser:parse_ref_or_range()
   if self:peek() and self:peek().type == "range" then
     self:advance()
     local second = self:parse_cell_ref()
-    return {
-      kind = "range",
-      from = { row = first.row, col = first.col },
-      to = { row = second.row, col = second.col },
-    }
+    return { kind = "range", from = range_end(first), to = range_end(second) }
   end
   return first
 end
@@ -244,6 +293,14 @@ function Parser:parse_expr()
   return left
 end
 
+local function lhs_index(desc)
+  local n = desc:match("^%d+$") and tonumber(desc)
+  if not n then
+    refuse("unsupported formula target '" .. desc .. "'")
+  end
+  return n
+end
+
 function Parser:parse_lhs()
   local t = self:peek()
   if not t then
@@ -251,17 +308,14 @@ function Parser:parse_lhs()
   end
   if t.type == "at" then
     self:advance()
-    local row = self:expect("num").value
+    local row = lhs_index(t.desc)
     if self:peek() and self:peek().type == "dollar" then
-      self:advance()
-      local col = self:expect("num").value
-      return { kind = "cell_formula", row = math.floor(row), col = math.floor(col) }
+      return { kind = "cell_formula", row = row, col = lhs_index(self:advance().desc) }
     end
-    return { kind = "row_formula", row = math.floor(row) }
+    return { kind = "row_formula", row = row }
   elseif t.type == "dollar" then
     self:advance()
-    local col = self:expect("num").value
-    return { kind = "col_formula", col = math.floor(col) }
+    return { kind = "col_formula", col = lhs_index(t.desc) }
   end
   error("formula parser: invalid LHS at pos " .. self.pos)
 end
@@ -285,9 +339,36 @@ local function parse_expr_text(s)
   return expr
 end
 
+-- Trailing `;` modes: Calc mode flags first, then a printf template
+-- that runs to the end of the string (`;N%.2f`, `;%.1f%%`).
+local CONVERSION = "%%[-+ #0]*%d*%.?%d*([diouxXeEfgGs])"
+
+local function parse_mode(s)
+  local mode = {}
+  local flags, fmt = s:match("^(.-)(%%.*)$")
+  flags = flags or s
+  if fmt then
+    mode.conv = fmt:gsub("%%%%", ""):match("^[^%%]*" .. CONVERSION .. "[^%%]*$")
+    if not mode.conv then
+      refuse("unsupported printf format '" .. fmt .. "'")
+    end
+    mode.fmt = fmt
+  end
+  for flag in flags:gmatch("%S") do
+    if flag == "N" then
+      mode.numeric = true
+    else
+      refuse("unsupported formula mode flag '" .. flag .. "'")
+    end
+  end
+  return mode
+end
+
 -- One entry per `::`-separated formula. A bad LHS raises (Emacs
 -- `Unknown field`); a bad RHS yields an `error` node so evaluation
--- writes #ERROR into that formula's target cells only.
+-- writes #ERROR into that formula's target cells only. Valid org that
+-- organ does not implement raises a refusal instead, so the caller can
+-- leave the fields alone rather than overwrite them.
 function M.parse(s)
   local out = {}
   for seg in (s .. "::"):gmatch("(.-)::") do
@@ -298,9 +379,18 @@ function M.parse(s)
       end
       local ok, fm = pcall(parse_lhs_text, lhs_s)
       if not ok then
+        if M.refused(fm) then
+          error(fm, 0)
+        end
         error("formula parser: invalid LHS '" .. lhs_s .. "'")
       end
-      local ok_rhs, expr = pcall(parse_expr_text, rhs_s)
+      local expr_s, mode_s = rhs_s:match("^(.-)%s*;(.*)$")
+      if mode_s then
+        for k, v in pairs(parse_mode(mode_s)) do
+          fm[k] = v
+        end
+      end
+      local ok_rhs, expr = pcall(parse_expr_text, expr_s or rhs_s)
       fm.expr = ok_rhs and expr or { kind = "error", message = tostring(expr) }
       out[#out + 1] = fm
     end
@@ -310,77 +400,109 @@ end
 
 -- Pull a raw cell, parse to a Calc value if numeric. Returns nil for
 -- empty / non-numeric cells so consumers can decide whether to skip
--- (aggregations) or short-circuit (binary ops).
-local function cell_value(rows, r, c)
-  if not rows[r] then
-    return nil
+-- (aggregations) or short-circuit (binary ops); under `;N` every field
+-- in the table reads as a number, empty and non-numeric alike.
+local function cell_value(ctx, r, c)
+  local row = ctx.rows[r]
+  local raw = row and (row.cells or {})[c]
+  raw = raw and (raw:match("^%s*(.-)%s*$") or "")
+  if raw and raw ~= "" then
+    -- Integers stay exact; anything with a point or exponent is a
+    -- float, as Calc reads it.
+    if raw:match("^[+-]?%d+$") then
+      return calc().from_string(raw)
+    end
+    local n = tonumber(raw)
+    if n then
+      return calc().from_float(n)
+    end
+    local ok, v = pcall(calc().from_string, raw)
+    if ok and not (ctx.numeric and calc().is_symbol(v)) then
+      return v
+    end
   end
-  local cells = rows[r].cells or {}
-  local raw = cells[c]
-  if not raw then
-    return nil
-  end
-  raw = raw:match("^%s*(.-)%s*$") or ""
-  if raw == "" then
-    return nil
-  end
-  -- Integers stay exact; anything with a point or exponent is a float,
-  -- as Calc reads it.
-  if raw:match("^[+-]?%d+$") then
-    return calc().from_string(raw)
-  end
-  local n = tonumber(raw)
-  if n then
-    return calc().from_float(n)
-  end
-  local ok, v = pcall(calc().from_string, raw)
-  if ok then
-    return v
+  if row and ctx.numeric then
+    return calc().from_int(0)
   end
   return nil
 end
 
+-- Resolve a row descriptor to a data-row index. `last` marks a range's
+-- upper end, where an hline stands for the row above it rather than
+-- the one below, so `@I..@II` is the block between the two hlines.
+local function resolve_row(desc, ctx, last)
+  if not desc then
+    return ctx.current_row
+  end
+  if desc:match("^%d+$") then
+    return tonumber(desc)
+  end
+  if desc:match("^[%+%-]%d+$") then
+    return ctx.current_row + tonumber(desc)
+  end
+  if desc:match("^<+$") then
+    return #desc
+  end
+  if desc:match("^>+$") then
+    return #ctx.rows - #desc + 1
+  end
+  local sign, hlines = desc:match("^([%+%-]?)(I+)$")
+  if sign == "" then
+    local below = (ctx.hlines or {})[#hlines] or (#ctx.rows + 1)
+    return last and below - 1 or below
+  end
+  refuse("unsupported row descriptor '@" .. desc .. "'")
+end
+
+local function resolve_col(desc, ctx)
+  if not desc then
+    return ctx.current_col
+  end
+  if desc:match("^%d+$") then
+    return tonumber(desc)
+  end
+  if desc:match("^[%+%-]%d+$") then
+    return ctx.current_col + tonumber(desc)
+  end
+  if desc:match("^<+$") then
+    return #desc
+  end
+  if desc:match("^>+$") then
+    return (ctx.ncols or 0) - #desc + 1
+  end
+  refuse("unsupported column descriptor '$" .. desc .. "'")
+end
+
 local function collect_range_values(node, ctx)
-  if node.kind == "range" then
-    local r1, c1 = node.from.row, node.from.col
-    local r2, c2 = node.to.row, node.to.col
-    local out = {}
-    -- One axis must be fixed; the other varies. If both vary, scan all cells in the rectangle.
-    if r1 and r2 and c1 and c2 then
-      for r = r1, r2 do
-        for c = c1, c2 do
-          local v = cell_value(ctx.rows, r, c)
-          if v ~= nil then
-            out[#out + 1] = v
-          end
-        end
-      end
-    elseif r1 and r2 then
-      -- Column range: c is current_col.
-      local c = ctx.current_col
-      for r = r1, r2 do
-        local v = cell_value(ctx.rows, r, c)
-        if v ~= nil then
-          out[#out + 1] = v
-        end
-      end
-    elseif c1 and c2 then
-      -- Row range: r is current_row.
-      local r = ctx.current_row
+  if node.kind ~= "range" then
+    -- Single ref (treated as 1-element list).
+    local v = cell_value(ctx, resolve_row(node.row_desc, ctx), resolve_col(node.col_desc, ctx))
+    return v == nil and {} or { v }
+  end
+  local from, to = node.from, node.to
+  local rows_span = from.row_desc and to.row_desc
+  local cols_span = from.col_desc and to.col_desc
+  local r1, r2 = resolve_row(from.row_desc, ctx), resolve_row(to.row_desc, ctx, true)
+  local c1, c2 = resolve_col(from.col_desc, ctx), resolve_col(to.col_desc, ctx)
+  local out = {}
+  -- One axis must be fixed; the other varies. If both vary, scan all cells in the rectangle.
+  if not rows_span then
+    r1, r2 = ctx.current_row, ctx.current_row
+  end
+  if not cols_span then
+    c1, c2 = ctx.current_col, ctx.current_col
+  end
+  if rows_span or cols_span then
+    for r = r1, r2 do
       for c = c1, c2 do
-        local v = cell_value(ctx.rows, r, c)
+        local v = cell_value(ctx, r, c)
         if v ~= nil then
           out[#out + 1] = v
         end
       end
     end
-    return out
   end
-  -- Single ref (treated as 1-element list).
-  local r = node.row or ctx.current_row
-  local c = node.col or ctx.current_col
-  local v = cell_value(ctx.rows, r, c)
-  return v == nil and {} or { v }
+  return out
 end
 
 -- Function dispatch — every callable in the evaluator goes through here.
@@ -550,6 +672,9 @@ local eval_calc
 
 local function apply_function(name, args, ctx)
   local C = calc()
+  if name == "remote" then
+    refuse("unsupported function 'remote'")
+  end
   -- Conditional: `if(cond, then, else)`. Evaluates only the chosen branch.
   if name == "if" then
     if #args ~= 3 then
@@ -633,9 +758,13 @@ function eval_calc(node, ctx)
     return const_value(node.name, ctx)
   end
   if node.kind == "ref" then
-    local r = node.row or ctx.current_row
-    local c = node.col or ctx.current_col
-    return cell_value(ctx.rows, r, c)
+    if node.row_desc == "#" and not node.col_desc then
+      return C.from_int(ctx.current_row)
+    end
+    if node.col_desc == "#" and not node.row_desc then
+      return C.from_int(ctx.current_col)
+    end
+    return cell_value(ctx, resolve_row(node.row_desc, ctx), resolve_col(node.col_desc, ctx))
   end
   if node.kind == "range" then
     return collect_range_values(node, ctx)
@@ -775,6 +904,28 @@ function M.format_value(v)
   end
   local ok, s = pcall(C.to_string, v)
   return ok and s or "#ERROR"
+end
+
+-- Cell text for a result under a formula's trailing `;` mode. A printf
+-- template takes over the rendering entirely and reads a result it
+-- cannot make a number of as 0, the way org does.
+function M.format_result(v, fm)
+  if not (fm and fm.fmt) then
+    return M.format_value(v)
+  end
+  local x = 0
+  if type(v) == "table" and v.kind then
+    local ok, n = pcall(calc().to_number, v)
+    x = (ok and tonumber(n)) or 0
+  end
+  if fm.conv:match("[diouxX]") then
+    x = x < 0 and -math.floor(-x) or math.floor(x)
+  end
+  local ok, text = pcall(string.format, fm.fmt, x)
+  if not ok then
+    return "#ERROR"
+  end
+  return (text:gsub("^%s+", ""))
 end
 
 -- Public API. Returns a Lua number for numeric Calc values, the raw

@@ -78,6 +78,15 @@ local function bn_to_string(b)
   return s
 end
 
+local function bn_digits(b)
+  local top, n = b.d[#b.d], 0
+  while top >= 1 do
+    top = math.floor(top / 10)
+    n = n + 1
+  end
+  return (#b.d - 1) * BASE_DIGITS + math.max(n, 1)
+end
+
 -- Compare magnitudes only (sign ignored). -1 / 0 / 1.
 local function bn_cmp_mag(a, b)
   if #a.d ~= #b.d then
@@ -332,6 +341,7 @@ M.one = bn_one
 M.from_int = bn_from_int
 M.from_digits_string = bn_from_digits_string
 M.to_string = bn_to_string
+M.digits = bn_digits
 M.cmp = bn_cmp
 M.is_zero = bn_is_zero
 M.neg = bn_neg

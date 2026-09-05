@@ -347,6 +347,24 @@ local function unit_op(op, a, b)
   error("calc: unsupported unit op " .. op)
 end
 
+-- Exact integers are capped where Emacs caps them: `integer-width`
+-- defaults to 65536 bits -- 19729 decimal digits -- and Calc signals an
+-- arithmetic overflow past it. Unbounded, `$1^$2` over two
+-- ordinary-looking cells squares its way to a six-figure digit count
+-- and wedges the editor with no way to interrupt it.
+M.OVERFLOW = "calc: arithmetic overflow"
+
+local MAX_DIGITS = 19729
+
+-- A product has at least (digits a + digits b - 1) digits, so the
+-- refusal lands before the multiplication rather than after it.
+local function mul_checked(a, b)
+  if bn.digits(a) + bn.digits(b) - 1 > MAX_DIGITS then
+    error(M.OVERFLOW, 0)
+  end
+  return bn.mul(a, b)
+end
+
 function M.add(a, b)
   if is_unit(a) or is_unit(b) then
     return unit_op("add", a, b)
@@ -359,7 +377,7 @@ function M.add(a, b)
   end
   local an, ad = as_rat_parts(a)
   local bnum, bd = as_rat_parts(b)
-  return reduce_rat(bn.add(bn.mul(an, bd), bn.mul(bnum, ad)), bn.mul(ad, bd))
+  return reduce_rat(bn.add(mul_checked(an, bd), mul_checked(bnum, ad)), mul_checked(ad, bd))
 end
 
 function M.sub(a, b)
@@ -377,11 +395,11 @@ function M.mul(a, b)
     return M.from_float(to_float_value(a) * to_float_value(b))
   end
   if is_int(a) and is_int(b) then
-    return new_int(bn.mul(a.n, b.n))
+    return new_int(mul_checked(a.n, b.n))
   end
   local an, ad = as_rat_parts(a)
   local bnum, bd = as_rat_parts(b)
-  return reduce_rat(bn.mul(an, bnum), bn.mul(ad, bd))
+  return reduce_rat(mul_checked(an, bnum), mul_checked(ad, bd))
 end
 
 function M.div(a, b)
@@ -449,12 +467,17 @@ function M.pow(v, n)
   end
   local result = M.from_int(1)
   local base = v
+  -- The squaring is skipped once no bits are left: with an integer
+  -- cap in force, one gratuitous square of an already-final base is
+  -- the difference between a result and an overflow.
   while n > 0 do
     if n % 2 == 1 then
       result = M.mul(result, base)
     end
-    base = M.mul(base, base)
     n = math.floor(n / 2)
+    if n > 0 then
+      base = M.mul(base, base)
+    end
   end
   return result
 end

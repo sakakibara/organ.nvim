@@ -278,15 +278,23 @@ function M.eval_formulas(bufnr)
   local formula = require("organ.table.formula")
   local ok, formulas = pcall(formula.parse, tblfm.formula_text)
   if not ok then
-    require("organ.notify").error("TBLFM parse error: " .. tostring(formulas))
+    local refused = formula.refused(formulas)
+    require("organ.notify").error(
+      refused and ("TBLFM: " .. refused .. "; table left unchanged")
+        or ("TBLFM parse error: " .. tostring(formulas))
+    )
     return false
   end
 
-  -- `@N` counts data rows only (Emacs `org-table-dlines`).
-  local data_rows = {}
+  -- `@N` counts data rows only (Emacs `org-table-dlines`); `@I` and
+  -- friends name the first data row below the Nth hline.
+  local data_rows, hlines, ncols = {}, {}, 0
   for _, r in ipairs(t.rows) do
-    if not r.sep then
+    if r.sep then
+      hlines[#hlines + 1] = #data_rows + 1
+    else
       data_rows[#data_rows + 1] = r
+      ncols = math.max(ncols, #(r.cells or {}))
     end
   end
 
@@ -307,16 +315,26 @@ function M.eval_formulas(bufnr)
     end
   end
 
-  local function evaluate(expr, r, c)
-    local ok, v = pcall(formula.eval_calc, expr, {
+  -- A malformed right-hand side writes #ERROR into its target, as org
+  -- does. Org syntax organ has not implemented -- and a result too big
+  -- for exact arithmetic -- raises instead, so the caller can abandon
+  -- the whole recalculation with every field as the user left it.
+  local function evaluate(fm, r, c)
+    local ok, v = pcall(formula.eval_calc, fm.expr, {
       rows = data_rows,
+      hlines = hlines,
+      ncols = ncols,
       current_row = r,
       current_col = c,
+      numeric = fm.numeric,
     })
     if not ok then
+      if formula.refused(v) then
+        error(v, 0)
+      end
       return "#ERROR"
     end
-    return formula.format_value(v)
+    return formula.format_result(v, fm)
   end
   local function set_cell(row, c, text)
     while #row.cells < c do
@@ -336,26 +354,36 @@ function M.eval_formulas(bufnr)
     end
   end
 
-  for _, fm in ipairs(formulas) do
-    if fm.kind == "col_formula" then
-      for r = first_body, #data_rows do
-        if not is_alignment_marker(data_rows[r].cells[fm.col] or "") then
-          set_cell(data_rows[r], fm.col, evaluate(fm.expr, r, fm.col))
+  local applied, err = pcall(function()
+    for _, fm in ipairs(formulas) do
+      if fm.kind == "col_formula" then
+        for r = first_body, #data_rows do
+          if not is_alignment_marker(data_rows[r].cells[fm.col] or "") then
+            set_cell(data_rows[r], fm.col, evaluate(fm, r, fm.col))
+          end
         end
-      end
-    elseif fm.kind == "cell_formula" then
-      local row = data_rows[fm.row]
-      if row then
-        set_cell(row, fm.col, evaluate(fm.expr, fm.row, fm.col))
-      end
-    elseif fm.kind == "row_formula" then
-      local row = data_rows[fm.row]
-      if row then
-        for c = 1, #row.cells do
-          row.cells[c] = evaluate(fm.expr, fm.row, c)
+      elseif fm.kind == "cell_formula" then
+        local row = data_rows[fm.row]
+        if row then
+          set_cell(row, fm.col, evaluate(fm, fm.row, fm.col))
+        end
+      elseif fm.kind == "row_formula" then
+        local row = data_rows[fm.row]
+        if row then
+          for c = 1, #row.cells do
+            row.cells[c] = evaluate(fm, fm.row, c)
+          end
         end
       end
     end
+  end)
+  if not applied then
+    local refused = formula.refused(err)
+    if not refused then
+      error(err, 0)
+    end
+    require("organ.notify").error("TBLFM: " .. refused .. "; table left unchanged")
+    return false
   end
 
   local new_lines = tab.align(t.rows, t.indent, ORG)
