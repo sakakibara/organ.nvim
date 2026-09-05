@@ -45,7 +45,7 @@ clone_or_update() {
   fi
 }
 
-TABLATURE_REV=d6cdb096ef7212dfb88e618eb7db5ed9b5f4fced
+TABLATURE_REV=268d2049b4976f9801faa79a493df8c9156f03a1
 
 clone_or_update https://github.com/sakakibara/tablature.nvim tests/deps/tablature.nvim "$TABLATURE_REV"
 clone_or_update https://github.com/sakakibara/narrow.nvim    tests/deps/narrow.nvim
