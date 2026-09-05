@@ -2,33 +2,30 @@
 
 local M = {}
 
-local function fmt_date(now, with_time, inactive)
+local function fmt_date(now, with_time, inactive, end_hm)
   local fmt = with_time and "%Y-%m-%d %a %H:%M" or "%Y-%m-%d %a"
   local s = os.date(fmt, now)
+  if end_hm then
+    s = s .. "-" .. end_hm
+  end
   if inactive then
     return "[" .. s .. "]"
   end
   return "<" .. s .. ">"
 end
 
--- Turn a `%^t`-family prompt answer into an org timestamp.  A date-less
--- answer means today; the time is written when the answer carries one
--- or the placeholder letter is uppercase (org-capture.el
--- `org-insert-timestamp` with `org-time-was-given`).
+-- Turn a `%^t`-family prompt answer into an org timestamp.  The time is
+-- written when the answer carries one or the placeholder letter is
+-- uppercase (org-capture.el `org-insert-timestamp` with
+-- `org-time-was-given`).  An answer that matches no accepted form is
+-- passed through verbatim with a warning rather than resolved to today,
+-- which would look right and be wrong.  Returns (text, warning).
 local function answer_timestamp(answer, now, upper, inactive)
-  answer = answer or ""
-  local y, mo, d = answer:match("(%d%d%d%d)%-(%d%d?)%-(%d%d?)")
-  local h, mi = answer:match("(%d%d?):(%d%d)")
-  local base = os.date("*t", now or os.time())
-  local ts = os.time({
-    year = y and tonumber(y) or base.year,
-    month = mo and tonumber(mo) or base.month,
-    day = d and tonumber(d) or base.day,
-    hour = h and tonumber(h) or base.hour,
-    min = mi and tonumber(mi) or base.min,
-    sec = 0,
-  })
-  return fmt_date(ts, upper or h ~= nil, inactive)
+  local parsed = require("organ.capture.date_answer").parse(answer, now or os.time())
+  if not parsed then
+    return answer, string.format("capture: unrecognised date %q written as typed", answer)
+  end
+  return fmt_date(parsed.time, parsed.with_time or upper, inactive, parsed.end_hm)
 end
 
 local function annotation(ctx)
@@ -52,13 +49,15 @@ local function annotation(ctx)
 end
 
 -- Substitution pass. Pure transformation; reads only ctx.
--- Returns (text, cursor_offset_or_nil). Cursor offset is the byte offset
--- of the FIRST %? in the result string (0-based).
+-- Returns (text, cursor_offset_or_nil, warnings). Cursor offset is the
+-- byte offset of the FIRST %? in the result string (0-based).
+-- `warnings` is a (possibly empty) list the caller reports.
 function M.expand(body, ctx)
   ctx = ctx or {}
   local prompts = ctx.prompts or { text = {}, tags = nil, dates = {} }
 
   local out = {}
+  local warnings = {}
   local cursor_offset = nil
   local out_len = 0
   local i = 1
@@ -168,7 +167,12 @@ function M.expand(body, ctx)
         elseif n2 == "t" or n2 == "T" or n2 == "u" or n2 == "U" then
           prompt_date_idx = prompt_date_idx + 1
           local answer = (prompts.dates or {})[prompt_date_idx]
-          emit(answer_timestamp(answer, ctx.now, n2 == "T" or n2 == "U", n2 == "u" or n2 == "U"))
+          local stamp, warning =
+            answer_timestamp(answer, ctx.now, n2 == "T" or n2 == "U", n2 == "u" or n2 == "U")
+          emit(stamp)
+          if warning then
+            warnings[#warnings + 1] = warning
+          end
           i = i + 3
         else
           emit(ch)
@@ -182,7 +186,7 @@ function M.expand(body, ctx)
     end
   end
 
-  return table.concat(out), cursor_offset
+  return table.concat(out), cursor_offset, warnings
 end
 
 -- Scan body for the interactive placeholders, in order.

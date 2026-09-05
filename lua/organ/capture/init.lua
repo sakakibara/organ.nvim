@@ -334,7 +334,10 @@ end
 place = function(template, t, body_str, ctx)
   local template_mod = require("organ.capture.template")
   local placeholder_mod = require("organ.capture.placeholder")
-  local text, cursor_offset = placeholder_mod.expand(body_str, ctx)
+  local text, cursor_offset, warnings = placeholder_mod.expand(body_str, ctx)
+  for _, warning in ipairs(warnings or {}) do
+    require("organ.notify").warn(warning)
+  end
 
   -- Compile hooks (Emacs `org-capture-after-finalize-hook` style;
   -- nvim-orgmode `_compile_hooks`). Each hook receives

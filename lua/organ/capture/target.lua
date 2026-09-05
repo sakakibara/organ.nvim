@@ -170,15 +170,94 @@ local function find_headline(hls, title)
   return nil
 end
 
--- Leading date numbers of a datetree headline ("2026-03 March" ->
--- {2026, 3}); nil when the title does not start with one.
-local function datetree_key(title)
-  local key = {}
-  for n in (title:match("^[%d%-]+") or ""):gmatch("%d+") do
-    key[#key + 1] = tonumber(n)
+local MONTH_NUMBERS
+
+local function month_number(name)
+  if not MONTH_NUMBERS then
+    MONTH_NUMBERS = {}
+    for m = 1, 12 do
+      local t = os.time({ year = 2000, month = m, day = 15, hour = 12 })
+      MONTH_NUMBERS[os.date("%B", t):lower()] = m
+      MONTH_NUMBERS[os.date("%b", t):lower()] = m
+    end
   end
-  if #key == 0 then
+  return MONTH_NUMBERS[name:lower()]
+end
+
+-- `os.date` directives a datetree level can sort by, with the position
+-- they occupy in the sort key: year, then month or week, then day.
+local DATE_FIELDS = {
+  ["%Y"] = { rank = 1, pat = "(%d%d%d%d)" },
+  ["%G"] = { rank = 1, pat = "(%d%d%d%d)" },
+  ["%y"] = { rank = 1, pat = "(%d%d)" },
+  ["%m"] = { rank = 2, pat = "(%d%d)" },
+  ["%b"] = { rank = 2, pat = "(%a+)", decode = month_number },
+  ["%h"] = { rank = 2, pat = "(%a+)", decode = month_number },
+  ["%B"] = { rank = 2, pat = "(%a+)", decode = month_number },
+  ["%V"] = { rank = 2, pat = "(%d%d)" },
+  ["%W"] = { rank = 2, pat = "(%d%d)" },
+  ["%U"] = { rank = 2, pat = "(%d%d)" },
+  ["%j"] = { rank = 2, pat = "(%d%d%d)" },
+  ["%d"] = { rank = 3, pat = "(%d%d)" },
+  ["%e"] = { rank = 3, pat = "%s?(%d%d?)" },
+}
+
+local KEY_RANKS = 3
+
+-- Lua pattern matching a title rendered from `fmt`, plus the ordered
+-- list of the date fields it captures.
+local function level_pattern(fmt)
+  local pat = { "^" }
+  local fields = {}
+  local i = 1
+  while i <= #fmt do
+    local c = fmt:sub(i, i)
+    if c ~= "%" or i == #fmt then
+      pat[#pat + 1] = (c:gsub("%W", "%%%0"))
+      i = i + 1
+    else
+      local spec = fmt:sub(i, i + 1)
+      local field = DATE_FIELDS[spec]
+      if field then
+        pat[#pat + 1] = field.pat
+        fields[#fields + 1] = field
+      elseif spec == "%%" then
+        pat[#pat + 1] = "%%"
+      else
+        pat[#pat + 1] = ".-"
+      end
+      i = i + 2
+    end
+  end
+  return table.concat(pat), fields
+end
+
+-- Chronological sort key of a datetree headline, read through the
+-- format that produced it ("%Y-%m %B" + "2026-03 March" -> {2026, 3, 0}).
+-- Keying on the format rather than on the digits a title happens to
+-- start with keeps "%Y-W%V" levels distinct and "%d-%m-%Y" levels in
+-- order.  nil when the title does not match the format.
+local function datetree_key(title, fmt)
+  local pat, fields = level_pattern(fmt)
+  if #fields == 0 then
     return nil
+  end
+  local caps = { title:match(pat) }
+  if #caps < #fields then
+    return nil
+  end
+  local key, seen = {}, {}
+  for i = 1, KEY_RANKS do
+    key[i] = 0
+  end
+  for i, field in ipairs(fields) do
+    local value = field.decode and field.decode(caps[i]) or tonumber(caps[i])
+    if not value then
+      return nil
+    end
+    if not seen[field.rank] then
+      key[field.rank], seen[field.rank] = value, true
+    end
   end
   return key
 end
@@ -210,7 +289,7 @@ local function resolve_datetree(hls, parent_idx, now, datetree_format, total_lin
   local current_level = parent_level
   for level_offset, title in ipairs(titles) do
     local target_level = parent_level + level_offset
-    local want = datetree_key(title)
+    local want = datetree_key(title, fmts[level_offset])
     local found, later
     local i = (current_idx and current_idx + 1) or 1
     while i <= #hls do
@@ -219,7 +298,7 @@ local function resolve_datetree(hls, parent_idx, now, datetree_format, total_lin
         break
       end
       if h.level == target_level then
-        local have = datetree_key(h.title)
+        local have = datetree_key(h.title, fmts[level_offset])
         local c
         if have and want then
           c = key_cmp(have, want)

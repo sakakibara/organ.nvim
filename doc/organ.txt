@@ -353,6 +353,13 @@ Capture                                                 *organ-config-capture*
      `%i`        Initial content (from clipboard / selection)
      `%?`        Cursor position after template expansion
      `%^{Prompt}` Prompt user for a value
+     `%^t`       Prompt for a date.  Accepts relative offsets (`+1w`, `-3d`),
+                 weekday and month names (`fri`, `sep 15`), `M/D`, `D.M.Y`,
+                 ISO week dates (`2026-W12-3`), clock times and time ranges
+                 (`8:00-10:00`).  A month and day already past roll to next
+                 year.  `%^T` adds the time, `%^u` and `%^U` write the
+                 inactive form.  An answer that cannot be read is left in
+                 place and reported, not resolved to today.
      `%<format>` Date formatted with `os.date(format)`
 
     Default templates: Task (`t`), Note (`n`), Journal (`j`).
