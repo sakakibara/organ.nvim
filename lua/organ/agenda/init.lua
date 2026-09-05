@@ -821,6 +821,23 @@ local function install_resize_listener(bufnr)
       )
     end,
   })
+
+  -- WinResized is a window event, so the autocmd above is not scoped to
+  -- the buffer and Neovim keeps it after a wipeout.
+  require("organ.errors").autocmd("BufWipeout", {
+    buffer = bufnr,
+    once = true,
+    callback = function()
+      pcall(vim.api.nvim_del_augroup_by_id, resize_group)
+      if resize_timer then
+        pcall(function()
+          resize_timer:stop()
+          resize_timer:close()
+        end)
+        resize_timer = nil
+      end
+    end,
+  })
 end
 
 -- Window-open strategy (Emacs `org-agenda-window-setup`).  Default
@@ -869,14 +886,14 @@ end
 -- don't wrap and so `virt_text_pos = "right_align"` tags always anchor
 -- cleanly at the window's right edge.
 local function set_agenda_window_options(winid)
-  vim.api.nvim_set_option_value("foldmethod", "expr", { win = winid })
+  vim.api.nvim_set_option_value("foldmethod", "expr", { win = winid, scope = "local" })
   vim.api.nvim_set_option_value(
     "foldexpr",
     "v:lua.require'organ.agenda'.foldexpr(v:lnum)",
-    { win = winid }
+    { win = winid, scope = "local" }
   )
-  vim.api.nvim_set_option_value("foldlevel", 99, { win = winid })
-  vim.api.nvim_set_option_value("wrap", false, { win = winid })
+  vim.api.nvim_set_option_value("foldlevel", 99, { win = winid, scope = "local" })
+  vim.api.nvim_set_option_value("wrap", false, { win = winid, scope = "local" })
 end
 
 function M.open(view_opts, view_name)

@@ -362,8 +362,11 @@ end
 
 -- Walk up to the headline that owns `line` (1-based).
 local function find_headline(buf_lines, line)
+  if line > #buf_lines then
+    return nil
+  end
   local hl = line
-  while hl >= 1 and not buf_lines[hl]:match("^%*+%s") do
+  while hl >= 1 and not buf_lines[hl]:match("^%*+ ") do
     hl = hl - 1
   end
   if hl < 1 then
@@ -375,7 +378,7 @@ end
 -- Match a headline line into its parts.
 -- Returns: stars, todo_or_nil, rest (priority + title + tags).
 local function split_headline(line, sequence_or_sequences)
-  local stars, body = line:match("^(%*+)%s+(.*)$")
+  local stars, body = line:match("^(%*+) +(.*)$")
   if not stars then
     return nil
   end
@@ -464,61 +467,159 @@ local function now_inactive_ts()
 end
 
 local function set_property(bufnr, hl_line, key, value)
-  local element = require("organ.element")
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local pd = element.property_drawer_range(bufnr, hl_line - 1)
-  -- Emacs `-Q` writes drawer lines at column 0 by default
-  -- (verified with `org-todo "DONE"` on a repeating TODO).
-  -- `org-adapt-indentation` can change that, but our output should
-  -- match the default-vs-default baseline; user-level indent
-  -- adjustment can be re-applied as a separate format step.
-  local prop_line = string.format(":%s: %s", key, value)
-  if pd then
-    -- Replace existing key in drawer if present.
-    for i = pd.start_line + 1, pd.end_line - 1 do
-      if (lines[i] or ""):match("^%s*:" .. key .. ":") then
-        obuf.set_lines(bufnr, i - 1, i, { prop_line })
-        return
+  require("organ.property").set(bufnr, hl_line, key, value)
+end
+
+-- The state a repeating entry returns to, following `org-auto-repeat-maybe`:
+-- the entry's own `:REPEAT_TO_STATE:` (never inherited) wins, then a string
+-- `todo.repeat_to_state`, then any other truthy `todo.repeat_to_state`
+-- meaning "the state it had"; a value naming no configured keyword is
+-- discarded.  With none of those, the entry goes back to the head of its own
+-- sub-sequence -- which is NOT necessarily the state it had.
+local function repeat_to_state(bufnr, hl_line, current, sequence, cfg)
+  local sequences = normalise_sequences(sequence)
+  local known = {}
+  for _, seq in ipairs(sequences) do
+    for _, k in ipairs(seq) do
+      if k ~= "|" then
+        known[k] = true
       end
     end
-    -- Append before :END:.
-    obuf.set_lines(bufnr, pd.end_line - 1, pd.end_line - 1, { prop_line })
-  else
-    -- Create a new drawer right after planning.
-    local i = element.planning_end_line(bufnr, hl_line - 1)
-    obuf.set_lines(bufnr, i - 1, i - 1, { ":PROPERTIES:", prop_line, ":END:" })
   end
+
+  local want
+  for _, e in ipairs(require("organ.property").list(bufnr, hl_line) or {}) do
+    if e.key:upper() == "REPEAT_TO_STATE" then
+      want = e.value
+    end
+  end
+  if not want or want == "" then
+    local configured = (cfg or {}).repeat_to_state
+    if type(configured) == "string" then
+      want = configured
+    elseif configured then
+      want = current
+    end
+  end
+  if want and known[want] then
+    return want
+  end
+
+  for _, seq in ipairs(sequences) do
+    for _, k in ipairs(seq) do
+      if k == current then
+        return seq[1] ~= "|" and seq[1] or nil
+      end
+    end
+  end
+  return current
+end
+
+-- Characters org's emphasis rules allow immediately around a span
+-- (`org-emphasis-regexp-components`).
+local EMPH_PRE = "[-%s('\"{]"
+local EMPH_POST = "[-%s.,:!?;'\")}\\%[]"
+
+-- Byte ranges on `line` covered by a `=verbatim=` or `~code~` span
+-- (`org-verbatim-re`).
+local function inert_spans(line)
+  local spans, n = {}, #line
+  local i = 1
+  while i <= n do
+    local c = line:sub(i, i)
+    local close
+    if
+      (c == "=" or c == "~")
+      and (i == 1 or line:sub(i - 1, i - 1):match(EMPH_PRE))
+      and line:sub(i + 1, i + 1):match("%S")
+    then
+      for k = i + 2, n do
+        if
+          line:sub(k, k) == c
+          and line:sub(k - 1, k - 1):match("%S")
+          and (k == n or line:sub(k + 1, k + 1):match(EMPH_POST))
+        then
+          close = k
+          break
+        end
+      end
+    end
+    if close then
+      spans[#spans + 1] = { i, close }
+      i = close + 1
+    else
+      i = i + 1
+    end
+  end
+  return spans
+end
+
+-- A comment or fixed-width line: `#` or `:` followed by a space or the
+-- end of the line, after optional indentation.
+local function inert_line(line)
+  return line:match("^[ \t]*[#:] ") ~= nil or line:match("^[ \t]*[#:]$") ~= nil
+end
+
+-- Bump every repeater timestamp on `line` that org would read as a
+-- timestamp.  Returns the rewritten line and whether anything moved.
+local function bump_line(line, rep, now)
+  local spans = inert_spans(line)
+  local out, pos, bumped = {}, 1, false
+  while pos <= #line do
+    local s, e = line:find("<[^>]+>", pos)
+    if not s then
+      break
+    end
+    local ts = line:sub(s, e)
+    local inert = false
+    for _, span in ipairs(spans) do
+      if s <= span[2] and e >= span[1] then
+        inert = true
+        break
+      end
+    end
+    local new_ts
+    if not inert and rep.parse(ts) then
+      local candidate, err = rep.bump(ts, now)
+      if candidate then
+        new_ts, bumped = candidate, true
+      elseif err then
+        require("organ.notify").warn(err)
+      end
+    end
+    out[#out + 1] = line:sub(pos, s - 1)
+    out[#out + 1] = new_ts or ts
+    pos = e + 1
+  end
+  out[#out + 1] = line:sub(pos)
+  return table.concat(out), bumped
 end
 
 -- Bump every active timestamp carrying a repeater anywhere in the entry
--- (planning lines and body alike), as `org-auto-repeat-maybe` does.
+-- (planning lines and body alike), as `org-auto-repeat-maybe` does.  Emacs
+-- guards each candidate with `org-at-timestamp-p 'agenda`, so text org
+-- parses as raw -- src/example/export/comment blocks, comment and
+-- fixed-width lines, verbatim and code spans -- is left alone; a quote
+-- block, a verse block and a drawer body are bumped.
 -- Returns true if any bump happened (the state transition is then cancelled).
 local function try_bump_repeaters(bufnr, hl_line, now)
   local rep = require("organ.todo.repeater")
+  local block = require("organ.block")
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local raw_rows = block.verbatim_rows(lines, block.NO_OBJECTS)
   local bumped = false
 
   for i = hl_line, #lines do
     local ln = lines[i]
-    if i > hl_line and ln:match("^%*+%s") then
+    if i > hl_line and ln:match("^%*+ ") then
       break
     end
-    local new_line = ln:gsub("<[^>]+>", function(ts)
-      if not rep.parse(ts) then
-        return nil
+    if not (raw_rows[i] or inert_line(ln)) then
+      local new_line, moved = bump_line(ln, rep, now)
+      bumped = bumped or moved
+      if new_line ~= ln then
+        obuf.set_lines(bufnr, i - 1, i, { new_line })
       end
-      local new_ts, err = rep.bump(ts, now)
-      if new_ts then
-        bumped = true
-        return new_ts
-      end
-      if err then
-        require("organ.notify").warn(err)
-      end
-      return nil
-    end)
-    if new_line ~= ln then
-      obuf.set_lines(bufnr, i - 1, i, { new_line })
     end
   end
 
@@ -684,13 +785,18 @@ function M._apply(bufnr, line, new_state)
   end
 
   -- Repeating-task bump: on active→done, if SCHEDULED/DEADLINE has a repeater,
-  -- bump the date and KEEP the active state. CLOSED line is NOT added.
+  -- bump the date and reset the state instead of transitioning to done.
+  -- CLOSED line is NOT added.
   local now = (M._now_for_test and M._now_for_test()) or os.date("%Y-%m-%d %H:%M")
   if (was_active or current == nil) and new_done then
     if try_bump_repeaters(bufnr, hl, now) then
+      local back_to = repeat_to_state(bufnr, hl, current, sequence, cfg)
+      if back_to ~= current then
+        obuf.set_lines(bufnr, hl - 1, hl, { rebuild_headline(stars, back_to, rest) })
+      end
       -- Stamp LAST_REPEAT: [<now>] property.
       set_property(bufnr, hl, "LAST_REPEAT", now_inactive_ts())
-      -- Save and exit early; don't transition state, don't insert CLOSED.
+      -- Save and exit early; don't transition to done, don't insert CLOSED.
       local cur = vim.api.nvim_get_current_buf()
       vim.api.nvim_set_current_buf(bufnr)
       vim.cmd("silent! write")

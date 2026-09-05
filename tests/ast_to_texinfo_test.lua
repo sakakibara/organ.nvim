@@ -117,6 +117,9 @@ do
     A.headline({ level = 3, title = { A.text("Deep") } }),
     A.headline({ level = 4, title = { A.text("Deeper") } }),
   })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    headline_levels = 4,
+  })
   local out = to_texinfo.render(doc)
   check("L1 -> @chapter", out:find("@chapter Top", 1, true) ~= nil, "got: " .. out)
   check("L2 -> @section", out:find("@section Sub", 1, true) ~= nil)
@@ -128,6 +131,9 @@ end
 do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    headline_levels = 9,
   })
   local out = to_texinfo.render(doc)
   check(
@@ -271,11 +277,14 @@ do
   })
   local out = to_texinfo.render(doc, { body_only = true })
   check(
-    "inline image dropped (no @image inline)",
-    out:find("fig.png", 1, true) == nil,
+    "inline image with description -> @uref",
+    out:find("@uref{fig.png, fig}", 1, true) ~= nil,
     "got: " .. out
   )
-  check("surrounding text preserved", out:find("see  here", 1, true) ~= nil)
+  check(
+    "surrounding text preserved",
+    out:find("see ", 1, true) ~= nil and out:find(" here", 1, true) ~= nil
+  )
 end
 
 -- List (unordered)
@@ -384,7 +393,7 @@ do
     A.block("verse", { body = "verse 1\nverse 2" }),
   })
   local out = to_texinfo.render(doc, { body_only = true })
-  check("verse renders as @example", out:find("@example", 1, true) ~= nil, "got: " .. out)
+  check("verse renders as @display", out:find("@display", 1, true) ~= nil, "got: " .. out)
   check("verse line 1", out:find("verse 1", 1, true) ~= nil)
   check("verse line 2", out:find("verse 2", 1, true) ~= nil)
 end
@@ -520,8 +529,11 @@ do
     A.paragraph({ A.text("after") }),
   })
   local out = to_texinfo.render(doc, { body_only = true })
-  check("@image with target", out:find("@image{fig.png", 1, true) ~= nil, "got: " .. out)
-  check("@image includes alt text", out:find("diagram", 1, true) ~= nil)
+  check(
+    "block image with description -> @uref",
+    out:find("@uref{fig.png, diagram}", 1, true) ~= nil,
+    "got: " .. out
+  )
   check(
     "paragraphs around image preserved",
     out:find("before", 1, true) ~= nil and out:find("after", 1, true) ~= nil
@@ -627,6 +639,234 @@ do
   check("texinfo target -> @anchor", out:find("@anchor{anchor}", 1, true) ~= nil)
   check("texinfo macro kept as escaped text", out:find("@{@{@{title@}@}@}", 1, true) ~= nil)
   check("texinfo unknown entity kept as text", out:find("\\nosuchentity", 1, true) ~= nil)
+end
+
+-- Fixed-width lines (`: text`) -- every short babel result is one.
+do
+  local doc = A.document({ { kind = "fixed_width", body = "42\nnext" } })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "fixed_width -> @example",
+    out:find("@example\n42\nnext\n@end example", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- LaTeX environments reach @displaymath.
+do
+  local doc = A.document({
+    {
+      kind = "latex_environment",
+      name = "equation",
+      body = "\\begin{equation}\nx = 1\n\\end{equation}",
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "latex_environment -> @displaymath",
+    out:find("@displaymath", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Greater blocks: center, and backend-gated export blocks.
+do
+  local doc = A.document({
+    A.block("center", { content = { A.paragraph({ A.text("mid") }) } }),
+    A.block("export", { backend = "texinfo", body = "@raw" }),
+    A.block("export", { backend = "html", body = "<b>x</b>" }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("center block -> @center", out:find("@center mid", 1, true) ~= nil, "got: " .. out)
+  check("export texinfo passes through", out:find("@raw", 1, true) ~= nil)
+  check("export html is dropped", out:find("<b>x</b>", 1, true) == nil)
+end
+
+-- TODO keyword, priority cookie and tags reach the section title.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      todo = "TODO",
+      todo_type = "todo",
+      priority = "A",
+      tags = { "work", "urgent" },
+      title = { A.text("Task one") },
+    }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_priority = true,
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "chapter title carries todo, priority and tags",
+    out:find("@chapter @strong{TODO} @emph{#A} Task one :work:urgent:", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("@node stays the bare title", out:find("@node Task one", 1, true) ~= nil)
+end
+
+-- Description lists keep their terms.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ tag = { A.text("term") }, content = { A.paragraph({ A.text("definition") }) } }),
+    }),
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check(
+    "description list -> @table @asis",
+    out:find("@table @asis\n@item term\ndefinition\n@end table", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Alignment cookies are metadata, not a data row.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "r", "l" },
+      rows = {
+        { cells = { { A.text("<r>") }, { A.text("<l>") } }, sep = false },
+        { cells = { { A.text("x") }, { A.text("a") } }, sep = false },
+      },
+    },
+  })
+  local out = to_texinfo.render(doc, { body_only = true })
+  check("cookie row is not rendered", out:find("<r>", 1, true) == nil, "got: " .. out)
+end
+
+-- Entities keep working with the `{}` terminator.
+do
+  local doc = A.document({ A.paragraph({ A.entity("copy{}"), A.text("text") }) })
+  check(
+    "\\copy{} is the copy entity",
+    to_texinfo.render(doc, { body_only = true }):find("@copyright{}text", 1, true) ~= nil,
+    "got: " .. to_texinfo.render(doc, { body_only = true })
+  )
+end
+
+-- `#+OPTIONS: H:N` (org-export-low-level-p): a headline deeper than N is
+-- a list item, not a heading; `num:` picks the list type.
+do
+  local function tree()
+    return A.document({
+      A.headline({
+        level = 1,
+        title = { A.text("Top") },
+        children = {
+          A.headline({
+            level = 2,
+            title = { A.text("Sub") },
+            children = {
+              A.headline({
+                level = 3,
+                title = { A.text("Deep") },
+                children = {
+                  A.paragraph({ A.text("body") }),
+                  A.headline({ level = 4, title = { A.text("Deeper") } }),
+                },
+              }),
+              A.headline({ level = 3, title = { A.text("Deep B") } }),
+            },
+          }),
+        },
+      }),
+    })
+  end
+  local function opts(over)
+    return vim.tbl_extend(
+      "force",
+      require("organ.export.options").defaults(),
+      { headline_levels = 2, with_toc = false, with_section_numbers = false },
+      over or {}
+    )
+  end
+
+  local doc = tree()
+  doc.options = opts()
+  local out = to_texinfo.render(doc)
+  check("H:2 keeps level 2 a @section", out:find("@section Sub", 1, true) ~= nil, "got: " .. out)
+  check("H:2 emits no @subsection", out:find("@subsection", 1, true) == nil, "got: " .. out)
+  check(
+    "H:2 demotes level 3 into @itemize",
+    out:find("@itemize\n@item @anchor{Deep}Deep", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "H:2 nests the level 4 @itemize",
+    select(2, out:gsub("@itemize", "")) == 2
+      and out:find("@item @anchor{Deeper}Deeper", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("demoted headline emits no @node", out:find("@node Deep", 1, true) == nil, "got: " .. out)
+
+  local numbered = tree()
+  numbered.options = opts({ with_section_numbers = true })
+  check(
+    "num:t demotes into @enumerate",
+    to_texinfo.render(numbered):find("@enumerate", 1, true) ~= nil
+  )
+
+  local capped = tree()
+  capped.options = opts({ with_section_numbers = 2 })
+  check(
+    "num:2 leaves the demoted list an @itemize",
+    to_texinfo.render(capped):find("@enumerate", 1, true) == nil
+  )
+end
+
+-- `#+TOC:` as a directive (org-html-keyword / org-latex-keyword /
+-- org-md-keyword / org-ascii-keyword / org-texinfo-keyword), verified
+-- against Emacs 30.2 / Org 9.7.11.
+do
+  local from_org = require("organ.ast.from_org")
+  local src = {
+    "#+OPTIONS: toc:nil num:nil",
+    "",
+    "#+TOC: headlines 2",
+    "",
+    "* One",
+    "#+CAPTION: Table one",
+    "| a | b |",
+    "",
+    "#+CAPTION: Listing one",
+    "#+BEGIN_SRC lua",
+    "print(1)",
+    "#+END_SRC",
+    "",
+    "** Two",
+    "*** Three",
+    "",
+    "#+TOC: tables",
+    "",
+    "#+TOC: listings",
+    "",
+    "#+TOC: figures",
+    "",
+    "* Four",
+    "#+TOC: headlines 1 local",
+    "** Five",
+  }
+
+  local out = to_texinfo.render(from_org.from_lines(src))
+  check(
+    "#+TOC: tables -> @listoffloats Table",
+    out:find("@listoffloats Table", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: listings -> @listoffloats Listing",
+    out:find("@listoffloats Listing", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "ox-texinfo ignores headlines and figures in #+TOC:",
+    out:find("Table of Contents", 1, true) == nil
+      and out:find("@listoffloats Figure", 1, true) == nil,
+    "got: " .. out
+  )
 end
 
 if fails > 0 then

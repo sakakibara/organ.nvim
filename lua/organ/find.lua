@@ -194,6 +194,7 @@ local function resolve_backend(spec)
 end
 
 M._autodetect_backend = autodetect_backend
+M._resolve_backend = resolve_backend
 
 -- Build a parent_id → row index for OLP computation. O(N) once per pick,
 -- then each ancestor lookup is O(1).
@@ -558,8 +559,14 @@ function M.make_insert_link_action(ctx)
     local desc = (ctx.cword and ctx.cword ~= "") and ctx.cword or item.title
     local link = string.format("[[id:%s][%s]]", item.id, desc)
 
+    -- Return to the window the pick started from before restoring the
+    -- cursor: the picker may have left a different window current, and a
+    -- window showing another buffer has no row `ctx.cursor` to seek to.
+    if ctx.win and vim.api.nvim_win_is_valid(ctx.win) then
+      vim.api.nvim_set_current_win(ctx.win)
+    end
     vim.api.nvim_set_current_buf(ctx.bufnr)
-    vim.api.nvim_win_set_cursor(ctx.win, ctx.cursor)
+    vim.api.nvim_win_set_cursor(0, ctx.cursor)
     if ctx.cword and ctx.cword ~= "" then
       -- Find the cword bounds at the cursor and replace via buf_set_text.
       -- Avoids `vim.cmd("normal! ciw" .. link)` where a title containing
@@ -599,8 +606,13 @@ function M.make_refile_action(ctx)
       require("organ.notify").warn("source buffer no longer valid")
       return
     end
-    local err =
-      require("organ.refile").move(ctx.bufnr, ctx.cursor[1], item.file_path, item.line_start + 1)
+    local err = require("organ.refile").move(
+      ctx.bufnr,
+      ctx.cursor[1],
+      item.file_path,
+      item.line_start + 1,
+      { copy = ctx.copy }
+    )
     if err then
       require("organ.notify").error("organ: refile failed: " .. err)
     end

@@ -28,14 +28,12 @@ do
   assert_contains(out, "### Deep")
 end
 
--- 2. TODO keyword and tags stripped from the title.
+-- 2. TODO keyword and tags reach the title, as ox-md writes them.
 do
   local out = md.export([[
 * TODO Buy milk :shopping:
 ]])
-  assert_contains(out, "# Buy milk")
-  assert(not out:find("TODO", 1, true), "TODO must be stripped:\n" .. out)
-  assert(not out:find(":shopping:", 1, true), "tags must be stripped")
+  assert_contains(out, "# TODO Buy milk     :shopping:")
 end
 
 -- 3. Bold / verbatim / link in body.
@@ -134,7 +132,8 @@ do
 | ben  |  41 |
 ]])
   assert_contains(out, "| name | age |")
-  assert_contains(out, "| --- | --- |")
+  -- `age` holds numbers, so ox-md aligns that column right.
+  assert_contains(out, "| --- | ---: |")
   assert_contains(out, "| ada | 36 |")
   -- No phantom trailing column.  The regex that splits cells used to
   -- append `|` to the line, which produced TWO trailing-empty captures

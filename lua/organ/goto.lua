@@ -68,21 +68,6 @@ local function jump_action(item)
   unfold_to(item.bufnr, item.line_start + 1)
 end
 
-local function resolve_backend(spec)
-  if type(spec) == "table" then
-    return spec
-  end
-  local name = spec or "snacks"
-  if name == "snacks" then
-    return require("organ.find.backends.snacks")
-  end
-  local ok, mod = pcall(require, "organ.find.backend")
-  if ok and mod[name] then
-    return mod[name]
-  end
-  error("organ.goto: unknown backend '" .. tostring(name) .. "'")
-end
-
 -- Open the picker. opts.bufnr (default: current).
 function M.open(opts)
   opts = opts or {}
@@ -93,7 +78,7 @@ function M.open(opts)
     return
   end
   local cfg = (require("organ.buf_config").read(nil, "find") or {})
-  local backend = resolve_backend(opts.backend or cfg.backend or "snacks")
+  local backend = require("organ.find")._resolve_backend(opts.backend or cfg.backend or "auto")
   backend.pick(items, {
     prompt = "Goto: ",
     default_action = "jump",

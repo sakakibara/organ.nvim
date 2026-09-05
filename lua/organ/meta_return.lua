@@ -353,7 +353,77 @@ function M.dispatch(opts)
   end
 end
 
+-- Emacs org-insert-heading-respect-content (C-RET): always a HEADING,
+-- appended after the current subtree's content -- never a list item or
+-- a table row, whatever the cursor sits on.  `opts.todo` is the C-S-RET
+-- variant (org-insert-todo-heading-respect-content), which gives the
+-- new heading the first active keyword of the reference entry.
+function M.insert_heading_respect_content(opts)
+  opts = opts or {}
+  local enter_insert = opts.enter_insert ~= false
+  local bufnr = vim.api.nvim_get_current_buf()
+  local cur_line = vim.api.nvim_win_get_cursor(0)[1]
+  local total = vim.api.nvim_buf_line_count(bufnr)
+
+  local hl_line, hl_lvl = enclosing_headline(bufnr, cur_line)
+  local lvl, ref = hl_lvl or 1, hl_line and get_line(bufnr, hl_line) or nil
+  local end_line
+  if hl_line then
+    end_line = hl_line
+    for i = hl_line + 1, total do
+      local l = headline_level(get_line(bufnr, i))
+      if l and l <= lvl then
+        break
+      end
+      end_line = i
+    end
+  else
+    -- Before the first heading: the new one goes above it, so the
+    -- preamble keeps the text it already holds.
+    end_line = 0
+    for i = 1, total do
+      if headline_level(get_line(bufnr, i)) then
+        end_line = i - 1
+        break
+      end
+      end_line = i
+    end
+  end
+
+  local kw
+  if opts.todo then
+    kw = require("organ.todo").sequence_head(bufnr, ref and ref:match("^%*+%s+(%S+)"))
+  end
+  local prefix = string.rep("*", lvl) .. " " .. (kw and (kw .. " ") or "")
+  if total == 1 and get_line(bufnr, 1) == "" then
+    obuf.set_lines(bufnr, 0, 1, { prefix })
+    move_to(1, #prefix)
+  else
+    set_lines(bufnr, end_line, { prefix })
+    local spacing = require("organ.spacing")
+    local policy = spacing.resolve(bufnr)
+    local row = spacing.normalize_around(bufnr, end_line + 1, policy) or (end_line + 1)
+    normalize_following_heading(bufnr, row, policy)
+    move_to(row, #prefix)
+  end
+  if enter_insert then
+    vim.cmd("startinsert!")
+  end
+end
+
 M.commands = {
+  insert_heading_respect_content = {
+    fn = function()
+      M.insert_heading_respect_content({ enter_insert = false })
+    end,
+    desc = "Insert a heading after the current subtree's content (Emacs C-RET)",
+  },
+  insert_todo_heading_respect_content = {
+    fn = function()
+      M.insert_heading_respect_content({ enter_insert = false, todo = true })
+    end,
+    desc = "Insert a TODO heading after the current subtree's content (Emacs C-S-RET)",
+  },
   meta_return = {
     fn = function()
       M.dispatch({ enter_insert = false })

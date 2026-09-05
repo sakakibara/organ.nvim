@@ -207,7 +207,7 @@ function M.allowed_values(bufnr, hl_line, key)
   local stars = (lines[hl_line] or ""):match("^(%*+)") or ""
   local lvl = #stars
   for i = hl_line - 1, 1, -1 do
-    local s = (lines[i] or ""):match("^(%*+)%s")
+    local s = (lines[i] or ""):match("^(%*+) ")
     if s and #s < lvl then
       v = drawer_value(i)
       if v then
@@ -222,7 +222,7 @@ function M.allowed_values(bufnr, hl_line, key)
 
   -- File-level `#+PROPERTY: KEY_ALL ...`.
   for _, ln in ipairs(lines) do
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       break
     end
     local k, val = ln:match("^%s*#%+PROPERTY:%s+(%S+)%s+(.+)%s*$")

@@ -40,58 +40,36 @@ function M.where(bufnr, headline_row, kind)
   error("section.where: unknown kind " .. tostring(kind))
 end
 
--- Keyword order of org-element-planning-interpreter.
-local PLANNING_ORDER = { "DEADLINE", "SCHEDULED", "CLOSED" }
+local PLANNING_KEYWORDS = { "DEADLINE", "SCHEDULED", "CLOSED" }
 
--- One planning line from ordered `{ kw, ts }` entries.
-local function join_entries(list, indent)
-  local parts = {}
-  for _, e in ipairs(list) do
-    parts[#parts + 1] = e.kw .. ": " .. e.ts
-  end
-  return indent .. table.concat(parts, " ")
-end
-
--- Pull the timestamp for `kw` (e.g. "SCHEDULED") out of a planning line,
--- handling both active <...> and inactive [...] forms. nil if absent.
-local function ts_on_line(line, kw)
-  return line:match(kw .. ":%s*(<[^>]*>)") or line:match(kw .. ":%s*(%b[])")
-end
-
--- Sorted, de-duplicated 1-based rows carrying planning entries.
-local function planning_rows(p)
-  local seen, rows = {}, {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local r = p[kw:lower()]
-    if r and not seen[r] then
-      seen[r] = true
-      rows[#rows + 1] = r
-    end
-  end
-  table.sort(rows)
-  return rows
-end
-
--- Planning entries `{ kw, ts }` in buffer order (row, then column).
-local function planning_entries(bufnr, p)
-  local found = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local row = p[kw:lower()]
-    if row then
-      local line = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
-      local ts = ts_on_line(line, kw)
-      if ts then
-        found[#found + 1] = { kw = kw, ts = ts, row = row, col = line:find("%f[%w]" .. kw .. ":") }
+-- Span of the earliest `KEYWORD: <timestamp>` at or after `init`, plus
+-- the keyword. Mirrors Emacs `org-keyword-time-not-clock-regexp`: one
+-- keyword, then one bracketed timestamp; a range's second half and any
+-- prose after it are outside the match.
+local function keyword_time(line, init, only)
+  local best_s, best_e, best_kw
+  for _, kw in ipairs(PLANNING_KEYWORDS) do
+    if not only or only == kw then
+      local s, e = line:find("%f[%w]" .. kw .. ":%s*[%[<][^%]>]+[%]>]", init)
+      if s and (not best_s or s < best_s) then
+        best_s, best_e, best_kw = s, e, kw
       end
     end
   end
-  table.sort(found, function(a, b)
-    if a.row ~= b.row then
-      return a.row < b.row
-    end
-    return a.col < b.col
-  end)
-  return found
+  return best_s, best_e, best_kw
+end
+
+-- Drop `kw` from a planning line the way org-add-planning-info does:
+-- from the keyword up to the next keyword-timestamp on the line, or to
+-- the end of the line. Everything else -- a range's tail, a repeater, a
+-- note -- rides along with whatever it follows.
+local function drop_keyword(rest, kw)
+  local s, e = keyword_time(rest, 1, kw)
+  if not s then
+    return rest
+  end
+  local nxt = keyword_time(rest, e + 1)
+  return rest:sub(1, s - 1) .. rest:sub(nxt or (#rest + 1))
 end
 
 -- Section-indent string for a headline of the given `level`, honoring the
@@ -125,64 +103,62 @@ function M.planning_indent(bufnr, headline_row)
   if mode == "adapt" or mode == nil then
     local line = (vim.api.nvim_buf_get_lines(bufnr, headline_row, headline_row + 1, false) or {})[1]
       or ""
-    level = #(line:match("^(%*+)%s") or "*")
+    level = #(line:match("^(%*+) ") or "*")
   end
   return M.section_indent_for(level, mode)
 end
 
 -- Set/update/clear one planning keyword under the headline at 0-based
 -- `headline_row`, the way org-add-planning-info does: the keyword is
--- removed from the planning line and re-inserted at its start, the other
--- keywords keep their order, and everything ends up on one line. `kind`
--- is "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp string,
--- or nil to remove that keyword.
+-- dropped from the headline's planning line and re-inserted at that
+-- line's start; the rest of the line is carried over untouched, and a
+-- line left with no keyword at all is removed.  With no planning line to
+-- edit, one is inserted directly under the headline.  `kind` is
+-- "SCHEDULED" | "DEADLINE" | "CLOSED"; `ts` is the timestamp string, or
+-- nil to remove that keyword.
 function M.set_planning(bufnr, headline_row, kind, ts)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local p = M.parse(bufnr, headline_row).planning
+  local row = element.planning_row(bufnr, headline_row)
 
-  local entries = {}
-  if ts then
-    entries[1] = { kw = kind, ts = ts }
-  end
-  for _, e in ipairs(planning_entries(bufnr, p)) do
-    if e.kw ~= kind then
-      entries[#entries + 1] = e
+  if not row then
+    if ts then
+      local line = M.planning_indent(bufnr, headline_row) .. kind .. ": " .. ts
+      obuf.set_lines(bufnr, headline_row + 1, headline_row + 1, { line })
     end
-  end
-
-  local block = {}
-  if #entries > 0 then
-    block[1] = join_entries(entries, M.planning_indent(bufnr, headline_row))
-  end
-
-  local rows = planning_rows(p)
-  if #rows == 0 then
-    obuf.set_lines(bufnr, headline_row + 1, headline_row + 1, block)
     return
   end
-  for i = #rows, 2, -1 do
-    obuf.set_lines(bufnr, rows[i] - 1, rows[i], {})
+
+  local indent, rest = (vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""):match(
+    "^([ \t]*)(.*)$"
+  )
+  rest = drop_keyword(rest, kind):gsub("[ \t]+$", "")
+  if not ts and rest == "" then
+    obuf.set_lines(bufnr, row - 1, row, {})
+    return
   end
-  obuf.set_lines(bufnr, rows[1] - 1, rows[1], block)
+  if ts then
+    rest = kind .. ": " .. ts .. (rest == "" and "" or " " .. rest)
+  end
+  obuf.set_lines(bufnr, row - 1, row, { indent .. rest })
 end
 
 -- Reorder a headline's recognized prefix elements into canonical order:
--- planning (merged onto one line) -> property drawer -> LOGBOOK. CONSERVATIVE:
+-- planning -> property drawer -> LOGBOOK. CONSERVATIVE:
 -- it only rewrites a contiguous region made up ENTIRELY of recognized element
 -- lines; if any other line (blank, comment, body, unknown drawer) falls inside
 -- that region it ABORTS without changes, so content is never lost or mangled.
+-- The planning line is copied across verbatim: org reads it only directly
+-- under the headline, so it is already first, and its text belongs to the
+-- user.
 -- No-op-safe writes: canonical input neither changes nor dirties the buffer.
 function M.canonicalize(bufnr, headline_row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local model = M.parse(bufnr, headline_row)
-  local p = model.planning
 
   local recognized = {}
-  for _, kw in ipairs(PLANNING_ORDER) do
-    local r = p[kw:lower()]
-    if r then
-      recognized[r] = true
-    end
+  local planning_row = element.planning_row(bufnr, headline_row)
+  if planning_row then
+    recognized[planning_row] = true
   end
   local pd = model.property_drawer
   if pd then
@@ -214,11 +190,8 @@ function M.canonicalize(bufnr, headline_row)
   end
 
   local block = {}
-  local entries = planning_entries(bufnr, p)
-  if #entries > 0 then
-    local row = entries[1].row
-    local first = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
-    block[1] = join_entries(entries, first:match("^(%s*)") or "")
+  if planning_row then
+    block[1] = vim.api.nvim_buf_get_lines(bufnr, planning_row - 1, planning_row, false)[1] or ""
   end
   if pd then
     for _, l in ipairs(vim.api.nvim_buf_get_lines(bufnr, pd.start_line - 1, pd.end_line, false)) do

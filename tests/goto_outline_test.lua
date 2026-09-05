@@ -1,4 +1,6 @@
 -- organ.goto.outline: build slash-joined ancestor paths for every headline.
+-- organ.goto.open: resolve the picker backend the way `:Org find` does, under
+-- the shipped default config (`find.backend = "auto"`).
 -- Run via: nvim --headless -l tests/goto_outline_test.lua
 
 local root = vim.fn.getcwd()
@@ -52,6 +54,31 @@ assert(out[4].path == "Top / Sub / Other", "4.path: " .. out[4].path)
 -- Sibling resets the ancestor stack for level 1.
 assert(out[5].title == "Sibling", "5.title: " .. out[5].title)
 assert(out[5].path == "Sibling", "5.path: " .. out[5].path)
+
+-- `:Org goto` under the SHIPPED config, not a stub backend: `setup` above
+-- leaves `find.backend` at its default "auto", which goto used to reject.
+assert(
+  require("organ.buf_config").read(nil, "find").backend == "auto",
+  "test must run against the shipped default backend"
+)
+
+do
+  local shown, picked
+  local saved = vim.ui.select
+  vim.ui.select = function(items, opts, on_choice)
+    shown = items
+    picked = opts
+    on_choice(items[3])
+  end
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  local ok, err = pcall(require("organ.goto").open)
+  vim.ui.select = saved
+  assert(ok, "goto.open errored under the default backend: " .. tostring(err))
+  assert(shown and #shown == 5, "picker got " .. tostring(shown and #shown) .. " items")
+  assert(picked.prompt == "Goto: ", "prompt: " .. tostring(picked.prompt))
+  assert(vim.api.nvim_win_get_cursor(0)[1] == 5, "confirm did not jump to the Deep headline")
+end
 
 vim.fn.delete(tmp, "rf")
 io.write("goto outline ok\n")

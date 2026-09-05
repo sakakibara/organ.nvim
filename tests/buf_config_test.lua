@@ -124,6 +124,29 @@ check("paths includes 'b.c'", has["b.c"])
 check("paths includes 'b.d'", has["b.d"])
 check("paths includes leaf 'b.d.e'", has["b.d.e"])
 
+-- 12. A dots-only or empty path names no component.  `"."` is one typo away
+-- at the `:Org set <Tab>` prompt and used to index a table with nil.
+local before = vim.deepcopy(bc.get(b))
+for _, path in ipairs({ ".", "..", "...", "" }) do
+  local q = string.format("%q", path)
+  local ok, res = pcall(bc.set, b, path, true)
+  check("set " .. q .. " does not raise", ok, tostring(res))
+  check("set " .. q .. " reports failure", res == false, tostring(res))
+
+  ok, res = pcall(bc.read, b, path)
+  check("read " .. q .. " does not raise", ok, tostring(res))
+  check("read " .. q .. " is nil", res == nil, tostring(res))
+
+  ok, res = pcall(bc.toggle, b, path)
+  check("toggle " .. q .. " does not raise", ok, tostring(res))
+  check("toggle " .. q .. " is nil", res == nil, tostring(res))
+
+  ok, res = pcall(bc.unset, b, path)
+  check("unset " .. q .. " does not raise", ok, tostring(res))
+  check("unset " .. q .. " reports failure", res == false, tostring(res))
+end
+check("overrides untouched by invalid paths", vim.deep_equal(bc.get(b), before))
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

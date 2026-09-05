@@ -141,6 +141,7 @@ local function expand_repeaters(rows, block, today)
     return bump_calendar(ts, rep.value, rep.unit)
   end
   local expanded = {}
+  local today_ts = dates.iso_to_ts(today)
   for _, r in ipairs(rows) do
     local rep = r.scheduled and r.scheduled ~= "" and repeater_mod.parse(r.scheduled) or nil
     local origin_ts = r.scheduled_date
@@ -151,33 +152,35 @@ local function expand_repeaters(rows, block, today)
     if rep and rep.value and rep.unit and origin_ts and step(origin_ts, rep) > origin_ts then
       local time_part = (r.scheduled_date and #r.scheduled_date >= 11 and r.scheduled_date:sub(11))
         or ""
-      local cursor = origin_ts
-      -- Walk forward to first occurrence >= from_ts.
-      while cursor < from_ts do
-        cursor = step(cursor, rep)
+      local origin_day = os.date("%Y-%m-%d", origin_ts)
+      local function clone_on(day)
+        emit_clones = true
+        local clone = vim.deepcopy(r)
+        clone.scheduled_date = day .. time_part
+        clone._synthetic_repeater = (day ~= origin_day)
+        expanded[#expanded + 1] = clone
       end
-      -- If origin is BEFORE the window, emit an EXTRA overdue-carryover
-      -- row on today's line, keeping the ORIGINAL scheduled_date so
-      -- `sched_label_for` shows the real `Sched. Nx:` days-late count --
-      -- matching Emacs. The repeater's in-window occurrences still get
-      -- their own `Scheduled:` rows, except the one falling on today,
-      -- which Emacs shows only as the overdue reminder.
-      local origin_pre_window = origin_ts < from_ts
-      if origin_pre_window then
+      -- Emacs `org-agenda-get-scheduled`: a repeating entry appears on its
+      -- base date, on today, and on repeats strictly after today.  Today's
+      -- row keeps the ORIGINAL scheduled_date so `sched_label_for` shows
+      -- the real `Sched. Nx:` days-late count; the days between the base
+      -- date and today carry no row at all.
+      if origin_ts >= from_ts and origin_ts <= to_ts then
+        clone_on(origin_day)
+      end
+      if today_ts and origin_ts < today_ts and today_ts >= from_ts and today_ts <= to_ts then
         emit_clones = true
         local carryover = vim.deepcopy(r)
         carryover._bucket_date = today
         expanded[#expanded + 1] = carryover
       end
+      local floor_ts = math.max(from_ts, today_ts or from_ts, origin_ts)
+      local cursor = origin_ts
+      while cursor <= floor_ts do
+        cursor = step(cursor, rep)
+      end
       while cursor <= to_ts do
-        emit_clones = true
-        local day = os.date("%Y-%m-%d", cursor)
-        if not (origin_pre_window and day == today) then
-          local clone = vim.deepcopy(r)
-          clone.scheduled_date = day .. time_part
-          clone._synthetic_repeater = (cursor ~= origin_ts)
-          expanded[#expanded + 1] = clone
-        end
+        clone_on(os.date("%Y-%m-%d", cursor))
         cursor = step(cursor, rep)
       end
     end
@@ -1244,7 +1247,7 @@ local function render(blocks_with_rows, opts)
               if n > body_start then
                 local trimmed = raw:gsub("^%s+", ""):gsub("%s+$", "")
                 -- Stop at the next heading.
-                if trimmed:match("^%*+%s") then
+                if trimmed:match("^%*+ ") then
                   break
                 end
                 -- Skip planning lines (SCHEDULED / DEADLINE / CLOSED)

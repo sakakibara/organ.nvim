@@ -9,25 +9,34 @@ local function ts_inactive(t)
   return os.date("[%Y-%m-%d %a %H:%M]", t)
 end
 
+-- Emacs writes the duration with `(format "%2d:%02d" h m)`, so a
+-- single-digit hour is padded to two columns.
 local function format_duration(secs)
   local minutes = math.floor(secs / 60)
   local h = math.floor(minutes / 60)
   local m = minutes - h * 60
-  return string.format("%d:%02d", h, m)
+  return string.format("%2d:%02d", h, m)
+end
+
+-- Indent every CLOCK/LOGBOOK line the way the planning and property writers
+-- indent theirs, so one entry cannot end up with drawers at three columns.
+local function indent_of(bufnr, hl_line)
+  return require("organ.section").planning_indent(bufnr, hl_line - 1)
 end
 
 function M.write_active(bufnr, hl_line, drawer_name, start_ts)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  local clock_line = "  CLOCK: " .. ts_inactive(start_ts)
+  local indent = indent_of(bufnr, hl_line)
   local s, _ = drawer.find(lines, hl_line, drawer_name, bufnr)
   if s then
-    obuf.set_lines(bufnr, s, s, { clock_line })
+    local lead = (lines[s] or ""):match("^([ \t]*)") or indent
+    obuf.set_lines(bufnr, s, s, { lead .. "CLOCK: " .. ts_inactive(start_ts) })
   else
     local pos = drawer.insert_position(lines, hl_line, bufnr)
     obuf.set_lines(bufnr, pos - 1, pos - 1, {
-      "  :" .. drawer_name .. ":",
-      clock_line,
-      "  :END:",
+      indent .. ":" .. drawer_name .. ":",
+      indent .. "CLOCK: " .. ts_inactive(start_ts),
+      indent .. ":END:",
     })
   end
 end
@@ -71,7 +80,8 @@ function M.close_active(bufnr, hl_line, drawer_name, end_ts)
   })
   local duration = end_ts - start_ts
   local closed = string.format(
-    "  CLOCK: %s--%s  =>  %s",
+    "%sCLOCK: %s--%s => %s",
+    original:match("^([ \t]*)") or "",
     ts_inactive(start_ts),
     ts_inactive(end_ts),
     format_duration(duration)

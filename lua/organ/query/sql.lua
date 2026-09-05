@@ -67,6 +67,31 @@ local function date_range_clause(col, window, where, params)
   end
 end
 
+-- `date_any = { columns = {...}, from = ..., to = ... }` matches a row
+-- whose date in ANY of the listed columns falls in the window, so a
+-- multi-type agenda stays a single ordered, limited result set.
+local function date_any_clause(spec, where, params)
+  if spec == nil or spec.columns == nil or #spec.columns == 0 then
+    return
+  end
+  local parts, values = {}, {}
+  for _, col in ipairs(spec.columns) do
+    local sub_where, sub_params = {}, {}
+    date_range_clause(col, { from = spec.from, to = spec.to }, sub_where, sub_params)
+    if #sub_where == 0 then
+      return
+    end
+    parts[#parts + 1] = "(" .. table.concat(sub_where, " AND ") .. ")"
+    for _, v in ipairs(sub_params) do
+      values[#values + 1] = v
+    end
+  end
+  where[#where + 1] = "(" .. table.concat(parts, " OR ") .. ")"
+  for _, v in ipairs(values) do
+    params[#params + 1] = v
+  end
+end
+
 local function todo_clause(filter, where, params)
   if filter == nil then
     return
@@ -115,17 +140,61 @@ ancestors(headline_id, anc_id) AS (
 effective_tags(headline_id, tag) AS (
   SELECT a.headline_id, t.tag
     FROM ancestors a JOIN tags t ON t.headline_id = a.anc_id
+   WHERE %s
   UNION
   SELECT h.id, ft.tag
     FROM headlines h JOIN file_tags ft ON ft.file_path = h.file_path
+   WHERE %s
 )
 ]]
 
--- Returns (cte_prefix, joins_sql, extra_where_sql, params).
+-- Emacs `org-tags-exclude-from-inheritance`.
+local function inherit_exclusions()
+  local ok, organ = pcall(require, "organ")
+  if not ok or not organ.config then
+    return {}
+  end
+  local buf_config = require("organ.buf_config")
+  if not buf_config.read(nil, "tags") then
+    return {}
+  end
+  local list = buf_config.read(nil, "tags.exclude_from_inheritance")
+  return type(list) == "table" and list or {}
+end
+
+-- Returns (cte_sql, cte_params).  An excluded tag still matches the
+-- headline that carries it directly (`a.anc_id = a.headline_id`); it is
+-- only inheritance -- from an ancestor or from #+FILETAGS -- that the
+-- exclusion blocks.
+local function tags_inherit_cte()
+  local exclude = inherit_exclusions()
+  if #exclude == 0 then
+    return string.format(CTE_TAGS_INHERIT, "1", "1"), {}
+  end
+  local q = {}
+  for _ = 1, #exclude do
+    q[#q + 1] = "?"
+  end
+  local list = table.concat(q, ",")
+  local params = {}
+  for _ = 1, 2 do
+    for _, t in ipairs(exclude) do
+      params[#params + 1] = t
+    end
+  end
+  local cte = string.format(
+    CTE_TAGS_INHERIT,
+    "a.anc_id = a.headline_id OR t.tag NOT IN (" .. list .. ")",
+    "ft.tag NOT IN (" .. list .. ")"
+  )
+  return cte, params
+end
+
+-- Returns (cte_prefix, cte_params, joins_sql, extra_where_sql, join_params).
 -- cte_prefix is non-empty only when there is a tag filter AND inherit=true.
 local function tag_joins(filter)
   if filter == nil then
-    return "", "", "", {}
+    return "", {}, "", "", {}
   end
 
   local any_, all_, none_
@@ -138,7 +207,7 @@ local function tag_joins(filter)
   end
 
   if not any_ and not all_ and not none_ then
-    return "", "", "", {}
+    return "", {}, "", "", {}
   end
 
   -- Resolve inherit: per-filter wins, else config default, else true.
@@ -160,7 +229,10 @@ local function tag_joins(filter)
   end
 
   local tbl = inherit and "effective_tags" or "tags"
-  local cte = inherit and CTE_TAGS_INHERIT or ""
+  local cte, cte_params = "", {}
+  if inherit then
+    cte, cte_params = tags_inherit_cte()
+  end
 
   local joins, where, params = {}, {}, {}
 
@@ -225,7 +297,7 @@ local function tag_joins(filter)
     where[#where + 1] = "tags_none.tag IS NULL"
   end
 
-  return cte, table.concat(joins, "\n"), table.concat(where, " AND "), params
+  return cte, cte_params, table.concat(joins, "\n"), table.concat(where, " AND "), params
 end
 
 local function priority_clause(filter, where, params)
@@ -292,6 +364,13 @@ local function file_clauses(filters, where, params)
   end
 end
 
+-- `title_match` is a literal substring, so LIKE's own metacharacters have
+-- to survive as themselves.  Pairs with `ESCAPE '\'` on every clause the
+-- result is bound into.
+local function like_contains(needle)
+  return "%" .. needle:gsub("[\\%%_]", "\\%0") .. "%"
+end
+
 local function title_clause(filters, where, params)
   if filters.title_match == nil or filters.title_match == "" then
     return
@@ -300,17 +379,20 @@ local function title_clause(filters, where, params)
   if match_aliases == nil then
     match_aliases = true
   end
+  local needle = like_contains(filters.title_match)
   if match_aliases then
-    where[#where + 1] =
-      "(h.title LIKE ? OR EXISTS (SELECT 1 FROM aliases a WHERE a.headline_id = h.id AND a.alias LIKE ?))"
-    params[#params + 1] = "%" .. filters.title_match .. "%"
-    params[#params + 1] = "%" .. filters.title_match .. "%"
+    where[#where + 1] = "(h.title LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM aliases a "
+      .. "WHERE a.headline_id = h.id AND a.alias LIKE ? ESCAPE '\\'))"
+    params[#params + 1] = needle
+    params[#params + 1] = needle
   else
-    where[#where + 1] = "h.title LIKE ?"
-    params[#params + 1] = "%" .. filters.title_match .. "%"
+    where[#where + 1] = "h.title LIKE ? ESCAPE '\\'"
+    params[#params + 1] = needle
   end
 end
 
+-- The recursive form's bind value belongs to the CTE the sentinel is
+-- later replaced with, so it is left for M.build to place.
 local function parent_clause(filters, where, params)
   if filters.has_parent == true then
     where[#where + 1] = "parent_id IS NOT NULL"
@@ -321,7 +403,6 @@ local function parent_clause(filters, where, params)
   if filters.parent_id ~= nil then
     if filters.recursive then
       where[#where + 1] = "__RECURSIVE_PARENT__"
-      params[#params + 1] = filters.parent_id
     else
       where[#where + 1] = "parent_id = ?"
       params[#params + 1] = filters.parent_id
@@ -388,23 +469,27 @@ end
 function M.build(filters)
   filters = filters or {}
 
-  local params = {}
+  -- Placeholders are positional, so bind values are collected per SQL
+  -- region and concatenated in the order the regions are emitted:
+  -- CTEs, joins, WHERE, then the ORDER BY / LIMIT tail.
+  local cte_params, join_params, where_params = {}, {}, {}
   local where = {}
 
-  date_range_clause("scheduled_date", filters.scheduled, where, params)
-  date_range_clause("deadline_date", filters.deadline, where, params)
-  date_range_clause("closed_date", filters.closed, where, params)
-  todo_clause(filters.todo, where, params)
-  priority_clause(filters.priority, where, params)
-  level_clause(filters.level, where, params)
-  file_clauses(filters, where, params)
-  title_clause(filters, where, params)
-  parent_clause(filters, where, params)
-  has_id_clause(filters, where, params)
+  date_range_clause("scheduled_date", filters.scheduled, where, where_params)
+  date_range_clause("deadline_date", filters.deadline, where, where_params)
+  date_range_clause("closed_date", filters.closed, where, where_params)
+  date_any_clause(filters.date_any, where, where_params)
+  todo_clause(filters.todo, where, where_params)
+  priority_clause(filters.priority, where, where_params)
+  level_clause(filters.level, where, where_params)
+  file_clauses(filters, where, where_params)
+  title_clause(filters, where, where_params)
+  parent_clause(filters, where, where_params)
+  has_id_clause(filters, where, where_params)
 
-  local tag_cte, tag_join_sql, tag_where, tag_params = tag_joins(filters.tags)
+  local tag_cte, tag_cte_params, tag_join_sql, tag_where, tag_params = tag_joins(filters.tags)
   for _, p in ipairs(tag_params) do
-    params[#params + 1] = p
+    join_params[#join_params + 1] = p
   end
   if tag_where ~= "" then
     where[#where + 1] = tag_where
@@ -412,7 +497,7 @@ function M.build(filters)
 
   local prop_join_sql, prop_where, prop_params = has_property_join(filters)
   for _, p in ipairs(prop_params) do
-    params[#params + 1] = p
+    where_params[#where_params + 1] = p
   end
   if prop_where ~= "" then
     where[#where + 1] = prop_where
@@ -420,7 +505,7 @@ function M.build(filters)
 
   -- Handle the recursive-parent sentinel by prepending a CTE and replacing
   -- the marker with a subquery reference.
-  local parent_cte = ""
+  local parent_cte, parent_cte_params = "", {}
   for i, clause in ipairs(where) do
     if clause == "__RECURSIVE_PARENT__" then
       parent_cte = [[
@@ -430,8 +515,16 @@ WITH RECURSIVE descendants(id) AS (
   SELECT h2.id FROM headlines h2 JOIN descendants d ON h2.parent_id = d.id
 )
 ]]
+      parent_cte_params = { filters.parent_id }
       where[i] = "h.id IN (SELECT id FROM descendants)"
     end
+  end
+
+  for _, p in ipairs(tag_cte_params) do
+    cte_params[#cte_params + 1] = p
+  end
+  for _, p in ipairs(parent_cte_params) do
+    cte_params[#cte_params + 1] = p
   end
 
   -- Merge any CTEs: tag_cte and parent_cte are mutually exclusive in practice,
@@ -459,7 +552,13 @@ WITH RECURSIVE descendants(id) AS (
   local tail, tail_params = order_limit(filters)
   if tail ~= "" then
     sql = sql .. "\n" .. tail
-    for _, p in ipairs(tail_params) do
+  else
+    tail_params = {}
+  end
+
+  local params = {}
+  for _, group in ipairs({ cte_params, join_params, where_params, tail_params }) do
+    for _, p in ipairs(group) do
       params[#params + 1] = p
     end
   end

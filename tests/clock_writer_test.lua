@@ -120,5 +120,41 @@ do
   assert(out2[3]:match("=>%s+100:30$"), "got: " .. out2[3])
 end
 
+-- The clock-out line is byte-for-byte Emacs's.  `org-clock-out` does
+-- `(insert-and-inherit " => " (format "%2d:%02d" h m))` (org-clock.el), so
+-- there is ONE space before `=>` and the hour is padded to two columns --
+-- verified with `emacs --batch -Q`, whose output is
+-- `CLOCK: [...]--[...] =>  0:00`.
+do
+  local b = buf({ "* H", "  :LOGBOOK:", "  CLOCK: [2026-04-26 Sun 00:00]", "  :END:" })
+  local start_ts = os.time({ year = 2026, month = 4, day = 26, hour = 0, min = 0, sec = 0 })
+  writer.close_active(b, 1, "LOGBOOK", start_ts + 90 * 60)
+  local out = read(b)
+  assert(
+    out[3] == "  CLOCK: [2026-04-26 Sun 00:00]--[2026-04-26 Sun 01:30] =>  1:30",
+    "single-digit hour: " .. ("%q"):format(out[3])
+  )
+
+  local b2 = buf({ "* H", "  :LOGBOOK:", "  CLOCK: [2026-04-26 Sun 00:00]", "  :END:" })
+  writer.close_active(b2, 1, "LOGBOOK", start_ts + 25 * 3600)
+  local out2 = read(b2)
+  assert(
+    out2[3] == "  CLOCK: [2026-04-26 Sun 00:00]--[2026-04-27 Mon 01:00] => 25:00",
+    "two-digit hour must not gain a third space: " .. ("%q"):format(out2[3])
+  )
+end
+
+-- The drawer indent follows the headline level, like every other drawer
+-- writer -- a level-3 entry must not get planning at 4 and LOGBOOK at 2.
+do
+  local b = buf({ "* A", "** B", "*** H", "    SCHEDULED: <2026-04-26 Sun>", "    body" })
+  local start_ts = os.time({ year = 2026, month = 4, day = 26, hour = 14, min = 30, sec = 0 })
+  writer.write_active(b, 3, "LOGBOOK", start_ts)
+  local out = read(b)
+  assert(out[5] == "    :LOGBOOK:", "got line 5: " .. ("%q"):format(out[5]))
+  assert(out[6]:match("^    CLOCK: %["), "got line 6: " .. ("%q"):format(out[6]))
+  assert(out[7] == "    :END:", "got line 7: " .. ("%q"):format(out[7]))
+end
+
 io.write("clock writer ok\n")
 os.exit(0)

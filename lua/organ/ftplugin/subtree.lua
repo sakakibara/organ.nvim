@@ -32,6 +32,8 @@ function M.attach(bufnr)
     move_subtree_down_alt = "move_down",
     meta_return = "meta_return",
     insert_todo = "insert_todo",
+    insert_heading_respect_content = "insert_heading_respect_content",
+    insert_todo_respect_content = "insert_todo_heading_respect_content",
   }
   local descs = {
     promote_subtree = "Promote subtree",
@@ -48,6 +50,8 @@ function M.attach(bufnr)
     move_subtree_down_alt = "Move subtree down (alt)",
     meta_return = "Insert element below (M-RET)",
     insert_todo = "Insert TODO heading / checkbox item below (M-S-RET)",
+    insert_heading_respect_content = "Insert heading after subtree content (C-RET)",
+    insert_todo_respect_content = "Insert TODO heading after subtree content (C-S-RET)",
   }
   local function dispatch(path)
     local entry = require("organ").cmd(path)

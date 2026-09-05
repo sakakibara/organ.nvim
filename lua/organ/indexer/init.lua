@@ -29,13 +29,17 @@ local db = require("organ.db")
 local SQL = {
   ins_file = "INSERT OR REPLACE INTO files(path, mtime, hash, indexed, extractor_version) VALUES (?, ?, ?, strftime('%s','now'), ?)",
   del_hl = "DELETE FROM headlines WHERE file_path = ?",
+  del_hl_elsewhere = "DELETE FROM headlines WHERE id = ? AND file_path <> ?",
   ins_hl = "INSERT INTO headlines(id, file_path, parent_id, level, title, "
     .. "todo_state, priority, scheduled, deadline, closed, "
     .. "scheduled_date, deadline_date, closed_date, "
     .. "line_start, line_end, commented) "
     .. "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-  ins_tag = "INSERT INTO tags(headline_id, tag) VALUES (?, ?)",
-  ins_prop = "INSERT INTO properties(headline_id, key, value) VALUES (?, ?, ?)",
+  -- Tags are a set (`:work:work:` is one tag to `org-get-tags`); a
+  -- repeated property key resolves to its last value, as `org-entry-get`
+  -- and the tags-view property matcher both do.
+  ins_tag = "INSERT OR IGNORE INTO tags(headline_id, tag) VALUES (?, ?)",
+  ins_prop = "INSERT OR REPLACE INTO properties(headline_id, key, value) VALUES (?, ?, ?)",
   ins_link = "INSERT INTO links(source_headline_id, target_type, target, description, line) "
     .. "VALUES (?, ?, ?, ?, ?)",
   ins_clock = "INSERT INTO clock_entries(headline_id, start_ts, end_ts, duration_seconds) "
@@ -48,7 +52,7 @@ local SQL = {
   upd_file_stamp = "UPDATE files SET mtime = ?, hash = ?, extractor_version = ? WHERE path = ?",
   del_file_tags = "DELETE FROM file_tags WHERE file_path = ?",
   ins_file_tag = "INSERT INTO file_tags (file_path, tag) VALUES (?, ?)",
-  ins_alias = "INSERT INTO aliases (headline_id, alias) VALUES (?, ?)",
+  ins_alias = "INSERT OR IGNORE INTO aliases (headline_id, alias) VALUES (?, ?)",
   del_file_todo_kw = "DELETE FROM file_todo_keywords WHERE file_path = ?",
   ins_file_todo_kw = "INSERT INTO file_todo_keywords"
     .. "(file_path, sequence_idx, ordinal, keyword, is_done) VALUES (?, ?, ?, ?, ?)",
@@ -107,6 +111,18 @@ function M.write_body(h, meta, headlines, on_yield)
   local row_chunk = h._organ_row_chunk or 10000
   local rows = 0
   for _, hl in ipairs(headlines) do
+    -- `headlines.id` is global, so a headline that moved here from
+    -- another file is still claimed by that file's stale row.  Release
+    -- it first; org-id resolves a duplicate `:ID:` to the last file
+    -- registered too.
+    stmts.del_hl_elsewhere:reset()
+    stmts.del_hl_elsewhere:bind_text(1, hl.id)
+    stmts.del_hl_elsewhere:bind_text(2, meta.path)
+    local rcde = stmts.del_hl_elsewhere:step()
+    if rcde ~= DONE then
+      error(string.format("del_hl_elsewhere rc=%d id=%s", rcde, tostring(hl.id)))
+    end
+
     stmts.ins_hl:reset()
     stmts.ins_hl:bind_text(1, hl.id)
     stmts.ins_hl:bind_text(2, meta.path)
@@ -413,7 +429,10 @@ function M.should_skip(h, file_path, mtime, hash)
   if stored_version ~= extract._extractor_version() then
     return nil
   end
-  if mtime ~= nil and stored_mtime == mtime then
+  -- One-second mtime granularity cannot separate "unchanged" from "saved
+  -- again within the same second as the last index", so equality only
+  -- proves staleness once that second has passed.
+  if mtime ~= nil and stored_mtime == mtime and mtime < os.time() then
     return "mtime"
   end
   if hash ~= nil and stored_hash == hash then

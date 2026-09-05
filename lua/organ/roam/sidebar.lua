@@ -146,19 +146,21 @@ local function ensure_target_win(state)
 end
 
 local function set_window_options(winid)
-  local wo = vim.wo[winid]
-  wo.number = false
-  wo.relativenumber = false
-  wo.wrap = false
-  wo.signcolumn = "no"
-  wo.foldcolumn = "0"
-  wo.cursorline = true
-  wo.colorcolumn = ""
-  wo.spell = false
-  wo.list = false
-  wo.winfixwidth = true
-  wo.statuscolumn = ""
-  wo.winhighlight = "Normal:NormalSB,SignColumn:NormalSB,EndOfBuffer:NormalSB"
+  local function set(name, value)
+    vim.api.nvim_set_option_value(name, value, { win = winid, scope = "local" })
+  end
+  set("number", false)
+  set("relativenumber", false)
+  set("wrap", false)
+  set("signcolumn", "no")
+  set("foldcolumn", "0")
+  set("cursorline", true)
+  set("colorcolumn", "")
+  set("spell", false)
+  set("list", false)
+  set("winfixwidth", true)
+  set("statuscolumn", "")
+  set("winhighlight", "Normal:NormalSB,SignColumn:NormalSB,EndOfBuffer:NormalSB")
 end
 
 -- Re-render the sidebar to show backlinks for `id`.  No-op when the

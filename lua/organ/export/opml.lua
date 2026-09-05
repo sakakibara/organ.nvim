@@ -16,23 +16,9 @@ function M.export(src, opts)
   else
     lines = src
   end
-  local text = table.concat(lines, "\n")
+  lines = require("organ.export.prepare").expand(lines, opts)
 
-  if opts.expand then
-    text = require("organ.expand").process(text, {
-      base_dir = opts.base_dir,
-      file_path = opts.file_path,
-      properties = opts.properties,
-    })
-    lines = vim.split(text, "\n", { plain = true })
-  end
-
-  local ast = require("organ.ast.from_org").from_lines(lines)
-  local ok, err = require("organ.ast").validate(ast)
-  if not ok then
-    error("export.opml: AST validation failed: " .. err)
-  end
-  ast = require("organ.ast.radio").resolve(ast)
+  local ast = require("organ.export.prepare").ast(lines, opts, "opml")
   return require("organ.ast.to_opml").render(ast, opts)
 end
 

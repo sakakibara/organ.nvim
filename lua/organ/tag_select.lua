@@ -30,7 +30,7 @@ local function buffer_tags(bufnr)
   local seen, out = {}, {}
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   for _, ln in ipairs(lines) do
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       local tag_run = ln:match("^.-%s+(:[%w_@#%%]+:.*)$")
       if tag_run and tag_run:match("^:[%w_@#%%]+:[%w_@#%%:]*$") then
         for tag in tag_run:gmatch(":([%w_@#%%]+)") do

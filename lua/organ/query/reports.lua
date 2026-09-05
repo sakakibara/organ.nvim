@@ -5,6 +5,35 @@ local M = {}
 
 local exec = require("organ.query.exec")
 
+-- Unix bounds of the inclusive local-calendar range [from, to], either
+-- end optional.  The upper bound is the next local midnight minus one
+-- second rather than +86400: a DST boundary day is 23 or 25 hours long,
+-- and os.time normalises the day overflow with the right offset.
+local function day_bounds(from, to)
+  local function parts(date_str)
+    local y, mo, d = date_str:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
+    if not y then
+      return nil
+    end
+    return tonumber(y), tonumber(mo), tonumber(d)
+  end
+  local function midnight(date_str, plus_days)
+    local y, mo, d = parts(date_str)
+    if not y then
+      return nil
+    end
+    return os.time({ year = y, month = mo, day = d + plus_days, hour = 0, min = 0, sec = 0 })
+  end
+
+  local from_ts = (from and midnight(from, 0)) or 0
+  local to_midnight = to and midnight(to, 1)
+  local to_ts = to_midnight and (to_midnight - 1) or 2 ^ 31 - 1
+  if from_ts > to_ts then
+    from_ts, to_ts = to_ts, from_ts
+  end
+  return from_ts, to_ts
+end
+
 -- Returns headlines matching project_filter with NO entry in their subtree
 -- whose todo_state is in next_states. Pure read; no DB writes.
 function M.stuck_projects(opts)
@@ -66,9 +95,16 @@ function M.stuck_projects(opts)
   end
   s:finalize()
 
+  -- Emacs searches the skip regexp from the project headline itself, so
+  -- a project already in a next state counts as unstuck.
+  local next_set = {}
+  for _, st in ipairs(next_states) do
+    next_set[st] = true
+  end
+
   local stuck = {}
   for _, p in ipairs(projects) do
-    if not active_parents[p.id] then
+    if not active_parents[p.id] and not next_set[p.todo_state] then
       stuck[#stuck + 1] = p
     end
   end
@@ -119,35 +155,32 @@ function M.file_todo_keywords(file_paths, opts)
     return {}
   end
   local h = exec.resolve_db(opts)
-  -- Build a parameterised IN list (one `?` per path).
-  local placeholders = {}
-  for i = 1, #file_paths do
-    placeholders[i] = "?"
-  end
-  local sql = "SELECT file_path, keyword, is_done FROM file_todo_keywords"
-    .. " WHERE file_path IN ("
-    .. table.concat(placeholders, ",")
-    .. ")"
-  local s = exec.prepare(h, sql)
-  for i, path in ipairs(file_paths) do
-    s:bind_text(i, path)
-  end
   local db = require("organ.db")
   local out = {}
-  while s:step() == db.SQLITE_ROW do
-    local path = s:column_text(0)
-    local kw = s:column_text(1)
-    local is_done = s:column_int(2) == 1
-    if not out[path] then
-      out[path] = { active = {}, done = {} }
+  for _, part in ipairs(exec.chunked(file_paths)) do
+    local sql = "SELECT file_path, keyword, is_done FROM file_todo_keywords"
+      .. " WHERE file_path IN ("
+      .. exec.placeholders_for(part)
+      .. ")"
+    local s = exec.prepare(h, sql)
+    for i, path in ipairs(part) do
+      s:bind_text(i, path)
     end
-    if is_done then
-      out[path].done[kw] = true
-    else
-      out[path].active[kw] = true
+    while s:step() == db.SQLITE_ROW do
+      local path = s:column_text(0)
+      local kw = s:column_text(1)
+      local is_done = s:column_int(2) == 1
+      if not out[path] then
+        out[path] = { active = {}, done = {} }
+      end
+      if is_done then
+        out[path].done[kw] = true
+      else
+        out[path].active[kw] = true
+      end
     end
+    s:finalize()
   end
-  s:finalize()
   return out
 end
 
@@ -165,52 +198,58 @@ function M.habit_completions(opts)
     return {}
   end
 
-  local where, params = {}, {}
+  -- Empty means "no headline filter"; the loop below still runs once.
   local single_id = nil
+  local id_batches = {}
   if type(opts.headline_id) == "string" then
-    where[#where + 1] = "headline_id = ?"
-    params[#params + 1] = opts.headline_id
     single_id = opts.headline_id
+    id_batches = { { opts.headline_id } }
   elseif type(opts.headline_id) == "table" and #opts.headline_id > 0 then
-    local placeholders = {}
-    for _, id in ipairs(opts.headline_id) do
-      placeholders[#placeholders + 1] = "?"
-      params[#params + 1] = id
-    end
-    where[#where + 1] = "headline_id IN (" .. table.concat(placeholders, ",") .. ")"
+    id_batches = exec.chunked(opts.headline_id)
   end
-  if opts.from then
-    where[#where + 1] = "date >= ?"
-    params[#params + 1] = opts.from
-  end
-  if opts.to then
-    where[#where + 1] = "date <= ?"
-    params[#params + 1] = opts.to
-  end
-  local sql = "SELECT headline_id, date FROM habit_completions"
-  if #where > 0 then
-    sql = sql .. " WHERE " .. table.concat(where, " AND ")
-  end
-  sql = sql .. " ORDER BY headline_id, date"
 
-  local s, _ = h:prepare(sql)
-  if not s then
-    return {}
-  end
-  for i, p in ipairs(params) do
-    s:bind_text(i, p)
-  end
   local db = require("organ.db")
   local result = {}
-  while s:step() == db.SQLITE_ROW do
-    local id = s:column_text(0)
-    local date = s:column_text(1)
-    if not result[id] then
-      result[id] = {}
+  for i = 1, math.max(#id_batches, 1) do
+    local ids = id_batches[i]
+    local where, params = {}, {}
+    if ids then
+      where[#where + 1] = "headline_id IN (" .. exec.placeholders_for(ids) .. ")"
+      for _, id in ipairs(ids) do
+        params[#params + 1] = id
+      end
     end
-    result[id][#result[id] + 1] = date
+    if opts.from then
+      where[#where + 1] = "date >= ?"
+      params[#params + 1] = opts.from
+    end
+    if opts.to then
+      where[#where + 1] = "date <= ?"
+      params[#params + 1] = opts.to
+    end
+    local sql = "SELECT headline_id, date FROM habit_completions"
+    if #where > 0 then
+      sql = sql .. " WHERE " .. table.concat(where, " AND ")
+    end
+    sql = sql .. " ORDER BY headline_id, date"
+
+    local s = h:prepare(sql)
+    if not s then
+      return {}
+    end
+    for j, p in ipairs(params) do
+      s:bind_text(j, p)
+    end
+    while s:step() == db.SQLITE_ROW do
+      local id = s:column_text(0)
+      local date = s:column_text(1)
+      if not result[id] then
+        result[id] = {}
+      end
+      result[id][#result[id] + 1] = date
+    end
+    s:finalize()
   end
-  s:finalize()
 
   if single_id then
     return result[single_id] or {}
@@ -283,25 +322,7 @@ function M.clock_entries(opts)
     return {}
   end
 
-  local function day_start(date_str)
-    local y, mo, d = date_str:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
-    if not y then
-      return nil
-    end
-    return os.time({
-      year = tonumber(y),
-      month = tonumber(mo),
-      day = tonumber(d),
-      hour = 0,
-      min = 0,
-      sec = 0,
-    })
-  end
-  local from_ts = opts.from and day_start(opts.from) or 0
-  local to_ts = opts.to and (day_start(opts.to) + 86400 - 1) or 2 ^ 31 - 1
-  if from_ts > to_ts then
-    from_ts, to_ts = to_ts, from_ts
-  end
+  local from_ts, to_ts = day_bounds(opts.from, opts.to)
 
   local active_dur = (opts.include_active == true)
       and string.format("CASE WHEN ce.end_ts IS NULL THEN (%d - ce.start_ts) ELSE 0 END", os.time())
@@ -404,25 +425,7 @@ function M.state_changes(opts)
   if not h then
     return {}
   end
-  local function day_start(date_str)
-    local y, mo, d = date_str:match("^(%d%d%d%d)%-(%d%d)%-(%d%d)$")
-    if not y then
-      return nil
-    end
-    return os.time({
-      year = tonumber(y),
-      month = tonumber(mo),
-      day = tonumber(d),
-      hour = 0,
-      min = 0,
-      sec = 0,
-    })
-  end
-  local from_ts = opts.from and day_start(opts.from) or 0
-  local to_ts = opts.to and (day_start(opts.to) + 86400 - 1) or 2 ^ 31 - 1
-  if from_ts > to_ts then
-    from_ts, to_ts = to_ts, from_ts
-  end
+  local from_ts, to_ts = day_bounds(opts.from, opts.to)
 
   local where = { "sc.ts BETWEEN ? AND ?" }
   local params = { from_ts, to_ts }

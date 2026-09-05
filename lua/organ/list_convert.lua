@@ -22,12 +22,12 @@ local function is_item(line)
 end
 
 local function is_headline(line)
-  return (line or ""):match("^%*+%s") ~= nil
+  return (line or ""):match("^%*+ ") ~= nil
 end
 
 local function nearest_headline_level(lines, lnum)
   for i = lnum - 1, 1, -1 do
-    local stars = (lines[i] or ""):match("^(%*+)%s")
+    local stars = (lines[i] or ""):match("^(%*+) ")
     if stars then
       return #stars
     end
@@ -138,7 +138,7 @@ end
 local function headline_to_item(bufnr, lnum, line)
   local todo = require("organ.todo")
   local sequences = todo.effective_sequences(bufnr)
-  local body = line:match("^%*+%s*(.*)$")
+  local body = line:match("^%*+ *(.*)$")
   local keyword
   local first, rest = body:match("^(%S+)%s*(.*)$")
   if first and vim.tbl_contains(todo.all_keywords(sequences), first) then
@@ -153,7 +153,7 @@ local function headline_to_item(bufnr, lnum, line)
   local start_ind = 0
   if (require("organ.buf_config").read(bufnr, "indent") or {}).adapt_indentation then
     for i = lnum - 1, 1, -1 do
-      local stars = (vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""):match("^(%*+)%s")
+      local stars = (vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""):match("^(%*+) ")
       if stars then
         start_ind = #stars + 1
         break
@@ -220,7 +220,7 @@ function M.toggle_heading(opts)
   local line = lines[lnum] or ""
 
   if is_headline(line) then
-    obuf.set_lines(bufnr, lnum - 1, lnum, { line:match("^%*+%s+(.*)$") or "" })
+    obuf.set_lines(bufnr, lnum - 1, lnum, { line:match("^%*+ +(.*)$") or "" })
     return "to_text"
   end
 

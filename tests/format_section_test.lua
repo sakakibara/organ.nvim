@@ -119,8 +119,10 @@ do
   end)
 end
 
--- 2. Repair: property drawer placed BEFORE the planning line.
---    After format_buffer, SCHEDULED appears above :PROPERTIES:.
+-- 2. A SCHEDULED line below the property drawer is body text to org
+--    (`org-entry-get` reads planning only from the line directly under the
+--    headline).  Hoisting it would turn prose into a real deadline, so the
+--    section pass leaves the order alone.
 do
   local input = {
     "* TODO Repair test",
@@ -136,7 +138,6 @@ do
     fmt.format_buffer(b)
     local lines = get_lines(b)
 
-    -- Find positions of the planning line and the :PROPERTIES: line.
     local sched_row, props_row
     for i, l in ipairs(lines) do
       if l:match("SCHEDULED:") and not sched_row then
@@ -149,8 +150,8 @@ do
     check("repair: SCHEDULED present after format", sched_row ~= nil, vim.inspect(lines))
     check("repair: :PROPERTIES: present after format", props_row ~= nil, vim.inspect(lines))
     check(
-      "repair: SCHEDULED row < :PROPERTIES: row (canonical order restored)",
-      sched_row ~= nil and props_row ~= nil and sched_row < props_row,
+      "repair: the SCHEDULED line stays below :PROPERTIES:",
+      sched_row ~= nil and props_row ~= nil and sched_row > props_row,
       "sched_row="
         .. tostring(sched_row)
         .. " props_row="

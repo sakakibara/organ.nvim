@@ -51,7 +51,7 @@ assert(nframes == 2, "expected 2 \\end{frame}; got " .. nframes)
 assert_contains(out, "\\begin{itemize}")
 assert_contains(out, "\\item bullet 1")
 assert_contains(out, "\\textbf{bold}")
-assert_contains(out, "\\verb|verb|")
+assert_contains(out, "\\texttt{verb}")
 
 -- body_only suppresses preamble.
 local body = beamer.export("* Slide\nbody\n", { body_only = true })

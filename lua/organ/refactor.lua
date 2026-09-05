@@ -68,7 +68,7 @@ function M.plan(target_row, new_name)
       -- Fallback for buffers without a parser.
       local lines = vim.fn.readfile(fp)
       local line = lines[idx] or ""
-      local stars, rest = line:match("^(%*+)%s+(.*)$")
+      local stars, rest = line:match("^(%*+) +(.*)$")
       if stars and rest then
         local seq = require("organ.buf_config").read(nil, "todo.sequence") or {}
         local cursor = #stars + 1

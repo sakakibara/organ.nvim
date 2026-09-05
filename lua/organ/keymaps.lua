@@ -48,6 +48,22 @@ M.defaults = {
   { "<LocalLeader>L", "Org insert_link", desc = "Insert stored link" },
   { "<LocalLeader>@", "Org attach open", desc = "Open attachment" },
   { "<LocalLeader>%", "Org attach reveal", desc = "Reveal attach dir" },
+  { "<LocalLeader>^", "Org sort_entries", desc = "Sort sibling headlines" },
+  { "<LocalLeader>;", "Org toggle_comment", desc = "Toggle COMMENT keyword" },
+  { "<LocalLeader>y", "Org evaluate_time_range", desc = "Duration of time range" },
+  {
+    "<LocalLeader>:",
+    "Org toggle_fixed_width",
+    desc = "Toggle fixed-width prefix",
+    mode = { "n", "x" },
+  },
+  -- Emacs binds org-add-note to C-c C-z, but `\z` is organ's view-toggle
+  -- group, so the note takes the capital.
+  { "<LocalLeader>Z", "Org add_note", desc = "Add note to LOGBOOK" },
+  -- Emacs binds org-mark-ring-push to C-c %, but `\%` is already attach
+  -- reveal, so only the goto side keeps its Emacs key.
+  { "<LocalLeader>M", "Org mark_ring push", desc = "Push position to mark ring" },
+  { "<LocalLeader>&", "Org mark_ring goto", desc = "Jump back via mark ring" },
 
   -- Neovim convention single-key
   { "<CR>", "Org follow_link", desc = "Follow link at cursor" },
@@ -80,13 +96,31 @@ M.defaults = {
   { "<LocalLeader>lr", "Org list repair", desc = "Renumber list" },
   { "<LocalLeader>ls", "Org list sort", desc = "Sort list" },
   { "<LocalLeader>lh", "Org list to_subtree", desc = "Convert list to subtree" },
+  { "<LocalLeader>lb", "Org list cycle_bullet", desc = "Cycle list bullet" },
   { "<LocalLeader>l-", "Org toggle_item", desc = "Toggle list item (C-c -)" },
   { "<LocalLeader>l*", "Org toggle_heading", desc = "Toggle headline (C-c *)" },
+
+  -- emphasis (Emacs C-c C-x C-f, which prompts for the marker; each
+  -- marker gets its own chord here, `<Space>` removing emphasis as it
+  -- does at that prompt)
+  { "<LocalLeader>m*", "Org emphasize *", desc = "Bold", mode = { "n", "x" } },
+  { "<LocalLeader>m/", "Org emphasize /", desc = "Italic", mode = { "n", "x" } },
+  { "<LocalLeader>m_", "Org emphasize _", desc = "Underline", mode = { "n", "x" } },
+  { "<LocalLeader>m=", "Org emphasize =", desc = "Verbatim", mode = { "n", "x" } },
+  { "<LocalLeader>m~", "Org emphasize ~", desc = "Code", mode = { "n", "x" } },
+  { "<LocalLeader>m+", "Org emphasize +", desc = "Strike-through", mode = { "n", "x" } },
+  {
+    "<LocalLeader>m<Space>",
+    "Org emphasize remove",
+    desc = "Remove emphasis",
+    mode = { "n", "x" },
+  },
 
   -- subtree clipboard (capital S; `s` stays free for schedule)
   { "<LocalLeader>Sc", "Org cut_subtree", desc = "Cut subtree" },
   { "<LocalLeader>Sy", "Org copy_subtree", desc = "Copy subtree" },
   { "<LocalLeader>Sp", "Org paste_subtree", desc = "Paste subtree" },
+  { "<LocalLeader>Sr", "Org refile_copy", desc = "Refile a copy of subtree" },
 
   -- view toggles -- uniform: every <LocalLeader>z<x> flips a single
   -- buf_config bit via `:Org toggle <path>`.  Per-buffer (not global)
@@ -108,7 +142,7 @@ M.defaults = {
   -- sparse-tree views
   { "<LocalLeader>vt", "Org sparse_tree todo", desc = "Sparse tree: TODO" },
   { "<LocalLeader>v#", "Org sparse_tree tag", desc = "Sparse tree by tag" },
-  { "<LocalLeader>v/", "Org sparse_tree regex", desc = "Sparse tree by regex" },
+  { "<LocalLeader>v/", "Org sparse_tree regex", desc = "Sparse tree by Lua pattern" },
   { "<LocalLeader>vm", "Org sparse_tree match", desc = "Sparse tree by match" },
   { "<LocalLeader>vc", "Org sparse_tree clear", desc = "Clear sparse tree" },
 
@@ -159,6 +193,7 @@ M.groups = {
   { "<LocalLeader>g", group = "goto / id / image" },
   { "<LocalLeader>i", group = "insert" },
   { "<LocalLeader>l", group = "list" },
+  { "<LocalLeader>m", group = "emphasis" },
   { "<LocalLeader>n", group = "roam" },
   { "<LocalLeader>p", group = "property" },
   { "<LocalLeader>S", group = "subtree clipboard" },
@@ -205,6 +240,15 @@ local function make_callback(rhs)
   end
   if type(rhs) == "string" then
     return function()
+      local mode = vim.fn.mode()
+      if mode == "v" or mode == "V" or mode == "\22" then
+        -- Leave visual mode first so `'<` / `'>` describe the selection
+        -- that was just made, then run the command over it.
+        local esc = vim.api.nvim_replace_termcodes("<Esc>", true, false, true)
+        vim.api.nvim_feedkeys(esc, "nx", false)
+        vim.cmd("'<,'>" .. rhs)
+        return
+      end
       vim.cmd(rhs)
     end
   end

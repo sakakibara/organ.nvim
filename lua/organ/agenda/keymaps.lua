@@ -406,6 +406,29 @@ end
 -- (`B`) iterates marked rows and applies one of: state change,
 -- schedule, deadline, refile, archive, delete-subtree.
 local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
+  -- Resolve every marked row to its source (buffer, line) BEFORE the first
+  -- edit, then apply bottom-up: an edit changes the line count of the
+  -- source, so any line resolved from the agenda snapshot below the edit
+  -- is stale the moment the edit lands.
+  local function apply_resolved(marked_rows, fn)
+    local resolved = {}
+    for _, r in ipairs(marked_rows) do
+      local target, lnum = source_for(r)
+      if target then
+        resolved[#resolved + 1] = { bufnr = target, line = lnum }
+      end
+    end
+    table.sort(resolved, function(a, b)
+      if a.bufnr ~= b.bufnr then
+        return a.bufnr < b.bufnr
+      end
+      return a.line > b.line
+    end)
+    for _, e in ipairs(resolved) do
+      pcall(fn, e.bufnr, e.line)
+    end
+  end
+
   -- Mark id: row.id when present; else file_path .. ":" .. line_start.
   local function row_mark_id(r)
     if not r then
@@ -534,6 +557,12 @@ local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
           return
         end
         local kind = actions[idx][2]
+        local function finish()
+          state.bulk_marked = {}
+          vstate.set(bufnr, state)
+          redraw_bulk_signs()
+          agenda.refresh(bufnr)
+        end
         local apply
         if kind == "todo" then
           local cfg = require("organ.buf_config").read(nil, "todo") or {}
@@ -548,26 +577,32 @@ local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
               return
             end
             local new_state = state_choice == "(none)" and nil or state_choice
-            for _, r in ipairs(marked_rows) do
-              local target, lnum = source_for(r)
-              if target then
-                pcall(require("organ.todo").set, target, lnum, new_state)
-              end
-            end
-            state.bulk_marked = {}
-            vstate.set(bufnr, state)
-            redraw_bulk_signs()
-            agenda.refresh(bufnr)
+            apply_resolved(marked_rows, function(target, lnum)
+              require("organ.todo").set(target, lnum, new_state)
+            end)
+            finish()
           end)
           return
-        elseif kind == "schedule" then
-          apply = function(target, lnum)
-            require("organ.schedule").set_schedule(target, lnum)
-          end
-        elseif kind == "deadline" then
-          apply = function(target, lnum)
-            require("organ.schedule").set_deadline(target, lnum)
-          end
+        elseif kind == "schedule" or kind == "deadline" then
+          -- One date for the whole selection, as `org-agenda-bulk-action`
+          -- does: it reads the date once and replays it on every marked
+          -- entry.
+          local deadline = kind == "deadline"
+          require("organ.calendar").pick(
+            { title = deadline and "Deadline (all marked)" or "Schedule (all marked)", time = true },
+            function(iso, time_info)
+              if not iso then
+                return
+              end
+              apply_resolved(marked_rows, function(target, lnum)
+                local set = deadline and require("organ.schedule").set_deadline
+                  or require("organ.schedule").set_schedule
+                set({ bufnr = target, line = lnum, date = iso, time = time_info })
+              end)
+              finish()
+            end
+          )
+          return
         elseif kind == "refile" then
           -- Bulk-refile is fiddly (one target, multiple sources) -- fall
           -- back to triggering the per-row refile picker for each marked
@@ -581,7 +616,7 @@ local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
           end
         elseif kind == "archive" then
           apply = function(target, lnum)
-            require("organ.archive").archive_subtree(target, lnum)
+            require("organ.archive").archive_subtree({ bufnr = target, line = lnum })
           end
         elseif kind == "delete" then
           local confirm = vim.fn.confirm(
@@ -603,24 +638,13 @@ local function install_bulk_maps(map, bufnr, agenda, current_row, source_for)
             end
           end
           local snapshot = agenda.bulk_delete_apply(bufnr, resolved)
-          state.bulk_marked = {}
-          vstate.set(bufnr, state)
-          redraw_bulk_signs()
-          agenda.refresh(bufnr)
+          finish()
           require("organ.notify").info(("Deleted %d subtree(s). `u` to undo."):format(#snapshot))
           return
         end
         if apply then
-          for _, r in ipairs(marked_rows) do
-            local target, lnum = source_for(r)
-            if target then
-              pcall(apply, target, lnum)
-            end
-          end
-          state.bulk_marked = {}
-          vstate.set(bufnr, state)
-          redraw_bulk_signs()
-          agenda.refresh(bufnr)
+          apply_resolved(marked_rows, apply)
+          finish()
         end
       end
     )
@@ -688,7 +712,7 @@ local function install_edit_maps(map, bufnr, agenda, current_row, source_for)
     if not target then
       return
     end
-    local err = require("organ.archive").archive_subtree(target, lnum)
+    local err = require("organ.archive").archive_subtree({ bufnr = target, line = lnum })
     if err then
       require("organ.notify").error(tostring(err))
       return
@@ -790,7 +814,7 @@ local function install_edit_maps(map, bufnr, agenda, current_row, source_for)
     if not target then
       return
     end
-    require("organ.schedule").set_schedule(target, lnum)
+    require("organ.schedule").set_schedule({ bufnr = target, line = lnum })
   end, "schedule")
 
   map("D", function()
@@ -802,7 +826,7 @@ local function install_edit_maps(map, bufnr, agenda, current_row, source_for)
     if not target then
       return
     end
-    require("organ.schedule").set_deadline(target, lnum)
+    require("organ.schedule").set_deadline({ bufnr = target, line = lnum })
   end, "deadline")
 
   -- Clocking from agenda.

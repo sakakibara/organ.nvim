@@ -118,6 +118,9 @@ local function on_win(bufnr, _winid, topline, botline)
   if not vim.api.nvim_buf_is_valid(bufnr) then
     return
   end
+  if vim.bo[bufnr].filetype ~= "org" then
+    return
+  end
   if not M._attached[bufnr] then
     return
   end
@@ -131,7 +134,7 @@ local function on_win(bufnr, _winid, topline, botline)
   local in_drawer, in_block = false, false
   for i, txt in ipairs(lines) do
     local row = i - 1
-    local stars = txt:match("^(%*+)%s") or txt:match("^(%*+)$")
+    local stars = txt:match("^(%*+) ") or txt:match("^(%*+)$")
     if stars then
       local level = #stars
       current_level = level

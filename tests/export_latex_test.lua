@@ -19,6 +19,7 @@ end
 -- 1. Headlines map to article-class section commands.
 do
   local out = tex.export([[
+#+OPTIONS: H:5
 * Top
 ** Sub
 *** Deep
@@ -66,7 +67,7 @@ do
 This is *bold* and =verb= and [[https://example.com][a link]].
 ]==])
   assert_contains(out, "\\textbf{bold}")
-  assert_contains(out, "\\verb|verb|")
+  assert_contains(out, "\\texttt{verb}")
   assert_contains(out, "\\href{https://example.com}{a link}")
 end
 
@@ -78,8 +79,9 @@ Cost is 50% & $\alpha$ uses literal $.
 ]])
   assert_contains(out, "50\\%")
   assert_contains(out, "\\&")
-  -- Math chunk preserved verbatim (NOT escaped).
-  assert_contains(out, "$\\alpha$")
+  -- Math chunk preserved verbatim (NOT escaped); ox-latex writes an
+  -- inline fragment with the \( \) delimiters.
+  assert_contains(out, "\\(\\alpha\\)")
 end
 
 -- 6. List + ordered list (two blank lines end a list per Emacs; one

@@ -240,7 +240,7 @@ local function locate_search(lines, search)
     local title = search:sub(2)
     local star_count, body_start
     for i, l in ipairs(lines) do
-      local stars, rest = l:match("^(%*+)%s+(.+)$")
+      local stars, rest = l:match("^(%*+) +(.+)$")
       if stars then
         local clean = rest:gsub("%s+:[%w_:@]+:%s*$", "")
         if clean == title or rest == title then
@@ -256,7 +256,7 @@ local function locate_search(lines, search)
     -- Find next sibling-or-shallower headline.
     local body_end = #lines
     for j = body_start + 1, #lines do
-      local stars = lines[j]:match("^(%*+)%s")
+      local stars = lines[j]:match("^(%*+) ")
       if stars and #stars <= star_count then
         body_end = j - 1
         break
@@ -303,7 +303,7 @@ local function adjust_levels(lines, minlevel)
   -- Find the smallest existing headline level.
   local smallest
   for _, l in ipairs(lines) do
-    local stars = l:match("^(%*+)%s")
+    local stars = l:match("^(%*+) ")
     if stars and (not smallest or #stars < smallest) then
       smallest = #stars
     end
@@ -316,7 +316,7 @@ local function adjust_levels(lines, minlevel)
     return lines
   end
   for i, l in ipairs(lines) do
-    local stars, rest = l:match("^(%*+)(%s.*)$")
+    local stars, rest = l:match("^(%*+)( .*)$")
     if stars then
       local new = #stars + delta
       if new < 1 then
@@ -529,26 +529,35 @@ function M.expand_macros(text, ctx, max_passes)
   max_passes = max_passes or 8
   for _ = 1, max_passes do
     local changed = false
+    -- An undefined macro is left verbatim. Emacs aborts the whole export
+    -- at this point; expansion runs on every organ export, so silently
+    -- deleting the text the user wrote would be the worse of the two.
     local replaced = text:gsub("{{{([%w_-]+)(%b())}}}", function(name, paren)
-      changed = true
       local args = split_args(paren:sub(2, -2))
       local b = builtin_macro(name, args, ctx)
       if b ~= nil then
+        changed = true
         return b
       end
       local body = ctx.macros[name]
       if body then
+        changed = true
         return substitute_placeholders(body, args)
       end
-      return ""
+      return nil
     end)
     replaced = replaced:gsub("{{{([%w_-]+)}}}", function(name)
-      changed = true
       local b = builtin_macro(name, {}, ctx)
       if b ~= nil then
+        changed = true
         return b
       end
-      return ctx.macros[name] or ""
+      local body = ctx.macros[name]
+      if body then
+        changed = true
+        return body
+      end
+      return nil
     end)
     text = replaced
     if not changed then

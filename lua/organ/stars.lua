@@ -8,7 +8,7 @@
 -- Off by default; opt in via `config.stars.hide = true`.
 --
 -- Runs as an `organ.decoration` provider: `on_win` scans rows in the
--- visible window range with a leading-`(%*+)%s` regex and builds a
+-- visible window range with a leading-`(%*+) ` regex and builds a
 -- module-local frame-row -> star-count map.  Regex (rather than
 -- tree-sitter) is the right tool here: counting leading stars on a
 -- headline is a flat byte-prefix check that doesn't benefit from
@@ -19,9 +19,6 @@
 local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_stars_hide")
-
--- Per-window saved conceallevel so detach() restores rather than nukes.
-M._saved_conceallevel = M._saved_conceallevel or {}
 
 -- Frame-local row map: frame_map[row] = leading-star count (>= 2).
 -- Reset at the start of every on_win call; read by on_line for the
@@ -42,7 +39,7 @@ local function on_win(bufnr, _winid, topline, botline)
   end
   local lines = vim.api.nvim_buf_get_lines(bufnr, topline, botline + 1, false)
   for i, line in ipairs(lines) do
-    local stars = line:match("^(%*+)%s")
+    local stars = line:match("^(%*+) ")
     if stars and #stars >= 2 then
       frame_map[topline + i - 1] = #stars
     end
@@ -127,13 +124,7 @@ end
 -- waiting for a frame.
 function M.attach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  local winid = vim.api.nvim_get_current_win()
-  if M._saved_conceallevel[winid] == nil then
-    M._saved_conceallevel[winid] = vim.wo.conceallevel
-  end
-  if vim.wo.conceallevel < 2 then
-    vim.wo.conceallevel = 2
-  end
+  require("organ.conceal").request_level_for_buf(bufnr, "stars")
   pcall(function()
     require("organ.decoration").attach(bufnr)
   end)
@@ -143,11 +134,7 @@ end
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  local winid = vim.api.nvim_get_current_win()
-  if M._saved_conceallevel[winid] ~= nil then
-    vim.wo.conceallevel = M._saved_conceallevel[winid]
-    M._saved_conceallevel[winid] = nil
-  end
+  require("organ.conceal").release_level_for_buf(bufnr, "stars")
 end
 
 function M.toggle(bufnr)

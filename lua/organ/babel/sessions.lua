@@ -3,15 +3,22 @@
 -- Without sessions, every `#+begin_src python` block runs in a fresh
 -- process; variables and imports don't carry between blocks. With
 -- `:session foo`, all blocks tagged `:session foo` share one long-
--- lived interpreter — the standard literate-programming workflow.
+-- lived interpreter -- the standard literate-programming workflow.
 --
 -- Supported languages (initial):
 --   python  -> `python3 -i -u -q`
---   sh / bash  → `bash -i`
+--   sh / bash  -> `sh` / `bash` reading commands from stdin. Not `-i`:
+--                 an interactive shell writes its prompt, readline's
+--                 terminal setup and a job-control notice into the result.
 --
 -- Mechanism: spawn the interpreter via vim.uv.spawn, write the block's
 -- body to its stdin followed by a unique sentinel that we then look
 -- for in stdout. Output before the sentinel = the block's result.
+--
+-- An evaluation that times out is abandoned, not forgotten: its sentinel
+-- is recorded and the next evaluation drains the interpreter up to it, so
+-- late output can never surface as another block's result. An interpreter
+-- that never reaches the abandoned sentinel is replaced.
 --
 -- Python gets the whole body as one exec(compile(...)) statement, as
 -- ob-python does, so compound statements survive the REPL's line-at-a-
@@ -73,7 +80,7 @@ local LANGS = {
   },
   sh = {
     cmd = "sh",
-    args = { "-i" },
+    args = {},
     merge_stderr = true,
     sentinel_fn = function(s)
       return "echo '" .. s .. "'"
@@ -84,16 +91,13 @@ local LANGS = {
   },
   bash = {
     cmd = "bash",
-    args = { "-i" },
+    args = {},
     merge_stderr = true,
     sentinel_fn = function(s)
       return "echo '" .. s .. "'"
     end,
     clean = function(text)
-      text = text:gsub("\r", "")
-      -- Strip bash's "bash: no job control in this shell" if it leaks.
-      text = text:gsub("bash: no job control in this shell\n", "")
-      return text
+      return (text:gsub("\r", ""))
     end,
   },
 }
@@ -175,12 +179,41 @@ function M.ensure(lang, name)
   return fresh
 end
 
+M.DEFAULT_TIMEOUT_MS = 10000
+
+-- Wait for `sentinel` plus the newline that ends its own line: returning on
+-- the sentinel alone leaves that byte in flight, and it lands at the head of
+-- the next eval's output. Returns the offset of the sentinel, or nil.
+local function await_sentinel(s, sentinel, timeout_ms)
+  local at
+  local got = vim.wait(timeout_ms, function()
+    at = s.out:find(sentinel, 1, true)
+    return at ~= nil and s.out:find("\n", at + #sentinel, true) ~= nil
+  end, 20)
+  return got and at or nil
+end
+
 -- Public: evaluate `body` in (lang, name)'s session. Returns the
 -- captured output string, or nil + err on failure.
 function M.eval(lang, name, body, timeout_ms)
+  timeout_ms = timeout_ms or M.DEFAULT_TIMEOUT_MS
   local s, err = M.ensure(lang, name)
   if not s then
     return nil, err
+  end
+  if s.abandoned then
+    -- A previous evaluation timed out and its output is still coming. Let it
+    -- land and throw it away; an interpreter that never gets there is wedged
+    -- and is replaced rather than allowed to bleed into this block's result.
+    local reached = await_sentinel(s, s.abandoned, timeout_ms)
+    if not reached then
+      M.stop_session(lang, name)
+      s, err = M.ensure(lang, name)
+      if not s then
+        return nil, err
+      end
+    end
+    s.abandoned = nil
   end
   local sentinel = "__ORG_BABEL_END_" .. tostring(math.random(1, 1e9)) .. "__"
   s.out = ""
@@ -189,15 +222,9 @@ function M.eval(lang, name, body, timeout_ms)
     body = s.conf.body_fn(body)
   end
   vim.uv.write(s.stdin, body .. "\n" .. marker .. "\n")
-  -- Wait for the newline that ends the sentinel's own line too: returning
-  -- on the sentinel alone leaves that byte in flight, and it lands at the
-  -- head of the next eval's output.
-  local at
-  local got = vim.wait(timeout_ms or 10000, function()
-    at = s.out:find(sentinel, 1, true)
-    return at ~= nil and s.out:find("\n", at + #sentinel, true) ~= nil
-  end, 20)
-  if not got then
+  local at = await_sentinel(s, sentinel, timeout_ms)
+  if not at then
+    s.abandoned = sentinel
     return nil, "timed out waiting for session output (sentinel: " .. sentinel .. ")"
   end
   local before = s.out:sub(1, at - 1)

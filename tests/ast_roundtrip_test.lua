@@ -272,6 +272,156 @@ do
   check("block: example survives round-trip", seen2.example ~= nil)
   check("block: verse survives round-trip", seen2.verse ~= nil)
   check("block: export survives round-trip", seen2.export ~= nil)
+
+  -- Body content, not just node presence: a block must stop before its
+  -- own `#+end_` line.
+  local function flat(nodes)
+    local out = {}
+    for _, n in ipairs(nodes or {}) do
+      if n.kind == "text" then
+        out[#out + 1] = n.text
+      elseif n.content then
+        out[#out + 1] = flat(n.content)
+      end
+    end
+    return table.concat(out)
+  end
+  local quote_text = seen.quote and flat(seen.quote.content[1] and seen.quote.content[1].inline)
+  check(
+    "block: quote body excludes the #+end_quote line",
+    quote_text == "A quote with emphasis.",
+    "got [" .. tostring(quote_text) .. "]"
+  )
+  check(
+    "block: example body excludes the #+end_example line",
+    seen.example and seen.example.body == "raw monospace; *no* emphasis parsing here.",
+    "got [" .. tostring(seen.example and seen.example.body) .. "]"
+  )
+  check(
+    "block: verse body excludes the #+end_verse line",
+    seen.verse and seen.verse.body == "Line one.\nLine two.",
+    "got [" .. tostring(seen.verse and seen.verse.body) .. "]"
+  )
+  check(
+    "block: export body excludes the #+end_export line",
+    seen.export and seen.export.body == "<p>passthrough</p>",
+    "got [" .. tostring(seen.export and seen.export.body) .. "]"
+  )
+end
+
+-- A custom greater block keeps its body and does not grow a second
+-- `#+end_` line on each round trip.
+do
+  local INPUT = { "#+begin_center", "centered text", "#+end_center" }
+  local doc = from_org.from_lines(INPUT)
+  local blk = doc.children[1]
+  check(
+    "greater block: custom style body is the inner lines only",
+    blk and blk.kind == "block" and blk.style == "center" and blk.body == "centered text",
+    vim.inspect(blk)
+  )
+  local pass1 = to_org.render(doc)
+  local pass2 = to_org.render(from_org.from_lines(lines_of(pass1)))
+  check(
+    "greater block: round trip is a fixed point",
+    pass1 == pass2,
+    "pass1=[" .. pass1 .. "] pass2=[" .. pass2 .. "]"
+  )
+  local _, ends = pass2:gsub("#%+end_center", "")
+  check("greater block: exactly one #+end_center", ends == 1, "got " .. ends)
+end
+
+-- Fixed-width lines are their own element; org-element strips the
+-- colon plus at most one space from each line.
+do
+  local INPUT = { ": fixed width line", ":   indented", ":" }
+  local doc = from_org.from_lines(INPUT)
+  local fw = doc.children[1]
+  check(
+    "fixed_width: emitted with the ': ' prefix stripped",
+    fw and fw.kind == "fixed_width" and fw.body == "fixed width line\n  indented\n",
+    vim.inspect(fw)
+  )
+  local pass1 = to_org.render(doc)
+  local pass2 = to_org.render(from_org.from_lines(lines_of(pass1)))
+  check("fixed_width: round trip is a fixed point", pass1 == pass2, pass1 .. " vs " .. pass2)
+end
+
+-- `#+RESULTS:` lands as an affiliated keyword on the element it heads.
+do
+  local doc = from_org.from_lines({ "#+RESULTS:", ": 42" })
+  local fw = doc.children[1]
+  check(
+    "fixed_width: #+RESULTS: attaches as an affiliated keyword",
+    fw and fw.kind == "fixed_width" and fw.body == "42" and fw.affiliated[1].name == "RESULTS",
+    vim.inspect(fw)
+  )
+end
+
+-- LaTeX environments survive verbatim.
+do
+  local INPUT = { "\\begin{equation}", "a = b", "\\end{equation}" }
+  local doc = from_org.from_lines(INPUT)
+  local env = doc.children[1]
+  check(
+    "latex_environment: emitted verbatim with its name",
+    env
+      and env.kind == "latex_environment"
+      and env.name == "equation"
+      and env.body == "\\begin{equation}\na = b\n\\end{equation}",
+    vim.inspect(env)
+  )
+  local pass1 = to_org.render(doc)
+  local pass2 = to_org.render(from_org.from_lines(lines_of(pass1)))
+  check("latex_environment: round trip is a fixed point", pass1 == pass2, pass1 .. " vs " .. pass2)
+end
+
+-- `$$...$$` keeps its dollar style; Emacs's LaTeX / ASCII / Markdown
+-- backends reproduce `$$`, so the AST must not normalize it away.
+do
+  local doc = from_org.from_lines({ "$$ x = 1 $$" })
+  local m = doc.children[1].inline[1]
+  check(
+    "math: display dollars keep style = dollar",
+    m and m.kind == "math" and m.display == true and m.style == "dollar",
+    vim.inspect(m)
+  )
+  check("math: to_org emits $$", to_org.render(doc):find("$$ x = 1 $$", 1, true) ~= nil)
+end
+
+-- Affiliated CAPTION carries parsed inline objects beside its raw value.
+do
+  local doc = from_org.from_lines({
+    "#+CAPTION: A caption with *bold*",
+    "#+NAME: tbl-one",
+    "| a | b |",
+  })
+  local tbl = doc.children[1]
+  local cap = tbl and tbl.affiliated and tbl.affiliated[1]
+  check(
+    "affiliated: CAPTION keeps its verbatim value",
+    cap and cap.name == "CAPTION" and cap.value == "A caption with *bold*",
+    vim.inspect(cap)
+  )
+  check(
+    "affiliated: CAPTION also carries inline objects",
+    cap and cap.inline and cap.inline[2] and cap.inline[2].kind == "emphasis",
+    vim.inspect(cap and cap.inline)
+  )
+  check(
+    "affiliated: NAME stays a plain string",
+    tbl.affiliated[2].name == "NAME" and tbl.affiliated[2].inline == nil
+  )
+end
+
+-- A NUL byte truncates the grammar's title span, so the section node
+-- starts inside the headline line.  The body must not re-emit it.
+do
+  local doc = from_org.from_lines({ "* Head\0nul", "note" })
+  local h = doc.children[1]
+  local para = h and h.children[1]
+  local text = para and para.inline[1] and para.inline[1].text
+  check("headline: NUL title is not duplicated into the body", text == "note", vim.inspect(h))
 end
 
 -- Table

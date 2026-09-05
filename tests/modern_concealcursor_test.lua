@@ -89,6 +89,45 @@ require("organ.buf_config").set(b, "modern.concealcursor", "nvic")
 render_in("i")
 check('concealcursor "nvic" keeps the decoration in insert mode', marks_on(1) > 0)
 
+-- The revealed row belongs to the FOCUSED window's cursor.  With the
+-- buffer in two splits, entering the other window moves the reveal with
+-- it -- the row the unfocused window sits on comes back decorated.
+require("organ.buf_config").set(b, "modern.concealcursor", "")
+local bottom = vim.api.nvim_get_current_win()
+vim.api.nvim_win_set_cursor(bottom, { 2, 0 })
+vim.cmd("split")
+local top = vim.api.nvim_get_current_win()
+vim.api.nvim_win_set_cursor(top, { 5, 0 })
+vim.cmd("doautocmd CursorMoved")
+vim.wait(150)
+check("two windows: the focused window's cursor line is raw", marks_on(4) == 0, "row 4 decorated")
+check("two windows: the other window's cursor line is decorated", marks_on(1) > 0, "row 1 raw")
+
+vim.api.nvim_set_current_win(bottom)
+vim.wait(150)
+check(
+  "after the switch: the newly focused cursor line is raw",
+  marks_on(1) == 0,
+  "row 1 still decorated"
+)
+check(
+  "after the switch: the line left behind is decorated again",
+  marks_on(4) > 0,
+  "row 4 still raw"
+)
+
+-- Nothing is revealed while no focused window sits on the buffer, even
+-- though a split still shows it.
+vim.cmd("split")
+vim.cmd("enew")
+vim.wait(150)
+check(
+  "no focused window on the buffer: nothing is revealed",
+  marks_on(1) > 0 and marks_on(4) > 0,
+  ("rows 1/4 have %d/%d marks"):format(marks_on(1), marks_on(4))
+)
+vim.cmd("only")
+
 vim.api.nvim_buf_delete(b, { force = true })
 
 if fails > 0 then

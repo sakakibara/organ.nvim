@@ -2,7 +2,7 @@
 -- first `**`'s body) have foldlevel(prev) >= foldlevel(cur) because
 -- body sits at body_level > max_heading_depth (required for CONTENTS
 -- view).  A level-compare statuscolumn would miss them.  The helper
--- treats any `^%*+%s` line as a fold start regardless of the
+-- treats any `^%*+ ` line as a fold start regardless of the
 -- transition.  Run via:
 --   nvim --headless -l tests/fold_statuscolumn_marker_test.lua
 

@@ -329,6 +329,47 @@ function M._range_has_headline(bufnr, start_line, end_line)
   return false
 end
 
+-- Toggle the COMMENT keyword on the headline that owns the cursor
+-- (Emacs org-toggle-comment, C-c ;).  The keyword sits after the TODO
+-- keyword and priority cookie, before the title; removing it takes the
+-- word wherever it already sits after the TODO keyword.  Returns nil on
+-- success or an error string.
+function M.toggle_comment(opts)
+  local bufnr, line = resolve(opts)
+  local hl = M._find_containing_headline(bufnr, line)
+  if not hl then
+    return "not inside a headline"
+  end
+  local text = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, hl.line, false)[1] or ""
+  local stars, body = text:match("^(%*+)%s+(.*)$")
+  if not stars then
+    return "not a headline line"
+  end
+  local head = stars .. " "
+  local first, rest_after = body:match("^(%S+)%s*(.*)$")
+  if first then
+    for _, kw in ipairs(require("organ.todo").all_keywords()) do
+      if kw == first then
+        head = head .. first .. " "
+        body = rest_after
+        break
+      end
+    end
+  end
+  local prio = body:match("^(%[#%w%])%s*")
+  if prio then
+    head = head .. prio .. " "
+    body = body:gsub("^%[#%w%]%s*", "")
+  end
+  if body:match("^COMMENT%s") or body == "COMMENT" then
+    body = body:gsub("^COMMENT%s*", "")
+  else
+    body = (body == "") and "COMMENT" or ("COMMENT " .. body)
+  end
+  obuf.set_lines(bufnr, hl.line - 1, hl.line, { head .. body })
+  return nil
+end
+
 -- Shift the level of EVERY headline in [start_line, end_line] by one
 -- step (Emacs region M-LEFT/M-RIGHT: "promotion and demotion work on
 -- all headlines in the region").  Shifting every heading uniformly
@@ -440,16 +481,16 @@ local function content_end(bufnr, start_line, end_line)
   return start_line
 end
 
--- Move the cursor to the moved subtree's new position, preserving the
--- original offset (delta from old subtree start, plus current column).
-local function follow_cursor(bufnr, old_start, new_start, orig_line)
+-- Move the cursor to the moved subtree's heading at its new position,
+-- keeping the column -- Emacs `org-move-subtree-down` ends with
+-- `goto-char ins-point`, `org-skip-whitespace`, `move-to-column col`.
+local function follow_cursor(bufnr, new_start)
   if bufnr ~= vim.api.nvim_get_current_buf() then
     return -- only adjust the active window's cursor
   end
   local _, col = unpack(vim.api.nvim_win_get_cursor(0))
-  local offset = orig_line - old_start
   local total = vim.api.nvim_buf_line_count(bufnr)
-  local target = math.max(1, math.min(total, new_start + offset))
+  local target = math.max(1, math.min(total, new_start))
   pcall(vim.api.nvim_win_set_cursor, 0, { target, col })
 end
 
@@ -507,7 +548,7 @@ function M.move_subtree_up(opts)
   end
   apply_fold_state(bufnr, restored)
   -- Cursor follows the moved subtree to its new position (matches Emacs).
-  follow_cursor(bufnr, hl.line, prev.line, line)
+  follow_cursor(bufnr, prev.line)
   return nil
 end
 
@@ -563,7 +604,7 @@ function M.move_subtree_down(opts)
   end
   apply_fold_state(bufnr, restored)
   -- Cursor follows the moved subtree to its new position (matches Emacs).
-  follow_cursor(bufnr, hl.line, new_cur_start, line)
+  follow_cursor(bufnr, new_cur_start)
   return nil
 end
 
@@ -667,6 +708,12 @@ M.commands = {
       end
     end,
     desc = "Swap the subtree at cursor with the next same-level sibling (Emacs M-DOWN)",
+  },
+  toggle_comment = {
+    fn = function()
+      run_op("toggle_comment")
+    end,
+    desc = "Toggle the COMMENT keyword on the headline at cursor (Emacs C-c ;)",
   },
   inline_task_insert = {
     fn = function(cmd)

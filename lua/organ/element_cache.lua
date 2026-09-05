@@ -25,7 +25,7 @@ local _cache = {} -- bufnr -> { tick, entries = { {line, level, title} } }
 local _stats = { hits = 0, misses = 0, rebuilds = 0 }
 
 local function parse_line(text)
-  local stars, rest = text:match("^(%*+)%s+(.*)$")
+  local stars, rest = text:match("^(%*+) +(.*)$")
   if stars then
     return #stars, rest
   end

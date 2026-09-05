@@ -31,7 +31,7 @@ local function at_headline_col0()
   if col ~= 0 then
     return false
   end
-  return line:match("^%*+%s") ~= nil
+  return line:match("^%*+ ") ~= nil
 end
 
 local DISPATCH = {

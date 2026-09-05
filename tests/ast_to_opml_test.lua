@@ -146,6 +146,41 @@ do
   )
 end
 
+-- C0 control bytes must not reach the XML: they make it unparseable.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("Ti\0tle\1with\127controls") },
+      children = { A.paragraph({ A.text("no\0te\tbody") }) },
+    }),
+  })
+  local out = to_opml.render(doc)
+  check(
+    "control bytes stripped from text=",
+    out:find('text="Titlewithcontrols"', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "tab folded to a space in _note",
+    out:find('_note="note body"', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("no raw C0 byte survives", out:find("[%z\1-\8\11\12\14-\31\127]") == nil, "got: " .. out)
+
+  -- Written byte-for-byte: vim.fn.writefile would turn a NUL into a
+  -- newline and hide the very byte under test.
+  local tmp = vim.fn.tempname() .. ".opml"
+  local fh = assert(io.open(tmp, "wb"))
+  fh:write(out)
+  fh:close()
+  if vim.fn.executable("xmllint") == 1 then
+    vim.fn.system({ "xmllint", "--noout", tmp })
+    check("xmllint accepts the document", vim.v.shell_error == 0)
+  end
+  pcall(vim.loop.fs_unlink, tmp)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

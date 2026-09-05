@@ -165,9 +165,10 @@ local function render(groups, depth, prefix_path)
     focusable = false,
     noautocmd = true,
   })
-  pcall(function()
-    vim.wo[win].winhl = "FloatTitle:OrganCaptureTitle"
-  end)
+  pcall(vim.api.nvim_set_option_value, "winhighlight", "FloatTitle:OrganCaptureTitle", {
+    win = win,
+    scope = "local",
+  })
   vim.cmd("redraw")
   return bufnr, win
 end

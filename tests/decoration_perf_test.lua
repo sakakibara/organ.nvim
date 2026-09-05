@@ -19,10 +19,9 @@ require("organ").setup({
   notify = false,
   scan_on_startup = false,
   watcher = { enabled = false },
-  conceal = { enabled = true },
-  modern = { stars = { enabled = true }, blocks = { enabled = true }, pills = { enabled = true } },
+  modern = { bullets = true, blocks = true, pills = true },
+  stars = { hide = true },
   indent = { enabled = true },
-  description_list = { enabled = true },
 })
 
 -- Load every decoration provider that registers itself at require-time.

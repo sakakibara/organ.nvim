@@ -76,6 +76,7 @@ local indent = require("organ.indent")
 
 vim.cmd("edit " .. org_path)
 local b = vim.api.nvim_get_current_buf()
+vim.bo[b].filetype = "org"
 indent.attach(b)
 vim.wait(20)
 

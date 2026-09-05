@@ -920,10 +920,10 @@ function M.pick(opts, callback)
   -- Pin the window so cursor moves don't horizontally scroll. With
   -- `style = "minimal"` and a width that exactly matches the rendered
   -- content, there's nothing to scroll into; this is belt+braces.
-  vim.wo[win].scrolloff = 0
-  vim.wo[win].sidescrolloff = 0
-  vim.wo[win].wrap = false
-  vim.wo[win].cursorline = false
+  vim.api.nvim_set_option_value("scrolloff", 0, { win = win, scope = "local" })
+  vim.api.nvim_set_option_value("sidescrolloff", 0, { win = win, scope = "local" })
+  vim.api.nvim_set_option_value("wrap", false, { win = win, scope = "local" })
+  vim.api.nvim_set_option_value("cursorline", false, { win = win, scope = "local" })
 
   vim.b[bufnr].organ_calendar = {
     selected_iso = p,

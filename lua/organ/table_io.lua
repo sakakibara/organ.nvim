@@ -265,8 +265,12 @@ function M.import(bufnr, lnum, path)
   if not fd then
     return nil, "cannot open " .. path .. ": " .. tostring(err)
   end
+  -- `io.open` succeeds on a directory; the read is what fails there.
   local body = fd:read("*a")
   fd:close()
+  if not body then
+    return nil, "cannot read " .. path .. ": not a regular file"
+  end
   local delim = M.detect_delim(path, body)
   local rows = M.parse_csv(body, delim)
   if #rows == 0 then

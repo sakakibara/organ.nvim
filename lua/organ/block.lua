@@ -19,6 +19,17 @@ M.VERBATIM = {
   verse = true,
 }
 
+-- The subset of `VERBATIM` whose body holds no objects either, so a
+-- timestamp or an emphasis marker inside one is inert text.  `verse` is
+-- absent: org parses the objects in a verse body -- verified against
+-- `org-element-context`.
+M.NO_OBJECTS = {
+  comment = true,
+  example = true,
+  export = true,
+  src = true,
+}
+
 -- Lowercased name of the block `line` would open, or nil.
 function M.open_name(line)
   local name = line:match("^%s*#%+[Bb][Ee][Gg][Ii][Nn]_([%a][%w-]*)")
@@ -36,7 +47,7 @@ function M.close_row(lines, i, tail)
   local n = #lines + #(tail or {})
   for j = i + 1, n do
     local l = j <= #lines and lines[j] or tail[j - #lines]
-    if l:match("^%*+%s") then
+    if l:match("^%*+ ") then
       return nil
     end
     local close = l:match("^%s*#%+[Ee][Nn][Dd]_([%a][%w-]*)%s*$")
@@ -47,13 +58,15 @@ function M.close_row(lines, i, tail)
   return nil
 end
 
--- Set of 1-based row numbers that fall inside a verbatim block body.
-function M.verbatim_rows(lines)
+-- Set of 1-based row numbers that fall inside the body of a block whose
+-- name is in `names` (default `VERBATIM`).
+function M.verbatim_rows(lines, names)
+  names = names or M.VERBATIM
   local rows = {}
   local i, n = 1, #lines
   while i <= n do
     local name = M.open_name(lines[i])
-    local close = name and M.VERBATIM[name] and M.close_row(lines, i)
+    local close = name and names[name] and M.close_row(lines, i)
     if close then
       for j = i + 1, close - 1 do
         rows[j] = true

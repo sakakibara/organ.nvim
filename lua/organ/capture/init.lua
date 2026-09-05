@@ -85,7 +85,7 @@ local function open_capture_buf(template_name, body_lines, cursor_offset)
   -- capture entry can still `zc`/`zM`/`zR` on subtrees -- only
   -- the AUTOMATIC startup-fold is suppressed.
   if win and vim.api.nvim_win_is_valid(win) then
-    pcall(vim.api.nvim_set_option_value, "foldlevel", 99, { win = win })
+    pcall(vim.api.nvim_set_option_value, "foldlevel", 99, { win = win, scope = "local" })
   end
 
   -- Winbar: keymap reference visible in every window kind (float / split /
@@ -115,9 +115,7 @@ local function open_capture_buf(template_name, body_lines, cursor_offset)
       hints[#hints + 1] = "  %#OrganCaptureKey#" .. refi .. "%* refile-then-finalise"
     end
     local winbar = table.concat(hints)
-    pcall(function()
-      vim.wo[win].winbar = winbar
-    end)
+    pcall(vim.api.nvim_set_option_value, "winbar", winbar, { win = win, scope = "local" })
     -- Highlight defaults (default = true so user/colorscheme override wins).
     vim.api.nvim_set_hl(0, "OrganCaptureLabel", { link = "Title", default = true, bold = true })
     vim.api.nvim_set_hl(0, "OrganCaptureKey", { link = "Special", default = true, bold = true })
@@ -202,7 +200,12 @@ function M.build_ctx()
   local bufnr = vim.api.nvim_get_current_buf()
   local win = vim.api.nvim_get_current_win()
   local cursor = vim.api.nvim_win_get_cursor(win)
-  local cword = vim.fn.expand("<cword>")
+  -- E348 on a blank or whitespace-only line, which is the most common
+  -- cursor position in an org file.
+  local has_cword, cword = pcall(vim.fn.expand, "<cword>")
+  if not has_cword then
+    cword = ""
+  end
   local source_file = vim.api.nvim_buf_get_name(bufnr)
 
   local source_id, source_title

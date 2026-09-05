@@ -24,12 +24,8 @@ function M.export(src, opts)
   else
     lines = src
   end
-  local ast = require("organ.ast.from_org").from_lines(lines)
-  local ok, err = require("organ.ast").validate(ast)
-  if not ok then
-    error("export.ics: AST validation failed: " .. err)
-  end
-  ast = require("organ.ast.radio").resolve(ast)
+  lines = require("organ.export.prepare").expand(lines, opts)
+  local ast = require("organ.export.prepare").ast(lines, opts, "ics")
   return to_ics.render(ast, opts)
 end
 

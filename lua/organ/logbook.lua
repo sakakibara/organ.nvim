@@ -68,6 +68,21 @@ function M.build_planning_entry(verb, old_value, note)
   return { body }
 end
 
+-- Emacs `org-log-note-headings` note entry: `Note taken on %t`, with
+-- ` \\` appended and the note indented beneath when there is one.
+-- `note` may carry embedded newlines; each becomes its own line.
+function M.build_note_entry(note)
+  local first = string.format("- Note taken on %s", now_inactive_ts())
+  if not note or note == "" then
+    return { first }
+  end
+  local out = { first .. " \\\\" }
+  for _, l in ipairs(vim.split(note, "\n", { plain = true })) do
+    out[#out + 1] = "  " .. l
+  end
+  return out
+end
+
 -- Insert `entry_lines` (list) into the LOGBOOK drawer for the headline at
 -- hl_line. Honors todo.log_into_drawer and todo.log_drawer.
 function M.append(bufnr, hl_line, entry_lines)
@@ -137,5 +152,43 @@ function M.write_planning_change(bufnr, hl_line, policy, verb, old_value)
     pcall(vim.api.nvim_set_current_buf, cur)
   end)
 end
+
+-- Add a note to the entry at (`bufnr`, `line`) -- Emacs org-add-note
+-- (C-c C-z).  With `note` given the entry is written straight away;
+-- without one the user is prompted, and cancelling writes nothing.
+-- Returns the headline row on success, or nil plus a reason.
+function M.add_note(bufnr, line, note)
+  local hl = require("organ.structure")._find_containing_headline(bufnr, line)
+  if not hl then
+    return nil, "not inside a headline"
+  end
+  if note ~= nil then
+    M.append(bufnr, hl.line, M.build_note_entry(note))
+    return hl.line
+  end
+  vim.ui.input({ prompt = "Note: " }, function(text)
+    if text == nil then
+      return
+    end
+    M.append(bufnr, hl.line, M.build_note_entry(text))
+  end)
+  return hl.line
+end
+
+M.commands = {
+  add_note = {
+    fn = function(cmd)
+      local bufnr = vim.api.nvim_get_current_buf()
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      local note = (cmd and cmd.args ~= "") and cmd.args or nil
+      local row, why = M.add_note(bufnr, line, note)
+      if not row then
+        require("organ.notify").warn(why)
+      end
+    end,
+    nargs = "*",
+    desc = "Add a timestamped note to the entry's LOGBOOK (Emacs C-c C-z)",
+  },
+}
 
 return M

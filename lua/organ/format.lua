@@ -184,6 +184,12 @@ function M._resolve_tags_column(value, bufnr, winid)
   return nil
 end
 
+-- `strdisplaywidth` raises E976 on a string holding a NUL byte, which
+-- Vimscript takes for a Blob.  nvim renders that byte as `^@`.
+local function cell_width(s)
+  return vim.fn.strdisplaywidth((s:gsub("%z", "^@")))
+end
+
 -- Compute the padded headline string for "<left><pad><tags>".  Aligns
 -- the tag block to `opts.tags_column` (or, when nil,
 -- `config.format.headline.tags_column`, falling back to "textwidth").
@@ -208,8 +214,8 @@ function M.align_tag_block(left, tags, opts)
   if resolved == nil or resolved.kind == "flush" then
     return left .. " " .. tags
   end
-  local left_w = vim.fn.strdisplaywidth(left)
-  local tags_w = vim.fn.strdisplaywidth(tags)
+  local left_w = cell_width(left)
+  local tags_w = cell_width(tags)
   local left_edge
   if resolved.kind == "left" then
     left_edge = resolved.column
@@ -226,63 +232,73 @@ end
 
 local function normalize_headline(line, opts)
   opts = opts or {}
-  if opts.normalize_whitespace == false and not opts.tags_column then
+  local normalize = opts.normalize_whitespace ~= false
+  if not normalize and not opts.tags_column then
     return line
   end
-  local stars, rest = line:match("^(%*+)%s+(.-)%s*$")
+  -- Space-only separators throughout, as in Emacs `org-complex-heading-regexp`
+  -- and `outline-regexp`: `* TODO<TAB>x` has no TODO keyword and `*<TAB>x` is
+  -- not a headline at all, so collapsing either would change what Emacs reads
+  -- back.
+  local stars, gap, rest = line:match("^(%*+)( +)(.-)%s*$")
   if not stars then
     return line
   end
   local body, tags = split_trailing_tags(rest)
-  body = body:gsub("%s+$", ""):gsub("^%s+", "")
+  body = body:gsub("%s+$", "")
 
-  local todo_kw_set = {}
-  do
-    local ok, todo = pcall(require, "organ.todo")
-    if ok and type(todo.all_keywords) == "function" then
-      for _, k in ipairs(todo.all_keywords()) do
-        todo_kw_set[k] = true
+  local left
+  if not normalize then
+    left = body == "" and (stars .. " ") or (stars .. gap .. body)
+  else
+    local todo_kw_set = {}
+    do
+      local ok, todo = pcall(require, "organ.todo")
+      if ok and type(todo.all_keywords) == "function" then
+        for _, k in ipairs(todo.all_keywords()) do
+          todo_kw_set[k] = true
+        end
       end
     end
-  end
-  local pieces = {}
-  local cursor = 1
-  do
-    local first, after = body:match("^(%S+)%s+()")
-    if first and todo_kw_set[first] then
-      pieces[#pieces + 1] = first
-      cursor = after
+    local pieces = {}
+    local cursor = 1
+    do
+      local first, after = body:match("^(%S+) +()")
+      if first and todo_kw_set[first] then
+        pieces[#pieces + 1] = first
+        cursor = after
+      end
     end
-  end
-  do
-    local sub = body:sub(cursor)
-    local cookie, after = sub:match("^(%[#[%u%d]%])%s*()")
-    if cookie then
-      pieces[#pieces + 1] = cookie
-      cursor = cursor + (after - 1)
+    do
+      local sub = body:sub(cursor)
+      local cookie, after = sub:match("^(%[#[%u%d]%]) *()")
+      if cookie then
+        pieces[#pieces + 1] = cookie
+        cursor = cursor + (after - 1)
+      end
     end
-  end
-  do
-    local sub = body:sub(cursor)
-    local kw, after = sub:match("^(COMMENT)%s+()")
-    if kw then
-      pieces[#pieces + 1] = kw
-      cursor = cursor + (after - 1)
+    do
+      local sub = body:sub(cursor)
+      local kw, after = sub:match("^(COMMENT) +()")
+      if kw then
+        pieces[#pieces + 1] = kw
+        cursor = cursor + (after - 1)
+      end
     end
-  end
-  local title = body:sub(cursor)
-  if opts.normalize_whitespace ~= false then
-    title = title:gsub("%s+", " "):gsub("^%s+", ""):gsub("%s+$", "")
-  end
-  if title ~= "" then
-    pieces[#pieces + 1] = title
-  end
+    -- The title is carried over verbatim: Emacs's fill and align commands
+    -- never rewrite title text, and collapsing it can change how Emacs
+    -- reads the line back.
+    local title = body:sub(cursor)
+    if title ~= "" then
+      pieces[#pieces + 1] = title
+    end
 
-  -- Empty-title headline stays `*+ ` (with the structural space), never a
-  -- bare `*+` -- otherwise it is misparsed as prose and wrapped away.
-  local left = stars .. " "
-  if #pieces > 0 then
-    left = stars .. " " .. table.concat(pieces, " ")
+    -- Empty-title headline stays `*+ ` (with the structural space), never a
+    -- bare `*+` -- otherwise it is misparsed as prose and wrapped away.
+    left = stars .. " "
+    if #pieces > 0 then
+      left = stars .. " " .. table.concat(pieces, " ")
+    end
   end
   if not tags then
     return left

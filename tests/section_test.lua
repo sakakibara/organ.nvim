@@ -25,12 +25,11 @@ local function buf_with(lines)
   return b
 end
 
--- 1. Full section: planning (combined line) + property drawer + LOGBOOK.
+-- 1. Full section: planning (one line) + property drawer + LOGBOOK.
 do
   local b = buf_with({
     "* DONE Full house",
-    "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
-    "  CLOSED: [2026-05-04 Mon 12:00]",
+    "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu> CLOSED: [2026-05-04 Mon 12:00]",
     "  :PROPERTIES:",
     "  :FOO: bar",
     "  :END:",
@@ -47,22 +46,22 @@ do
     "got " .. tostring(m.planning.scheduled)
   )
   check("parse: deadline line", m.planning.deadline == 2, "got " .. tostring(m.planning.deadline))
-  check("parse: closed line", m.planning.closed == 3, "got " .. tostring(m.planning.closed))
+  check("parse: closed line", m.planning.closed == 2, "got " .. tostring(m.planning.closed))
   check(
-    "parse: planning_end past last planning line",
-    m.planning_end == 4,
+    "parse: planning_end past the planning line",
+    m.planning_end == 3,
     "got " .. tostring(m.planning_end)
   )
   check(
     "parse: property drawer range",
     m.property_drawer ~= nil
-      and m.property_drawer.start_line == 4
-      and m.property_drawer.end_line == 6,
+      and m.property_drawer.start_line == 3
+      and m.property_drawer.end_line == 5,
     vim.inspect(m.property_drawer)
   )
   check(
     "parse: logbook range",
-    m.logbook ~= nil and m.logbook.start_line == 7 and m.logbook.end_line == 9,
+    m.logbook ~= nil and m.logbook.start_line == 6 and m.logbook.end_line == 8,
     vim.inspect(m.logbook)
   )
 end
@@ -181,6 +180,8 @@ do
     vim.inspect(got)
   )
 end
+-- A second keyword line is a paragraph, not planning (org reads planning
+-- from the one line under the headline), so the write leaves it alone.
 do
   local b = buf_with({
     "* TODO Legacy",
@@ -191,10 +192,11 @@ do
   section.set_planning(b, 0, "CLOSED", "[2026-05-04 Mon 12:00]")
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "set_planning: one-keyword-per-line planning collapses to a single line",
+    "set_planning: a keyword line below the planning line is left as body",
     vim.deep_equal(got, {
       "* TODO Legacy",
-      "  CLOSED: [2026-05-04 Mon 12:00] SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-07 Thu>",
+      "  CLOSED: [2026-05-04 Mon 12:00] SCHEDULED: <2026-05-06 Wed>",
+      "  DEADLINE: <2026-05-07 Thu>",
       "  body",
     }),
     vim.inspect(got)
@@ -213,13 +215,14 @@ do
   section.set_planning(b, 0, "DEADLINE", "<2026-05-07 Thu>")
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "set_planning: planning split around a drawer merges without touching the drawer",
+    "set_planning: a keyword line below a drawer is body and stays put",
     vim.deep_equal(got, {
       "* TODO Habit",
-      "  DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed> CLOSED: [2026-05-04 Mon 12:00]",
+      "  DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>",
       "  :PROPERTIES:",
       "  :STYLE: habit",
       "  :END:",
+      "  CLOSED: [2026-05-04 Mon 12:00]",
       "  body",
     }),
     vim.inspect(got)
@@ -285,7 +288,8 @@ do
   check("canonicalize: canonical input stays unmodified", vim.bo[b].modified == false)
 end
 
--- 8. canonicalize: repair a property drawer placed BEFORE planning.
+-- 8. canonicalize: a SCHEDULED line below the property drawer is a
+-- paragraph to org, so hoisting it would invent planning data.
 do
   local b = buf_with({
     "* TODO Task",
@@ -295,24 +299,18 @@ do
     "  SCHEDULED: <2026-05-06 Wed>",
     "  body",
   })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   section.canonicalize(b, 0)
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "canonicalize: planning moved above the property drawer",
-    vim.deep_equal(got, {
-      "* TODO Task",
-      "  SCHEDULED: <2026-05-06 Wed>",
-      "  :PROPERTIES:",
-      "  :FOO: bar",
-      "  :END:",
-      "  body",
-    }),
+    "canonicalize: a keyword line below the drawer stays body",
+    vim.deep_equal(got, before),
     vim.inspect(got)
   )
 end
 
--- 9. canonicalize: one-keyword-per-line planning collapses to a single
--- line, keeping the keyword order.
+-- 9. canonicalize: only the line under the headline is planning; the one
+-- below it is a paragraph and neither line is rewritten.
 do
   local b = buf_with({
     "* TODO Task",
@@ -320,15 +318,12 @@ do
     "  SCHEDULED:   <2026-05-06 Wed>",
     "  body",
   })
+  local before = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   section.canonicalize(b, 0)
   local got = vim.api.nvim_buf_get_lines(b, 0, -1, false)
   check(
-    "canonicalize: planning lines merged into one",
-    vim.deep_equal(got, {
-      "* TODO Task",
-      "  DEADLINE: <2026-05-07 Thu> SCHEDULED: <2026-05-06 Wed>",
-      "  body",
-    }),
+    "canonicalize: a second keyword line is left alone",
+    vim.deep_equal(got, before),
     vim.inspect(got)
   )
 end

@@ -226,7 +226,7 @@ end
 --   { has_cookie = false, insert_col = N }                    if cursor in headline title region
 --   nil                                                       otherwise
 local function find_priority_at(line_text, col)
-  local stars = line_text:match("^(%*+)%s")
+  local stars = line_text:match("^(%*+) ")
   if not stars then
     return nil
   end
@@ -278,7 +278,7 @@ end
 -- headline.
 function M.set_priority(bufnr, lnum, letter)
   local line = vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
-  if not line:match("^%*+%s") then
+  if not line:match("^%*+ ") then
     return
   end
   local s, e = line:find("%[#[A-Z]%]")
@@ -431,7 +431,7 @@ function M.dispatch(direction)
   -- line counts (matches Emacs `S-Right` / `S-Left`); the narrow
   -- `detect_todo_at` check would only trigger on the TODO keyword
   -- itself, leaving title-region clicks with no action.
-  if line_text:match("^%*+%s") then
+  if line_text:match("^%*+ ") then
     local todo = require("organ.todo")
     if direction == "inc" then
       return todo.cycle(bufnr, lnum)

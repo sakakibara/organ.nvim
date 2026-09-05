@@ -325,6 +325,17 @@ function M.eval_formulas(bufnr)
     row.cells[c] = text
   end
 
+  -- Emacs caps a FIELD formula's column target at 1000 and refuses beyond
+  -- it regardless of `org-table-formula-create-columns` (org-table.el,
+  -- "Formula column target too large").  Column formulas have no such cap
+  -- there and keep organ's unbounded growth.
+  for _, fm in ipairs(formulas) do
+    if fm.kind == "cell_formula" and fm.col > 1000 then
+      require("organ.notify").error("Formula column target too large")
+      return false
+    end
+  end
+
   for _, fm in ipairs(formulas) do
     if fm.kind == "col_formula" then
       for r = first_body, #data_rows do

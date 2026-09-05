@@ -1,9 +1,8 @@
--- Regression: element.planning_lines is a tolerant line scan (per Emacs
--- org-add-planning-info) -- the sole implementation, by design, not a
--- fallback for a stricter tree-sitter path (strict TS readers live
--- elsewhere). It must find planning keywords placed AFTER a property
--- drawer (org-habit layout), and must NOT mistake body prose or an
--- unrelated keyword (RESCHEDULED) for planning. Run:
+-- Regression: element.planning_lines is a line scan (the sole
+-- implementation, by design, not a fallback for a stricter tree-sitter
+-- path). It reads the ONE planning line org accepts -- the line directly
+-- under the headline -- and must not mistake a keyword line further down,
+-- body prose, or an unrelated keyword (RESCHEDULED) for planning. Run:
 --   nvim --headless -l tests/element_planning_lines_test.lua
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -33,7 +32,8 @@ local function noparser_buf(lines)
   return b
 end
 
--- org-habit layout: property drawer BEFORE the SCHEDULED line.
+-- A SCHEDULED line below a property drawer is a paragraph: `org-entry-get`
+-- returns nil for it, and org-element parses the drawer as a plain drawer.
 do
   local b = noparser_buf({
     "* TODO Water plants",
@@ -52,13 +52,14 @@ do
   vim.treesitter.get_parser = orig_get_parser
   element.invalidate(b)
   check(
-    "scheduled found after the property drawer",
-    pl.scheduled == 5,
+    "a keyword line below the property drawer is not planning",
+    pl.scheduled == nil,
     "got " .. tostring(pl.scheduled)
   )
 end
 
--- Plain layout still works: planning directly after the headline.
+-- Planning is the one line directly under the headline; the next line is
+-- a paragraph even when it carries a planning keyword.
 do
   local b = noparser_buf({
     "* TODO Plain",
@@ -71,7 +72,18 @@ do
   vim.treesitter.get_parser = orig_get_parser
   element.invalidate(b)
   check("plain scheduled", pl.scheduled == 2, "got " .. tostring(pl.scheduled))
-  check("plain deadline", pl.deadline == 3, "got " .. tostring(pl.deadline))
+  check("second keyword line is not planning", pl.deadline == nil, "got " .. tostring(pl.deadline))
+end
+
+-- A blank line between headline and keyword line makes it a paragraph too.
+do
+  local b = noparser_buf({ "* TODO Gap", "", "  SCHEDULED: <2026-05-06 Wed>" })
+  vim.treesitter.get_parser = no_parser
+  element.invalidate(b)
+  local pl = element.planning_lines(b, 0)
+  vim.treesitter.get_parser = orig_get_parser
+  element.invalidate(b)
+  check("a keyword line after a blank is not planning", pl.scheduled == nil, vim.inspect(pl))
 end
 
 -- No planning at all -> empty.

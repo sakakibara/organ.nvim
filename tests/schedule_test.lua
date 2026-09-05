@@ -35,13 +35,15 @@ do
   assert_eq(#lines, 3)
 end
 
--- 2. Set schedule when planning line already has SCHEDULED — replaced in place.
---    Canonical rewrite: indent from adapt (level 1 -> 2 spaces).
+-- 2. Set schedule when planning line already has SCHEDULED — replaced in
+--    place, keeping the indent the line already has (org-add-planning-info
+--    edits from the line's own indentation; `planning_indent` only decides
+--    where a FIRST planning line is written).
 do
   local b = mk_buf({ "* Task", "SCHEDULED: <2026-01-01 Thu>", "  body" })
   sched._set_planning(b, 1, "SCHEDULED", "2026-04-28")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[2], "SCHEDULED: <2026-04-28 Tue>")
   assert_eq(#lines, 3, "no extra lines added")
 end
 
@@ -52,7 +54,7 @@ do
   local b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri>", "  body" })
   sched._set_planning(b, 1, "SCHEDULED", "2026-04-28")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  SCHEDULED: <2026-04-28 Tue> DEADLINE: <2026-05-01 Fri>")
+  assert_eq(lines[2], "SCHEDULED: <2026-04-28 Tue> DEADLINE: <2026-05-01 Fri>")
   assert_eq(lines[3], "  body")
   assert_eq(#lines, 3, "planning stays on one line")
 end
@@ -100,19 +102,19 @@ end
 do
   local b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri +1w>" })
   sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
-  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon +1w>", "repeater kept")
+  assert_eq(get_lines(b)[2], "DEADLINE: <2026-06-01 Mon +1w>", "repeater kept")
 
   b = mk_buf({ "* Task", "SCHEDULED: <2026-05-01 Fri 09:00 .+1d/3d>" })
   sched._set_planning(b, 1, "SCHEDULED", "2026-06-01", { start = "10:00" })
-  assert_eq(get_lines(b)[2], "  SCHEDULED: <2026-06-01 Mon 10:00 .+1d/3d>", "habit cookie kept")
+  assert_eq(get_lines(b)[2], "SCHEDULED: <2026-06-01 Mon 10:00 .+1d/3d>", "habit cookie kept")
 
   b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri ++1w -2d>" })
   sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
-  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon ++1w -2d>", "warning period kept")
+  assert_eq(get_lines(b)[2], "DEADLINE: <2026-06-01 Mon ++1w -2d>", "warning period kept")
 
   b = mk_buf({ "* Task", "DEADLINE: <2026-05-01 Fri -2d>" })
   sched._set_planning(b, 1, "DEADLINE", "2026-06-01")
-  assert_eq(get_lines(b)[2], "  DEADLINE: <2026-06-01 Mon -2d>", "lone warning period kept")
+  assert_eq(get_lines(b)[2], "DEADLINE: <2026-06-01 Mon -2d>", "lone warning period kept")
 end
 
 -- 7. Scheduling removes CLOSED, keeps the other keywords (Emacs
@@ -126,7 +128,7 @@ do
   })
   sched._set_planning(b, 1, "SCHEDULED", "2026-05-06")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-10 Sun>", "CLOSED removed")
+  assert_eq(lines[2], "SCHEDULED: <2026-05-06 Wed> DEADLINE: <2026-05-10 Sun>", "CLOSED removed")
   assert_eq(lines[3], "body")
   assert_eq(#lines, 3)
 end

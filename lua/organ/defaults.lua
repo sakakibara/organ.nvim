@@ -590,6 +590,12 @@ return {
       -- heading with the first active TODO keyword, or unchecked
       -- checkbox item on a list.
       insert_todo = "<M-S-CR>",
+      -- Emacs C-RET / C-S-RET (org-insert-heading-respect-content and
+      -- its TODO variant): always a HEADING after the current subtree's
+      -- content, never a list item or a table row.  Needs a terminal
+      -- that distinguishes <C-CR>; set to false where it does not.
+      insert_heading_respect_content = "<C-CR>",
+      insert_todo_respect_content = "<C-S-CR>",
     },
   },
 
@@ -1032,6 +1038,13 @@ return {
     -- Existing-line edits preserve whatever indent is already there;
     -- this only governs the FIRST write under a headline.
     planning_indent = "adapt",
+    -- Where a repeating entry lands when it is marked done (Emacs
+    -- `org-todo-repeat-to-state`).  The entry's own `:REPEAT_TO_STATE:`
+    -- property wins over this.
+    --   nil / false (default)  head of the entry's own sub-sequence
+    --   <string>               that keyword
+    --   true                   the state the entry already had
+    repeat_to_state = nil,
     -- Dependency enforcement on every TODO state transition. Mirrors
     -- Emacs `org-enforce-todo-dependencies = t` and `:ORDERED:` siblings.
     -- A child carrying `:NOBLOCKING: t` is exempt from parent-blocking.
@@ -1209,7 +1222,11 @@ return {
 
   attach = {
     enabled = true,
-    dir = vim.fn.expand("~/org/data"), -- root dir for attachments
+    -- Root for ID-keyed attachment directories, read the way Emacs reads
+    -- `org-attach-id-dir` (default "data/"): a relative path resolves
+    -- against the directory holding the org file, an absolute one is used
+    -- verbatim.  A buffer with no file name falls back to `org_dir`.
+    dir = "data",
     auto_insert_link = true,
     use_symlinks = false, -- copy by default
     -- When true, the attachment dir is git-init'd on first use and every
@@ -1318,9 +1335,13 @@ return {
   --   `allow_languages` (list of strings)
   --     Languages that bypass the prompt even when confirm_evaluate=true.
   --     Example: { "lua" } to auto-run lua blocks but still confirm shell.
+  --   `timeout_ms` (number, default 60000)
+  --     How long one block may run before it is stopped and the partial
+  --     output reported.  Applies to both subprocess and :session blocks.
   babel = {
     confirm_evaluate = true,
     allow_languages = {},
+    timeout_ms = 60000,
   },
 
   -- Native CSL citations. `bibliographies` lists extra source files (paths
@@ -1365,6 +1386,14 @@ return {
     -- internally organ resolves IDs via the SQLite index.  Set to
     -- a path to enable export of the mapping for external readers.
     id_locations_file = nil,
+  },
+
+  -- Org's own mark ring (Emacs `org-mark-ring-length`): how many
+  -- positions `:Org mark_ring push` -- and every link follow -- keeps
+  -- before the oldest drops off.  Independent of Neovim's jumplist,
+  -- which a push also feeds.
+  mark_ring = {
+    length = 4,
   },
 
   -- Image reveal. `inline = true` tries to render images inline via

@@ -199,7 +199,7 @@ function M.insert(opts)
       -- Insert before the next `*+ ` headline after cur_line.
       def_line = total
       for i = cur_line + 1, total do
-        if get_line(bufnr, i):match("^%*+%s") then
+        if get_line(bufnr, i):match("^%*+ ") then
           def_line = i - 1
           break
         end
@@ -385,7 +385,7 @@ function M.sort()
       local j = i + 1
       while j <= total do
         local l = get_line(bufnr, j)
-        if l:match("^%s*$") or l:match("^%*+%s") or l:match(DEF_LINE_PATTERN) then
+        if l:match("^%s*$") or l:match("^%*+ ") or l:match(DEF_LINE_PATTERN) then
           break
         end
         block[#block + 1] = l

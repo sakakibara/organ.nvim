@@ -3,6 +3,32 @@
 
 local M = {}
 
+-- SQLITE_MAX_VARIABLE_NUMBER is 999 on builds predating SQLite 3.32, so
+-- an `IN (...)` list with one placeholder per result row has to be split.
+-- Overridable so tests can drive the split path with a handful of rows.
+M._bind_chunk = 500
+
+local function chunked(list)
+  local size = M._bind_chunk
+  local out = {}
+  for i = 1, #list, size do
+    local part = {}
+    for j = i, math.min(i + size - 1, #list) do
+      part[#part + 1] = list[j]
+    end
+    out[#out + 1] = part
+  end
+  return out
+end
+
+local function placeholders_for(list)
+  local q = {}
+  for i = 1, #list do
+    q[i] = "?"
+  end
+  return table.concat(q, ",")
+end
+
 -- Execution helpers.
 
 local function default_db()
@@ -78,35 +104,34 @@ local function hydrate_tags(h, rows)
     return
   end
   local id_to_row = {}
-  local placeholders = {}
-  local params = {}
+  local ids = {}
   for i, r in ipairs(rows) do
     id_to_row[r.id] = r
-    placeholders[i] = "?"
-    params[i] = r.id
-  end
-
-  -- ORDER BY rowid so tags come back in insertion (= file-source) order.
-  -- Without this, SQLite's PRIMARY KEY (headline_id, tag) index returns
-  -- tags alphabetically, which breaks Emacs-style display where users
-  -- expect `:gtd:@phone:` to read in the order they typed it.
-  local sql = "SELECT headline_id, tag FROM tags WHERE headline_id IN ("
-    .. table.concat(placeholders, ",")
-    .. ") ORDER BY rowid"
-  local stmt = prepare(h, sql)
-  for i, p in ipairs(params) do
-    stmt:bind_text(i, p)
+    ids[i] = r.id
   end
 
   local db = require("organ.db")
-  while stmt:step() == db.SQLITE_ROW do
-    local id, tag = stmt:column_text(0), stmt:column_text(1)
-    local r = id_to_row[id]
-    if r then
-      r.tags[#r.tags + 1] = tag
+  for _, part in ipairs(chunked(ids)) do
+    -- ORDER BY rowid so tags come back in insertion (= file-source) order.
+    -- Without this, SQLite's PRIMARY KEY (headline_id, tag) index returns
+    -- tags alphabetically, which breaks Emacs-style display where users
+    -- expect `:gtd:@phone:` to read in the order they typed it.
+    local sql = "SELECT headline_id, tag FROM tags WHERE headline_id IN ("
+      .. placeholders_for(part)
+      .. ") ORDER BY rowid"
+    local stmt = prepare(h, sql)
+    for i, p in ipairs(part) do
+      stmt:bind_text(i, p)
     end
+    while stmt:step() == db.SQLITE_ROW do
+      local id, tag = stmt:column_text(0), stmt:column_text(1)
+      local r = id_to_row[id]
+      if r then
+        r.tags[#r.tags + 1] = tag
+      end
+    end
+    stmt:finalize()
   end
-  stmt:finalize()
 end
 
 -- Augment r.tags with the union of (a) direct tags, (b) tags inherited
@@ -158,16 +183,12 @@ local function hydrate_inherited_tags(h, rows)
   for hid in pairs(id_set) do
     id_list[#id_list + 1] = hid
   end
-  if #id_list > 0 then
-    local placeholders = {}
-    for i = 1, #id_list do
-      placeholders[i] = "?"
-    end
+  for _, part in ipairs(chunked(id_list)) do
     local sql = "SELECT headline_id, tag FROM tags WHERE headline_id IN ("
-      .. table.concat(placeholders, ",")
+      .. placeholders_for(part)
       .. ")"
     local s2 = prepare(h, sql)
-    for i, hid in ipairs(id_list) do
+    for i, hid in ipairs(part) do
       s2:bind_text(i, hid)
     end
     while s2:step() == db.SQLITE_ROW do
@@ -190,16 +211,12 @@ local function hydrate_inherited_tags(h, rows)
   for fp in pairs(file_paths) do
     fp_list[#fp_list + 1] = fp
   end
-  if #fp_list > 0 then
-    local placeholders = {}
-    for i = 1, #fp_list do
-      placeholders[i] = "?"
-    end
+  for _, part in ipairs(chunked(fp_list)) do
     local sql = "SELECT file_path, tag FROM file_tags WHERE file_path IN ("
-      .. table.concat(placeholders, ",")
+      .. placeholders_for(part)
       .. ")"
     local s3 = prepare(h, sql)
-    for i, fp in ipairs(fp_list) do
+    for i, fp in ipairs(part) do
       s3:bind_text(i, fp)
     end
     while s3:step() == db.SQLITE_ROW do
@@ -273,31 +290,31 @@ local function hydrate_properties(h, rows)
     return
   end
   local id_to_row = {}
-  local placeholders, params = {}, {}
+  local ids = {}
   for i, r in ipairs(rows) do
     id_to_row[r.id] = r
-    placeholders[i] = "?"
-    params[i] = r.id
+    ids[i] = r.id
     r.properties = {}
   end
 
-  local sql = "SELECT headline_id, key, value FROM properties WHERE headline_id IN ("
-    .. table.concat(placeholders, ",")
-    .. ")"
-  local stmt = prepare(h, sql)
-  for i, p in ipairs(params) do
-    stmt:bind_text(i, p)
-  end
-
   local db = require("organ.db")
-  while stmt:step() == db.SQLITE_ROW do
-    local id, key, val = stmt:column_text(0), stmt:column_text(1), stmt:column_text(2)
-    local r = id_to_row[id]
-    if r then
-      r.properties[key] = val
+  for _, part in ipairs(chunked(ids)) do
+    local sql = "SELECT headline_id, key, value FROM properties WHERE headline_id IN ("
+      .. placeholders_for(part)
+      .. ")"
+    local stmt = prepare(h, sql)
+    for i, p in ipairs(part) do
+      stmt:bind_text(i, p)
     end
+    while stmt:step() == db.SQLITE_ROW do
+      local id, key, val = stmt:column_text(0), stmt:column_text(1), stmt:column_text(2)
+      local r = id_to_row[id]
+      if r then
+        r.properties[key] = val
+      end
+    end
+    stmt:finalize()
   end
-  stmt:finalize()
 end
 
 -- Hydrate backlink_count: for each headline row whose `id` is NOT a
@@ -319,30 +336,29 @@ local function hydrate_backlink_counts(h, rows)
     return
   end
 
-  local placeholders = {}
-  for i = 1, #real_ids do
-    placeholders[i] = "?"
-  end
-  local sql = "SELECT target, COUNT(*) FROM links WHERE target_type = 'id' AND target IN ("
-    .. table.concat(placeholders, ",")
-    .. ") GROUP BY target"
-  local stmt = prepare(h, sql)
-  for i, id in ipairs(real_ids) do
-    stmt:bind_text(i, id)
-  end
-
   local db = require("organ.db")
-  while stmt:step() == db.SQLITE_ROW do
-    local id = stmt:column_text(0)
-    local cnt = stmt:column_int(1)
-    local r = id_to_row[id]
-    if r then
-      r.backlink_count = cnt
+  for _, part in ipairs(chunked(real_ids)) do
+    local sql = "SELECT target, COUNT(*) FROM links WHERE target_type = 'id' AND target IN ("
+      .. placeholders_for(part)
+      .. ") GROUP BY target"
+    local stmt = prepare(h, sql)
+    for i, id in ipairs(part) do
+      stmt:bind_text(i, id)
     end
+    while stmt:step() == db.SQLITE_ROW do
+      local id = stmt:column_text(0)
+      local cnt = stmt:column_int(1)
+      local r = id_to_row[id]
+      if r then
+        r.backlink_count = cnt
+      end
+    end
+    stmt:finalize()
   end
-  stmt:finalize()
 end
 
+M.chunked = chunked
+M.placeholders_for = placeholders_for
 M.default_db = default_db
 M.resolve_db = resolve_db
 M.prepare = prepare

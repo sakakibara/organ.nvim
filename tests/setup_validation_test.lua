@@ -173,6 +173,98 @@ do
   )
 end
 
+-- The bad-template check above leaves its template in the merged config.
+require("organ").config.capture.templates = {}
+
+-- Unknown keys are reported instead of silently swallowed.  `org_directory`
+-- is nvim-orgmode's spelling of organ's `org_dir`; accepting it quietly sends
+-- the indexer and the watcher at `~/org` instead of the user's directory.
+do
+  local warned = {}
+  local notify = require("organ.notify")
+  local orig_warn = notify.warn
+  notify.warn = function(m)
+    warned[#warned + 1] = m
+  end
+  require("organ").setup({
+    db_path = vim.fn.tempname() .. ".db",
+    notify = false,
+    scan_on_startup = false,
+    debounce_ms = 0,
+    watcher = { enabled = false },
+    org_directory = vim.fn.tempname(),
+    typo_key_xyz = 1,
+    agenda = { unknown_agenda_key = true },
+  })
+  vim.wait(500, function()
+    return #warned > 0
+  end)
+  notify.warn = orig_warn
+  local msg = table.concat(warned, "\n")
+  check("unknown top-level key is reported", msg:find("typo_key_xyz", 1, true) ~= nil, msg)
+  check(
+    "unknown NESTED key is reported",
+    msg:find("agenda.unknown_agenda_key", 1, true) ~= nil,
+    msg
+  )
+  check("near-miss names the real key", msg:find("did you mean `org_dir`", 1, true) ~= nil, msg)
+end
+
+-- A config made only of real keys warns about nothing, including the
+-- user-named subtrees (`agenda.views`, `find.keymaps`) whose key set is not
+-- organ's to police.
+do
+  local warned = {}
+  local notify = require("organ.notify")
+  local orig_warn = notify.warn
+  notify.warn = function(m)
+    warned[#warned + 1] = m
+  end
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir, "p")
+  require("organ").setup({
+    db_path = vim.fn.tempname() .. ".db",
+    org_dir = dir,
+    org_dirs = nil,
+    notify = false,
+    scan_on_startup = false,
+    debounce_ms = 0,
+    agenda_files = { dir },
+    watcher = { enabled = false },
+    todo = { sequences = { { "TODO", "|", "DONE" } }, repeat_to_state = "TODO" },
+    attach = { dir = "data" },
+    modern = { preset = "all" },
+    agenda = { views = { mine = { blocks = {} } }, now_override = "2026-05-04T12:00" },
+    find = { keymaps = { jump = "<CR>", whatever_backend_key = "<C-x>" } },
+    clock = { idle_threshold_minutes = 15 },
+  })
+  vim.wait(300, function()
+    return #warned > 0
+  end)
+  notify.warn = orig_warn
+  local msg = table.concat(warned, "\n")
+  check("a valid config warns about nothing", not msg:find("unknown option", 1, true), msg)
+end
+
+-- A key whose default is nil has no entry in `organ.defaults`, so the
+-- unknown-key check can only know about it from the optional list.  Keep the
+-- two in step or setting a documented option starts warning about itself.
+do
+  local optional = require("organ")._optional_keys
+  local missing = {}
+  for line in io.lines(vim.fn.getcwd() .. "/lua/organ/defaults.lua") do
+    local key = line:match("^%s+([%a_][%w_]*) = nil%f[%W]")
+    if key and not optional[key] then
+      missing[#missing + 1] = key
+    end
+  end
+  check(
+    "every nil-valued default is in the optional-key list",
+    #missing == 0,
+    "not listed: " .. table.concat(missing, ", ")
+  )
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

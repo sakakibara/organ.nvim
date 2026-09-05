@@ -8,7 +8,7 @@
 local M = {}
 
 local function is_headline(l)
-  return l:match("^%*+%s") ~= nil
+  return l:match("^%*+ ") ~= nil
 end
 local function is_planning(l)
   return l:match("^%s*[Ss][Cc][Hh][Ee][Dd][Uu][Ll][Ee][Dd]:") ~= nil

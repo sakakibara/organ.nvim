@@ -36,13 +36,14 @@ do
   assert_eq(#lines, 3)
 end
 
--- 2. Set deadline when planning line already has DEADLINE — canonical rewrite.
---    Indent normalised to adapt (level 1 -> 2 spaces).
+-- 2. Set deadline when planning line already has DEADLINE — replaced in
+--    place, keeping the indent the line already has (`planning_indent`
+--    only decides where a FIRST planning line is written).
 do
   local b = mk_buf({ "* Task", "DEADLINE: <2026-01-01 Thu>", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri>")
+  assert_eq(lines[2], "DEADLINE: <2026-05-01 Fri>")
   assert_eq(#lines, 3, "no extra lines added")
 end
 
@@ -53,7 +54,7 @@ do
   local b = mk_buf({ "* Task", "SCHEDULED: <2026-04-28 Tue>", "  body" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-01")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  DEADLINE: <2026-05-01 Fri> SCHEDULED: <2026-04-28 Tue>")
+  assert_eq(lines[2], "DEADLINE: <2026-05-01 Fri> SCHEDULED: <2026-04-28 Tue>")
   assert_eq(lines[3], "  body")
   assert_eq(#lines, 3, "planning stays on one line")
 end
@@ -98,7 +99,7 @@ do
   local b = mk_buf({ "* DONE Two", "CLOSED: [2026-05-04 Mon 12:00]" })
   sched._set_planning(b, 1, "DEADLINE", "2026-05-07")
   local lines = get_lines(b)
-  assert_eq(lines[2], "  DEADLINE: <2026-05-07 Thu>", "CLOSED removed")
+  assert_eq(lines[2], "DEADLINE: <2026-05-07 Thu>", "CLOSED removed")
   assert_eq(#lines, 2)
 end
 

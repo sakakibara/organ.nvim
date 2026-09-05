@@ -70,7 +70,7 @@ function M.find(buf_lines, hl_line, drawer_name, bufnr)
     while
       i <= #buf_lines
       and not buf_lines[i]:match("^%s*:END:")
-      and not buf_lines[i]:match("^%*+%s")
+      and not buf_lines[i]:match("^%*+ ")
     do
       i = i + 1
     end
@@ -84,7 +84,7 @@ function M.find(buf_lines, hl_line, drawer_name, bufnr)
     while
       i <= #buf_lines
       and not buf_lines[i]:match("^%s*:END:")
-      and not buf_lines[i]:match("^%*+%s")
+      and not buf_lines[i]:match("^%*+ ")
     do
       i = i + 1
     end
@@ -133,7 +133,7 @@ function M.insert_position(buf_lines, hl_line, bufnr)
     while
       i <= #buf_lines
       and not buf_lines[i]:match("^%s*:END:")
-      and not buf_lines[i]:match("^%*+%s")
+      and not buf_lines[i]:match("^%*+ ")
     do
       i = i + 1
     end

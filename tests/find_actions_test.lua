@@ -121,6 +121,30 @@ find.make_insert_link_action(ctx4)(item)
 local line4 = vim.api.nvim_buf_get_lines(sb4, 0, 1, false)[1]
 assert(line4 == "# this is a comment", "expected refuse (no change), got: " .. line4)
 
+-- insert_link when the captured window is gone: falls back to the current
+-- window instead of erroring out on an invalid handle.
+local sb5 = vim.api.nvim_create_buf(false, true)
+vim.api.nvim_buf_set_lines(sb5, 0, -1, false, { "see bar" })
+local gone = vim.api.nvim_open_win(sb5, false, {
+  relative = "editor",
+  row = 0,
+  col = 0,
+  width = 10,
+  height = 2,
+})
+vim.api.nvim_win_close(gone, true)
+vim.api.nvim_set_current_buf(sb5)
+find.make_insert_link_action({
+  bufnr = sb5,
+  win = gone,
+  cursor = { 1, 4 },
+  cword = "bar",
+  in_link = false,
+  in_comment = false,
+})(item)
+local line5 = vim.api.nvim_buf_get_lines(sb5, 0, 1, false)[1]
+assert(line5 == "see [[id:alpha-id][bar]]", "expected link with stale win, got: " .. line5)
+
 vim.fn.delete(tmp, "rf")
 io.write("find actions ok\n")
 os.exit(0)

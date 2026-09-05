@@ -15,7 +15,7 @@ local TAG_BLOCK = "(:[" .. TAG_SET .. ":]+:)%s*$"
 
 local function find_headline(buf_lines, line)
   local hl = line
-  while hl >= 1 and not buf_lines[hl]:match("^%*+%s") do
+  while hl >= 1 and not buf_lines[hl]:match("^%*+ ") do
     hl = hl - 1
   end
   if hl < 1 then
@@ -27,7 +27,7 @@ end
 -- Split a headline line into (prefix_until_title_end, tags_list).
 -- prefix is the part WITHOUT a trailing tag block; tags is { "tag1", ... }.
 local function parse_headline(line)
-  local stars, rest = line:match("^(%*+)%s+(.*)$")
+  local stars, rest = line:match("^(%*+) +(.*)$")
   if not stars then
     return nil
   end

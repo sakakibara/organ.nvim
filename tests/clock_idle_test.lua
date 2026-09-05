@@ -99,6 +99,68 @@ do
   assert(err and err:find("no active"), "got: " .. tostring(err))
 end
 
+-- Emacs `org-clock-resolve-clock` remembers the clocked entry with a
+-- marker, so text inserted above it cannot move the restart onto a
+-- different headline.
+do
+  state.clear()
+  local path = tmpdir .. "/marker.org"
+  local f = assert(io.open(path, "w"))
+  f:write("* Alpha\n* Beta\n  b\n")
+  f:close()
+  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  local b = vim.api.nvim_get_current_buf()
+  clock.start({ bufnr = b, line = 2 })
+  local before = state.load()
+  before.start_ts = before.start_ts - 3600
+  state.save(before)
+  vim.api.nvim_buf_set_lines(b, 0, 0, false, { "#+TITLE: t" })
+  local err = clock.subtract_idle(600)
+  assert_eq(err, nil, "subtract_idle after an edit above the headline")
+  local cl = clock_lines(b)
+  assert_eq(#cl, 2, "one closed + one open clock; got:\n" .. table.concat(cl, "\n"))
+  local open = 0
+  for _, l in ipairs(cl) do
+    if l:match("^%s*CLOCK: %[[^%]]+%]%s*$") then
+      open = open + 1
+    end
+  end
+  assert_eq(open, 1, "exactly one open clock; got:\n" .. table.concat(cl, "\n"))
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  local s = state.load()
+  assert_eq(lines[(s.line_start or 0) + 1], "* Beta", "restarted on the clocked headline")
+  clock.stop()
+end
+
+-- A stop that could not find its CLOCK line is a failure, and
+-- subtract_idle must not report success or open a second clock.
+do
+  state.clear()
+  local b = fixture_buf("desync.org")
+  clock.start({ bufnr = b, line = 1 })
+  local before = state.load()
+  before.start_ts = before.start_ts - 3600
+  state.save(before)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* Task", "  body" })
+  local err = clock.subtract_idle(600)
+  assert(err and err:find("out of sync"), "got: " .. tostring(err))
+  assert_eq(#clock_lines(b), 0, "no clock opened after a failed stop")
+  assert_eq(state.load(), nil, "state cleared after a failed stop")
+end
+
+-- A state file written without `line_start` must not crash cancel.
+do
+  state.clear()
+  local b = fixture_buf("nostart.org")
+  clock.start({ bufnr = b, line = 1 })
+  local s = state.load()
+  s.line_start = nil
+  state.save(s)
+  local ok, err = pcall(clock.cancel)
+  assert(ok, "cancel without line_start: " .. tostring(err))
+  assert_eq(#clock_lines(b), 0, "cancel removed the open clock")
+end
+
 -- idle.start with nil/0 threshold is a no-op.
 do
   local idle = require("organ.clock.idle")

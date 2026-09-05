@@ -370,6 +370,27 @@ do
   organ.config.format.headline.tags_column = saved
 end
 
+-- A NUL byte survives in an nvim buffer line, and `strdisplaywidth` takes
+-- such a string for a Blob (E976).  Measure it as the `^@` nvim renders and
+-- keep the byte itself in the output.
+do
+  local left = "* he" .. string.char(0) .. "ad"
+  local ok, got = pcall(format.align_tag_block, left, ":t:", { tags_column = 20 })
+  check("align: NUL in the headline does not raise", ok, tostring(got))
+  if ok then
+    check("align: NUL byte preserved", got:sub(1, #left) == left, vim.inspect(got))
+    -- "* he^@ad" is 8 display cells wide, so 12 spaces reach column 20.
+    check("align: NUL counted as ^@", got == left .. string.rep(" ", 12) .. ":t:", vim.inspect(got))
+  end
+
+  local to_ascii = require("organ.ast.to_ascii")
+  ok, got = pcall(to_ascii.render, {
+    kind = "document",
+    children = { { kind = "headline", level = 1, title = { { kind = "text", value = left } } } },
+  })
+  check("to_ascii: NUL in a headline does not raise", ok, tostring(got))
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

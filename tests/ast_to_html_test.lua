@@ -66,11 +66,17 @@ do
   local out = to_html.render(doc)
   check(
     "level 1 -> <h1>Top</h1>",
-    out:find('<h1 id="top">Top</h1>', 1, true) ~= nil,
+    out:find('<h1 id="top"><span class="section-number-1">1.</span> Top</h1>', 1, true) ~= nil,
     "got: " .. out
   )
-  check("level 2 -> <h2>Sub</h2>", out:find('<h2 id="sub">Sub</h2>', 1, true) ~= nil)
-  check("level 3 -> <h3>Deep</h3>", out:find('<h3 id="deep">Deep</h3>', 1, true) ~= nil)
+  check(
+    "level 2 -> <h2>Sub</h2>",
+    out:find('<h2 id="sub"><span class="section-number-2">1.1.</span> Sub</h2>', 1, true) ~= nil
+  )
+  check(
+    "level 3 -> <h3>Deep</h3>",
+    out:find('<h3 id="deep"><span class="section-number-3">1.1.1.</span> Deep</h3>', 1, true) ~= nil
+  )
 end
 
 -- Headline level clamps to 6
@@ -78,10 +84,13 @@ do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
   })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    headline_levels = 9,
+  })
   local out = to_html.render(doc)
   check(
     "level 9 clamps to <h6>",
-    out:find('<h6 id="way-deep">Way deep</h6>', 1, true) ~= nil,
+    out:find('<h6 id="way-deep">', 1, true) ~= nil and out:find("Way deep</h6>", 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -155,8 +164,8 @@ do
   })
   local out = to_html.render(doc)
   check(
-    "inline image with alt -> <img src alt>",
-    out:find('<img src="fig.png" alt="fig">', 1, true) ~= nil,
+    "inline image with description -> hyperlink",
+    out:find('<a href="fig.png">fig</a>', 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -358,8 +367,8 @@ do
   })
   local out = to_html.render(doc)
   check(
-    "example uses <pre>",
-    out:find("<pre>", 1, true) ~= nil and out:find("</pre>", 1, true) ~= nil,
+    "example uses <pre class=example>",
+    out:find('<pre class="example">', 1, true) ~= nil and out:find("</pre>", 1, true) ~= nil,
     "got: " .. out
   )
   check("example body escaped", out:find("raw &lt;text&gt;", 1, true) ~= nil)
@@ -371,7 +380,11 @@ do
     A.block("verse", { body = "verse 1\nverse 2" }),
   })
   local out = to_html.render(doc)
-  check("verse uses <pre>", out:find("<pre>verse 1\nverse 2</pre>", 1, true) ~= nil, "got: " .. out)
+  check(
+    "verse uses <p class=verse> with <br />",
+    out:find('<p class="verse">\nverse 1<br />\nverse 2<br />\n</p>', 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- Block: quote
@@ -428,11 +441,11 @@ do
   local out = to_html.render(doc)
   check("<table> wrapper", out:find("<table>", 1, true) ~= nil, "got: " .. out)
   check("<thead> present", out:find("<thead>", 1, true) ~= nil)
-  check("<th>name</th>", out:find("<th>name</th>", 1, true) ~= nil)
-  check("<th>age</th>", out:find("<th>age</th>", 1, true) ~= nil)
+  check("<th>name</th>", out:find('<th class="org-left">name</th>', 1, true) ~= nil)
+  check("<th>age</th>", out:find('<th class="org-right">age</th>', 1, true) ~= nil)
   check("<tbody> present", out:find("<tbody>", 1, true) ~= nil)
-  check("<td>ada</td>", out:find("<td>ada</td>", 1, true) ~= nil)
-  check("<td>36</td>", out:find("<td>36</td>", 1, true) ~= nil)
+  check("<td>ada</td>", out:find('<td class="org-left">ada</td>', 1, true) ~= nil)
+  check("<td>36</td>", out:find('<td class="org-right">36</td>', 1, true) ~= nil)
 end
 
 -- Table with no header divider
@@ -450,7 +463,7 @@ do
   local out = to_html.render(doc)
   check("no sep -> no <thead>", out:find("<thead>", 1, true) == nil, "got: " .. out)
   check("data still in <tbody>", out:find("<tbody>", 1, true) ~= nil)
-  check("data row 1 as <td>", out:find("<td>a</td>", 1, true) ~= nil)
+  check("data row 1 as <td>", out:find('<td class="org-left">a</td>', 1, true) ~= nil)
 end
 
 -- Table with mid-table sep (extra sep dropped)
@@ -469,10 +482,15 @@ do
     },
   })
   local out = to_html.render(doc)
-  check("header in <thead>", out:find("<th>h</th>", 1, true) ~= nil, "got: " .. out)
+  check(
+    "header in <thead>",
+    out:find('<th class="org-left">h</th>', 1, true) ~= nil,
+    "got: " .. out
+  )
   check(
     "a1 + a2 both in tbody",
-    out:find("<td>a1</td>", 1, true) ~= nil and out:find("<td>a2</td>", 1, true) ~= nil
+    out:find('<td class="org-left">a1</td>', 1, true) ~= nil
+      and out:find('<td class="org-left">a2</td>', 1, true) ~= nil
   )
 end
 
@@ -488,7 +506,11 @@ do
     },
   })
   local out = to_html.render(doc)
-  check("cell content escaped", out:find("<td>&lt;x&gt;</td>", 1, true) ~= nil, "got: " .. out)
+  check(
+    "cell content escaped",
+    out:find('<td class="org-left">&lt;x&gt;</td>', 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- Block-level image
@@ -500,8 +522,8 @@ do
   })
   local out = to_html.render(doc)
   check(
-    "block image renders as standalone <img>",
-    out:find('<img src="fig.png" alt="diagram">', 1, true) ~= nil,
+    "block image with description renders as a hyperlink",
+    out:find('<p><a href="fig.png">diagram</a></p>', 1, true) ~= nil,
     "got: " .. out
   )
   check(
@@ -734,10 +756,17 @@ do
   local out = to_html.render(doc)
   check(
     "headline id from title",
-    out:find('<h1 id="target-heading">Target heading</h1>', 1, true) ~= nil,
+    out:find(
+      '<h1 id="target-heading"><span class="section-number-1">1.</span> Target heading</h1>',
+      1,
+      true
+    ) ~= nil,
     "got: " .. out
   )
-  check("headline id from CUSTOM_ID", out:find('<h1 id="custom">Custom</h1>', 1, true) ~= nil)
+  check(
+    "headline id from CUSTOM_ID",
+    out:find('<h1 id="custom"><span class="section-number-1">2.</span> Custom</h1>', 1, true) ~= nil
+  )
   check("file:x.org -> x.html", out:find('<a href="notes.html">Notes</a>', 1, true) ~= nil)
   check("*Title -> #id", out:find('<a href="#target-heading">internal</a>', 1, true) ~= nil)
   check("#custom -> #custom", out:find('<a href="#custom">by id</a>', 1, true) ~= nil)
@@ -749,6 +778,504 @@ do
   )
   check("unresolved fuzzy -> <i>desc</i>", out:find("<i>gone</i>", 1, true) ~= nil)
   check("external untouched", out:find('<a href="https://x.y/a?b=1&amp;c=2">q</a>', 1, true) ~= nil)
+end
+
+-- Fixed-width lines (`: text`) -- every short babel result is one.
+do
+  local doc = A.document({
+    { kind = "fixed_width", body = "42\nnext", affiliated = { { name = "RESULTS", value = "" } } },
+  })
+  local out = to_html.render(doc)
+  check(
+    "fixed_width -> <pre class=example>",
+    out:find('<pre class="example">\n42\nnext\n</pre>', 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- LaTeX environments pass through raw, or as literal text under tex:verbatim.
+do
+  local body = "\\begin{equation}\nx = 1\n\\end{equation}"
+  local doc = A.document({ { kind = "latex_environment", name = "equation", body = body } })
+  local out = to_html.render(doc)
+  check("latex_environment passes through raw", out:find(body, 1, true) ~= nil, "got: " .. out)
+
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_latex = "verbatim",
+  })
+  local verbatim = to_html.render(doc)
+  check(
+    "tex:verbatim renders the environment as literal text",
+    verbatim:find("<p>" .. body .. "</p>", 1, true) ~= nil,
+    "got: " .. verbatim
+  )
+end
+
+-- Greater blocks: center, custom, and backend-gated export blocks.
+do
+  local doc = A.document({
+    A.block("center", { content = { A.paragraph({ A.text("mid") }) } }),
+    A.block("myblock", { content = { A.paragraph({ A.text("custom") }) } }),
+    A.block("export", { backend = "html", body = "<b>raw</b>" }),
+    A.block("export", { backend = "latex", body = "\\raw{}" }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "center block -> div.org-center",
+    out:find('<div class="org-center">\n<p>mid</p>\n</div>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("custom block -> div named after it", out:find('<div class="myblock">', 1, true) ~= nil)
+  check("export html passes through", out:find("<b>raw</b>", 1, true) ~= nil)
+  check("export latex is dropped", out:find("raw{}", 1, true) == nil)
+end
+
+-- TODO keyword, priority cookie and tags reach the heading.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      todo = "TODO",
+      todo_type = "todo",
+      priority = "A",
+      tags = { "work", "urgent" },
+      title = { A.text("Task one") },
+    }),
+    A.headline({ level = 1, todo = "DONE", todo_type = "done", title = { A.text("Done one") } }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_priority = true,
+    with_toc = false,
+  })
+  local out = to_html.render(doc)
+  check(
+    "TODO keyword marked up",
+    out:find('<span class="todo TODO">TODO</span>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("DONE keyword marked up", out:find('<span class="done DONE">DONE</span>', 1, true) ~= nil)
+  check("priority cookie marked up", out:find('<span class="priority">[A]</span>', 1, true) ~= nil)
+  check(
+    "tags marked up",
+    out:find(
+      '&#xa0;&#xa0;&#xa0;<span class="tag"><span class="work">work</span>&#xa0;<span class="urgent">urgent</span></span>',
+      1,
+      true
+    ) ~= nil
+  )
+
+  doc.options.with_todo_keywords = false
+  doc.options.with_priority = false
+  doc.options.with_tags = false
+  local bare = to_html.render(doc)
+  check(
+    "options switch each part off",
+    bare:find("todo TODO", 1, true) == nil
+      and bare:find('class="priority"', 1, true) == nil
+      and bare:find('class="tag"', 1, true) == nil,
+    "got: " .. bare
+  )
+end
+
+-- Description lists keep their terms.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ tag = { A.text("term") }, content = { A.paragraph({ A.text("definition") }) } }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "description list -> dl/dt/dd",
+    out:find('<dl class="org-dl">\n<dt>term</dt><dd>definition</dd>\n</dl>', 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Verse keeps inline markup; newlines become <br>, indent &#xa0;.
+do
+  local doc = A.document({
+    A.block("verse", {
+      content = {
+        A.paragraph({
+          A.text("line one "),
+          A.emphasis("bold", { A.text("b") }),
+          A.text("\n   indented line"),
+        }),
+      },
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "verse keeps markup and indentation",
+    out:find(
+      '<p class="verse">\nline one <strong>b</strong><br />\n&#xa0;&#xa0;&#xa0;indented line<br />\n</p>',
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Affiliated keywords: CAPTION / NAME / ATTR_HTML.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      affiliated = {
+        {
+          name = "CAPTION",
+          value = "A caption with *bold*",
+          inline = {
+            A.text("A caption with "),
+            A.emphasis("bold", { A.text("bold") }),
+          },
+        },
+        { name = "NAME", value = "tbl-one" },
+        { name = "ATTR_HTML", value = ":width 100 :class fancy" },
+      },
+      rows = { { cells = { { A.text("a") } }, sep = false } },
+    },
+    A.code_block("lua", "print(1)"),
+    { kind = "image", target = "./img.png" },
+  })
+  doc.children[2].affiliated = { { name = "CAPTION", value = "Code caption" } }
+  doc.children[3].affiliated = {
+    { name = "CAPTION", value = "Pic caption" },
+    { name = "NAME", value = "fig-one" },
+    { name = "ATTR_HTML", value = ":width 100" },
+  }
+  local out = to_html.render(doc)
+  check(
+    "table caption keeps its markup",
+    out:find(
+      '<caption class="t-above"><span class="table-number">Table 1:</span> A caption with <strong>bold</strong></caption>',
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
+  check("NAME becomes an id", out:find('<table id="tbl-one"', 1, true) ~= nil)
+  check("ATTR_HTML becomes attributes", out:find('width="100" class="fancy"', 1, true) ~= nil)
+  check(
+    "src block caption",
+    out:find(
+      '<label class="org-src-name"><span class="listing-number">Listing 1: </span>Code caption</label>',
+      1,
+      true
+    ) ~= nil
+  )
+  check(
+    "image caption",
+    out:find('<span class="figure-number">Figure 1: </span>Pic caption', 1, true) ~= nil
+  )
+end
+
+-- Table of contents, numbered like the headings it points at.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("One") },
+      children = { A.headline({ level = 2, title = { A.text("Deep") } }) },
+    }),
+    A.headline({ level = 1, title = { A.text("Two") } }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "toc container",
+    out:find('<div id="table-of-contents" role="doc-toc">', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("toc entry numbered", out:find('<li><a href="#one">1. One</a>', 1, true) ~= nil)
+  check("toc nests", out:find('<li><a href="#deep">1.1. Deep</a>', 1, true) ~= nil)
+  check("toc second top entry", out:find('<li><a href="#two">2. Two</a>', 1, true) ~= nil)
+
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_toc = false,
+  })
+  check("toc:nil suppresses it", to_html.render(doc):find("table-of-contents", 1, true) == nil)
+
+  doc.options.with_toc = 1
+  local shallow = to_html.render(doc)
+  check(
+    "toc depth limits the entries",
+    shallow:find('href="#one"', 1, true) ~= nil and shallow:find('href="#deep"', 1, true) == nil,
+    "got: " .. shallow
+  )
+end
+
+-- Alignment cookies are metadata, not a data row.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "r", "l", "c" },
+      rows = {
+        { cells = { { A.text("<r>") }, { A.text("<l>") }, { A.text("<c>") } }, sep = false },
+        { cells = { { A.text("1") }, { A.text("a") }, { A.text("x") } }, sep = false },
+      },
+    },
+  })
+  local out = to_html.render(doc)
+  check("cookie row is not rendered", out:find("&lt;r&gt;", 1, true) == nil, "got: " .. out)
+  check(
+    "cookies become a colgroup",
+    out:find(
+      '<colgroup><col class="org-right" /><col class="org-left" /><col class="org-center" /></colgroup>',
+      1,
+      true
+    ) ~= nil
+  )
+end
+
+-- Partial checkboxes stay distinguishable from unchecked ones.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ checkbox = "todo", content = { A.paragraph({ A.text("t") }) } }),
+      A.list_item({ checkbox = "part", content = { A.paragraph({ A.text("p") }) } }),
+      A.list_item({ checkbox = "done", content = { A.paragraph({ A.text("d") }) } }),
+    }),
+  })
+  local out = to_html.render(doc)
+  check(
+    "tri-state checkbox classes",
+    out:find('<li class="off">', 1, true) ~= nil
+      and out:find('<li class="trans">', 1, true) ~= nil
+      and out:find('<li class="on">', 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Entities keep working with the `{}` terminator; head reads the options.
+do
+  local doc = A.document({ A.paragraph({ A.entity("alpha{}"), A.text("text") }) })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    author = "Jane Doe",
+    date = "2026-01-02",
+    language = "ja",
+    time_stamp_file = false,
+  })
+  local out = to_html.render(doc)
+  check("\\alpha{} is the alpha entity", out:find("&alpha;text", 1, true) ~= nil, "got: " .. out)
+  check("language reaches <html>", out:find('<html lang="ja">', 1, true) ~= nil)
+  check(
+    "author reaches <head>",
+    out:find('<meta name="author" content="Jane Doe">', 1, true) ~= nil
+  )
+  check(
+    "date reaches <head>",
+    out:find('<meta name="dcterms.date" content="2026-01-02">', 1, true) ~= nil
+  )
+end
+
+-- Special strings, smart quotes and preserved line breaks.
+do
+  local doc = A.document({
+    A.paragraph({ A.text('He said "hello" -- it\'s a test... and---dash\nline two') }),
+  })
+  local plain = to_html.render(doc)
+  check(
+    "special strings on by default",
+    plain:find("&#x2013;", 1, true) ~= nil
+      and plain:find("&#x2014;", 1, true) ~= nil
+      and plain:find("&#x2026;", 1, true) ~= nil,
+    "got: " .. plain
+  )
+  check("smart quotes off by default", plain:find("&ldquo;", 1, true) == nil)
+  check("line breaks not preserved by default", plain:find("<br />", 1, true) == nil)
+
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_smart_quotes = true,
+    preserve_breaks = true,
+  })
+  local rich = to_html.render(doc)
+  check(
+    "smart quotes",
+    rich:find("&ldquo;hello&rdquo;", 1, true) ~= nil and rich:find("it&rsquo;s", 1, true) ~= nil,
+    "got: " .. rich
+  )
+  check("preserved break", rich:find("dash<br />\nline two", 1, true) ~= nil, "got: " .. rich)
+
+  doc.options.with_special_strings = false
+  check("-:nil leaves the text alone", to_html.render(doc):find("a test...", 1, true) ~= nil)
+end
+
+-- Diary sexp timestamps.  `<%%(...)>` on a line of its own is a paragraph
+-- holding a diary timestamp, exactly as it is mid-paragraph; a bare
+-- `%%(...)` is a diary-sexp element, which no backend transcodes.
+do
+  local from_org = require("organ.ast.from_org")
+  local span = '<span class="timestamp-wrapper"><span class="timestamp">'
+    .. "&lt;%%(diary-float t 4 2)&gt;</span></span>"
+
+  local standalone = to_html.render(from_org.from_lines({ "<%%(diary-float t 4 2)>" }))
+  check(
+    "standalone diary sexp is a paragraph with a timestamp",
+    standalone:find("<p>" .. span .. "</p>", 1, true) ~= nil,
+    "got: " .. standalone
+  )
+
+  local inline = to_html.render(from_org.from_lines({ "Inline <%%(diary-float t 4 2)> here." }))
+  check(
+    "inline diary sexp keeps its timestamp",
+    inline:find("<p>Inline " .. span .. " here.</p>", 1, true) ~= nil,
+    "got: " .. inline
+  )
+
+  local bare = to_html.render(from_org.from_lines({ "%%(diary-float t 4 2)" }))
+  check(
+    "bare diary-sexp element emits nothing",
+    bare:find("diary-float", 1, true) == nil,
+    "got: " .. bare
+  )
+end
+
+-- `#+OPTIONS: H:N` (org-export-low-level-p): a headline deeper than N is
+-- a list item, not a heading; `num:` picks the list type.
+do
+  local function tree()
+    return A.document({
+      A.headline({
+        level = 1,
+        title = { A.text("Top") },
+        children = {
+          A.headline({
+            level = 2,
+            title = { A.text("Sub") },
+            children = {
+              A.headline({
+                level = 3,
+                title = { A.text("Deep") },
+                children = {
+                  A.paragraph({ A.text("body") }),
+                  A.headline({ level = 4, title = { A.text("Deeper") } }),
+                },
+              }),
+              A.headline({ level = 3, title = { A.text("Deep B") } }),
+            },
+          }),
+        },
+      }),
+    })
+  end
+  local function opts(over)
+    return vim.tbl_extend(
+      "force",
+      require("organ.export.options").defaults(),
+      { headline_levels = 2, with_toc = false, with_section_numbers = false },
+      over or {}
+    )
+  end
+
+  local doc = tree()
+  doc.options = opts()
+  local out = to_html.render(doc)
+  check("H:2 keeps level 2 a heading", out:find('<h2 id="sub">', 1, true) ~= nil, "got: " .. out)
+  check("H:2 emits no <h3>", out:find("<h3", 1, true) == nil, "got: " .. out)
+  check(
+    "H:2 demotes level 3 to a list item",
+    out:find('<ul>\n<li><a id="deep"></a>Deep<br />\n<p>body</p>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "H:2 nests the level 4 list inside its parent item",
+    out:find('<ul>\n<li><a id="deeper"></a>Deeper<br /></li>\n</ul></li>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "sibling demoted headlines share one list",
+    select(2, out:gsub("<ul>", "")) == 2 and out:find('<li><a id="deep-b">', 1, true) ~= nil,
+    "got: " .. out
+  )
+
+  local numbered = tree()
+  numbered.options = opts({ with_section_numbers = true })
+  local nout = to_html.render(numbered)
+  check("num:t demotes into <ol>", nout:find("<ol>", 1, true) ~= nil, "got: " .. nout)
+
+  local capped = tree()
+  capped.options = opts({ with_section_numbers = 2 })
+  check(
+    "num:2 leaves the demoted list unordered",
+    to_html.render(capped):find("<ol>", 1, true) == nil
+  )
+end
+
+-- `#+TOC:` as a directive (org-html-keyword / org-latex-keyword /
+-- org-md-keyword / org-ascii-keyword / org-texinfo-keyword), verified
+-- against Emacs 30.2 / Org 9.7.11.
+do
+  local from_org = require("organ.ast.from_org")
+  local src = {
+    "#+OPTIONS: toc:nil num:nil",
+    "",
+    "#+TOC: headlines 2",
+    "",
+    "* One",
+    "#+CAPTION: Table one",
+    "| a | b |",
+    "",
+    "#+CAPTION: Listing one",
+    "#+BEGIN_SRC lua",
+    "print(1)",
+    "#+END_SRC",
+    "",
+    "** Two",
+    "*** Three",
+    "",
+    "#+TOC: tables",
+    "",
+    "#+TOC: listings",
+    "",
+    "#+TOC: figures",
+    "",
+    "* Four",
+    "#+TOC: headlines 1 local",
+    "** Five",
+  }
+
+  local out = to_html.render(from_org.from_lines(src))
+  check(
+    "#+TOC: headlines builds the document TOC under toc:nil",
+    out:find('<div id="table-of-contents" role="doc-toc">', 1, true) ~= nil
+      and out:find('<a href="#one">One</a>', 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: headlines 2 stops at level 2",
+    out:find('href="#three"', 1, true) == nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: tables lists the captioned table",
+    out:find('<div id="list-of-tables">', 1, true) ~= nil
+      and out:find('<li><span class="table-number">Table 1:</span> Table one</li>', 1, true)
+        ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: listings lists the captioned src block",
+    out:find('<div id="list-of-listings">', 1, true) ~= nil
+      and out:find('<li><span class="listing-number">Listing 1:</span> Listing one</li>', 1, true)
+        ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: figures renders nothing, as in ox-html",
+    out:find("list-of-figures", 1, true) == nil
+  )
+  check(
+    "#+TOC: ... local is the bare list of the enclosing subtree",
+    out:find(
+      '<div id="text-table-of-contents-1" role="doc-toc">\n<ul>\n<li><a href="#five">Five</a>',
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
 end
 
 if fails > 0 then

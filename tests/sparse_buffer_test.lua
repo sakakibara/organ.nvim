@@ -101,4 +101,30 @@ do
   assert_eq(s.visible[4], nil, "no keyword hidden")
 end
 
+-- `:Org sparse_tree regex` hands its argument to string.match, so a
+-- malformed pattern used to escape as a raw Lua error.  Report it the way
+-- `sparse_tree match` already does and leave the buffer's view alone.
+do
+  local b = mk_buf({ "* Foo", "* Bar" })
+  local notified
+  local notify = require("organ.notify")
+  local saved = notify.error
+  notify.error = function(msg)
+    notified = msg
+  end
+  for _, pat in ipairs({ "Foo[", "%1", "%b", "((((" }) do
+    notified = nil
+    local ok = pcall(sparse.commands["sparse_tree regex"].fn, { args = pat })
+    assert(ok, "malformed pattern " .. pat .. " must not raise")
+    assert(notified, "malformed pattern " .. pat .. " must be reported")
+    assert_eq(vim.b[b].organ_sparse, nil, "no view applied for " .. pat .. ":")
+  end
+  notified = nil
+  sparse.commands["sparse_tree regex"].fn({ args = "Fo" })
+  notify.error = saved
+  assert_eq(notified, nil, "a valid pattern reports nothing:")
+  assert_eq(vim.b[b].organ_sparse.visible[1], true, "Foo visible:")
+  assert_eq(vim.b[b].organ_sparse.visible[2], nil, "Bar hidden:")
+end
+
 io.write("sparse buffer ok\n")

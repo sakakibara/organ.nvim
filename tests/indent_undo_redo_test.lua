@@ -46,6 +46,7 @@ vim.fn.writefile({
 }, tmp)
 vim.cmd("edit " .. tmp)
 local b = vim.api.nvim_get_current_buf()
+vim.bo[b].filetype = "org"
 indent.attach(b)
 vim.wait(20)
 

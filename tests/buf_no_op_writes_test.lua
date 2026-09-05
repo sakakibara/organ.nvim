@@ -71,17 +71,16 @@ do
   check("changed set_text: modified becomes true", vim.bo[b].modified == true)
 end
 
--- 5. End-to-end: set_deadline on the same date with non-canonical existing
---    format DOES mark modified because the canonical rewrite normalizes indent
---    and keyword padding even when the timestamp is unchanged.
+-- 5. End-to-end: set_deadline on the same date still marks modified when
+--    the rewrite moves the keyword to the front of the planning line.
 do
   local b = new_buf()
   vim.api.nvim_set_current_buf(b)
   vim.bo[b].filetype = "org"
   vim.api.nvim_buf_set_lines(b, 0, -1, false, {
     "* TODO Task",
-    "DEADLINE: <2026-05-15 Fri>",
-    "body",
+    "  SCHEDULED: <2026-05-10 Sun> DEADLINE: <2026-05-15 Fri>",
+    "  body",
   })
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   vim.bo[b].modified = false
@@ -89,10 +88,8 @@ do
     cb("2026-05-15")
   end
   require("organ.schedule").set_deadline()
-  -- The canonical rewrite indents "DEADLINE: " -> "  DEADLINE: " even for
-  -- a same-date set, so the buffer is marked modified.
   check(
-    "deadline same-date non-canonical: modified becomes true",
+    "deadline same-date, keyword reordered: modified becomes true",
     vim.bo[b].modified == true,
     "buffer state: " .. tostring(vim.bo[b].modified)
   )

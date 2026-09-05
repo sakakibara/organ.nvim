@@ -60,7 +60,7 @@ local function parent_chain_and_tags(bufnr, headline)
   while target_level >= 1 and scan_from >= 1 do
     for i = scan_from, 1, -1 do
       local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-      local stars, rest = txt:match("^(%*+)%s+(.-)%s*$")
+      local stars, rest = txt:match("^(%*+) +(.-)%s*$")
       if stars and #stars == target_level then
         local tag_str = rest:match("(:[%w_@#%%\128-\255:]+:)%s*$")
         -- Title without the tag block, for olpath display.
@@ -311,7 +311,7 @@ end
 -- by an optional `:tags:` group).  Returns nil if not found.
 local function find_top_headline(lines, title)
   for i, l in ipairs(lines) do
-    local stars, t = l:match("^(%*+)%s+(.-)%s*$")
+    local stars, t = l:match("^(%*+) +(.-)%s*$")
     if stars and #stars == 1 then
       if t == title or t:gsub("%s+:[%w_@#%%\128-\255:]+:$", "") == title then
         return i
@@ -330,7 +330,7 @@ local function relevel_lines(lines, src_level, dst_level)
   end
   local out = {}
   for _, l in ipairs(lines) do
-    local stars = l:match("^(%*+)%s")
+    local stars = l:match("^(%*+) ")
     if stars then
       local new_level = math.max(1, #stars + delta)
       out[#out + 1] = string.rep("*", new_level) .. l:sub(#stars + 1)
@@ -341,14 +341,24 @@ local function relevel_lines(lines, src_level, dst_level)
   return out
 end
 
+-- Section indent for a headline of `level`, honouring `todo.planning_indent`
+-- (the same rule every other drawer writer follows).
+local function section_indent(bufnr, level)
+  local mode = (require("organ.buf_config").read(bufnr, "todo") or {}).planning_indent
+  return require("organ.section").section_indent_for(level, mode)
+end
+
 -- Insert a :PROPERTIES: drawer (or append to existing one) with the given
 -- key/value pairs into `lines` right after line 1 (the headline line).
 -- `pairs_list` is a list of { key, value } tables (ordered).
+-- `indent` is the section indent for a fresh drawer; lines added to a drawer
+-- that already exists take that drawer's own indent instead.
 -- Returns the modified lines table.
-local function inject_properties(lines, pairs_list)
+local function inject_properties(lines, pairs_list, indent)
   if #pairs_list == 0 then
     return lines
   end
+  indent = indent or ""
 
   -- Find whether there's an existing :PROPERTIES: drawer already.
   -- It must start right after the headline (line index 2 = lines[2]).
@@ -374,9 +384,10 @@ local function inject_properties(lines, pairs_list)
     end
   end
 
+  local lead = insert_before_end and (lines[scan]:match("^([ \t]*)") or "") or indent
   local prop_lines = {}
   for _, kv in ipairs(pairs_list) do
-    prop_lines[#prop_lines + 1] = ":" .. kv[1] .. ": " .. kv[2]
+    prop_lines[#prop_lines + 1] = lead .. ":" .. kv[1] .. ": " .. kv[2]
   end
 
   if insert_before_end then
@@ -399,11 +410,11 @@ local function inject_properties(lines, pairs_list)
     for i = 1, scan - 1 do
       out[#out + 1] = lines[i]
     end
-    out[#out + 1] = ":PROPERTIES:"
+    out[#out + 1] = indent .. ":PROPERTIES:"
     for _, pl in ipairs(prop_lines) do
       out[#out + 1] = pl
     end
-    out[#out + 1] = ":END:"
+    out[#out + 1] = indent .. ":END:"
     for i = scan, #lines do
       out[#out + 1] = lines[i]
     end
@@ -465,7 +476,7 @@ local function splice_subtree(arc_lines, arc_hl_line, releveled)
   local insert_at = #arc_lines + 1
   local arc_lvl = 1 -- "* Archive" is level 1
   for i = arc_hl_line + 1, #arc_lines do
-    local stars = arc_lines[i]:match("^(%*+)%s")
+    local stars = arc_lines[i]:match("^(%*+) ")
     if stars and #stars <= arc_lvl then
       insert_at = i
       break
@@ -578,15 +589,19 @@ function M.archive_subtree(opts)
     arc_lines = read_file_lines(archive_path)
   end
 
-  -- 8a. Source-file header comment.  Emacs's `org-archive--add-
-  --     comment` writes `# Archived entries from file <path>` once,
-  --     when the archive file is empty (newly created).  Default ON
-  --     for Emacs parity; opt out via `cfg.write_source_header =
-  --     false`.
+  -- 8a. Source-file header.  A newly created archive file opens with
+  --     Emacs's mode line plus `org-archive-file-header-format`
+  --     ("\nArchived entries from file %s\n\n") -- the second line is
+  --     plain text, not a comment.  Opt out via
+  --     `cfg.write_source_header = false`.
   local is_empty = (#arc_lines == 0) or (#arc_lines == 1 and arc_lines[1] == "")
   if is_empty and cfg.write_source_header ~= false then
     arc_lines = {
-      "# Archived entries from file " .. abbreviate_path(src_path),
+      "#    -*- mode: org -*-",
+      "",
+      "",
+      "Archived entries from file " .. abbreviate_path(src_path),
+      "",
       "",
     }
   end
@@ -634,7 +649,7 @@ function M.archive_subtree(opts)
       bufnr = bufnr,
       hl = hl,
     })
-    releveled = inject_properties(releveled, props)
+    releveled = inject_properties(releveled, props, section_indent(bufnr, dst_level))
   end
 
   if same_file then
@@ -771,7 +786,7 @@ function M.archive_to_sibling(opts)
         props[#props + 1] = { "ARCHIVE_ITAGS", table.concat(itags, " ") }
       end
     end
-    releveled = inject_properties(releveled, props)
+    releveled = inject_properties(releveled, props, section_indent(bufnr, 2))
   end
 
   local out = move_within_buffer(all, hl.line, subtree_end, arc_hl_line, releveled)
@@ -1008,7 +1023,7 @@ function M.unarchive(opts)
 
   -- ARCHIVE_TODO restores the keyword when the headline lost it.
   if props.archive_todo and props.archive_todo ~= "" then
-    local stars, title = cleaned[1]:match("^(%*+%s+)(.*)$")
+    local stars, title = cleaned[1]:match("^(%*+ +)(.*)$")
     if stars and not split_todo(title, require("organ.todo").all_keywords()) then
       cleaned[1] = stars .. props.archive_todo .. " " .. title
     end

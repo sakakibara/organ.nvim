@@ -28,9 +28,10 @@ local function check(label, ok, detail)
   end
 end
 
--- Source buffer with three blocks:
---   * a NAMED helper block (:name helper)
---   * a tangled block referencing <<helper>> with :noweb yes
+-- Source buffer with four blocks:
+--   * a helper block named the org way, with a #+NAME: keyword
+--   * a helper block named with organ's own `:name` header argument
+--   * a tangled block referencing both with :noweb yes
 --   * a tangled block targeting a NESTED dir (sub/dir/file) with :mkdirp yes
 local out_path = tmp .. "/output.lua"
 local nested_path = tmp .. "/sub/dir/nested.lua"
@@ -39,12 +40,18 @@ local bufnr = vim.api.nvim_create_buf(false, true)
 vim.api.nvim_buf_set_name(bufnr, tmp .. "/source.org")
 vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {
   "* Sample",
-  "#+begin_src lua :name helper",
+  "#+NAME: helper",
+  "#+begin_src lua",
   "local function shared() return 42 end",
+  "#+end_src",
+  "",
+  "#+begin_src lua :name arg_helper",
+  "local function also_shared() return 7 end",
   "#+end_src",
   "",
   "#+begin_src lua :tangle " .. out_path .. " :noweb yes",
   "<<helper>>",
+  "<<arg_helper>>",
   "print(shared())",
   "#+end_src",
   "",
@@ -66,8 +73,14 @@ check(
 -- helper's BODY, not a literal <<helper>> line.
 local body = table.concat(vim.fn.readfile(out_path), "\n")
 check(
-  "noweb: tangled file contains the helper's body",
-  body:find("local function shared() return 42 end", 1, true) ~= nil
+  "noweb: tangled file contains the #+NAME: helper's body",
+  body:find("local function shared() return 42 end", 1, true) ~= nil,
+  "got body:\n" .. body
+)
+check(
+  "noweb: organ's :name form still resolves",
+  body:find("local function also_shared() return 7 end", 1, true) ~= nil,
+  "got body:\n" .. body
 )
 check(
   "noweb: literal <<helper>> NOT present in tangled file",

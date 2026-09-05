@@ -245,5 +245,71 @@ do
   assert(#wednesday == 1 and wednesday[1]:find("Sched. 5x:  TODO zero repeater", 1, true), res)
 end
 
+-- A repeating entry shows on its base date, on today, and on repeats
+-- strictly after today -- never on the days between its base date and
+-- today.  Expectations transcribed from Emacs 30.2 `org-agenda-list`
+-- over the same five entries, rendered for 2026-05-06.
+do
+  local function rep_row(id, title, date, raw)
+    local r = mk(id, title, "TODO", nil, date)
+    r.scheduled = raw
+    return r
+  end
+  local joined = render_week(week, {
+    rep_row("a", "daily from May 5", "2026-05-05", "<2026-05-05 Tue +1d>"),
+    rep_row("b", "weekly from May 5", "2026-05-05", "<2026-05-05 Tue +1w>"),
+    rep_row("c", "daily from May 4", "2026-05-04", "<2026-05-04 Mon +1d>"),
+    rep_row("d", "threeday from May 5", "2026-05-05", "<2026-05-05 Tue +3d>"),
+    rep_row("e", "daily from Apr 29", "2026-04-29", "<2026-04-29 Wed +1d>"),
+  }, "2026-05-06")
+  local expected = {
+    ["Monday      4 May"] = { "Scheduled:  TODO daily from May 4" },
+    ["Tuesday     5 May"] = {
+      "Scheduled:  TODO daily from May 5",
+      "Scheduled:  TODO threeday from May 5",
+      "Scheduled:  TODO weekly from May 5",
+    },
+    ["Wednesday   6 May"] = {
+      "Sched. 1x:  TODO daily from May 5",
+      "Sched. 1x:  TODO threeday from May 5",
+      "Sched. 1x:  TODO weekly from May 5",
+      "Sched. 2x:  TODO daily from May 4",
+      "Sched. 7x:  TODO daily from Apr 29",
+    },
+    ["Thursday    7 May"] = {
+      "Scheduled:  TODO daily from Apr 29",
+      "Scheduled:  TODO daily from May 4",
+      "Scheduled:  TODO daily from May 5",
+    },
+    ["Friday      8 May"] = {
+      "Scheduled:  TODO daily from Apr 29",
+      "Scheduled:  TODO daily from May 4",
+      "Scheduled:  TODO daily from May 5",
+      "Scheduled:  TODO threeday from May 5",
+    },
+    ["Saturday    9 May"] = {
+      "Scheduled:  TODO daily from Apr 29",
+      "Scheduled:  TODO daily from May 4",
+      "Scheduled:  TODO daily from May 5",
+    },
+    ["Sunday      10 May"] = {
+      "Scheduled:  TODO daily from Apr 29",
+      "Scheduled:  TODO daily from May 4",
+      "Scheduled:  TODO daily from May 5",
+    },
+  }
+  for header, want in pairs(expected) do
+    local got = {}
+    for _, line in ipairs(lines_under(joined, header)) do
+      got[#got + 1] = line:gsub("^%s*%S+%s+", "")
+    end
+    table.sort(got)
+    assert(
+      table.concat(got, "\n") == table.concat(want, "\n"),
+      header .. ":\nwant\n" .. table.concat(want, "\n") .. "\ngot\n" .. table.concat(got, "\n")
+    )
+  end
+end
+
 io.write("agenda render ok\n")
 os.exit(0)

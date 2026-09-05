@@ -122,6 +122,23 @@ do
   assert(state_mod.load() == nil, "nested state: cleared after clock-out")
 end
 
+-- 4. clock jump inside the clock's own file, with unsaved changes.  `:edit`
+-- refuses that with E37 whatever 'hidden' is; Emacs `org-clock-goto` just
+-- moves point.
+do
+  clock.start({ bufnr = bufnr, line = 1 })
+  vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "  typed after clocking in" })
+  assert(vim.bo[bufnr].modified, "buffer must be dirty for this to mean anything")
+  local last = vim.api.nvim_buf_line_count(bufnr)
+  vim.api.nvim_win_set_cursor(0, { last, 0 })
+  local ok, err = pcall(clock.jump)
+  assert(ok, "clock.jump inside the clocked file raised: " .. tostring(err))
+  assert(vim.api.nvim_get_current_buf() == bufnr, "jump left the clocked buffer")
+  assert(vim.api.nvim_win_get_cursor(0)[1] == 1, "jump did not move to the headline")
+  vim.cmd("write")
+  clock.stop()
+end
+
 vim.fn.stdpath = original_stdpath
 vim.fn.delete(tmp, "rf")
 io.write("clock e2e ok\n")

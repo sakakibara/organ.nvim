@@ -10,7 +10,14 @@ M.TRIGGERS = {
   ["[[attachment:"] = "attachment",
 }
 
+-- The cursor position describes `bufnr` only while the current window is
+-- showing it; the debounced open fires long after the keystroke that
+-- scheduled it, by which time the user may have moved to another window.
 function M.trigger_at_cursor(bufnr)
+  bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
+  if vim.api.nvim_win_get_buf(0) ~= bufnr then
+    return nil
+  end
   local row = vim.api.nvim_win_get_cursor(0)[1] - 1
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""

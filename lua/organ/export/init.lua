@@ -14,7 +14,12 @@ local function generic_export(cmd, mod_path, label)
     require("organ.notify").warn("file exists; use :Org " .. label .. "! to overwrite")
     return
   end
-  local path, err = exp.export_buffer_to_file(0, target)
+  -- Macro / SETUPFILE / INCLUDE expansion runs on every export (as it
+  -- does in Emacs); the buffer's own path anchors relative includes.
+  local name = vim.api.nvim_buf_get_name(0)
+  local path, err = exp.export_buffer_to_file(0, target, {
+    file_path = name ~= "" and name or nil,
+  })
   if not path then
     require("organ.notify").error("organ: export failed: " .. tostring(err))
     return

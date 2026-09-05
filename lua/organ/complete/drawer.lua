@@ -16,7 +16,7 @@ local BUILTINS = { "PROPERTIES", "LOGBOOK", "CLOCK" }
 local function in_headline_body(bufnr, lnum)
   for i = lnum - 1, 1, -1 do
     local ln = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       return true
     end
   end

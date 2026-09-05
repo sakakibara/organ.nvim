@@ -485,6 +485,7 @@ end
 -- Cached per-(bufnr, changedtick) so a buffer-wide refold (zX) only
 -- pays the scan once.
 local _foldcache = {} -- bufnr → { tick = N, levels = { lnum → "...string..." } }
+M._foldcache = _foldcache
 
 -- Tree-sitter node types that should produce their own fold range,
 -- nested one level deeper than the surrounding heading.  Mirrors
@@ -649,6 +650,7 @@ end
 -- changedtick so a stationary fold rendering N times pays the
 -- iter_captures cost once.  Cleared automatically on edit.
 local _ts_seg_cache = {} -- bufnr -> { tick = N, lines = { lnum -> segments } }
+M._ts_seg_cache = _ts_seg_cache
 
 -- Build {text, hl_group} segments for a single line by walking every
 -- attached treesitter parser and collecting highlight captures over
@@ -1155,6 +1157,8 @@ end
 -- Cleanup on BufWipeout.
 function M.forget(bufnr)
   M._state[bufnr] = nil
+  _foldcache[bufnr] = nil
+  _ts_seg_cache[bufnr] = nil
   pcall(function()
     require("organ.fold.contents").forget(bufnr)
   end)

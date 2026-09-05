@@ -289,6 +289,33 @@ do
   pcall(vim.api.nvim_buf_delete, b, { force = true })
 end
 
+-- 9. build_ctx on a blank / whitespace-only line: the cursor sits there
+-- between two headlines more often than anywhere else, and `<cword>`
+-- raises E348 with no string under the cursor.
+do
+  local b = vim.api.nvim_create_buf(true, false)
+  vim.api.nvim_set_current_buf(b)
+  for _, case in ipairs({
+    { label = "blank line", lines = { "* One", "", "* Two" }, col = 0 },
+    { label = "whitespace-only line", lines = { "* One", "   ", "* Two" }, col = 1 },
+  }) do
+    vim.api.nvim_buf_set_lines(b, 0, -1, false, case.lines)
+    vim.api.nvim_win_set_cursor(0, { 2, case.col })
+    local ok, c = pcall(capture.build_ctx)
+    assert(ok, "build_ctx on a " .. case.label .. ": " .. tostring(c))
+    assert(c.cword == "", case.label .. " cword: " .. vim.inspect(c.cword))
+  end
+  -- Same guard on the roam side; `:Org roam insert` builds its own ctx.
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* One", "", "* Two" })
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  local saved = vim.ui.select
+  vim.ui.select = function() end
+  local ok, err = pcall(require("organ.roam").commands["roam insert"].fn)
+  vim.ui.select = saved
+  assert(ok, "roam insert on a blank line: " .. tostring(err))
+  pcall(vim.api.nvim_buf_delete, b, { force = true })
+end
+
 vim.fn.delete(tmp, "rf")
 io.write("capture finalise ok\n")
 os.exit(0)

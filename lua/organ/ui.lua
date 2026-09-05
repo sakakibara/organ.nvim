@@ -80,7 +80,7 @@ function M.set_winbar(winid, hints, opts)
     if not opts.compact and visible_width(full) > win_w then
       full = M.format_hints(hints, vim.tbl_extend("force", opts, { compact = true }))
     end
-    vim.wo[winid].winbar = full
+    vim.api.nvim_set_option_value("winbar", full, { win = winid, scope = "local" })
   end)
 end
 

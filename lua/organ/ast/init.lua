@@ -20,24 +20,36 @@
 local M = {}
 
 -- Any block node may also carry an optional `affiliated` field: an ordered
--- list of { name = "NAME"|"CAPTION"|"ATTR_*"|..., value = "string" } drawn
--- from the `#+KEYWORD:` lines that immediately precede it.
+-- list of { name = "NAME"|"CAPTION"|"ATTR_*"|..., value = "string",
+-- inline? = inline[] } drawn from the `#+KEYWORD:` lines that immediately
+-- precede it.  `inline` is present only for CAPTION, the one affiliated
+-- keyword org-element parses as objects rather than a plain string.
 
 -- Block kinds: appear in `children` of `document` or another block.
 M.BLOCK = {
-  document = true, -- root: { children = {...} }
-  headline = true, -- { level, todo?, priority?, tags?, planning?, properties?, title=inline[], children }
+  -- root: { children = {...}, options? = export options (organ.export.options) }
+  document = true,
+  -- { level, todo?, todo_type?, priority?, tags?, commented?, planning?,
+  --   properties?, title = inline[], children }
+  headline = true,
   paragraph = true, -- { inline = inline[] }
   list = true, -- { ordered, items = list_item[] }
   list_item = true, -- { marker?, counter?, checkbox = "todo"|"done"|"part"|nil, tag? = inline[], content = block[] }
   code_block = true, -- { language?, params?, body = "string" }
-  block = true, -- { style, body? = "string", content? = block[], backend? = "string" }
+  -- { style, body? = "string", content? = block[], backend? = "string" }
+  -- `body` is the verbatim inner text; `content` the parsed elements.
+  -- A greater block (quote / center / any custom `#+begin_X`) and a verse
+  -- block carry both -- render `content`, reproduce `body`.  example /
+  -- export / comment blocks are verbatim and carry `body` only.
+  block = true,
   table = true, -- { alignments = ("l"|"r"|"c")[], rows = (...)[], tblfm? = ("string")[] }
   rule = true, -- horizontal rule (no fields)
   directive = true, -- { name = "TITLE", value = "string" }
   drawer = true, -- { name = "string", body = "string" } (verbatim inner lines)
   footnote_definition = true, -- { label = "string", content = block[] }
   comment = true, -- { body = "string" } (line / multi-line org `# ` comment)
+  fixed_width = true, -- { body = "string" } (`: ` lines, `: ` prefix stripped)
+  latex_environment = true, -- { name? = "equation", body = "string" } (verbatim)
 }
 
 -- Inline kinds: appear in `inline` / `title` / `content` arrays.
@@ -51,8 +63,10 @@ M.INLINE = {
   math = true, -- { display = bool, body = "string", style = "dollar"|"paren"|"bracket" }
   linebreak = true, -- explicit hard break (no fields)
   entity = true, -- { name = "string" } (e.g. "copy" for \copy)
-  subscript = true, -- { content = inline[] }
-  superscript = true, -- { content = inline[] }
+  -- brackets: true for `_{x}`, false for a bare `_x`, nil when unknown
+  -- (a producer that cannot tell; emitters then use the braced form).
+  subscript = true, -- { content = inline[], brackets? = bool }
+  superscript = true, -- { content = inline[], brackets? = bool }
   statistics_cookie = true, -- { value = "string" } (e.g. "[1/3]")
   timestamp = true, -- { value = "string", variant = "active"|"inactive"|"range_active"|"range_inactive"|"diary" }
   target = true, -- { name = "string" }
@@ -157,8 +171,10 @@ end
 -- headline:
 --   level    -- integer, depth in the outline (1 = top level)
 --   todo     -- optional string, TODO keyword (e.g. "TODO", "DONE")
+--   todo_type -- "todo" or "done" for that keyword's sequence position
 --   priority -- optional string, one char ("A".."Z") from `[#X]` cookie
 --   tags     -- optional list of strings, trailing `:a:b:` tags
+--   commented -- true when the headline carried the COMMENT keyword
 --   title    -- list of inline nodes parsed from the headline text
 --   children -- list of block nodes for the headline's section content
 --   planning -- optional table; raw timestamp strings keyed by entry kind:
@@ -171,8 +187,10 @@ function M.headline(opts)
     kind = "headline",
     level = opts.level or 1,
     todo = opts.todo,
+    todo_type = opts.todo_type,
     priority = opts.priority,
     tags = opts.tags,
+    commented = opts.commented,
     planning = opts.planning,
     properties = opts.properties,
     title = opts.title or {},
@@ -204,12 +222,12 @@ function M.entity(name)
   return { kind = "entity", name = name }
 end
 
-function M.subscript(content)
-  return { kind = "subscript", content = content or {} }
+function M.subscript(content, brackets)
+  return { kind = "subscript", content = content or {}, brackets = brackets }
 end
 
-function M.superscript(content)
-  return { kind = "superscript", content = content or {} }
+function M.superscript(content, brackets)
+  return { kind = "superscript", content = content or {}, brackets = brackets }
 end
 
 function M.statistics_cookie(value)
@@ -277,6 +295,14 @@ end
 
 function M.comment(body)
   return { kind = "comment", body = body }
+end
+
+function M.fixed_width(body)
+  return { kind = "fixed_width", body = body or "" }
+end
+
+function M.latex_environment(name, body)
+  return { kind = "latex_environment", name = name, body = body or "" }
 end
 
 function M.directive(name, value)

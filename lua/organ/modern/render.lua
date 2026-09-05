@@ -35,33 +35,16 @@ local groups = {}
 local timers = {}
 -- bufnr -> row last left undecorated for the cursor
 local last_reveal = {}
--- winid -> conceallevel saved before the engine raised it. Most engine
--- elements conceal their raw tokens (checkboxes, dates, priority, ...), which
--- only hide at conceallevel >= 2, so the engine raises it on attach and
--- restores it on detach.
-local saved_conceallevel = {}
-
-local function raise_conceallevel()
-  local win = vim.api.nvim_get_current_win()
-  local cur = vim.api.nvim_get_option_value("conceallevel", { win = win })
-  if saved_conceallevel[win] == nil then
-    saved_conceallevel[win] = cur
-  end
-  if cur < 2 then
-    vim.api.nvim_set_option_value("conceallevel", 2, { win = win, scope = "local" })
-  end
+-- Most engine elements conceal their raw tokens (checkboxes, dates,
+-- priority, ...), which only hide at conceallevel >= 2, so the engine
+-- claims the level on attach and lets go on detach.  The claim is shared
+-- with organ's other conceal consumers (see organ.conceal).
+local function raise_conceallevel(bufnr)
+  require("organ.conceal").request_level_for_buf(bufnr, "modern")
 end
 
-local function restore_conceallevel()
-  local win = vim.api.nvim_get_current_win()
-  if saved_conceallevel[win] ~= nil then
-    vim.api.nvim_set_option_value(
-      "conceallevel",
-      saved_conceallevel[win],
-      { win = win, scope = "local" }
-    )
-    saved_conceallevel[win] = nil
-  end
+local function restore_conceallevel(bufnr)
+  require("organ.conceal").release_level_for_buf(bufnr, "modern")
 end
 
 function M.register(name, fn)
@@ -177,13 +160,18 @@ function M.attach(bufnr, name)
   if name then
     attached[bufnr][name] = true
   end
-  raise_conceallevel()
+  raise_conceallevel(bufnr)
   if groups[bufnr] then
     M.refresh(bufnr, true)
     return
   end
   local g = vim.api.nvim_create_augroup("organ_modern_render_" .. bufnr, { clear = true })
   groups[bufnr] = g
+  -- The scroll / resize autocmds below are window events, not buffer-scoped
+  -- ones, so Neovim keeps them after the buffer is wiped.
+  require("organ.buf_state").on_cleanup(bufnr, "modern_render", function(b)
+    M.detach(b)
+  end)
   vim.api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "BufWinEnter" }, {
     group = g,
     buffer = bufnr,
@@ -240,8 +228,25 @@ function M.detach(bufnr, name)
   end
   stop_timer(bufnr)
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
-  restore_conceallevel()
+  restore_conceallevel(bufnr)
 end
+
+-- The revealed row follows the FOCUSED window's cursor, so entering
+-- another window or another buffer changes it even though nothing in the
+-- managed buffer moved.  Global, not buffer-local: the buffer left
+-- behind in a split needs its stale reveal dropped too.
+vim.api.nvim_create_autocmd({ "WinEnter", "BufEnter" }, {
+  group = vim.api.nvim_create_augroup("organ_modern_render_win", { clear = true }),
+  callback = function()
+    for bufnr in pairs(groups) do
+      local row = reveal_row(bufnr)
+      if row ~= last_reveal[bufnr] then
+        last_reveal[bufnr] = row
+        M.refresh(bufnr, true)
+      end
+    end
+  end,
+})
 
 -- Recolor every managed buffer when the colorscheme changes (renderers
 -- re-resolve their hl groups on each render).

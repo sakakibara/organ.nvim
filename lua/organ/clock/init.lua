@@ -97,6 +97,50 @@ local function headline_at(bufnr, line)
   }
 end
 
+-- Emacs pins the running clock with `org-clock-marker`, which every edit
+-- above the headline moves; a line number recorded once does not.  An
+-- extmark is the buffer-local equivalent, so the persisted line number is
+-- only the cross-session fallback.
+local mark_ns = vim.api.nvim_create_namespace("organ_clock_marker")
+local mark = nil
+
+local function clear_mark()
+  if mark and vim.api.nvim_buf_is_valid(mark.bufnr) then
+    pcall(vim.api.nvim_buf_del_extmark, mark.bufnr, mark_ns, mark.id)
+  end
+  mark = nil
+end
+
+local function set_mark(bufnr, line)
+  clear_mark()
+  local ok, id = pcall(vim.api.nvim_buf_set_extmark, bufnr, mark_ns, line - 1, 0, {})
+  if ok then
+    mark = { bufnr = bufnr, id = id }
+  end
+end
+
+local function active_line(bufnr, s)
+  if mark and mark.bufnr == bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+    local ok, pos = pcall(vim.api.nvim_buf_get_extmark_by_id, bufnr, mark_ns, mark.id, {})
+    if ok and pos and pos[1] then
+      return pos[1] + 1
+    end
+  end
+  return (s.line_start or 0) + 1
+end
+
+-- Load the buffer holding the active clock's file.
+local function open_buf(s)
+  local bufnr = vim.fn.bufnr(s.file_path)
+  if bufnr <= 0 then
+    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
+    bufnr = vim.api.nvim_get_current_buf()
+  elseif not vim.api.nvim_buf_is_loaded(bufnr) then
+    vim.fn.bufload(bufnr)
+  end
+  return bufnr
+end
+
 -- Start a clock on the headline that contains `opts.line` in `opts.bufnr`.
 -- Both default to the current buffer + cursor line.
 function M.start(opts)
@@ -124,6 +168,7 @@ function M.start(opts)
 
   local now = os.time()
   writer_mod.write_active(bufnr, hl.line_start + 1, get_drawer_name(), now)
+  set_mark(bufnr, hl.line_start + 1)
   state_mod.save({
     file_path = hl.file_path,
     line_start = hl.line_start,
@@ -138,49 +183,44 @@ function M.start(opts)
   end
 end
 
+-- Returns true when the running CLOCK line was closed, false otherwise.
 function M.stop(opts)
   opts = opts or {}
   local s = state_mod.load()
   if not s then
     require("organ.notify").warn("no active clock")
-    return
+    return false
   end
-  -- Find or open the file's buffer.
-  local bufnr = vim.fn.bufnr(s.file_path)
-  if bufnr <= 0 then
-    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
-    bufnr = vim.api.nvim_get_current_buf()
-  elseif not vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.fn.bufload(bufnr)
-  end
+  local bufnr = open_buf(s)
   local now = opts.end_ts or os.time()
-  local ok = writer_mod.close_active(bufnr, (s.line_start or 0) + 1, get_drawer_name(), now)
-  if not ok then
-    require("organ.notify").warn("clock state out of sync; clearing")
-    state_mod.clear()
-    require("organ.clock.idle").stop()
-    return
-  end
+  local ok = writer_mod.close_active(bufnr, active_line(bufnr, s), get_drawer_name(), now)
+  clear_mark()
   state_mod.clear()
   require("organ.clock.idle").stop()
+  if not ok then
+    require("organ.notify").warn("clock state out of sync; clearing")
+    return false
+  end
+  return true
 end
 
+-- Returns true when the running CLOCK line was removed, false otherwise.
 function M.cancel()
   local s = state_mod.load()
   if not s then
     require("organ.notify").warn("no active clock")
-    return
+    return false
   end
-  local bufnr = vim.fn.bufnr(s.file_path)
-  if bufnr <= 0 then
-    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
-    bufnr = vim.api.nvim_get_current_buf()
-  elseif not vim.api.nvim_buf_is_loaded(bufnr) then
-    vim.fn.bufload(bufnr)
-  end
-  writer_mod.cancel_active(bufnr, s.line_start + 1, get_drawer_name())
+  local bufnr = open_buf(s)
+  local ok = writer_mod.cancel_active(bufnr, active_line(bufnr, s), get_drawer_name())
+  clear_mark()
   state_mod.clear()
   require("organ.clock.idle").stop()
+  if not ok then
+    require("organ.notify").warn("clock state out of sync; clearing")
+    return false
+  end
+  return true
 end
 
 function M.jump()
@@ -189,8 +229,15 @@ function M.jump()
     require("organ.notify").warn("no active clock")
     return
   end
-  vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
-  pcall(vim.api.nvim_win_set_cursor, 0, { (s.line_start or 0) + 1, 0 })
+  -- `:edit` on the file already in this window is refused with E37 once it
+  -- has unsaved changes, which is the normal state after clocking in and
+  -- typing.  Emacs `org-clock-goto` only moves point.
+  local path = require("organ.path")
+  local here = vim.api.nvim_buf_get_name(0)
+  if (path.canonical(here) or here) ~= (path.canonical(s.file_path) or s.file_path) then
+    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
+  end
+  pcall(vim.api.nvim_win_set_cursor, 0, { active_line(vim.api.nvim_get_current_buf(), s), 0 })
 end
 
 function M.status()
@@ -225,19 +272,26 @@ end
 -- Resolve idle time like Emacs `org-clock-resolve` "s": close the running
 -- clock at the moment idling began and open a fresh one now.  A clock that
 -- had run under 45 seconds by then is cancelled rather than closed.
--- Returns nil on success, or an error string if there is no active clock.
+-- Returns nil on success, or an error string when there is no active clock
+-- or the running clock could not be closed.
 function M.subtract_idle(idle_seconds)
   local s = state_mod.load()
   if not s then
     return "no active clock"
   end
+  local bufnr = open_buf(s)
+  local line = active_line(bufnr, s)
   local idle_start = os.time() - idle_seconds
+  local ok
   if idle_start - (s.start_ts or idle_start) < 45 then
-    M.cancel()
+    ok = M.cancel()
   else
-    M.stop({ end_ts = idle_start })
+    ok = M.stop({ end_ts = idle_start })
   end
-  M.start({ bufnr = vim.fn.bufnr(s.file_path), line = (s.line_start or 0) + 1 })
+  if not ok then
+    return "clock state out of sync; not restarted"
+  end
+  M.start({ bufnr = bufnr, line = line })
   return nil
 end
 

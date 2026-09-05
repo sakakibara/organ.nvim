@@ -251,11 +251,15 @@ local function prune_orphans_from_visited(root, visited)
   if not h then
     return 0
   end
-  local s, perr = h:prepare("SELECT path FROM files WHERE path LIKE ?")
+  -- Stored paths are symlink-resolved, so resolve the scanned root the
+  -- same way, and escape it: `%` and `_` in a directory name are LIKE
+  -- wildcards.
+  local prefix = (require("organ.path").canonical(root) or root):gsub("/+$", "") .. "/"
+  local s, perr = h:prepare("SELECT path FROM files WHERE path LIKE ? ESCAPE '\\'")
   if not s then
     return 0, perr
   end
-  s:bind_text(1, root .. "%")
+  s:bind_text(1, (prefix:gsub("[\\%%_]", "\\%0")) .. "%")
   local db = require("organ.db")
   local stale = {}
   while s:step() == db.SQLITE_ROW do
@@ -278,8 +282,9 @@ local function fire_scan_done()
   M._scan.in_flight = false
   local pruned = 0
   if M._scan.visited then
-    pruned = prune_orphans_from_visited(M.config.org_dir, M._scan.visited) or 0
+    pruned = prune_orphans_from_visited(M._scan.root or M.config.org_dir, M._scan.visited) or 0
     M._scan.visited = nil
+    M._scan.root = nil
   end
   if pruned > 0 then
     notify(string.format("pruned %d orphan file(s) from index", pruned))
@@ -373,6 +378,9 @@ local function index_body(op, tier)
   if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     src = table.concat(lines, "\n") .. "\n"
+    -- The row describes buffer text, which may never have reached disk.
+    -- Leave mtime unset so only the content hash can call it current.
+    mtime = 0
   else
     local s, mt, err = read_file(path)
     if err then
@@ -514,8 +522,10 @@ local function scan_walk(dir, on_done)
   local root = dir
   local patterns = compile_ignore_patterns()
   -- Reset the visited set at the start of each walk so fire_scan_done
-  -- can compute orphans = (DB - visited) without per-file fs_stat.
+  -- can compute orphans = (DB - visited) without per-file fs_stat, and
+  -- record the root so the prune is scoped to what was actually walked.
   M._scan.visited = {}
+  M._scan.root = root
   walk.walk_async(
     root,
     M.config.scan_batch_size or 50,
@@ -552,6 +562,148 @@ function M._poll_scan_completion()
 end
 
 -- Setup helpers (extracted to keep M.setup() compact).
+
+-- Option names that are real but carry no entry in `organ.defaults`, either
+-- because their default is nil or because they only exist as user input.
+local OPTIONAL_KEYS = {
+  agenda_files = true,
+  attachment_dir = true,
+  bar_width = true,
+  body_template = true,
+  cancel_insert = true,
+  cite = true,
+  default_country = true,
+  default_holiday_cal = true,
+  description_list = true,
+  dispatcher_handler = true,
+  export = true,
+  fallback_decrement = true,
+  fallback_increment = true,
+  file_template = true,
+  foreground = true,
+  groups = true,
+  holidays_cache_dir = true,
+  id_locations_file = true,
+  idle_threshold_minutes = true,
+  inlinetask = true,
+  keys = true,
+  line_format = true,
+  log_drawer = true,
+  notify = true,
+  now_override = true,
+  on_error = true,
+  on_index = true,
+  on_scan_done = true,
+  pill_caps = true,
+  preamble = true,
+  prefix_format = true,
+  preset = true,
+  repeat_to_state = true,
+  sequences = true,
+  span = true,
+  statusline = true,
+  targets = true,
+  template = true,
+  tint_body = true,
+  winbar = true,
+}
+
+M._optional_keys = OPTIONAL_KEYS
+
+-- Config subtrees whose keys are chosen by the user, so an unrecognised
+-- name there is data rather than a typo.
+-- `find.keymaps` is forwarded verbatim to whichever picker backend is in
+-- use, so its action names are the backend's, not organ's.
+local FREEFORM_PATHS = { ["agenda.views"] = true, ["find.keymaps"] = true }
+
+local function levenshtein(a, b)
+  local prev = {}
+  for j = 0, #b do
+    prev[j] = j
+  end
+  for i = 1, #a do
+    local cur = { [0] = i }
+    for j = 1, #b do
+      local cost = (a:sub(i, i) == b:sub(j, j)) and 0 or 1
+      cur[j] = math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + cost)
+    end
+    prev = cur
+  end
+  return prev[#b]
+end
+
+-- Nearest sibling option name, when one is close enough to be worth naming.
+local function nearest_key(key, ref)
+  local best, best_d
+  for k in pairs(ref) do
+    if type(k) == "string" then
+      local d = levenshtein(key, k)
+      -- `org_directory` is 6 edits from `org_dir` but plainly means it, so
+      -- a prefix relation counts as a near miss too.
+      local prefix = #k >= 4 and (key:sub(1, #k) == k or k:sub(1, #key) == key)
+      if prefix or d <= 3 then
+        local score = prefix and 0 or d
+        if not best_d or score < best_d then
+          best, best_d = k, score
+        end
+      end
+    end
+  end
+  return best
+end
+
+-- Every key the user passed must name something organ knows, at every depth.
+-- A silently-swallowed `org_directory` sends the indexer and the file watcher
+-- at `~/org` instead of the user's directory, with nothing on screen to say so.
+local function warn_unknown_keys(opts)
+  local defaults = require("organ.defaults")
+  local found = {}
+
+  local function is_record(t)
+    local n = 0
+    for _ in pairs(t) do
+      n = n + 1
+    end
+    return n > 0 and n ~= #t
+  end
+
+  local function walk(user, ref, path)
+    for k, v in pairs(user) do
+      if type(k) == "string" then
+        local p = (path == "") and k or (path .. "." .. k)
+        if ref[k] == nil and not OPTIONAL_KEYS[k] then
+          found[#found + 1] = { path = p, suggestion = nearest_key(k, ref) }
+        elseif
+          type(v) == "table"
+          and type(ref[k]) == "table"
+          and is_record(ref[k])
+          and not FREEFORM_PATHS[p]
+        then
+          walk(v, ref[k], p)
+        end
+      end
+    end
+  end
+  walk(opts, defaults, "")
+
+  if #found == 0 then
+    return
+  end
+  local parts = {}
+  for _, e in ipairs(found) do
+    parts[#parts + 1] = e.suggestion and ("`%s` (did you mean `%s`?)"):format(e.path, e.suggestion)
+      or ("`%s`"):format(e.path)
+  end
+  table.sort(parts)
+  require("organ.errors").schedule("organ.init", function()
+    require("organ.notify").warn(
+      "organ.setup: unknown option "
+        .. table.concat(parts, ", ")
+        .. " -- ignored; see `:help organ-config`."
+    )
+  end)
+end
+M._warn_unknown_keys = warn_unknown_keys
 
 local function setup_validate_config()
   -- Capture templates: structural validation.
@@ -772,9 +924,13 @@ local function setup_autocmds(group)
   -- Per-buffer state is leaked unless cleared on wipeout.  Each stateful
   -- module registers its own teardown via organ.buf_state when it creates
   -- the state; this drains the registry for the wiped buffer.
+  --
+  -- Deliberately not filtered by filename: an org buffer need not have an
+  -- org name.  A capture buffer is unnamed and a scratch buffer may just
+  -- have its filetype set, and either one registers teardowns.  The
+  -- registry lookup is the filter.
   require("organ.errors").autocmd("BufWipeout", {
     group = group,
-    pattern = { "*.org", "*.org_archive" },
     callback = function(ev)
       require("organ.buf_state").cleanup(ev.buf)
     end,
@@ -915,6 +1071,7 @@ end
 
 function M.setup(opts)
   opts = opts or {}
+  warn_unknown_keys(opts)
   -- Expand the `modern` preset (`modern = "all"` or `modern.preset =
   -- "all"|"rich"`) into explicit per-element flags before merging, so an
   -- unset element turns on while the user's explicit values -- including

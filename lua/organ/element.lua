@@ -255,7 +255,7 @@ function M.at(bufnr, row, col)
   -- Regex fallback: just enough to keep callers functional when
   -- treesitter isn't available.
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-  if line:match("^%*+%s") then
+  if line:match("^%*+ ") then
     return { kind = "headline", range = { row, 0, row, #line } }
   end
   if line:match("^%s*[-+*]%s") or line:match("^%s*%d+[%.)]%s") then
@@ -382,7 +382,7 @@ function M.headline_at(bufnr, row)
   -- Regex fallback.
   for r = row, 0, -1 do
     local ln = vim.api.nvim_buf_get_lines(bufnr, r, r + 1, false)[1] or ""
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       return headline_info_from_line(ln, r)
     end
   end
@@ -420,7 +420,7 @@ function M.headlines(bufnr)
   -- same OR shallower level (matches subtree boundary semantics).
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   for i, ln in ipairs(lines) do
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       out[#out + 1] = headline_info_from_line(ln, i - 1)
     end
   end
@@ -735,16 +735,7 @@ function M.property_drawer_range(bufnr, headline_row)
   end
   -- Regex fallback (parser not loaded or row outside any node).
   local total = vim.api.nvim_buf_line_count(bufnr)
-  local i = headline_row + 2 -- 1-based first line after headline
-  while i <= total do
-    local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-    if
-      not (txt:match("^%s*SCHEDULED:") or txt:match("^%s*DEADLINE:") or txt:match("^%s*CLOSED:"))
-    then
-      break
-    end
-    i = i + 1
-  end
+  local i = M.planning_end_line(bufnr, headline_row)
   if i > total then
     return nil
   end
@@ -764,97 +755,59 @@ function M.property_drawer_range(bufnr, headline_row)
   return nil
 end
 
--- 1-based first line where any drawer / body content would begin —
--- i.e., one past the last planning line (SCHEDULED / DEADLINE / CLOSED)
--- after the headline at `headline_row` (0-based).  TS-first via the
--- `planning` node's end row; regex fallback walks planning lines.
-function M.planning_end_line(bufnr, headline_row)
+-- 1-based row of the headline's planning line, or nil.
+--
+-- Org accepts planning on exactly ONE line: the line directly under the
+-- headline, matching `org-planning-line-re`
+-- (`^[ \t]*\(CLOSED:\|DEADLINE:\|SCHEDULED:\)`).  A second keyword line,
+-- or one separated from the headline by a blank line or a drawer, is a
+-- paragraph -- `org-element--current-element` only reaches the planning
+-- parser in `planning` mode, which lasts for the one line after a
+-- headline, and `org-entry-properties` reads SCHEDULED / DEADLINE /
+-- CLOSED from that line alone.
+function M.planning_row(bufnr, headline_row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if M.parser_loaded(bufnr) then
-    local h = M.headline_at(bufnr, headline_row)
-    if h and h.node then
-      for child in h.node:iter_children() do
-        if child:type() == "planning" then
-          local _, _, er = child:range()
-          return er + 1 -- TS er is exclusive; +1 -> 1-based next line
-        end
-      end
-      return headline_row + 2
-    end
+  local row = headline_row + 2
+  local ln = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1]
+  if not ln then
+    return nil
   end
-  local total = vim.api.nvim_buf_line_count(bufnr)
-  local i = headline_row + 2
-  while i <= total do
-    local txt = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-    if
-      not (txt:match("^%s*SCHEDULED:") or txt:match("^%s*DEADLINE:") or txt:match("^%s*CLOSED:"))
-    then
-      break
-    end
-    i = i + 1
+  if ln:match("^%s*SCHEDULED:") or ln:match("^%s*DEADLINE:") or ln:match("^%s*CLOSED:") then
+    return row
   end
-  return i
+  return nil
 end
 
--- Returns 1-based line numbers of SCHEDULED / DEADLINE / CLOSED
--- planning entries under the headline at `headline_row` (0-based) as
--- `{ scheduled = N|nil, deadline = N|nil, closed = N|nil }`.  When a
--- single line carries multiple keywords each entry shares that line.
---
--- Deliberately a line scan, not a walk of the grammar's `planning` node:
--- the grammar (like org-element) only models planning DIRECTLY under the
--- headline, but writers and the canonicalizer must also FIND misplaced
--- planning (after a drawer, org-habit layout) to repair or update it --
--- the same tolerant-find / canonical-insert split Emacs uses in
--- `org-add-planning-info`.
+-- 1-based first line where any drawer / body content would begin —
+-- i.e., one past the planning line of the headline at `headline_row`
+-- (0-based), or the line right under the headline when it has none.
+function M.planning_end_line(bufnr, headline_row)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local row = M.planning_row(bufnr, headline_row)
+  return row and (row + 1) or (headline_row + 2)
+end
+
+-- Returns 1-based line numbers of the SCHEDULED / DEADLINE / CLOSED
+-- entries the headline at `headline_row` (0-based) actually carries, as
+-- `{ scheduled = N|nil, deadline = N|nil, closed = N|nil }`.  They all
+-- share the one planning row; a keyword without a timestamp is absent,
+-- as it is for `org-entry-get`.
 function M.planning_lines(bufnr, headline_row)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local out = {}
-  local total = vim.api.nvim_buf_line_count(bufnr)
-  local i = headline_row + 2
-  while i <= total do
-    local ln = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-    if ln:match("^%*+%s") then
-      break
-    end
-    if ln:match("^%s*SCHEDULED:") or ln:match("^%s*DEADLINE:") or ln:match("^%s*CLOSED:") then
-      if ln:match("%f[%w]SCHEDULED:%s*[<%[]") then
-        out.scheduled = i
-      end
-      if ln:match("%f[%w]DEADLINE:%s*[<%[]") then
-        out.deadline = i
-      end
-      if ln:match("%f[%w]CLOSED:%s*[<%[]") then
-        out.closed = i
-      end
-      i = i + 1
-    elseif ln:match("^%s*$") then
-      i = i + 1
-    elseif ln:match("^%s*:[%w_%-]+:%s*$") then
-      -- Skip a drawer (e.g. :PROPERTIES:) so planning placed after it
-      -- (org-habit layout) is still found, matching the tree-sitter path.
-      i = i + 1
-      local hit_headline = false
-      while i <= total do
-        local d = vim.api.nvim_buf_get_lines(bufnr, i - 1, i, false)[1] or ""
-        if d:match("^%*+%s") then
-          hit_headline = true
-          break
-        end
-        if d:match("^%s*:[Ee][Nn][Dd]:%s*$") then
-          break
-        end
-        i = i + 1
-      end
-      if hit_headline then
-        -- Unterminated drawer ran into the next headline: the section
-        -- ends here; never read planning from a sibling headline.
-        break
-      end
-      i = i + 1 -- past :END:
-    else
-      break
-    end
+  local row = M.planning_row(bufnr, headline_row)
+  if not row then
+    return out
+  end
+  local ln = vim.api.nvim_buf_get_lines(bufnr, row - 1, row, false)[1] or ""
+  if ln:match("%f[%w]SCHEDULED:%s*[<%[]") then
+    out.scheduled = row
+  end
+  if ln:match("%f[%w]DEADLINE:%s*[<%[]") then
+    out.deadline = row
+  end
+  if ln:match("%f[%w]CLOSED:%s*[<%[]") then
+    out.closed = row
   end
   return out
 end
@@ -931,7 +884,7 @@ function M.property_value_inherited(bufnr, headline_row, key)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local cur_lvl = math.huge
   for r = headline_row, 0, -1 do
-    local stars = (lines[r + 1] or ""):match("^(%*+)%s")
+    local stars = (lines[r + 1] or ""):match("^(%*+) ")
     if stars and #stars < cur_lvl then
       cur_lvl = #stars
       local pd = M.property_drawer_range(bufnr, r)
@@ -1018,7 +971,7 @@ function M.in_tag_region(bufnr, row, col)
   end
   -- Regex fallback.
   local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-  if not line:match("^%*+%s") then
+  if not line:match("^%*+ ") then
     return false
   end
   local before = line:sub(1, col)

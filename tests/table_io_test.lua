@@ -101,5 +101,25 @@ do
   os.remove(tsv)
 end
 
+-- import on a directory: `io.open` succeeds there and the read returns nil,
+-- which used to reach parse_csv and crash.  `:Org table import` completes on
+-- file names, so a directory is one <Tab> away.
+do
+  local b = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(b, 0, -1, false, { "" })
+  local dir = vim.fn.tempname()
+  vim.fn.mkdir(dir, "p")
+  local ok, n, err = pcall(tio.import, b, 1, dir)
+  assert(ok, "import on a directory must not raise: " .. tostring(n))
+  assert(n == nil, "import on a directory must fail: " .. tostring(n))
+  assert(err and err:find("cannot read", 1, true), "error text: " .. tostring(err))
+  assert(#vim.api.nvim_buf_get_lines(b, 0, -1, false) == 1, "buffer untouched")
+
+  n, err = tio.import(b, 1, dir .. "/absent.csv")
+  assert(n == nil, "import of a missing file must fail")
+  assert(err and err:find("cannot open", 1, true), "error text: " .. tostring(err))
+  vim.fn.delete(dir, "rf")
+end
+
 io.write("table io ok\n")
 os.exit(0)

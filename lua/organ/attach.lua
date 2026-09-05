@@ -25,6 +25,39 @@ function M.dir_for_id(base_dir, id)
   return base_dir .. "/" .. id:sub(1, 2) .. "/" .. id:sub(3)
 end
 
+-- Root directory holding the ID-keyed attachment subdirectories.
+-- `attach.dir` is interpreted the way Emacs interprets
+-- `org-attach-id-dir`: an absolute path is used as-is, a relative one is
+-- resolved against the directory holding the org file.  A buffer with no
+-- file name has no such directory, so it falls back to `org_dir`.
+function M.base_dir(bufnr)
+  local dir = (require("organ.buf_config").read(bufnr, "attach") or {}).dir or "data"
+  dir = vim.fn.expand(dir)
+  if dir:match("^/") then
+    return dir
+  end
+  local name = bufnr and vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr) or ""
+  local anchor = (name ~= "") and vim.fn.fnamemodify(name, ":p:h")
+    or vim.fn.expand(require("organ.buf_config").read(bufnr, "org_dir") or "~/org")
+  return anchor .. "/" .. dir
+end
+
+-- Roots searched for an attachment directory that already exists when the
+-- file-relative root has none: `<org_dir>/<attach.dir>` -- where every
+-- attachment landed while `attach.dir` was a single absolute path.
+function M.fallback_roots()
+  local cfg = require("organ.buf_config")
+  local dir = (cfg.read(nil, "attach") or {}).dir or "data"
+  if vim.fn.expand(dir):match("^/") then
+    return {}
+  end
+  local org_dir = cfg.read(nil, "org_dir")
+  if type(org_dir) ~= "string" or org_dir == "" then
+    return {}
+  end
+  return { vim.fn.expand(org_dir) .. "/" .. vim.fn.expand(dir) }
+end
+
 -- Return the attachment directory for the headline containing `line` in `bufnr`.
 -- Creates an :ID: if necessary unless `opts.create == false`.  Returns (dir, err).
 function M.dir(bufnr, line, opts)
@@ -42,11 +75,20 @@ function M.dir(bufnr, line, opts)
     end
   end
 
-  local base = (require("organ.buf_config").read(nil, "attach") or {}).dir
-    or (vim.fn.expand("~/org/data"))
-  local d = M.dir_for_id(base, id)
+  local d = M.dir_for_id(M.base_dir(bufnr), id)
   if not d then
     return nil, "ID too short to derive attachment directory"
+  end
+  if not vim.loop.fs_stat(d) then
+    -- An existing directory under the fallback root wins, so attachments
+    -- filed before `attach.dir` became file-relative stay reachable.
+    -- Emacs does the same in `org-attach-dir-from-id` with EXISTING set.
+    for _, root in ipairs(M.fallback_roots()) do
+      local cand = M.dir_for_id(root, id)
+      if cand and cand ~= d and vim.loop.fs_stat(cand) then
+        return cand, nil
+      end
+    end
   end
   return d, nil
 end
@@ -79,6 +121,77 @@ function M.list(bufnr, line)
   end
   table.sort(files)
   return files, nil
+end
+
+-- First line of the entry's body: past planning, the property drawer and
+-- any drawers that follow it.  Returns a 1-based line index.
+local function body_start(bufnr, hl_line)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local i = require("organ.drawer").insert_position(lines, hl_line, bufnr)
+  while lines[i] and lines[i]:match("^%s*:[%w_@#%%]+:%s*$") do
+    local j = i + 1
+    while lines[j] and not lines[j]:match("^%s*:END:%s*$") and not lines[j]:match("^%*+ ") do
+      j = j + 1
+    end
+    if not (lines[j] and lines[j]:match("^%s*:END:%s*$")) then
+      break
+    end
+    i = j + 1
+  end
+  return i
+end
+
+-- Line index one past the last line of the entry owning `hl_line`.
+local function entry_end(bufnr, hl_line)
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local level = #((lines[hl_line] or ""):match("^(%*+)") or "*")
+  for i = hl_line + 1, #lines do
+    local stars = lines[i]:match("^(%*+) ")
+    if stars and #stars <= level then
+      return i
+    end
+  end
+  return #lines + 1
+end
+
+-- Record the attachment link the way Emacs does (`org-attach-store-link-p`
+-- defaults to `attached`), then -- organ's own addition -- splice it into
+-- the buffer when `attach.auto_insert_link` is on.  Insertion never lands
+-- on a headline, a planning line or inside a drawer: from any such cursor
+-- position the link goes on its own line at the head of the entry body,
+-- because splicing it into a structural line destroys the entry.
+local function record_link(bufnr, line, filename)
+  local link_text = "[[attachment:" .. filename .. "]]"
+  require("organ.link_store").push({
+    kind = "url",
+    url = "attachment:" .. filename,
+    title = filename,
+  })
+
+  local auto = (require("organ.buf_config").read(nil, "attach") or {}).auto_insert_link
+  if auto == nil then
+    auto = true
+  end
+  if not auto then
+    return
+  end
+
+  local hl = require("organ.element").headline_at(bufnr, line - 1)
+  local hl_line = hl and (hl.line_start + 1) or line
+  local start = body_start(bufnr, hl_line)
+  local stop = entry_end(bufnr, hl_line)
+
+  local cur = vim.api.nvim_win_get_cursor(vim.api.nvim_get_current_win())
+  local crow, ccol = cur[1], cur[2]
+  local at_cursor = vim.api.nvim_get_current_buf() == bufnr and crow >= start and crow < stop
+  if at_cursor then
+    local text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
+    obuf.set_lines(bufnr, crow - 1, crow, { text:sub(1, ccol) .. link_text .. text:sub(ccol + 1) })
+    return
+  end
+
+  local indent = require("organ.section").planning_indent(bufnr, hl_line - 1)
+  obuf.set_lines(bufnr, start - 1, start - 1, { indent .. link_text })
 end
 
 -- Attach `src_path` to the headline at `line` in `bufnr`.
@@ -119,21 +232,7 @@ function M.attach(bufnr, line, src_path)
     vim.fn.writefile(content, dest, "b")
   end
 
-  -- Optionally insert link at cursor.
-  local auto = attach_cfg.auto_insert_link
-  if auto == nil then
-    auto = true
-  end
-  if auto then
-    local link_text = "[[attachment:" .. filename .. "]]"
-    local win = vim.api.nvim_get_current_win()
-    local cur = vim.api.nvim_win_get_cursor(win)
-    local crow = cur[1]
-    local ccol = cur[2]
-    local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
-    local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
-  end
+  record_link(bufnr, line, filename)
 
   return nil
 end
@@ -173,20 +272,7 @@ function M.attach_url(bufnr, line, url)
     return ("download failed (%d): %s"):format(vim.v.shell_error, out)
   end
 
-  -- Insert link if configured.
-  local auto = (require("organ.buf_config").read(nil, "attach") or {}).auto_insert_link
-  if auto == nil then
-    auto = true
-  end
-  if auto then
-    local link_text = "[[attachment:" .. filename .. "]]"
-    local win = vim.api.nvim_get_current_win()
-    local cur = vim.api.nvim_win_get_cursor(win)
-    local crow, ccol = cur[1], cur[2]
-    local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
-    local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
-  end
+  record_link(bufnr, line, filename)
 
   return nil, filename
 end
@@ -227,19 +313,7 @@ function M.attach_screenshot(bufnr, line, opts)
     return "screenshot tool exited 0 but no file was written (likely cancelled)"
   end
 
-  local auto = (require("organ.buf_config").read(nil, "attach") or {}).auto_insert_link
-  if auto == nil then
-    auto = true
-  end
-  if auto then
-    local link_text = "[[attachment:" .. filename .. "]]"
-    local win = vim.api.nvim_get_current_win()
-    local cur = vim.api.nvim_win_get_cursor(win)
-    local crow, ccol = cur[1], cur[2]
-    local line_text = vim.api.nvim_buf_get_lines(bufnr, crow - 1, crow, false)[1] or ""
-    local new_text = line_text:sub(1, ccol) .. link_text .. line_text:sub(ccol + 1)
-    obuf.set_lines(bufnr, crow - 1, crow, { new_text })
-  end
+  record_link(bufnr, line, filename)
 
   return nil, filename
 end

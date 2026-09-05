@@ -75,7 +75,7 @@ do
   local arc_buf = vim.fn.bufadd(arc)
   vim.fn.bufload(arc_buf)
   -- Find the archived heading line (first `^*\s` line, skip the
-  -- `# Archived entries from file ...` header).
+  -- `Archived entries from file ...` header).
   local arc_lines = vim.api.nvim_buf_get_lines(arc_buf, 0, -1, false)
   local archived_line
   for i, l in ipairs(arc_lines) do

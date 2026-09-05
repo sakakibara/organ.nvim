@@ -109,7 +109,7 @@ Feature set (pre-1.0, daily-driver parity with Emacs):
  - Sparse trees
  - Tables: auto-align, row/col operations, formulas
 
-Explicitly deferred: Babel, export, org-roam graph.
+Explicitly deferred: export, org-roam graph.
 
 Status: Pre-1.0. API may change before 1.0. Feedback welcome.
 
@@ -172,7 +172,9 @@ commands. No DB or tree-sitter work happens at this stage, so startup
 time is unaffected regardless of how many org files you have.
 
 `ftplugin/org.lua` installs buffer-local keymaps when a buffer's
-filetype is set to `org`.
+filetype is set to `org`, and sets `b:undo_ftplugin` so setting the
+filetype to something else takes them, the buffer and window options
+and the decorations back off again.
 
 ==============================================================================
 QUICKSTART                                                  *organ-quickstart*
@@ -750,6 +752,20 @@ TODO                                                       *organ-config-todo*
     `CLOSED:` written on a `DONE` transition) so the three agree.
     Existing-line edits preserve whatever indent is already on the
     line; this only governs the FIRST write under a headline.
+
+                                           *organ-config-todo-repeat_to_state*
+    `todo.repeat_to_state` (string|boolean, default: `nil`)
+    Where a repeating entry lands when it is marked done.  Mirrors
+    Emacs `org-todo-repeat-to-state`:
+      `nil` / `false`
+                   head of the entry's own sub-sequence -- with
+                   `{ "TODO", "NEXT", "|", "DONE" }`, a repeating
+                   `NEXT` entry returns to `TODO`.
+      <string>     that keyword, when the sequences define it.
+      `true`       the state the entry already had.
+    The entry's own `:REPEAT_TO_STATE:` property wins over this and
+    is never inherited from a parent; a value naming no configured
+    keyword is discarded and the head is used.
 
                                                    *organ-config-todo-keymaps*
     `todo.keymaps` (table)
@@ -1471,7 +1487,13 @@ breaks between characters under kinsoku rules.
     `format.headline.normalize_whitespace` (bool, default: `true`)
     Collapse runs of internal whitespace on headlines (between
     stars / TODO keyword / COMMENT marker / priority cookie /
-    title) to a single space.
+    title) to a single space.  Title text is never rewritten:
+    Emacs's fill and align commands leave it alone, and a run
+    inside it can be load-bearing -- `* TODO<Tab>x` has no TODO
+    keyword in Emacs, so collapsing the tab would make one.
+    Only spaces separate those parts, matching Emacs
+    `org-complex-heading-regexp`, so a tab where a separator
+    would go leaves the headline untouched.
 
                                                 *organ-config-format-verbatim*
     Table realign and list structure (renumbering, promote / demote,
@@ -1495,6 +1517,14 @@ Inline markup conceal: hide the `*` of `*bold*`, the `/` of
 Conceal extmarks have NO visual effect when `conceallevel = 0`
 (default), so users get conceal-on-demand: set `conceallevel = 2`
 on the buffer or window and the marks render immediately.
+
+Emphasis, pretty entities, |organ-stars| and the org-modern engine
+all need `conceallevel >= 2` and share one claim per window: the
+value the window had before organ raised it is saved once, and
+written back when the last of those features is switched off.  So
+`:Org conceal toggle` off leaves the level raised while another
+feature still needs it, and turning every feature off returns the
+window to its own value.
 
                                                *organ-config-emphasis-enabled*
     `emphasis.enabled` (bool, default: `false`)
@@ -1676,6 +1706,17 @@ Agenda                                                      *organ-cmd-agenda*
     `:Org refile`
     Refile the current subtree under a headline chosen from the index.
 
+*:Org-refile_copy*
+    `:Org refile_copy`
+    Like |:Org-refile|, but the subtree stays where it is and only a
+    copy lands under the target (Emacs `org-refile-copy`, C-c M-w),
+    bound to `<LocalLeader>Sr` by default.  Target selection,
+    outline-path display, re-levelling under the target and the
+    LOGBOOK refile note are all the same as a refile; refiling into
+    the subtree's own descendants is refused as it is there.  Note
+    that a copied subtree carries the original's `:ID:`, so give one
+    of the two a fresh id when both need to stay addressable.
+
 ------------------------------------------------------------------------------
 Find                                                          *organ-cmd-find*
 
@@ -1853,6 +1894,60 @@ Structure                                                *organ-cmd-structure*
     swap the item (with its children) with the next sibling item
     (Emacs M-DOWN).
 
+*:Org-toggle_comment*
+    `:Org toggle_comment`
+    Toggle the `COMMENT` keyword on the headline that owns the
+    cursor (Emacs `org-toggle-comment`, C-c ;), bound to
+    `<LocalLeader>;` by default.  The keyword is written after the
+    TODO keyword and the priority cookie and before the title;
+    removing it takes the word wherever it already sits after the
+    TODO keyword, so `* TODO COMMENT [#A] x` toggles back to
+    `* TODO [#A] x`.  Tags are left alone.
+
+*:Org-sort_entries*
+    `:Org[!] sort_entries [key] [property]`
+    Sort a set of sibling headlines, each carrying its whole
+    subtree (Emacs `org-sort-entries`, C-c ^), bound to
+    `<LocalLeader>^` by default.  The set is the children of the
+    headline at the cursor; before the first headline it is the
+    file's top-level entries, and over a range
+    (`:'<,'>Org sort_entries`) it is the range's own entries,
+    extended past the last selected subtree.
+
+    `key` is one of:
+      `alpha`      heading text, ignoring the TODO keyword, the
+                   priority cookie, `COMMENT` and the tags
+      `numeric`    the number the heading text starts with (0 when
+                   it starts with none)
+      `todo`       TODO sequence order: active keywords first,
+                   entries with no keyword next, done ones last
+      `priority`   the `[#A]` cookie; a missing cookie sorts as the
+                   configured `priority.default`
+      `property`   the value of `property`; missing sorts first
+      `scheduled`  the `SCHEDULED:` stamp
+      `deadline`   the `DEADLINE:` stamp
+      `timestamp`  the first active stamp in the entry, else the
+                   first stamp of either kind
+      `created`    the first inactive stamp at the start of a line
+                   in the entry
+      `clocking`   minutes summed over the subtree's `CLOCK:` lines
+    A missing date sorts as "now" -- Emacs's own fallback.  Append
+    `_reverse` (`alpha_reverse`) to sort descending; Emacs's single
+    letters work too, capitalised for reverse (`a` `n` `o` `p` `r` `s`
+    `d` `t` `c` `k`, `A` `N` ...).  Ties keep their buffer order in
+    both directions.
+
+    Comparison folds case; `:Org! sort_entries` compares
+    case-sensitively (Emacs's prefix argument).  Called with no
+    `key`, the sort key is prompted for.
+
+    Refuses, without touching the buffer, when the entry at the
+    cursor has no children, or when a range holds a heading
+    shallower than its first entry.
+
+    See also |:Org-list_sort| and |:Org-table_sort|, the other two
+    things Emacs's C-c ^ can reach.
+
 ------------------------------------------------------------------------------
 Inline editing                                         *organ-cmd-inline-edit*
 
@@ -1949,7 +2044,7 @@ Sparse trees                                                *organ-cmd-sparse*
 
 *:Org-sparse_tree_regex*
     `:Org sparse_tree regex <pattern>`
-    Fold all lines except headlines whose title matches the Lua regex.
+    Fold all lines except headlines whose title matches the Lua pattern.
 
 *:Org-sparse_tree_clear*
     `:Org sparse_tree clear`
@@ -2030,6 +2125,30 @@ TODO                                                          *organ-cmd-todo*
       renumber and description items keep the ` :: ` skeleton.
     Table rows and preamble lines fall back to the heading behavior
     (organ never splits a table the way Emacs M-S-RET does).
+
+*:Org-insert_heading_respect_content*
+    `:Org insert_heading_respect_content`
+    Insert a heading after the current subtree's CONTENT (Emacs
+    `org-insert-heading-respect-content`, C-RET), bound to `<C-CR>`
+    by default in normal and insert mode.  Unlike |:Org-meta_return|
+    this is always a HEADING: on a list item or a table row it still
+    appends a heading below the subtree rather than another item or
+    row.  The level is the enclosing headline's, so from a child
+    heading the new one is that child's sibling.  Before the first
+    heading it inserts a level-1 heading above it; in an empty
+    buffer it starts the outline.
+
+    `<C-CR>` needs a terminal that distinguishes it from `<CR>`.  Set
+    `structure.keymaps.insert_heading_respect_content = false` where
+    it does not, and reach the command through `:Org`.
+
+*:Org-insert_todo_heading_respect_content*
+    `:Org insert_todo_heading_respect_content`
+    TODO variant of |:Org-insert_heading_respect_content| (Emacs
+    `org-insert-todo-heading-respect-content`, C-S-RET), bound to
+    `<C-S-CR>` by default.  The new heading carries the FIRST ACTIVE
+    keyword of the reference entry's TODO sequence, chosen the same
+    way |:Org-insert_todo| chooses it.
 
 ------------------------------------------------------------------------------
 Habits                                                      *organ-cmd-habits*
@@ -2148,9 +2267,15 @@ Markdown export                                                 *organ-export*
         `=verb=` `~code~`   → `` `code` ``
         `[[t][d]]`          → `[d](t)`
         list items          → `- ` (numeric lists kept as `1.` etc.)
-        `[ ]` `[X]` `[-]`   → `[ ]` `[x]` `[ ]` (markdown checkbox)
+        `[ ]` `[X]` `[-]`   → `[ ]` `[x]` `[-]` (markdown checkbox)
+        `- t :: d`          → `- **t:** d` (description list)
         `#+begin_src LANG`  → triple-backtick fenced block with lang
         org tables          → GitHub-flavoured markdown tables
+        `: text`            → four-space indented block (fixed width)
+        `\begin{env}`       → passed through verbatim
+        `#+begin_center`    → `<div class="org-center">` around markdown
+        `#+begin_verse`     → `<p class="verse">` with `<br />` per line
+        `#+begin_export md` → payload passed through (`html` too)
         `-----`             → `---` (thematic break)
 
     Links to `file:x.org` point at `x.md`. `*Heading`, `#custom-id`,
@@ -2163,9 +2288,15 @@ Markdown export                                                 *organ-export*
     `#`, `![`); sub/superscripts, entities, statistics cookies and
     timestamps take their HTML form.
 
-    Drawers, planning lines (SCHEDULED / DEADLINE), `:PROPERTIES:` blocks,
-    citations, and `#+keywords` are dropped. Pure-data plumbing for
-    sharing notes outside org.
+    A heading carries its TODO keyword and, when `#+OPTIONS: pri:t` is
+    set, its priority cookie; tags trail it as `     :a:b:`. A table of
+    contents is written first as a nested ordered list. `#+CAPTION:`
+    becomes an italic line above a table or src block and the title
+    text of an image. `#+begin_export latex` and the like are dropped,
+    as are drawers, citations and `#+keywords`.
+
+    See |organ-export-options| for the `#+OPTIONS:` toggles every
+    backend reads.
 
 *:Org-export_html*
     `:Org export html[!] [path]`
@@ -2173,10 +2304,18 @@ Markdown export                                                 *organ-export*
     document. Writes to `<basename>.html` by default; bang to
     overwrite. Maps the same constructs as `:Org export markdown`
     plus:
-        `[ ]` `[X]`         → `<input type="checkbox" disabled>`
-        tables              → `<thead>` / `<tbody>` with `<th>` / `<td>`
+        `[ ]` `[X]` `[-]`   → `<input type="checkbox">` in an `<li>`
+                              classed `off` / `on` / `trans`
+        `- t :: d`          → `<dl class="org-dl"><dt>t</dt><dd>d</dd>`
+        tables              → `<colgroup>` + `<thead>` / `<tbody>`
         src blocks          → `<pre><code class="language-X">`
+        `: text`            → `<pre class="example">`
+        `\begin{env}`       → passed through for MathJax
+        `#+begin_center`    → `<div class="org-center">`
+        `#+begin_verse`     → `<p class="verse">` with `<br />`
+        `#+begin_export html` → payload passed through
         title (#+title)     → `<title>` and document head
+        `#+author` `#+date` → `<meta>` tags; `#+language` → `<html lang>`
 
     Every heading carries an `id` (its `CUSTOM_ID` or a slug of the
     title) so `*Heading`, `#custom-id`, `id:` and `<<target>>` links
@@ -2184,9 +2323,56 @@ Markdown export                                                 *organ-export*
     Footnote definitions collect after the body, numbered by first
     reference.
 
+    A heading is numbered (`<span class="section-number-2">1.1.</span>`)
+    and carries its TODO keyword, priority cookie and tags in the
+    spans ox-html uses (`todo`/`done`, `priority`, `tag`). A table of
+    contents is emitted before the body. `#+CAPTION:` becomes a
+    `<caption>` / `<label class="org-src-name">` / figure caption,
+    `#+NAME:` an `id`, and `#+ATTR_HTML:` element attributes.
+
     A small inline `<style>` block ships by default for sane
     typography; pass `minimal_style = false` programmatically (or
     set `export.html.minimal_style = false` in setup) to drop it.
+
+                                                        *organ-export-options*
+    Every backend resolves `#+OPTIONS:` against Emacs' defaults and
+    honours `toc:` (a number limits the depth), `num:`, `todo:`,
+    `pri:`, `tags:`, `p:` (planning lines), `prop:` (property
+    drawers), `title:`, `author:`, `email:`, `date:`, `creator:`,
+    `timestamp:` and `tex:` (`verbatim` renders LaTeX as literal
+    text). Alignment cookie rows (`| <r> | <l> |`) are read as
+    metadata, never printed; a column that is at least half numbers
+    aligns right, as in Emacs.
+
+    `H:` sets how deep a headline still becomes a heading (default 3,
+    Emacs' own default). A headline below that depth is exported as a
+    list item instead, nested under its parent, as
+    `org-export-low-level-p` does: a `<ul>`/`<ol>` in HTML, an
+    `itemize`/`enumerate` in LaTeX, a bullet list in markdown and
+    plain text, an `@itemize`/`@enumerate` in Texinfo. Raise it
+    (`#+OPTIONS: H:6`) to keep deep headlines as headings.
+
+    `expand-links:` (on by default, as in Emacs) replaces `$NAME` and
+    `${NAME}` in a file link's path with the environment variable's
+    value; `$$` is a literal `$`, and a name with no value in the
+    environment is left as written. Only file links are touched, and
+    only their path -- a `::search` suffix is left alone.
+
+                                                            *organ-export-toc*
+    `#+TOC:` places a table of contents at that point, independently
+    of `#+OPTIONS: toc:`:
+
+        `#+TOC: headlines N`    outline down to depth N, capped by `H:`
+        `#+TOC: headlines N local`  same, but only the enclosing subtree
+        `#+TOC: tables`         the captioned tables
+        `#+TOC: listings`       the captioned source blocks
+
+    HTML and plain text take all four; LaTeX takes them too and pulls
+    in `titletoc` when a `local` outline needs it; markdown has only
+    the `headlines` forms (it also accepts `:target LINK` to scope one
+    to another headline); Texinfo has only `tables` and `listings`,
+    since its outline is the `@menu`. `#+TOC: figures` is accepted and
+    renders nothing, matching every Emacs backend.
 
 ------------------------------------------------------------------------------
 Effort estimates                                                *organ-effort*
@@ -2552,7 +2738,10 @@ installer on org buffer open. With nvim-treesitter (`main`): >lua
 <
 Use |:Org-edit_special| to edit a src block in a dedicated buffer with
 its language's full filetype features (LSP, formatters, etc.) and
-write the result back on save.
+write the result back on save.  The block's delimiter lines are
+tracked with extmarks, so edits made to the org buffer while the
+split is open move the write target with them; if the block itself
+is gone by then the write is refused rather than landing elsewhere.
 
 ==============================================================================
 CITATIONS                                                    *organ-citations*
@@ -2707,7 +2896,11 @@ organ.nvim has three startup phases:
 2. `ftplugin/org.lua` — runs when a buffer's filetype is set to `org`.
    Delegates to `lua/organ/ftplugin/*.lua` for structure, inline-edit,
    property, table, core (TODO / fold / clock) keymaps. `setup()` must
-   have run before this fires.
+   have run before this fires. It also sets `b:undo_ftplugin`, which
+   Neovim runs when the filetype moves away from `org`: the keymaps,
+   the buffer and window options, the per-buffer augroups and the
+   decoration providers all come off, and setting `filetype=org` again
+   reinstalls them.
 
 3. Lazy resources — the SQLite handle (`runtime.lua`) and tree-sitter
    parser are opened on first use, not at `setup()` time. `setup()`,
@@ -3072,9 +3265,13 @@ counters.
     required. Cycle detection caps at 8 passes for self-referential
     macros.
 
-Export integration: pass `opts.expand = true` to any export backend
-(`:Org export markdown`, `:Org export html`, etc.) to run the full
-SETUPFILE → INCLUDE → MACRO pass before tree-sitter parses the source.
+Export integration: every export backend (`:Org export markdown`,
+`:Org export html`, etc.) and `:Org publish` runs the full SETUPFILE →
+INCLUDE → MACRO pass before tree-sitter parses the source, as Emacs
+does. Relative SETUPFILE / INCLUDE paths resolve against the exported
+file's directory. A programmatic caller can pass `opts.expand = false`
+to skip the pre-pass. An undefined macro is left verbatim rather than
+dropped (Emacs aborts the whole export instead).
 
 INCLUDE forms recognised:
   `#+INCLUDE: "path"`                          verbatim insert
@@ -3132,7 +3329,47 @@ typescript, scheme. Add more via
 
 By default every block prompts before execution. Disable globally with
 `babel.confirm_evaluate = false`, or per-language via
-`babel.allow_languages = { "lua", "sh" }`.
+`babel.allow_languages = { "lua", "sh" }`. A block that runs longer
+than `babel.timeout_ms` (default 60000) is stopped, and whatever it
+produced before that is reported along with the timeout.
+
+A `#+begin_src` inside `#+BEGIN_EXAMPLE`, `#+BEGIN_EXPORT`,
+`#+BEGIN_VERSE` or `#+BEGIN_COMMENT` is text, not code: it is never
+executed and never tangled. Blocks under a `COMMENT` headline still
+execute on request but are excluded from tangling.
+
+Header arguments accumulate from four places, each overriding the
+one before it:
+>
+    #+PROPERTY: header-args :results output
+    #+PROPERTY: header-args:python :results value
+    :PROPERTIES:                     (nearest enclosing subtree;
+    :header-args:python: :dir /tmp    header-args:<lang> beats the
+    :END:                             plain header-args)
+    #+HEADER: :var x=1               (above the block; outranks the
+    #+begin_src python :var x=2       #+begin_src line)
+<
+Blocks are named with `#+NAME: name` (organ also accepts a `:name`
+header argument). A named block owns `#+RESULTS: name` wherever that
+keyword sits in the buffer, and `:var v=name` substitutes that block's
+result -- running it first if it has none yet. A `:var` value that
+names nothing stays the literal string.
+
+`:results` accepts `output` / `value`; the collection forms `file`,
+`list`, `table`, `scalar`, `verbatim`; the format forms `raw`, `html`,
+`latex`, `org`, `code`, `drawer`; and the insertion forms `replace`
+(the default), `silent`, `none`, `append`, `prepend`. Blocks collect
+their output unless `:results value` is given and the language has a
+value collector (`babel.value_collectors.<lang>`; python ships one).
+`:wrap NAME` wraps the result in `#+begin_NAME`, and
+`:results file :file PATH` writes the output to PATH and links to it.
+`:cache yes` records a hash in `#+RESULTS[<hash>]:` and skips the run
+while the body and header arguments are unchanged.
+
+`:noweb yes` (also `tangle`, `eval`, `no-export`, `strip-export`)
+expands `<<name>>` references from named blocks, recursively, keeping
+the reference line's indentation. A reference cycle stops at the
+repeated name and leaves it literal instead of recursing forever.
 
 *:Org-babel_execute*
     `:Org babel execute`
@@ -3143,14 +3380,19 @@ By default every block prompts before execution. Disable globally with
 *:Org-babel_execute_buffer*
     `:Org babel execute_buffer`
     Execute every src block in the buffer in document order. Each
-    gets its own `#+RESULTS:` block.
+    gets its own `#+RESULTS:` block. One block's failure does not
+    abandon the rest.
 
 *:Org-babel_tangle*
     `:Org babel tangle`
     Extract every src block with `:tangle PATH` header into PATH.
     `:tangle yes` writes `<org basename>.<lang ext>` next to the org
     file. Multiple blocks targeting the same PATH are concatenated in
-    document order.
+    document order, separated by a blank line unless `:padline no`.
+    `:mkdirp yes` creates missing parent directories; `:shebang LINE`
+    writes LINE first and makes the file executable; `:comments link`
+    brackets each block with a comment linking back to it. Block
+    bodies are written without the org file's own indentation.
 
 ==============================================================================
 DYNAMIC BLOCKS                                              *organ-cmd-dblock*
@@ -3164,6 +3406,14 @@ named computation. Defined as:
 <
 Built-in dynamic blocks: `clocktable` (clock report), `columnview`
 (see |organ-cmd-columns|).
+
+`clocktable` emits the table `org-clocktable-write-default` emits: a
+`#+CAPTION:` line, a `Headline | Time` header with one further column
+per headline level, a `*Total time*` row between two horizontal rules,
+then one row per entry, indented with `\_` and carrying its subtree
+total in the column for its level.  Parameters: `:scope file|agenda`,
+`:maxlevel N` (default 2), `:block`, `:tstart` / `:tend`, `:narrow N`
+(default 40), `:fileskip0`.
 
 *:Org-update_dblock*
     `:Org update_dblock`
@@ -3180,6 +3430,18 @@ Column view renders a tabular summary of headline properties driven by
 the `#+COLUMNS:` keyword (e.g. `%25ITEM %TODO %3PRIORITY %TAGS
 %ESTIMATE{$} %ACTUAL{$}`).
 
+Each column is `%WIDTH?PROPERTY(LABEL)?{SUMMARY;FORMAT?}?`, read the
+way Emacs's `org-columns-compile-format` reads it:
+  - the property name may contain letters, digits, `_` and `-`, and
+    is matched against the drawer case-insensitively, so `%Effort`
+    and `%EFFORT` both read `:Effort:`;
+  - `(LABEL)` is the column heading and may contain spaces --
+    `%10Effort(Estimated Effort){:}` is one column;
+  - `{SUMMARY}` aggregates the descendants, and a `;FORMAT` suffix
+    (`{+;%.2f}`) formats the aggregate.
+A summary REPLACES the value a parent carries itself; a parent whose
+descendants contribute nothing keeps its own.
+
 *:Org-columns*
     `:Org columns`
     Open a column-view buffer for the current file. <CR> on a row
@@ -3192,10 +3454,35 @@ Per-headline attachments live under `<config.attach.dir>/<id[:2]>/<id[3:]>/`
 (matches Emacs's `data/<id>/` layout but with sharded prefix to avoid
 giant flat dirs). The headline's `:ID:` property is created on demand.
 
+                                                     *organ-config-attach-dir*
+`attach.dir` (string, default: `"data"`)
+    Root for the ID-keyed attachment directories, read the way Emacs
+    reads `org-attach-id-dir` (whose default is `"data/"`): a
+    relative path resolves against the directory holding the org
+    file, an absolute one is used verbatim.  A buffer with no file
+    name falls back to `org_dir`.
+    A directory that already exists under `<org_dir>/<attach.dir>`
+    still wins when the file-relative one does not exist, so files
+    attached while `attach.dir` was a single absolute path stay
+    reachable.  Set `attach.dir` to an absolute path to keep every
+    attachment in one tree.
+
+                                        *organ-config-attach-auto_insert_link*
+`attach.auto_insert_link` (boolean, default: `true`)
+    Insert `[[attachment:basename]]` into the buffer after a
+    successful attach.  Emacs never inserts -- it only stores the
+    link for |:Org-insert_link| -- and organ stores it too, whatever
+    this is set to.
+
 *:Org-attach*
     `:Org attach [path]`
-    Copy `path` into the attach dir for the headline at cursor and
-    add a `[[attachment:basename]]` link. Without `path`, prompts.
+    Copy `path` into the attach dir for the headline at cursor.  The
+    `[[attachment:basename]]` link is stored for |:Org-insert_link|
+    (Emacs `org-attach-store-link-p`), and with
+    |organ-config-attach-auto_insert_link| it is also inserted: at
+    the cursor when the cursor sits in the entry body, otherwise on
+    its own line at the head of the body, never spliced into the
+    headline, a planning line or a drawer. Without `path`, prompts.
 
 *:Org-attach_open*
     `:Org attach open`
@@ -3251,6 +3538,22 @@ SCHEDULED, DEADLINE, PROPERTIES, EFFORT                   *organ-cmd-planning*
 *:Org-deadline*
     `:Org deadline [<iso> | today | tomorrow | <spec>]`
     Same as `:Org schedule` for DEADLINE.
+
+                                                         *organ-planning-line*
+    Planning lives on ONE line: the line directly under the headline,
+    starting with `SCHEDULED:`, `DEADLINE:` or `CLOSED:`.  A keyword
+    line separated from the headline by a blank line or a drawer, or
+    a second keyword line below the planning line, is body text -- the
+    same rule org-element and `org-entry-get` apply -- so organ neither
+    reads a date from it nor moves it.
+
+    A write follows Emacs `org-add-planning-info`: the keyword is
+    dropped from that line and re-inserted at its front, and the rest
+    of the line rides along untouched, so a timestamp range
+    (`<a>--<b>`), a repeater, and any note after the timestamps all
+    survive.  Removing the last keyword removes the line.  With no
+    planning line present, one is inserted under the headline at
+    |organ-config-todo-planning_indent|.
 
 *:Org-set_effort*
     `:Org set_effort [<spec>]`
@@ -3386,6 +3689,22 @@ LISTS, CHECKBOXES, INLINE TASKS                              *organ-cmd-lists*
     first item's), and numbering restarting at 1 unless an `[@N]`
     counter overrides (honored on any member).
 
+*:Org-list_cycle_bullet*
+    `:Org list cycle_bullet [bullet]`
+    Cycle the bullet of the whole list at cursor (Emacs
+    `org-cycle-list-bullet`, reached through C-c - on an item),
+    bound to `<LocalLeader>lb` by default.  The cycle is
+    `-` `+` `*` `1.` `1)`, minus the ones the context forbids:
+    `*` is dropped at column 0 (an unindented `*` is a headline) and
+    the ordered forms are dropped on a description item (`term ::
+    def` cannot be numbered).  Only the list holding the cursor
+    changes -- a sub-list keeps its own bullet.
+
+    `bullet` picks one directly (`-` `+` `*` `1.` `1)`), and
+    `previous` walks the cycle backwards.  The style is set on the
+    list's first item and propagated by the same structure rewrite
+    |:Org-list_repair| runs, so indentation and numbering follow.
+
 *:Org-list_demote*
     `:Org list demote`
     Indent the list item at cursor under the previous sibling
@@ -3466,7 +3785,27 @@ Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
   `cite_native = true`   embed CSL processor output for `[cite:...]`
   `cite_style = "..."`   override `#+cite_export:` style
   `bib_files = {...}`    extra bibliography paths
-  `expand = true`        run macros / SETUPFILE / INCLUDE pre-pass
+  `expand = false`       skip the macro / SETUPFILE / INCLUDE pre-pass
+  `export_options = {}`  override resolved `#+OPTIONS:` toggles
+
+                                                         *organ-export-filter*
+What does NOT get exported ~
+
+Every backend prunes the document the way `ox.el` does before rendering:
+
+  - a subtree tagged `:noexport:` (`#+EXCLUDE_TAGS:` replaces that list),
+    and every subtree below it, since tags are inherited;
+  - everything outside a `:export:`-tagged subtree once any such subtree
+    exists, including the text before the first headline
+    (`#+SELECT_TAGS:` replaces that list);
+  - a `COMMENT` subtree, a `# ` comment line, a `#+begin_comment` block;
+  - a `#+begin_src` block whose `:exports` is `none` or `results`, and
+    the `#+RESULTS:` element belonging to a block whose `:exports` is
+    `none` or `code`;
+  - an `:ARCHIVE:` subtree's contents (`#+OPTIONS: arch:t` keeps them);
+  - whatever the `#+OPTIONS:` toggles switch off — `^:` `e:` `*:` `f:`
+    `tex:` `d:` `:` `|:` `stat:` `<:` `tasks:` act here, the rest are
+    applied by the individual backend.
 
 *:Org-export_latex*
     `:Org export latex[!] [path]`
@@ -3494,6 +3833,10 @@ Common options (programmatic — `require("organ.export.<fmt>").run(opts)`):
 *:Org-export_ascii*
     `:Org export ascii[!] [path]`
     Plain-text export with rule lines, indented headings, ASCII tables.
+    Verbatim text is boxed as `ox-ascii` boxes it -- `,----` above,
+    `| ` before each line, `` `---- `` below -- for `: ` fixed-width
+    lines, `#+begin_example` and source blocks alike. A source block's
+    language is not printed.
 
 *:Org-export_texinfo*
     `:Org export texinfo[!] [path]`
@@ -3564,10 +3907,22 @@ PROPERTY TERMS                                          *organ-match-property*
         `{pattern}`       Lua pattern match (`<>`, `!=`, `/=` negate)
         `42`              numeric comparison; a missing or non-numeric
                           property reads as 0
-    `LEVEL`, `TODO`, `CATEGORY`, `ITEM` (the title) and `PRIORITY` read
-    as properties. A headline with no priority cookie reads as
-    `config.priority.default` ("B" out of the box), so `PRIORITY="B"`
-    matches it too (Emacs `org-priority-default`).
+    `LEVEL`, `TODO`, `CATEGORY`, `ITEM` (the title), `PRIORITY`,
+    `SCHEDULED`, `DEADLINE` and `CLOSED` read as properties. A headline
+    with no priority cookie reads as `config.priority.default` ("B" out
+    of the box), so `PRIORITY="B"` matches it too (Emacs
+    `org-priority-default`). `CATEGORY` resolves the entry's own
+    `:CATEGORY:` property, else the file's `#+CATEGORY:` keyword, else
+    the file's basename (Emacs `org-get-category`).
+
+    `SCHEDULED`, `DEADLINE` and `CLOSED` read the entry's planning line
+    and never a same-named property-drawer entry, so an entry with no
+    such planning compares as the empty string: >
+
+        :Org sparse_tree match DEADLINE=""
+<
+    selects the entries with no deadline, and `DEADLINE=*""` selects
+    none at all because `*` requires the property to be present.
 
 TIMESTAMP OPERANDS                                          *organ-match-time*
     A quoted operand that opens with `<` or `[` and holds a date or one
@@ -3745,6 +4100,120 @@ MISCELLANEOUS                                             *organ-cmd-misc-ext*
     Handle an `org-protocol://` URL passed via the OS link handler.
     Dispatches to capture / store-link / etc. based on the protocol
     sub-scheme.
+
+*:Org-emphasize*
+    `:Org emphasize [marker]`
+    Wrap text in an org emphasis marker (Emacs `org-emphasize`,
+    C-c C-x C-f).  `marker` is one of `*` (bold), `/` (italic),
+    `_` (underline), `=` (verbatim), `~` (code), `+`
+    (strike-through), or `remove` -- organ's spelling for the SPC
+    that strips emphasis at Emacs's marker prompt.  Called with no
+    `marker`, the marker is prompted for.
+
+    Over a charwise selection (`:'<,'>Org emphasize *`) the
+    selection is wrapped.  With no selection organ wraps the WORD at
+    the cursor; with the cursor on no word it falls back to Emacs's
+    behaviour and inserts the bare marker pair with the cursor
+    between them.  A space is inserted on either side whose
+    neighbouring character would otherwise swallow the marker.
+
+    Marker pairs already wrapping the text are peeled off first, so
+    `/italic/` re-emphasised as bold becomes `*italic*` rather than
+    nesting.  Re-applying the SAME marker is therefore a no-op, as
+    it is in Emacs; use `remove` to strip.
+
+    Default bindings, in normal and visual mode:
+      `<LocalLeader>m*`  bold
+      `<LocalLeader>m/`  italic
+      `<LocalLeader>m_`  underline
+      `<LocalLeader>m=`  verbatim
+      `<LocalLeader>m~`  code
+      `<LocalLeader>m+`  strike-through
+      `<LocalLeader>m<Space>`  remove emphasis
+
+*:Org-toggle_fixed_width*
+    `:Org toggle_fixed_width`
+    Toggle the `: ` fixed-width prefix (Emacs
+    `org-toggle-fixed-width`, C-c :), bound to `<LocalLeader>:` in
+    normal and visual mode.
+
+    On one line: a fixed-width line loses the prefix, and anything
+    else gains it after its indentation.  A blank line becomes `: `.
+    Refuses inside a verbatim block body, a drawer, a table row or a
+    list item, where org has no fixed-width element.
+
+    Over a range: if every non-blank line is already fixed-width the
+    whole range is stripped; otherwise every line gains the prefix at
+    the range's MINIMUM indentation, so relative indentation inside
+    the block is preserved.  Trailing blank lines are ignored unless
+    the range holds nothing else.
+
+*:Org-evaluate_time_range*
+    `:Org[!] evaluate_time_range`
+    Report the duration of the timestamp range on the line at the
+    cursor (Emacs `org-evaluate-time-range`, C-c C-y), bound to
+    `<LocalLeader>y` by default.  Accepts `<a>--<b>` and `[a]--[b]`,
+    with one or two dashes, anywhere on the line.  The message names
+    only the non-zero units (`2 days 2 hours 30 minutes`); with no
+    clock time in either stamp the difference is whole days.
+
+    `:Org! evaluate_time_range` inserts the compact form
+    (`[Nd ]HH:MM`, or `Nd` for date-only stamps) after the range
+    instead, replacing one it wrote earlier rather than appending a
+    second.  A backwards range is reported by magnitude and inserted
+    with a leading `-`.
+
+    On a closed `CLOCK:` line the `=>` sum is recomputed instead,
+    as Emacs's C-c C-y does there.
+
+*:Org-add_note*
+    `:Org add_note [text]`
+    Add a timestamped note to the entry that owns the cursor (Emacs
+    `org-add-note`, C-c C-z), bound to `<LocalLeader>Z` by default
+    (Emacs's C-c C-z would collide with organ's `<LocalLeader>z`
+    view-toggle group).  Without `text` the note is prompted for;
+    cancelling the prompt writes nothing.
+
+    The entry is Emacs's `Note taken on %t` heading:
+>org
+        :LOGBOOK:
+        - Note taken on [2026-09-04 Fri 08:35] \\
+          the note text
+        :END:
+<
+    An empty note omits the ` \\` marker and the body line.  Where
+    the entry lands follows the same |organ-config-todo| settings as
+    every other log entry: `log_into_drawer` picks the drawer or a
+    bare line under the heading, `log_drawer` names the drawer.
+    Notes go newest-first inside an existing drawer.
+
+*:Org-mark_ring_push*
+    `:Org mark_ring push`
+    Save the cursor position to org's own mark ring (Emacs
+    `org-mark-ring-push`, C-c %), bound to `<LocalLeader>M` by
+    default -- `<LocalLeader>%` is already |:Org-attach_reveal|, so
+    the push side does not keep its Emacs key.  Also sets a Neovim
+    jumplist entry, so `CTRL-O` keeps working: Emacs likewise pushes
+    onto the Emacs mark ring alongside its own.
+
+    |:Org-follow_link| pushes automatically, so following a link is
+    always undoable through the ring.
+
+    The ring holds `mark_ring.length` positions (4 by default,
+    matching Emacs's `org-mark-ring-length`); the oldest drops off.
+    Unlike the jumplist it is global rather than window-local, holds
+    only positions org commands chose to remember, and survives a
+    window closing.
+
+*:Org-mark_ring_goto*
+    `:Org mark_ring goto [n]`
+    Jump back to a position on the org mark ring (Emacs
+    `org-mark-ring-goto`, C-c &), bound to `<LocalLeader>&` by
+    default.  Consecutive calls walk deeper into the ring rather
+    than bouncing on its head, and wrap around at the end; `n` steps
+    that many positions at once.  A push restarts the walk at the
+    new head.  The file is reopened when the position is in another
+    one, and a line number the file has since outgrown is clamped.
 
 ==============================================================================
 TIMER / POMODORO                                                 *organ-timer*
@@ -3994,7 +4463,8 @@ Emacs `org-hide-leading-stars` equivalent. Off by default. >lua
 <
 Conceals all but the trailing `*` of each headline's leading-star
 block, so `*** Foo` renders as `   * Foo`. Sets the window's
-`'conceallevel'` to 2 on attach (restored on detach). The
+`'conceallevel'` to 2 on attach (restored once no other conceal
+feature needs it -- see |organ-config-emphasis|). The
 nvim-treesitter-context sticky header shows the same hidden-star form
 (see |organ-treesitter-context|).
 
@@ -4097,6 +4567,8 @@ NEW VIEWS                                                 *organ-agenda-views*
 PER-ROW EDIT KEYMAPS                                  *organ-agenda-edit-keys*
     + / - / =      raise / lower / clear priority
     gT             set tags
+    s / D          set SCHEDULED / DEADLINE on the row's source
+                   headline, via the calendar popup
     A              archive row to file
     gA             toggle showing archived rows
     gC             open clock report
@@ -4109,6 +4581,12 @@ BULK SELECT + ACTIONS                                      *organ-agenda-bulk*
                    deadline / refile / archive / delete)
     u              undo last bulk delete (vim-native)
     <C-r>          redo last undone delete
+
+    Schedule and deadline ask for ONE date and apply it to every marked
+    row, as Emacs `org-agenda-bulk-action` does.  Every marked row is
+    resolved to its source position before the first edit, and the edits
+    run bottom-up, so an edit cannot shift a later row's line out from
+    under it.
 
 PERIOD + NAVIGATION                                         *organ-agenda-nav*
     f / b          next / prev period

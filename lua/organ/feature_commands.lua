@@ -31,6 +31,8 @@ M.feature_commands = {
     "cut_subtree",
     "copy_subtree",
     "paste_subtree",
+    "toggle_comment",
+    "sort_entries",
   },
   inline_edit = {
     "increment",
@@ -101,6 +103,7 @@ M.feature_commands = {
     "agenda",
     "stuck_projects",
     "refile",
+    "refile_copy",
     "follow_link",
   },
   archive = {

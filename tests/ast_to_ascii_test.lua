@@ -115,13 +115,13 @@ do
   })
   local out = to_ascii.render(doc)
   check(
-    "math body emitted without delimiters",
-    out:find("see x^2 and \\int", 1, true) ~= nil,
+    "math keeps its delimiters",
+    out:find("see $x^2$ and $$\\int$$", 1, true) ~= nil,
     "got: " .. out
   )
 end
 
--- Inline image dropped
+-- Inline image
 do
   local doc = A.document({
     A.paragraph({
@@ -131,7 +131,11 @@ do
     }),
   })
   local out = to_ascii.render(doc)
-  check("inline image dropped", out:find("before  after", 1, true) ~= nil, "got: " .. out)
+  check(
+    "inline image with description -> desc (target)",
+    out:find("before fig (fig.png) after", 1, true) ~= nil,
+    "got: " .. out
+  )
 end
 
 -- footnote_ref dropped
@@ -163,7 +167,7 @@ do
   )
 end
 
--- List (ordered: bullets normalised to "-")
+-- List (ordered: numbered)
 do
   local doc = A.document({
     A.list(true, {
@@ -173,8 +177,8 @@ do
   })
   local out = to_ascii.render(doc)
   check(
-    "ordered list bullets normalised to -",
-    out:find("- alpha", 1, true) ~= nil and out:find("- beta", 1, true) ~= nil,
+    "ordered list keeps its numbering",
+    out:find("1. alpha", 1, true) ~= nil and out:find("2. beta", 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -213,41 +217,39 @@ do
   check("inner indented 2 spaces", out:find("  - inner", 1, true) ~= nil)
 end
 
--- code_block: 4-space indent
+-- code_block: boxed, language not shown (org-ascii-src-block).
 do
   local doc = A.document({
     A.code_block("python", "print('hi')"),
   })
   local out = to_ascii.render(doc)
-  check("code body indented 4 spaces", out:find("    print('hi')", 1, true) ~= nil, "got: " .. out)
+  check("code body boxed", out:find(",----\n| print('hi')\n`----", 1, true) ~= nil, "got: " .. out)
+  check("code language is not shown", out:find("python", 1, true) == nil, "got: " .. out)
 end
 
--- Multi-line code preserves line breaks, each line indented.
+-- Multi-line code preserves line breaks, each line inside the box.
 do
   local doc = A.document({
     A.code_block("lua", "local x = 1\nprint(x)"),
   })
   local out = to_ascii.render(doc)
-  check(
-    "multi-line code: line 1 indented",
-    out:find("    local x = 1", 1, true) ~= nil,
-    "got: " .. out
-  )
-  check("multi-line code: line 2 indented", out:find("    print(x)", 1, true) ~= nil)
+  check("multi-line code: line 1 boxed", out:find("| local x = 1", 1, true) ~= nil, "got: " .. out)
+  check("multi-line code: line 2 boxed", out:find("| print(x)", 1, true) ~= nil)
 end
 
--- Block: example
+-- Block: example.  ox-ascii boxes an example block exactly as it boxes
+-- fixed-width lines and source blocks.
 do
   local doc = A.document({
     A.block("example", { body = "raw text\nline 2" }),
   })
   local out = to_ascii.render(doc)
   check(
-    "example indented 4 spaces line 1",
-    out:find("    raw text", 1, true) ~= nil,
+    "example boxed",
+    out:find(",----\n| raw text\n| line 2\n`----", 1, true) ~= nil,
     "got: " .. out
   )
-  check("example indented 4 spaces line 2", out:find("    line 2", 1, true) ~= nil)
+  check("example is not indented instead", out:find("    raw text", 1, true) == nil, "got: " .. out)
 end
 
 -- Block: verse
@@ -362,7 +364,7 @@ do
   )
 end
 
--- Block-level image: dropped
+-- Block-level image
 do
   local doc = A.document({
     A.paragraph({ A.text("before") }),
@@ -371,8 +373,8 @@ do
   })
   local out = to_ascii.render(doc)
   check(
-    "block image silently dropped (target absent)",
-    out:find("fig.png", 1, true) == nil,
+    "block image with description -> desc (target)",
+    out:find("diagram (fig.png)", 1, true) ~= nil,
     "got: " .. out
   )
   check(
@@ -475,6 +477,346 @@ do
   check("ascii target dropped", out:find("anchor", 1, true) == nil)
   check("ascii macro kept as text", out:find("{{{title}}}", 1, true) ~= nil)
   check("ascii unknown entity kept as text", out:find("\\nosuchentity", 1, true) ~= nil)
+end
+
+-- Fixed-width lines (`: text`) -- every short babel result is one.
+do
+  local doc = A.document({ { kind = "fixed_width", body = "42\nnext" } })
+  local out = to_ascii.render(doc)
+  check(
+    "fixed_width -> boxed",
+    out:find(",----\n| 42\n| next\n`----", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- LaTeX environments pass through.
+do
+  local body = "\\begin{equation}\nx = 1\n\\end{equation}"
+  local doc = A.document({ { kind = "latex_environment", name = "equation", body = body } })
+  check("latex_environment passes through", to_ascii.render(doc):find(body, 1, true) ~= nil)
+end
+
+-- Greater blocks: center, and backend-gated export blocks.
+do
+  local doc = A.document({
+    A.block("center", { content = { A.paragraph({ A.text("mid") }) } }),
+    A.block("export", { backend = "ascii", body = "raw ascii" }),
+    A.block("export", { backend = "html", body = "<b>x</b>" }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "center block is centred",
+    out:find(string.rep(" ", 34) .. "mid", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("export ascii passes through", out:find("raw ascii", 1, true) ~= nil)
+  check("export html is dropped", out:find("<b>x</b>", 1, true) == nil)
+end
+
+-- TODO keyword, priority cookie and tags reach the title line.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      todo = "TODO",
+      todo_type = "todo",
+      priority = "A",
+      tags = { "work", "urgent" },
+      title = { A.text("Task one") },
+    }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_priority = true,
+    with_toc = false,
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "title line carries number, todo, priority and flushed tags",
+    out:find("1 TODO (#A) Task one", 1, true) ~= nil and out:find(":work:urgent:", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "tags are flushed right to the text width",
+    out:match("^[^\n]*") and #(out:match("^[^\n]*")) == 72,
+    "got: " .. out
+  )
+end
+
+-- Description lists keep their terms.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ tag = { A.text("term") }, content = { A.paragraph({ A.text("definition") }) } }),
+    }),
+  })
+  check(
+    "description term on its own line",
+    to_ascii.render(doc):find("term\n  definition", 1, true) ~= nil,
+    "got: " .. to_ascii.render(doc)
+  )
+end
+
+-- Headlines past the underline set still get a rule.
+do
+  local doc = A.document({ A.headline({ level = 6, title = { A.text("Six") } }) })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_toc = false,
+    with_section_numbers = false,
+    headline_levels = 6,
+  })
+  check(
+    "level 6 is underlined",
+    to_ascii.render(doc):find("Six\n===", 1, true) ~= nil,
+    "got: " .. to_ascii.render(doc)
+  )
+end
+
+-- A list item may hold more than paragraphs.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({
+        content = {
+          A.paragraph({ A.text("item") }),
+          A.code_block("lua", "print(1)"),
+        },
+      }),
+    }),
+  })
+  check(
+    "src block inside a list item survives",
+    to_ascii.render(doc):find("print(1)", 1, true) ~= nil,
+    "got: " .. to_ascii.render(doc)
+  )
+end
+
+-- Captions print under the element they belong to.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      affiliated = { { name = "CAPTION", value = "Cap", inline = { A.text("Cap") } } },
+      rows = { { cells = { { A.text("a") } }, sep = false } },
+    },
+  })
+  check(
+    "table caption",
+    to_ascii.render(doc):find("Table 1: Cap", 1, true) ~= nil,
+    "got: " .. to_ascii.render(doc)
+  )
+end
+
+-- Table of contents.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("One") },
+      children = { A.headline({ level = 2, title = { A.text("Deep") } }) },
+    }),
+  })
+  local out = to_ascii.render(doc)
+  check(
+    "toc heading",
+    out:find("Table of Contents\n_________________", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("toc entry", out:find("1. One", 1, true) ~= nil)
+  check("toc nests", out:find(".. 1. Deep", 1, true) ~= nil)
+
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_toc = false,
+  })
+  check("toc:nil suppresses it", to_ascii.render(doc):find("Table of Contents", 1, true) == nil)
+end
+
+-- Alignment cookies are metadata, not a data row.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "r", "l" },
+      rows = {
+        { cells = { { A.text("<r>") }, { A.text("<l>") } }, sep = false },
+        { cells = { { A.text("x") }, { A.text("a") } }, sep = false },
+      },
+    },
+  })
+  check(
+    "cookie row is not rendered",
+    to_ascii.render(doc):find("<r>", 1, true) == nil,
+    "got: " .. to_ascii.render(doc)
+  )
+end
+
+-- Entities keep working with the `{}` terminator.
+do
+  local doc = A.document({ A.paragraph({ A.entity("alpha{}"), A.text("text") }) })
+  check("\\alpha{} is the alpha entity", to_ascii.render(doc):find("alphatext", 1, true) ~= nil)
+end
+
+-- `#+OPTIONS: H:N` (org-export-low-level-p): a headline deeper than N is
+-- a list item, not a heading; `num:` picks the list type.
+do
+  local function tree()
+    return A.document({
+      A.headline({
+        level = 1,
+        title = { A.text("Top") },
+        children = {
+          A.headline({
+            level = 2,
+            title = { A.text("Sub") },
+            children = {
+              A.headline({
+                level = 3,
+                title = { A.text("Deep") },
+                children = {
+                  A.paragraph({ A.text("body") }),
+                  A.headline({ level = 4, title = { A.text("Deeper") } }),
+                },
+              }),
+              A.headline({ level = 3, title = { A.text("Deep B") } }),
+            },
+          }),
+        },
+      }),
+    })
+  end
+  local function opts(over)
+    return vim.tbl_extend(
+      "force",
+      require("organ.export.options").defaults(),
+      { headline_levels = 2, with_toc = false, with_section_numbers = false },
+      over or {}
+    )
+  end
+
+  local doc = tree()
+  doc.options = opts()
+  local out = to_ascii.render(doc)
+  check("H:2 keeps level 2 underlined", out:find("Sub\n---", 1, true) ~= nil, "got: " .. out)
+  check("H:2 demotes level 3 to a bullet", out:find("- Deep\n", 1, true) ~= nil, "got: " .. out)
+  check("H:2 indents the demoted body", out:find("\n  body\n", 1, true) ~= nil, "got: " .. out)
+  check("H:2 indents the level 4 bullet", out:find("\n  - Deeper", 1, true) ~= nil, "got: " .. out)
+  check(
+    "sibling demoted headline is a sibling bullet",
+    out:find("\n- Deep B", 1, true) ~= nil,
+    "got: " .. out
+  )
+
+  -- ox-ascii bullets a demoted headline either way, with the section
+  -- number inside the title.
+  local numbered = tree()
+  numbered.options = opts({ with_section_numbers = true })
+  local nout = to_ascii.render(numbered)
+  check(
+    "num:t keeps the bullet and numbers the title",
+    nout:find("- 1.1.1 Deep", 1, true) ~= nil,
+    "got: " .. nout
+  )
+  check(
+    "num:t numbers the nested title",
+    nout:find("- 1.1.1.1 Deeper", 1, true) ~= nil,
+    "got: " .. nout
+  )
+end
+
+-- `#+TOC:` as a directive (org-html-keyword / org-latex-keyword /
+-- org-md-keyword / org-ascii-keyword / org-texinfo-keyword), verified
+-- against Emacs 30.2 / Org 9.7.11.
+do
+  local from_org = require("organ.ast.from_org")
+  local src = {
+    "#+OPTIONS: toc:nil num:nil",
+    "",
+    "#+TOC: headlines 2",
+    "",
+    "* One",
+    "#+CAPTION: Table one",
+    "| a | b |",
+    "",
+    "#+CAPTION: Listing one",
+    "#+BEGIN_SRC lua",
+    "print(1)",
+    "#+END_SRC",
+    "",
+    "** Two",
+    "*** Three",
+    "",
+    "#+TOC: tables",
+    "",
+    "#+TOC: listings",
+    "",
+    "#+TOC: figures",
+    "",
+    "* Four",
+    "#+TOC: headlines 1 local",
+    "** Five",
+  }
+
+  local out = to_ascii.render(from_org.from_lines(src))
+  check(
+    "#+TOC: headlines builds the document TOC under toc:nil",
+    out:find("Table of Contents", 1, true) ~= nil and out:find("1. One", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: headlines 2 stops at level 2",
+    out:find("Three\n", 1, true) ~= nil and select(2, out:gsub("Three", "")) == 1,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: tables lists the captioned table",
+    out:find("List of Tables\n______________\n\nTable 1: Table one", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: listings lists the captioned src block",
+    out:find("List of Listings\n________________\n\nListing 1: Listing one", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: figures renders nothing, as in ox-ascii",
+    out:find("List of Figures", 1, true) == nil
+  )
+  check(
+    "#+TOC: ... local keeps the absolute outline indent",
+    out:find(".. 1. Five", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- ox-ascii boxes all three verbatim forms identically -- `: ` lines,
+-- `#+begin_example` and a source block, with or without a language.
+-- Emacs 30.2 / Org 9.7.11 on
+--   : one / : two
+--   #+BEGIN_EXAMPLE ... #+BEGIN_SRC lua ... #+BEGIN_SRC
+-- prints ",----" / "| <line>" / "`----" for each.
+do
+  local from_org = require("organ.ast.from_org")
+  local function body(lines)
+    return to_ascii.render(from_org.from_lines(lines))
+  end
+  local boxed = ",----\n| one\n| two\n`----"
+  check(
+    "fixed-width lines are boxed",
+    body({ ": one", ": two" }):find(boxed, 1, true) ~= nil,
+    "got: " .. body({ ": one", ": two" })
+  )
+  local ex = body({ "#+BEGIN_EXAMPLE", "one", "two", "#+END_EXAMPLE" })
+  check("an example block is boxed the same way", ex:find(boxed, 1, true) ~= nil, "got: " .. ex)
+  local src = body({ "#+BEGIN_SRC lua", "one", "two", "#+END_SRC" })
+  check("a source block is boxed the same way", src:find(boxed, 1, true) ~= nil, "got: " .. src)
+  check("a source block's language is not printed", src:find("lua", 1, true) == nil, "got: " .. src)
+  local nolang = body({ "#+BEGIN_SRC", "one", "two", "#+END_SRC" })
+  check(
+    "a source block without a language is boxed too",
+    nolang:find(boxed, 1, true) ~= nil,
+    "got: " .. nolang
+  )
 end
 
 if fails > 0 then

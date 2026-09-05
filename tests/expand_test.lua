@@ -240,9 +240,13 @@ end
 -- Edge cases: missing macro, recursive expansion limit
 
 do
-  -- Missing macro → empty string (matches Emacs default).
+  -- An undefined macro stays verbatim.  Emacs aborts the export here
+  -- ("Undefined Org macro: nonexistent; aborting"); organ expands on
+  -- every export, so it keeps the text instead of dropping it.
   local out = expand.process("X={{{nonexistent}}}Y")
-  assert(out == "X=Y", "missing macro: " .. out)
+  assert(out == "X={{{nonexistent}}}Y", "missing macro: " .. out)
+  local with_args = expand.process("X={{{nope(a)}}}Y")
+  assert(with_args == "X={{{nope(a)}}}Y", "missing macro with args: " .. with_args)
 end
 
 do

@@ -215,4 +215,49 @@ do
   assert_eq(table.concat(lines, "\n"), "* A\n* B\n**\ntext\n** C", "B promoted, bare ** untouched")
 end
 
+-- Emacs `org-move-subtree-down` ends with `(goto-char ins-point)
+-- (org-skip-whitespace) (move-to-column col)`: point lands on the moved
+-- subtree's heading, whatever line of it point started on.  A cursor on
+-- the subtree's trailing blank lines must not be carried past the moved
+-- block onto the subtree that was displaced.
+do
+  local b = mk_buf({ "* A", "* B", "", "* C" })
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  local err = structure.move_subtree_up({ bufnr = b })
+  assert_eq(err, nil)
+  assert_eq(table.concat(get_lines(b), "\n"), "* B\n* A\n\n* C", "B moved above A")
+  assert_eq(
+    vim.api.nvim_win_get_cursor(0)[1],
+    1,
+    "cursor on the moved subtree's heading (move_up from trailing blank)"
+  )
+end
+
+do
+  local b = mk_buf({ "* A", "", "* B", "* C" })
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  local err = structure.move_subtree_down({ bufnr = b })
+  assert_eq(err, nil)
+  assert_eq(table.concat(get_lines(b), "\n"), "* B\n\n* A\n* C", "A moved below B")
+  assert_eq(
+    vim.api.nvim_win_get_cursor(0)[1],
+    3,
+    "cursor on the moved subtree's heading (move_down from trailing blank)"
+  )
+end
+
+-- A cursor deep in the subtree's body lands on the heading too.
+do
+  local b = mk_buf({ "* A", "* B", "b1", "b2", "", "* C" })
+  vim.api.nvim_set_current_buf(b)
+  vim.api.nvim_win_set_cursor(0, { 4, 1 })
+  local err = structure.move_subtree_up({ bufnr = b })
+  assert_eq(err, nil)
+  local pos = vim.api.nvim_win_get_cursor(0)
+  assert_eq(pos[1], 1, "cursor on the moved subtree's heading (move_up from body)")
+  assert_eq(pos[2], 1, "column preserved")
+end
+
 io.write("structure move ok\n")

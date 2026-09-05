@@ -29,7 +29,7 @@ local PRESETS = {
 }
 
 local function is_headline_line(s)
-  return s and s:match("^%*+%s") ~= nil
+  return s and s:match("^%*+ ") ~= nil
 end
 
 local function is_blank(s)

@@ -225,6 +225,98 @@ do
   )
 end
 
+-- A repeater becomes an RRULE.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("Weekly") },
+      tags = { "work", "meet" },
+      planning = { scheduled = "<2026-05-02 Sat 09:00 +1w>" },
+      children = { A.paragraph({ A.text("Body line one.") }) },
+    }),
+  })
+  local out = to_ics.render(doc)
+  check(
+    "weekly repeater -> RRULE",
+    out:find("RRULE:FREQ=WEEKLY;INTERVAL=1", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("body text -> DESCRIPTION", out:find("DESCRIPTION:Body line one.", 1, true) ~= nil)
+  check("tags -> CATEGORIES", out:find("CATEGORIES:work\\,meet", 1, true) ~= nil)
+end
+
+do
+  local units = {
+    { "<2026-05-02 Sat +2d>", "FREQ=DAILY;INTERVAL=2" },
+    { "<2026-05-02 Sat ++1m>", "FREQ=MONTHLY;INTERVAL=1" },
+    { "<2026-05-02 Sat .+3y>", "FREQ=YEARLY;INTERVAL=3" },
+    { "<2026-05-02 Sat 09:00 +6h>", "FREQ=HOURLY;INTERVAL=6" },
+  }
+  for _, u in ipairs(units) do
+    local doc = A.document({
+      A.headline({ level = 1, title = { A.text("R") }, planning = { scheduled = u[1] } }),
+    })
+    check("repeater " .. u[1] .. " -> " .. u[2], to_ics.render(doc):find(u[2], 1, true) ~= nil)
+  end
+end
+
+-- An all-day event gets the exclusive DTEND ox-icalendar writes.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("D") },
+      planning = { deadline = "<2026-05-09 Sat>" },
+    }),
+  })
+  local out = to_ics.render(doc)
+  check(
+    "all-day DTEND is the next day",
+    out:find("DTSTART;VALUE=DATE:20260509", 1, true) ~= nil
+      and out:find("DTEND;VALUE=DATE:20260510", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Plain body timestamps and ranges produce their own VEVENT.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      title = { A.text("Plain event") },
+      children = {
+        A.paragraph({
+          A.text("Some text "),
+          A.timestamp("<2026-06-01 Mon 10:00-11:00>", "active"),
+          A.text(" here."),
+        }),
+      },
+    }),
+    A.headline({
+      level = 1,
+      title = { A.text("Range") },
+      children = {
+        A.paragraph({ A.timestamp("<2026-07-01 Wed>--<2026-07-03 Fri>", "range_active") }),
+      },
+    }),
+  })
+  local out = to_ics.render(doc)
+  check(
+    "plain timestamp -> VEVENT",
+    out:find("DTSTART:20260601T100000", 1, true) ~= nil
+      and out:find("DTEND:20260601T110000", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "timestamp range -> VEVENT spanning both dates",
+    out:find("DTSTART;VALUE=DATE:20260701", 1, true) ~= nil
+      and out:find("DTEND;VALUE=DATE:20260704", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("SUMMARY comes from the headline", out:find("SUMMARY:Plain event", 1, true) ~= nil)
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

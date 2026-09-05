@@ -13,8 +13,18 @@ local M = {}
 
 local emit_section_child
 
-local function get_text(node, src)
+-- `floor_row` clips leading rows off a node whose range starts above it.
+-- The grammar can hand back an element that begins inside the headline
+-- line (a NUL byte truncates the title's column span), and that line is
+-- already wholly consumed as the title.
+local function get_text(node, src, floor_row)
   local sr, sc, er, ec = node:range()
+  if floor_row and sr < floor_row then
+    sr, sc = floor_row, 0
+  end
+  if sr > er or (sr == er and sc >= ec) then
+    return ""
+  end
   if sr == er then
     return src[sr + 1] and src[sr + 1]:sub(sc + 1, ec) or ""
   end
@@ -89,10 +99,19 @@ local function normalize_indent(text, first_line_indented)
   return table.concat(lines, "\n")
 end
 
+-- Verbatim lines strictly between `#+begin_X` and `#+end_X`.  Block node
+-- ranges are not uniform: src / example / verse / export / comment end ON
+-- the `#+end_X` line, greater_block ends at column 0 of the row after it.
+-- Normalize to the node's last occupied row, then drop a closing line if
+-- one is there (a block truncated by EOF or a headline has none).
 local function block_body(node, src)
-  local sr, _, er = node:range()
+  local sr, _, er, ec = node:range()
+  local last = ec > 0 and er or er - 1
+  if (src[last + 1] or ""):match("^%s*#%+[Ee][Nn][Dd]_") then
+    last = last - 1
+  end
   local lines = {}
-  for r = sr + 1, er - 1 do
+  for r = sr + 1, last do
     lines[#lines + 1] = src[r + 1] or ""
   end
   return table.concat(lines, "\n")
@@ -136,11 +155,6 @@ local function clean_title(line, todo_keywords)
   if priority then
     line = line:gsub("^%[#%w%]%s*", "")
   end
-  -- Strip COMMENT keyword (org-element: not part of the title). Requires
-  -- trailing whitespace so "COMMENTARY..." is left untouched.
-  if line:match("^COMMENT%s+") then
-    line = line:gsub("^COMMENT%s+", "")
-  end
   -- Strip trailing tags `:a:b:` (org-tag-re: alnum, _, @, #, %).
   local tags_str = line:match("%s+(:[%w_@#%%\128-\255:]+:)%s*$")
   local tags
@@ -151,7 +165,15 @@ local function clean_title(line, todo_keywords)
     end
     line = line:gsub("%s+:[%w_@#%%\128-\255:]+:%s*$", "")
   end
-  return line, todo, priority, tags
+  -- Strip COMMENT keyword (org-element: not part of the title).
+  -- org-element--headline-comment-re requires a space or end of line
+  -- after it, so "COMMENTARY..." is left untouched.
+  local commented
+  if line:match("^COMMENT%s") or line == "COMMENT" then
+    line = line:gsub("^COMMENT%s*", "")
+    commented = true
+  end
+  return line, todo, priority, tags, commented
 end
 
 -- Parse an inline org text fragment into AST inline nodes by walking
@@ -262,11 +284,11 @@ do
       elseif t == "entity" then
         return A.entity(txt(node):sub(2))
       elseif t == "subscript" then
-        local inner = txt(node):match("^_%{(.*)%}$") or txt(node):sub(2)
-        return A.subscript(parse_inline(inner))
+        local braced = txt(node):match("^_%{(.*)%}$")
+        return A.subscript(parse_inline(braced or txt(node):sub(2)), braced ~= nil)
       elseif t == "superscript" then
-        local inner = txt(node):match("^%^%{(.*)%}$") or txt(node):sub(2)
-        return A.superscript(parse_inline(inner))
+        local braced = txt(node):match("^%^%{(.*)%}$")
+        return A.superscript(parse_inline(braced or txt(node):sub(2)), braced ~= nil)
       elseif t == "statistics_cookie" then
         return A.statistics_cookie(txt(node))
       elseif TIMESTAMP[t] then
@@ -364,21 +386,27 @@ end
 -- Scan the whole buffer for #+TODO / #+SEQ_TODO / #+TYP_TODO lines so
 -- headline TODO keywords (extended sequences) parse correctly.  Every
 -- line accumulates and replaces the built-in default; fast-access
--- annotations such as `TODO(t)` are stripped.
+-- annotations such as `TODO(t)` are stripped.  Also returns the set of
+-- done-state keywords: those after the `|` separator, or the sequence's
+-- last keyword when it has no `|` (org-mode's rule).
+local DEFAULT_TODO_KEYWORDS = {
+  "TODO",
+  "NEXT",
+  "WAITING",
+  "WAIT",
+  "HOLD",
+  "STARTED",
+  "PROJ",
+  "DONE",
+  "CANCELLED",
+  "CANCELED",
+  "CLOSED",
+}
+local DEFAULT_DONE_KEYWORDS = { DONE = true, CANCELLED = true, CANCELED = true, CLOSED = true }
+
 local function scan_keywords(src)
-  local kws = {
-    "TODO",
-    "NEXT",
-    "WAITING",
-    "WAIT",
-    "HOLD",
-    "STARTED",
-    "PROJ",
-    "DONE",
-    "CANCELLED",
-    "CANCELED",
-    "CLOSED",
-  }
+  local kws = vim.list_extend({}, DEFAULT_TODO_KEYWORDS)
+  local done = vim.deepcopy(DEFAULT_DONE_KEYWORDS)
   local from_file = false
   for _, line in ipairs(src) do
     local seq = line:match("^%s*#%+[Tt][Oo][Dd][Oo]:%s*(.+)$")
@@ -386,18 +414,28 @@ local function scan_keywords(src)
       or line:match("^%s*#%+[Tt][Yy][Pp]_[Tt][Oo][Dd][Oo]:%s*(.+)$")
     if seq then
       if not from_file then
-        kws = {}
+        kws, done = {}, {}
         from_file = true
       end
+      local this_seq, after_bar = {}, false
       for word in seq:gmatch("(%S+)") do
         local bare = word:gsub("%(.-%)$", "")
-        if bare ~= "" then
+        if bare == "|" then
+          after_bar = true
+        elseif bare ~= "" then
           kws[#kws + 1] = bare
+          this_seq[#this_seq + 1] = bare
+          if after_bar then
+            done[bare] = true
+          end
         end
+      end
+      if not after_bar and #this_seq > 0 then
+        done[this_seq[#this_seq]] = true
       end
     end
   end
-  return kws
+  return kws, done
 end
 
 -- Tree-sitter splits a single user-visible org table into multiple
@@ -504,7 +542,7 @@ end
 -- content (the zeroth-section/file-level case) is dropped from the AST --
 -- the indexer's extract_file_level handles that case separately;
 -- AST-level modeling of it is a future decision.
-local function emit_section_children(section_node, src)
+local function emit_section_children(section_node, src, floor_row)
   local items = {}
   for sc in section_node:iter_children() do
     local sct = sc:type()
@@ -521,7 +559,7 @@ local function emit_section_children(section_node, src)
       items[#items + 1] =
         { _marker = "formula", value = value_node and get_text(value_node, src) or "" }
     else
-      local block = emit_section_child(sc, src)
+      local block = emit_section_child(sc, src, floor_row)
       if block then
         if type(block) == "table" and block[1] and not block.kind then
           for _, b in ipairs(block) do
@@ -541,7 +579,10 @@ local function emit_section_children(section_node, src)
   local pending = {}
   for _, it in ipairs(merged) do
     if it._marker == "affiliated" then
-      pending[#pending + 1] = { name = it.name, value = it.value }
+      -- org-element-parsed-keywords: only CAPTION carries objects, so
+      -- only it gets an inline rendering beside its verbatim value.
+      local inline = it.name == "CAPTION" and parse_inline(it.value) or nil
+      pending[#pending + 1] = { name = it.name, value = it.value, inline = inline }
     elseif it._marker == "formula" then
       local last = blocks[#blocks]
       if last and last.kind == "table" then
@@ -565,21 +606,21 @@ local function emit_section_children(section_node, src)
   return blocks
 end
 
-local function emit_headline(node, src, todo_kws)
+local function emit_headline(node, src, todo_kws, done_kws)
   local level = heading_level(node, src)
   local sr = node:start()
-  local title_str, todo, priority, tags = clean_title(src[sr + 1] or "", todo_kws)
+  local title_str, todo, priority, tags, commented = clean_title(src[sr + 1] or "", todo_kws)
   local children_blocks = {}
   local planning, properties
   for c in node:iter_children() do
     if c:type() == "headline" then
-      children_blocks[#children_blocks + 1] = emit_headline(c, src, todo_kws)
+      children_blocks[#children_blocks + 1] = emit_headline(c, src, todo_kws, done_kws)
     elseif c:type() == "planning" then
       planning = planning or extract_planning(c, src)
     elseif c:type() == "property_drawer" then
       properties = properties or extract_properties(c, src)
     elseif c:type() == "section" then
-      local body = emit_section_children(c, src)
+      local body = emit_section_children(c, src, sr + 1)
       for _, b in ipairs(body) do
         children_blocks[#children_blocks + 1] = b
       end
@@ -588,8 +629,10 @@ local function emit_headline(node, src, todo_kws)
   return A.headline({
     level = level,
     todo = todo,
+    todo_type = todo and ((done_kws or {})[todo] and "done" or "todo") or nil,
     priority = priority,
     tags = tags,
+    commented = commented,
     planning = planning,
     properties = properties,
     title = parse_inline(title_str),
@@ -603,17 +646,11 @@ end
 -- under a headline it is a direct child handled by emit_headline, and a
 -- file-level one simply drops here (the indexer's extract_file_level
 -- covers that case separately).
-emit_section_child = function(node, src)
+emit_section_child = function(node, src, floor_row)
   local t = node:type()
   if t == "paragraph" then
     -- Collect raw text; parse_inline interprets emphasis + links.
-    local sr, _, er, ec = node:range()
-    local last_row = ec > 0 and er or er - 1
-    local pieces = {}
-    for r = sr, last_row do
-      pieces[#pieces + 1] = src[r + 1] or ""
-    end
-    local raw = table.concat(pieces, "\n")
+    local raw = (get_text(node, src, floor_row):gsub("\n$", ""))
     local inline = parse_inline(raw)
     -- Free-standing image rewrite: paragraph containing exactly one
     -- link whose target has an image extension (with optional
@@ -665,14 +702,7 @@ emit_section_child = function(node, src)
         params = get_text(c, src)
       end
     end
-    -- Collect body lines: everything between `#+begin_src ...` and
-    -- `#+end_src` (exclusive).
-    local sr, _, er = node:range()
-    local body_lines = {}
-    for r = sr + 1, er - 1 do
-      body_lines[#body_lines + 1] = src[r + 1] or ""
-    end
-    return A.code_block(lang, table.concat(body_lines, "\n"), params)
+    return A.code_block(lang, block_body(node, src), params)
   elseif t == "list" or t == "plain_list" then
     local items = {}
     local ordered = nil
@@ -751,52 +781,71 @@ emit_section_child = function(node, src)
       return nil
     end
     name = name:lower()
-    if name == "quote" then
-      -- Quote: parse inner content as a sequence of paragraphs
-      -- (blank-line delimited).  Each line runs through parse_inline
-      -- so emphasis / links work.
-      local body = block_body(node, src)
-      local paragraphs = {}
-      local cur = {}
-      for line in (body .. "\n"):gmatch("([^\n]*)\n") do
-        if line == "" then
-          if #cur > 0 then
-            paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
-            cur = {}
-          end
-        else
-          cur[#cur + 1] = line
+    -- A greater block holds elements, so its content is parsed into
+    -- blank-line delimited paragraphs with emphasis / links resolved.
+    -- The verbatim body rides along so to_org reproduces the source.
+    local body = block_body(node, src)
+    local paragraphs = {}
+    local cur = {}
+    for line in (body .. "\n"):gmatch("([^\n]*)\n") do
+      if line == "" then
+        if #cur > 0 then
+          paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
+          cur = {}
         end
+      else
+        cur[#cur + 1] = line
       end
-      if #cur > 0 then
-        paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
-      end
-      return A.block("quote", { content = paragraphs })
     end
-    -- Unknown / custom greater_block: keep body opaque, style = name.
-    return A.block(name, { body = block_body(node, src) })
+    if #cur > 0 then
+      paragraphs[#paragraphs + 1] = A.paragraph(parse_inline(table.concat(cur, "\n")))
+    end
+    return A.block(name, { body = body, content = paragraphs })
   elseif t == "example_block" then
     return A.block("example", { body = block_body(node, src) })
   elseif t == "verse_block" then
-    return A.block("verse", { body = block_body(node, src) })
+    -- A verse block holds objects, not elements: line structure is
+    -- significant, so the parsed content is one paragraph whose text
+    -- keeps its newlines.
+    local body = block_body(node, src)
+    return A.block("verse", { body = body, content = { A.paragraph(parse_inline(body)) } })
   elseif t == "export_block" then
     local format_node = node:field("format")[1]
     local backend = format_node and get_text(format_node, src)
     return A.block("export", { body = block_body(node, src), backend = backend })
   elseif t == "table" then
     return parse_table(node, src)
+  elseif t == "fixed_width" then
+    -- `: text` lines. org-element strips `: ` (the colon plus at most one
+    -- space) from each line and keeps the rest verbatim.
+    local lines = {}
+    for c in node:iter_children() do
+      if c:type() == "fixed_width_line" then
+        local body = ""
+        for cc in c:iter_children() do
+          if cc:type() == "fixed_width_body" then
+            body = get_text(cc, src):gsub("^ ", "")
+          end
+        end
+        lines[#lines + 1] = body
+      end
+    end
+    return A.fixed_width(table.concat(lines, "\n"))
+  elseif t == "latex_environment" then
+    local name_node
+    for c in node:iter_children() do
+      if c:type() == "latexenv_name" then
+        name_node = c
+      end
+    end
+    local body = (get_text(node, src, floor_row):gsub("\n$", ""))
+    return A.latex_environment(name_node and get_text(name_node, src) or nil, body)
   elseif t == "footnote_definition" then
     -- The grammar's `footnote_definition` node spans from `[fn:LABEL]`
     -- to the next blank line / next definition / next headline.  Read
     -- the source text, strip the leading `[fn:LABEL]` token, and parse
     -- the remainder as a paragraph.
-    local sr, _, er, ec = node:range()
-    local last_row = ec > 0 and er or er - 1
-    local pieces = {}
-    for r = sr, last_row do
-      pieces[#pieces + 1] = src[r + 1] or ""
-    end
-    local raw = table.concat(pieces, "\n")
+    local raw = get_text(node, src, floor_row)
     local label, body = raw:match("^%s*%[fn:([^%]:]+)%]%s*(.*)$")
     if not label then
       return nil
@@ -849,6 +898,16 @@ emit_section_child = function(node, src)
     return A.comment(table.concat(bodies, "\n"))
   elseif t == "comment_block" then
     return A.block("comment", { body = block_body(node, src) })
+  elseif t == "diary_sexp" then
+    -- The grammar gives both `%%(...)` and `<%%(...)>` this type.  Only
+    -- the first is org-element's diary-sexp element, which no backend
+    -- transcodes; the bracketed form is a paragraph holding a diary
+    -- timestamp.
+    local raw = (get_text(node, src, floor_row):gsub("\n$", ""))
+    if raw:sub(1, 1) == "<" then
+      return A.paragraph(parse_inline(raw))
+    end
+    return nil
   end
   return nil
 end
@@ -859,19 +918,19 @@ function M.from_lines(src)
   -- Trailing newline so the grammar terminates the final line; without it
   -- a construct on the last line (a directive, a #+TBLFM, a table row)
   -- parses as an ERROR node and is dropped.
+  local options = require("organ.export.options").parse(src)
   local ok, parser = pcall(vim.treesitter.get_string_parser, table.concat(src, "\n") .. "\n", "org")
-  if not ok or not parser then
-    return A.document({})
-  end
-  local tree = parser:parse()[1]
+  local tree = ok and parser and parser:parse()[1]
   if not tree then
-    return A.document({})
+    local empty = A.document({})
+    empty.options = options
+    return empty
   end
-  local todo_kws = scan_keywords(src)
+  local todo_kws, done_kws = scan_keywords(src)
   local doc_children = {}
   for c in tree:root():iter_children() do
     if c:type() == "headline" then
-      doc_children[#doc_children + 1] = emit_headline(c, src, todo_kws)
+      doc_children[#doc_children + 1] = emit_headline(c, src, todo_kws, done_kws)
     elseif c:type() == "section" or c:type() == "zeroth_section" then
       local body = emit_section_children(c, src)
       for _, b in ipairs(body) do
@@ -879,7 +938,9 @@ function M.from_lines(src)
       end
     end
   end
-  return A.document(doc_children)
+  local doc = A.document(doc_children)
+  doc.options = options
+  return doc
 end
 
 function M.from_buffer(bufnr)

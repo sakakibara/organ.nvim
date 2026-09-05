@@ -19,6 +19,10 @@ local function H(opts)
     properties = opts.props or {},
     priority = opts.priority,
     file_path = opts.file_path,
+    scheduled = opts.scheduled,
+    deadline = opts.deadline,
+    closed = opts.closed,
+    category = opts.category,
   }
 end
 
@@ -234,7 +238,7 @@ require("organ").setup({
 -- is not a timestamp never compares.
 do
   local d = function(v)
-    return H({ props = { DEADLINE = v } })
+    return H({ deadline = v })
   end
   assert(pred('DEADLINE<"<today>"')(d("<2099-01-01 Fri>")) == false, "lexical < would pass")
   assert(pred('DEADLINE<"<today>"')(d("<2026-09-02 Wed>")) == true)
@@ -292,6 +296,46 @@ do
   assert(g(H({ todo = "WAIT", file_path = canon })) == true, "file keyword WAIT is active")
   assert(g(H({ todo = "DONE", file_path = canon })) == false)
   assert(g(H({ todo = "WAIT", file_path = tmp .. "/none.org" })) == false, "unindexed: global")
+end
+
+-- 19. SCHEDULED / DEADLINE / CLOSED read the entry's planning line, never
+-- a same-named drawer property (Emacs `org-special-properties`: a
+-- `:DEADLINE:` drawer entry leaves `org-entry-get` returning nil).  An
+-- entry with no planning compares as the empty string, so `DEADLINE=""`
+-- selects exactly the entries that have no deadline.
+do
+  assert(pred('DEADLINE=""')(H({})) == true)
+  assert(pred('DEADLINE=""')(H({ deadline = "<2026-08-01 Sat>" })) == false)
+  assert(pred('DEADLINE<>""')(H({ deadline = "<2026-08-01 Sat>" })) == true)
+  assert(pred('SCHEDULED=""')(H({ scheduled = "<2026-09-01 Tue>" })) == false)
+  assert(pred('SCHEDULED=""')(H({ deadline = "<2026-09-01 Tue>" })) == true)
+  assert(pred('CLOSED=""')(H({ closed = "[2026-09-02 Wed]" })) == false)
+  assert(pred('CLOSED<>""')(H({ closed = "[2026-09-02 Wed]" })) == true)
+  assert(pred("DEADLINE={2026}")(H({ deadline = "<2026-08-01 Sat>" })) == true)
+  assert(pred('DEADLINE=*""')(H({})) == false, "absent, not empty")
+  assert(
+    pred('DEADLINE="<2026-08-01 Sat>"')(H({ props = { DEADLINE = "<2026-08-01 Sat>" } })) == false,
+    "a drawer :DEADLINE: is not the special property"
+  )
+  assert(pred('DEADLINE=""')(H({ props = { DEADLINE = "<2026-08-01 Sat>" } })) == true)
+end
+
+-- 20. CATEGORY resolves the way Emacs `org-get-category` does: the
+-- entry's own `:CATEGORY:` property first, then the file's
+-- `#+CATEGORY:` keyword, then the file's basename.
+do
+  local cat_file = tmp .. "/cats.org"
+  vim.fn.writefile({ "#+CATEGORY: cat1", "* one" }, cat_file)
+  local plain = tmp .. "/plain.org"
+  vim.fn.writefile({ "* one" }, plain)
+  assert(pred('CATEGORY="own"')(H({ props = { CATEGORY = "own" } })) == true)
+  assert(pred('CATEGORY="cat1"')(H({ file_path = cat_file })) == true)
+  assert(pred('CATEGORY<>"cat1"')(H({ file_path = cat_file })) == false)
+  assert(
+    pred('CATEGORY="other"')(H({ props = { CATEGORY = "other" }, file_path = cat_file })) == true,
+    "the entry's own property wins over the file keyword"
+  )
+  assert(pred('CATEGORY="plain"')(H({ file_path = plain })) == true, "basename fallback")
 end
 
 vim.fn.delete(tmp, "rf")

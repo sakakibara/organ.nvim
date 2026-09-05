@@ -14,13 +14,27 @@ local _overrides = {} -- bufnr -> partial config table
 local _reapply_hooks = {} -- list of fn(bufnr)
 local reapply
 
+-- Split a dotted path into components.  `""`, `"."` and `".."` yield
+-- none -- a typo at the `:Org set <Tab>` prompt, not a path to anything.
+local function split_path(path)
+  local parts = {}
+  for p in tostring(path or ""):gmatch("[^.]+") do
+    parts[#parts + 1] = p
+  end
+  return parts
+end
+
 -- Resolve a dotted path against a (possibly nested) table.  Returns
 -- the value or nil.
 local function dig(tbl, path)
   if tbl == nil then
     return nil
   end
-  for part in path:gmatch("[^.]+") do
+  local parts = split_path(path)
+  if #parts == 0 then
+    return nil
+  end
+  for _, part in ipairs(parts) do
     if type(tbl) ~= "table" then
       return nil
     end
@@ -30,11 +44,12 @@ local function dig(tbl, path)
 end
 
 -- Set a dotted path on a (possibly nested) table, creating intermediate
--- tables as needed.  Mutates `tbl` in place.
+-- tables as needed.  Mutates `tbl` in place.  Returns false when `path`
+-- names no component.
 local function plant(tbl, path, value)
-  local parts = {}
-  for p in path:gmatch("[^.]+") do
-    parts[#parts + 1] = p
+  local parts = split_path(path)
+  if #parts == 0 then
+    return false
   end
   for i = 1, #parts - 1 do
     if type(tbl[parts[i]]) ~= "table" then
@@ -43,6 +58,7 @@ local function plant(tbl, path, value)
     tbl = tbl[parts[i]]
   end
   tbl[parts[#parts]] = value
+  return true
 end
 
 -- Get the partial overrides table for bufnr (empty if none).
@@ -75,18 +91,19 @@ function M.read(bufnr, path)
 end
 
 -- Set a dotted path in the buf-local overrides.  Fires the reapply hook
--- so any feature that cares about live config changes can react.
+-- so any feature that cares about live config changes can react.  Returns
+-- false when `path` names no component.
 function M.set(bufnr, path, value)
   if bufnr == nil or bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
   end
-  local o = _overrides[bufnr]
-  if not o then
-    o = {}
-    _overrides[bufnr] = o
+  local o = _overrides[bufnr] or {}
+  if not plant(o, path, value) then
+    return false
   end
-  plant(o, path, value)
+  _overrides[bufnr] = o
   reapply(bufnr)
+  return true
 end
 
 -- Merge a partial table into the buf-local overrides.  Useful for
@@ -104,7 +121,8 @@ function M.set_table(bufnr, partial)
 end
 
 -- Toggle a boolean at `path`.  Reads from effective config, writes the
--- inverse to the buf overrides.  Returns the new value.
+-- inverse to the buf overrides.  Returns the new value, or nil when
+-- `path` names no component.
 function M.toggle(bufnr, path)
   if bufnr == nil or bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
@@ -114,33 +132,36 @@ function M.toggle(bufnr, path)
     -- Treat non-boolean truthy as true.
     cur = cur and true or false
   end
-  M.set(bufnr, path, not cur)
+  if not M.set(bufnr, path, not cur) then
+    return nil
+  end
   return not cur
 end
 
 -- Remove a buf override at `path` so the effective config falls back to
--- the global value.
+-- the global value.  Returns false when `path` names no component.
 function M.unset(bufnr, path)
   if bufnr == nil or bufnr == 0 then
     bufnr = vim.api.nvim_get_current_buf()
   end
+  local parts = split_path(path)
+  if #parts == 0 then
+    return false
+  end
   local o = _overrides[bufnr]
   if not o then
-    return
-  end
-  local parts = {}
-  for p in path:gmatch("[^.]+") do
-    parts[#parts + 1] = p
+    return true
   end
   local cur = o
   for i = 1, #parts - 1 do
     if type(cur[parts[i]]) ~= "table" then
-      return
+      return true
     end
     cur = cur[parts[i]]
   end
   cur[parts[#parts]] = nil
   reapply(bufnr)
+  return true
 end
 
 -- Wipe all buf overrides for `bufnr`.

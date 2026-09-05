@@ -14,16 +14,8 @@ function M.export(src, opts)
   else
     lines = src
   end
+  lines = require("organ.export.prepare").expand(lines, opts)
   local text = table.concat(lines, "\n")
-
-  if opts.expand then
-    text = require("organ.expand").process(text, {
-      base_dir = opts.base_dir,
-      file_path = opts.file_path,
-      properties = opts.properties,
-    })
-    lines = vim.split(text, "\n", { plain = true })
-  end
 
   local native_ctx
   if opts.cite_native then
@@ -35,12 +27,7 @@ function M.export(src, opts)
     lines = vim.split(text, "\n", { plain = true })
   end
 
-  local ast = require("organ.ast.from_org").from_lines(lines)
-  local ok, err = require("organ.ast").validate(ast)
-  if not ok then
-    error("export.markdown: AST validation failed: " .. err)
-  end
-  ast = require("organ.ast.radio").resolve(ast)
+  local ast = require("organ.export.prepare").ast(lines, opts, "markdown")
   local result = require("organ.ast.to_md").render(ast, opts)
 
   if native_ctx then

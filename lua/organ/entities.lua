@@ -229,14 +229,15 @@ function M.attach(bufnr)
   })
 
   -- Conceal level 2 = replace with cchar (or our `conceal` extmark text).
-  pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = 0 })
-  pcall(vim.api.nvim_set_option_value, "concealcursor", "nc", { win = 0 })
+  require("organ.conceal").request_level_for_buf(bufnr, "entities")
+  pcall(vim.api.nvim_set_option_value, "concealcursor", "nc", { win = 0, scope = "local" })
 end
 
 function M.detach(bufnr)
   bufnr = resolve(bufnr)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
   attached[bufnr] = nil
+  require("organ.conceal").release_level_for_buf(bufnr, "entities")
 end
 
 function M.toggle(bufnr)

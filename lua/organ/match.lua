@@ -15,9 +15,11 @@
 --                   {pattern} (pattern match; <> / != / /= negate) or a
 --                   number (numeric comparison; a missing or
 --                   non-numeric property reads as 0).  LEVEL, TODO,
---                   CATEGORY, ITEM (the title) and PRIORITY are
---                   properties; PRIORITY with no cookie reads as
---                   `config.priority.default`.
+--                   CATEGORY, ITEM (the title), PRIORITY, SCHEDULED,
+--                   DEADLINE and CLOSED are properties; PRIORITY with no
+--                   cookie reads as `config.priority.default`, and the
+--                   three planning names read the entry's planning line
+--                   rather than its property drawer.
 --
 -- A quoted operand that opens with `<` or `[` and holds a date, `now`,
 -- `today`, `tomorrow`, `yesterday` or an offset such as `+2d` compares
@@ -345,17 +347,24 @@ local function compare(op, a, b)
   return a >= b
 end
 
+-- Emacs `org-special-properties`: these never come from a property
+-- drawer, so a `:DEADLINE:` drawer entry is invisible to a DEADLINE term.
+local SPECIAL_FIELD = { SCHEDULED = "scheduled", DEADLINE = "deadline", CLOSED = "closed" }
+
 local function property_value(h, key)
   if key == "LEVEL" then
     return h.level and tostring(h.level) or nil
   elseif key == "TODO" then
     return h.todo_state
   elseif key == "CATEGORY" then
-    return h.category
+    return require("organ.agenda.format").category_for(h)
   elseif key == "ITEM" then
     return h.title
   elseif key == "PRIORITY" then
     return h.priority or require("organ.buf_config").read(nil, "priority.default") or "B"
+  elseif SPECIAL_FIELD[key] then
+    local v = h[SPECIAL_FIELD[key]]
+    return (v ~= nil and v ~= "") and v or nil
   end
   local props = h.properties or {}
   if props[key] ~= nil then

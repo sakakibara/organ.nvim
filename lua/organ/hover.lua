@@ -18,7 +18,7 @@ local function read_body_preview(file_path, line_start, max_lines)
   for ln in f:lines() do
     skipped = skipped + 1
     if skipped > line_start + 1 then
-      if ln:match("^%*+%s") then
+      if ln:match("^%*+ ") then
         break
       end
       out[#out + 1] = ln

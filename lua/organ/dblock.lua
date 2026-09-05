@@ -182,51 +182,168 @@ end
 
 -- Built-in: clocktable.
 
+-- Resolve a `:block` name to (from_iso, to_iso, caption_text).  The caption
+-- text is the string Emacs puts after ", for " in the clocktable caption
+-- (`org-clock-special-range`: "%A, %B %d, %Y" for a day, "week %G-W%V" for a
+-- week, "%B %Y" for a month).
 local function resolve_block(name)
-  -- "today" / "thisweek" / "lastweek" / "thismonth" / "lastmonth" → ISO range.
   local now_t = os.time()
   local function iso(t)
     return os.date("%Y-%m-%d", t)
   end
+  local function week_start(offset_weeks)
+    local t = os.date("*t", now_t)
+    local dow = t.wday == 1 and 7 or (t.wday - 1)
+    return now_t - (dow - 1 + 7 * offset_weeks) * 86400
+  end
   if name == "today" then
-    return iso(now_t), iso(now_t)
+    return iso(now_t), iso(now_t), os.date("%A, %B %d, %Y", now_t)
   elseif name == "thisweek" or name == "week" then
-    -- Week start: Monday. wday 1=Sunday, 2=Monday in Lua os.date.
-    local t = os.date("*t", now_t)
-    local dow = t.wday == 1 and 7 or (t.wday - 1)
-    local start = now_t - (dow - 1) * 86400
-    return iso(start), iso(start + 6 * 86400)
+    local start = week_start(0)
+    return iso(start), iso(start + 6 * 86400), "week " .. os.date("%G-W%V", start)
   elseif name == "lastweek" then
-    local t = os.date("*t", now_t)
-    local dow = t.wday == 1 and 7 or (t.wday - 1)
-    local start = now_t - (dow - 1 + 7) * 86400
-    return iso(start), iso(start + 6 * 86400)
+    local start = week_start(1)
+    return iso(start), iso(start + 6 * 86400), "week " .. os.date("%G-W%V", start)
   elseif name == "thismonth" or name == "month" then
     local t = os.date("*t", now_t)
-    return string.format("%04d-%02d-01", t.year, t.month), iso(now_t)
+    local start = os.time({ year = t.year, month = t.month, day = 1, hour = 12 })
+    return string.format("%04d-%02d-01", t.year, t.month), iso(now_t), os.date("%B %Y", start)
   elseif name == "lastmonth" then
     local t = os.date("*t", now_t)
-    local last_m = t.month == 1 and 12 or (t.month - 1)
-    local last_y = t.month == 1 and (t.year - 1) or t.year
-    -- Last day of previous month: subtract 1 day from first of current month.
-    local end_of_last = os.time({ year = t.year, month = t.month, day = 1, hour = 12 }) - 86400
-    return string.format("%04d-%02d-01", last_y, last_m), iso(end_of_last)
+    local first_of_this = os.time({ year = t.year, month = t.month, day = 1, hour = 12 })
+    local end_of_last = first_of_this - 86400
+    local l = os.date("*t", end_of_last)
+    return string.format("%04d-%02d-01", l.year, l.month),
+      iso(end_of_last),
+      os.date("%B %Y", end_of_last)
   end
-  return nil, nil
+  return nil, nil, nil
 end
 
--- Format seconds as `H:MM` (Emacs convention).
+-- Format seconds the way `org-duration-from-minutes` does under the default
+-- `org-duration-format`: `H:MM`, with a leading `Nd ` once a day is reached.
 local function fmt_dur(secs)
   local mins = math.floor((secs or 0) / 60)
-  return string.format("%d:%02d", math.floor(mins / 60), mins % 60)
+  local days = math.floor(mins / 1440)
+  local rest = mins - days * 1440
+  local hm = string.format("%d:%02d", math.floor(rest / 60), rest % 60)
+  if days > 0 then
+    return string.format("%dd %s", days, hm)
+  end
+  return hm
 end
 
--- Default clocktable writer.
+-- `org-shorten-string`: cut at the last word boundary that keeps the result,
+-- ellipsis included, within `maxlen`.
+local function shorten(s, maxlen)
+  if #s <= maxlen then
+    return s
+  end
+  local n = math.max(maxlen - 4, 1)
+  for i = math.min(n + 1, #s), 2, -1 do
+    if s:sub(i, i) ~= " " and s:sub(i + 1, i + 1) == " " then
+      return s:sub(1, i) .. "..."
+    end
+  end
+  return s:sub(1, math.max(maxlen - 3, 0)) .. "..."
+end
+
+-- `org-clocktable-indent-string`: two spaces per level above 1, behind `\_`.
+local function indent_string(level)
+  if level <= 1 then
+    return ""
+  end
+  return "\\_" .. string.rep(" ", 2 * (level - 1))
+end
+
+-- `org-table-number-regexp` (the default value), which decides whether a
+-- column is right-aligned.
+local function looks_numeric(cell)
+  return cell:match("^[<>]?[-+^.0-9]*%d[-+^.0-9eEdDx()%%:]*$") ~= nil
+    or cell:match("^[<>]?[-+]?0[xX][%x.]+$") ~= nil
+    or cell:match("^[<>]?[-+]?%d+#[0-9a-zA-Z.]+$") ~= nil
+    or cell == "nan"
+    or cell:match("^[-+u]?inf$") ~= nil
+end
+
+-- Render `rows` (a list of cell lists, or the string "hline") as an aligned
+-- org table, following `org-table-align`: column width is the widest cell,
+-- and a column right-aligns once at least `org-table-number-fraction` (0.5)
+-- of its non-empty cells look like numbers.
+local function align_table(rows, ncols)
+  local dw = vim.fn.strdisplaywidth
+  local widths, aligns = {}, {}
+  for ci = 1, ncols do
+    local w, numbers, non_empty = 1, 0, 0
+    for _, row in ipairs(rows) do
+      if row ~= "hline" then
+        local cell = row[ci] or ""
+        w = math.max(w, dw(cell))
+        if cell ~= "" then
+          non_empty = non_empty + 1
+          if looks_numeric(cell) then
+            numbers = numbers + 1
+          end
+        end
+      end
+    end
+    widths[ci] = w
+    aligns[ci] = (numbers >= 0.5 * non_empty) and "r" or "l"
+  end
+
+  local out = {}
+  for _, row in ipairs(rows) do
+    if row == "hline" then
+      local cells = {}
+      for ci = 1, ncols do
+        cells[ci] = string.rep("-", widths[ci] + 2)
+      end
+      out[#out + 1] = "|" .. table.concat(cells, "+") .. "|"
+    else
+      local cells = {}
+      for ci = 1, ncols do
+        local cell = row[ci] or ""
+        local pad = string.rep(" ", math.max(0, widths[ci] - dw(cell)))
+        cells[ci] = (aligns[ci] == "r") and (pad .. cell) or (cell .. pad)
+      end
+      out[#out + 1] = "| " .. table.concat(cells, " | ") .. " |"
+    end
+  end
+  return out
+end
+
+-- Subtree totals per headline, in document order, for one file.
+local function file_entries(file_path, own_by_id, maxlevel)
+  local hs = require("organ.query").headlines({ file = file_path })
+  table.sort(hs, function(a, b)
+    return (a.line_start or 0) < (b.line_start or 0)
+  end)
+  local out = {}
+  for i, h in ipairs(hs) do
+    local total = own_by_id[h.id] or 0
+    for j = i + 1, #hs do
+      if (hs[j].level or 1) <= (h.level or 1) then
+        break
+      end
+      total = total + (own_by_id[hs[j].id] or 0)
+    end
+    if total > 0 and (h.level or 1) <= maxlevel then
+      out[#out + 1] = { level = h.level or 1, title = h.title or "(unknown)", seconds = total }
+    end
+  end
+  return out
+end
+
+-- Default clocktable writer.  Shape follows `org-clocktable-write-default`:
+-- a caption, a `Headline | Time` header with one further column per
+-- headline level, a `*Total time*` row between two horizontal rules, then
+-- one row per entry indented with `\_` and carrying its subtree total in
+-- the column for its level.
 local function clocktable_writer(params, ctx)
   params = params or {}
-  local from, to
+  local from, to, period
   if params.block then
-    from, to = resolve_block(params.block)
+    from, to, period = resolve_block(params.block)
   end
   local function date_of(v)
     if type(v) ~= "string" then
@@ -237,6 +354,9 @@ local function clocktable_writer(params, ctx)
   from = date_of(params.tstart) or from
   to = date_of(params.tend) or to
 
+  local maxlevel = tonumber(params.maxlevel) or 2
+  local narrow = tonumber(params.narrow) or 40
+
   local query = require("organ.query")
   local opts = { from = from, to = to, group_by = "headline" }
   if params.scope == "file" or params.scope == nil then
@@ -246,7 +366,6 @@ local function clocktable_writer(params, ctx)
   end
   local rows = query.clock_entries(opts)
 
-  -- Optionally hide rows with 0 duration.
   if params.fileskip0 == true then
     local kept = {}
     for _, r in ipairs(rows) do
@@ -257,41 +376,71 @@ local function clocktable_writer(params, ctx)
     rows = kept
   end
 
-  local dw = vim.fn.strdisplaywidth
-  local title_w = dw("Headline")
-  local time_w = dw("Time")
-  local total = 0
+  local total, own_by_id, files, seen_file = 0, {}, {}, {}
   for _, r in ipairs(rows) do
-    title_w = math.max(title_w, dw(r.title or "(unknown)"))
-    time_w = math.max(time_w, dw(fmt_dur(r.total_seconds or 0)))
     total = total + (r.total_seconds or 0)
+    if r.headline_id then
+      own_by_id[r.headline_id] = (own_by_id[r.headline_id] or 0) + (r.total_seconds or 0)
+    end
+    local fp = r.file_path or opts.file
+    if fp and not seen_file[fp] then
+      seen_file[fp] = true
+      files[#files + 1] = fp
+    end
   end
-  time_w = math.max(time_w, dw(fmt_dur(total)))
+  table.sort(files)
 
-  local function pad(s, w)
-    return s .. string.rep(" ", w - dw(s))
-  end
-  local function row(a, b)
-    return "| " .. pad(a, title_w) .. " | " .. pad(b, time_w) .. " |"
-  end
-  local function sep()
-    return "|" .. string.rep("-", title_w + 2) .. "+" .. string.rep("-", time_w + 2) .. "|"
+  local entries = {}
+  for _, fp in ipairs(files) do
+    for _, e in ipairs(file_entries(fp, own_by_id, maxlevel)) do
+      entries[#entries + 1] = e
+    end
   end
 
-  local out = {}
-  out[#out + 1] = string.format(
-    "#+CAPTION: Clock summary at [%s]%s%s",
-    os.date("%Y-%m-%d %H:%M"),
-    from and (", from " .. from) or "",
-    to and (", to " .. to) or ""
-  )
-  out[#out + 1] = row("Headline", "Time")
-  out[#out + 1] = sep()
-  for _, r in ipairs(rows) do
-    out[#out + 1] = row(r.title or "(unknown)", fmt_dur(r.total_seconds or 0))
+  -- Deepest level present caps the number of time columns.
+  local deepest = 1
+  for _, e in ipairs(entries) do
+    deepest = math.max(deepest, e.level)
   end
-  out[#out + 1] = sep()
-  out[#out + 1] = row("TOTAL", fmt_dur(total))
+  local time_columns = (maxlevel < 2) and 1 or math.min(maxlevel, deepest)
+  local ncols = 2 + (time_columns - 1)
+
+  local function blank_row()
+    local r = {}
+    for i = 1, ncols do
+      r[i] = ""
+    end
+    return r
+  end
+
+  local table_rows = {}
+  local header = blank_row()
+  header[1], header[2] = "Headline", "Time"
+  table_rows[#table_rows + 1] = header
+  table_rows[#table_rows + 1] = "hline"
+  local total_row = blank_row()
+  total_row[1], total_row[2] = "*Total time*", "*" .. fmt_dur(total) .. "*"
+  table_rows[#table_rows + 1] = total_row
+  if total > 0 and #entries > 0 then
+    table_rows[#table_rows + 1] = "hline"
+    for _, e in ipairs(entries) do
+      local row = blank_row()
+      row[1] = indent_string(e.level) .. shorten(e.title, narrow)
+      row[1 + math.min(e.level, time_columns)] = fmt_dur(e.seconds)
+      table_rows[#table_rows + 1] = row
+    end
+  end
+
+  local out = {
+    string.format(
+      "#+CAPTION: Clock summary at %s%s",
+      os.date("[%Y-%m-%d %a %H:%M]"),
+      period and (", for " .. period .. ".") or ""
+    ),
+  }
+  for _, l in ipairs(align_table(table_rows, ncols)) do
+    out[#out + 1] = l
+  end
   return out
 end
 
@@ -348,7 +497,7 @@ local function propertyview_writer(params, ctx)
     -- Climb to the headline owning the dblock.
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     local i = ctx.dblock.header_line
-    while i >= 1 and not (lines[i] or ""):match("^%*+%s") do
+    while i >= 1 and not (lines[i] or ""):match("^%*+ ") do
       i = i - 1
     end
     if i >= 1 then

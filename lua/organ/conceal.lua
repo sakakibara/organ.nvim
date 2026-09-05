@@ -213,20 +213,104 @@ M._frame_map = function()
   return frame_map
 end
 
+-- Shared `conceallevel` ownership.
+--
+-- Emphasis concealment, pretty entities, hidden leading stars and the
+-- org-modern engine all need `conceallevel >= 2`, and each is switched on
+-- and off independently.  With one saved value per feature the second
+-- feature to attach records the first one's raise, so the window never
+-- comes back down once everything is off.  One entry per window instead:
+-- the pre-organ value is saved on the first claim and written back when
+-- the last claim goes.
+--
+-- winid -> { saved = N, owners = { name = true } }
+local level_owners = {}
+
+local function resolve_win(winid)
+  if winid == nil or winid == 0 then
+    return vim.api.nvim_get_current_win()
+  end
+  return winid
+end
+
+function M.request_level(winid, owner)
+  winid = resolve_win(winid)
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+  local st = level_owners[winid]
+  if not st then
+    st = {
+      saved = vim.api.nvim_get_option_value("conceallevel", { win = winid, scope = "local" }),
+      owners = {},
+    }
+    level_owners[winid] = st
+  end
+  st.owners[owner] = true
+  if vim.api.nvim_get_option_value("conceallevel", { win = winid, scope = "local" }) < 2 then
+    pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = winid, scope = "local" })
+  end
+end
+
+function M.release_level(winid, owner)
+  winid = resolve_win(winid)
+  local st = level_owners[winid]
+  if not st then
+    return
+  end
+  st.owners[owner] = nil
+  if next(st.owners) then
+    return
+  end
+  level_owners[winid] = nil
+  if vim.api.nvim_win_is_valid(winid) then
+    pcall(vim.api.nvim_set_option_value, "conceallevel", st.saved, { win = winid, scope = "local" })
+  end
+end
+
+function M.request_level_for_buf(bufnr, owner)
+  for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
+    M.request_level(win, owner)
+  end
+end
+
+function M.release_level_for_buf(bufnr, owner)
+  for _, win in ipairs(vim.fn.win_findbuf(bufnr)) do
+    M.release_level(win, owner)
+  end
+end
+
+-- Drop every claim on a window.  The ftplugin calls this from BufWinLeave,
+-- where it resets the window's conceal options itself: organ's claims
+-- belonged to the buffer that just left, not to whatever comes next.
+function M.forget_window(winid)
+  level_owners[resolve_win(winid)] = nil
+end
+
+-- Buffers whose emphasis concealment is on.
+local attached = {}
+
+function M.attach(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  attached[bufnr] = true
+  M.request_level_for_buf(bufnr, "emphasis")
+end
+
 function M.detach(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
+  attached[bufnr] = nil
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  M.release_level_for_buf(bufnr, "emphasis")
 end
 
 function M.toggle(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
-  if vim.wo.conceallevel ~= 0 then
+  if attached[bufnr] then
     M.detach(bufnr)
-    vim.api.nvim_set_option_value("conceallevel", 0, { win = 0, scope = "local" })
     return false
   end
   apply(bufnr)
-  vim.api.nvim_set_option_value("conceallevel", 2, { win = 0, scope = "local" })
+  M.attach(bufnr)
   return true
 end
 

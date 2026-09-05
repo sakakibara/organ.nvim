@@ -83,12 +83,28 @@ vim.api.nvim_set_current_buf(sb)
 vim.api.nvim_win_set_cursor(0, { 1, 4 })
 vim.cmd("Org roam insert")
 assert(stub.last.opts.default_action == "insert_link")
--- ctx isn't part of opts in the public schema; the action wraps it. We
--- verify by checking that an insert_link action exists in the actions map.
+-- ctx isn't part of opts in the public schema; the action wraps it, so the
+-- only honest check is to run the very action the command built and see the
+-- link land in the source buffer.
 assert(
   type(stub.last.opts.actions.insert_link) == "function",
   "OrgRoamInsert should install an insert_link action via ctx"
 )
+do
+  local alpha
+  for _, it in ipairs(stub.last.items) do
+    if it.title == "Alpha" then
+      alpha = it
+    end
+  end
+  assert(alpha, "expected an Alpha node among the roam-insert items")
+  stub.last.opts.actions.insert_link(alpha)
+  local line = vim.api.nvim_buf_get_lines(sb, 0, 1, false)[1]
+  assert(
+    line == "see [[id:alpha-id][foo]]",
+    "OrgRoamInsert should replace the cword with the link, got: " .. tostring(line)
+  )
+end
 
 -- :Org refile — default_action refile_here
 vim.api.nvim_buf_set_lines(sb, 0, -1, false, { "* X", "  body" })

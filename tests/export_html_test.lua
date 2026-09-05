@@ -23,9 +23,9 @@ do
 ** Sub
 *** Deep
 ]])
-  assert_contains(out, '<h1 id="top">Top</h1>')
-  assert_contains(out, '<h2 id="sub">Sub</h2>')
-  assert_contains(out, '<h3 id="deep">Deep</h3>')
+  assert_contains(out, '<h1 id="top"><span class="section-number-1">1.</span> Top</h1>')
+  assert_contains(out, '<h2 id="sub"><span class="section-number-2">1.1.</span> Sub</h2>')
+  assert_contains(out, '<h3 id="deep"><span class="section-number-3">1.1.1.</span> Deep</h3>')
 end
 
 -- 2. Title pulled from #+title.
@@ -81,9 +81,9 @@ do
 ]])
   assert_contains(out, "<table>")
   assert_contains(out, "<thead>")
-  assert_contains(out, "<th>name</th>")
+  assert_contains(out, '<th class="org-left">name</th>')
   assert_contains(out, "<tbody>")
-  assert_contains(out, "<td>ada</td>")
+  assert_contains(out, '<td class="org-left">ada</td>')
 end
 
 -- 7. HTML escaping.

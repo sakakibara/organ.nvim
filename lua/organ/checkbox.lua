@@ -159,7 +159,7 @@ local function find_parent_item(bufnr, child_line)
   end
   for ln = child_line - 1, 1, -1 do
     local l = vim.api.nvim_buf_get_lines(bufnr, ln - 1, ln, false)[1] or ""
-    if l:match("^%*+%s") then
+    if l:match("^%*+ ") then
       return nil
     end -- crossed a headline
     local p = M.parse_item_line(l)
@@ -180,7 +180,7 @@ local function direct_children(bufnr, start_line, parent_indent)
   local seen_child_indent = nil
   for ln = start_line + 1, total do
     local l = vim.api.nvim_buf_get_lines(bufnr, ln - 1, ln, false)[1] or ""
-    if l:match("^%*+%s") then
+    if l:match("^%*+ ") then
       break
     end
     local p = M.parse_item_line(l)

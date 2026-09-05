@@ -67,59 +67,33 @@ function M.agenda(opts)
       { "title", "asc" },
     }
 
-  -- agenda semantics: ANY of the type windows matches, not ALL. The builder
-  -- AND's multiple date windows, so we pass just one if `types` is singleton,
-  -- or call headlines multiple times and merge+dedupe by id when >1.
-  if #types == 1 then
-    local filters = {
-      todo = opts.todo,
-      tags = opts.tags,
-      priority = opts.priority,
-      title_match = opts.title_match,
-      limit = opts.limit,
-      include_properties = opts.include_properties,
-      include_inherited_tags = opts.include_inherited_tags,
-      files = opts.files,
-      order_by = default_order,
-    }
-    if types[1] == "scheduled" then
-      filters.scheduled = { from = opts.from, to = opts.to }
-    elseif types[1] == "deadline" then
-      filters.deadline = { from = opts.from, to = opts.to }
-    elseif types[1] == "closed" then
-      filters.closed = { from = opts.from, to = opts.to }
+  -- agenda semantics: ANY of the type windows matches, not ALL. One query
+  -- either way, so the order and the limit apply to the whole result.
+  local TYPE_COLUMNS = {
+    scheduled = "scheduled_date",
+    deadline = "deadline_date",
+    closed = "closed_date",
+  }
+  local columns = {}
+  for _, t in ipairs(types) do
+    if TYPE_COLUMNS[t] then
+      columns[#columns + 1] = TYPE_COLUMNS[t]
     end
-    return M.headlines(filters)
   end
 
-  local seen, merged = {}, {}
-  for _, t in ipairs(types) do
-    local per = {
-      todo = opts.todo,
-      tags = opts.tags,
-      priority = opts.priority,
-      title_match = opts.title_match,
-      limit = opts.limit,
-      include_properties = opts.include_properties,
-      include_inherited_tags = opts.include_inherited_tags,
-      files = opts.files,
-      order_by = default_order,
-    }
-    if t == "scheduled" then
-      per.scheduled = { from = opts.from, to = opts.to }
-    elseif t == "deadline" then
-      per.deadline = { from = opts.from, to = opts.to }
-    elseif t == "closed" then
-      per.closed = { from = opts.from, to = opts.to }
-    end
-    for _, r in ipairs(M.headlines(per)) do
-      if not seen[r.id] then
-        seen[r.id] = true
-        merged[#merged + 1] = r
-      end
-    end
-  end
-  return merged
+  local filters = {
+    todo = opts.todo,
+    tags = opts.tags,
+    priority = opts.priority,
+    title_match = opts.title_match,
+    limit = opts.limit,
+    include_properties = opts.include_properties,
+    include_inherited_tags = opts.include_inherited_tags,
+    files = opts.files,
+    order_by = default_order,
+    date_any = { columns = columns, from = opts.from, to = opts.to },
+  }
+  return M.headlines(filters)
 end
 
 function M.by_tag(tags, opts)

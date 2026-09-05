@@ -96,21 +96,12 @@ end
 -- font_path / mono_font_path / default_font_size).
 local function lua_engine_bytes(bufnr, opts)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-  if opts.expand then
-    local text = table.concat(lines, "\n")
-    text = require("organ.expand").process(text, {
-      base_dir = opts.base_dir,
-      file_path = opts.file_path,
-      properties = opts.properties,
-    })
-    lines = vim.split(text, "\n", { plain = true })
+  local prepare = require("organ.export.prepare")
+  lines = prepare.expand(lines, opts)
+  local aok, ast = pcall(prepare.ast, lines, opts, "pdf")
+  if not aok then
+    return nil, tostring(ast)
   end
-  local ast = require("organ.ast.from_org").from_lines(lines)
-  local ok, err = require("organ.ast").validate(ast)
-  if not ok then
-    return nil, "export.pdf: AST validation failed: " .. err
-  end
-  ast = require("organ.ast.radio").resolve(ast)
   local bytes, rerr = require("organ.pdf").render(ast, opts)
   if not bytes then
     return nil, "export.pdf (lua engine): " .. tostring(rerr)

@@ -94,7 +94,7 @@ do
     if l:match(":ARCHIVE_TIME:") then
       found_time = true
     end
-    if l:match("^:ARCHIVE_TODO: TODO$") then
+    if l:match("^%s*:ARCHIVE_TODO: TODO$") then
       found_todo = true
     end
   end
@@ -381,7 +381,21 @@ do
     arc_lines[start + 1] == "SCHEDULED: <2026-01-01 Thu>",
     "test8: planning line must directly follow the headline; got " .. tostring(arc_lines[start + 1])
   )
-  assert(arc_lines[start + 2] == ":PROPERTIES:", "test8: drawer must follow the planning line")
+  -- The injected drawer honours `todo.planning_indent` ("adapt" -> level + 1
+  -- spaces for the `** TODO Task` it was releveled to), and every line of it
+  -- carries the same indent -- a drawer with `:PROPERTIES:` at column 0 and
+  -- indented keys inside is what a re-archive cycle used to accumulate.
+  assert(
+    arc_lines[start + 2] == "   :PROPERTIES:",
+    "test8: drawer must follow the planning line at the section indent; got "
+      .. tostring(arc_lines[start + 2])
+  )
+  for i = start + 2, #arc_lines do
+    assert(arc_lines[i]:match("^   :"), "test8: ragged drawer line: " .. tostring(arc_lines[i]))
+    if arc_lines[i]:match(":END:") then
+      break
+    end
+  end
   local rest = table.concat(arc_lines, "\n", start)
   assert(rest:find("\n*bold* at col 0\n", 1, true), "test8: emphasis line altered:\n" .. rest)
   assert(rest:find("\n*** Sub", 1, true), "test8: child not demoted:\n" .. rest)

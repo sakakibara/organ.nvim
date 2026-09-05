@@ -23,38 +23,52 @@ local M = {}
 local obuf = require("organ.buf")
 -- Parse a #+COLUMNS string into a list of column specs.
 -- Each spec: { width = N | nil, property = "STRING", label = "STRING" | nil,
---              summary = "STRING" | nil }
+--              summary = "STRING" | nil, format = "STRING" | nil }
+--
+-- Scans the whole string the way `org-columns-compile-format` does instead of
+-- tokenising on whitespace: a `(Estimated Effort)` label contains spaces, the
+-- property charset is `[[:alnum:]_-]`, the name is upcased, and a `{op;fmt}`
+-- operator carries a trailing format string.
 function M.parse_spec(s)
   local cols = {}
   if not s or s == "" then
     return cols
   end
-  for token in s:gmatch("%S+") do
-    if token:sub(1, 1) ~= "%" then
-      -- Some entries can be space-separated continuations of the previous
-      -- token (e.g. "(Estimated  Time)") — for v1 we only support compact
-      -- tokens; users can always pre-process their #+COLUMNS string.
-    else
-      local body = token:sub(2)
-      local width = body:match("^(%d+)")
-      if width then
-        body = body:sub(#width + 1)
-      end
-      local prop, rest = body:match("^([%w_@]+)(.*)$")
-      if prop then
-        local label = rest:match("^%((.-)%)") or nil
-        if label then
-          rest = rest:sub(#label + 3)
+  local pos = 1
+  while true do
+    local _, stop, width, prop = s:find("%%(%d*)([%w_%-]+)", pos)
+    if not stop then
+      break
+    end
+    pos = stop + 1
+    local label
+    local lstop, lab
+    _, lstop, lab = s:find("^%(([^)]*)%)", pos)
+    if lstop then
+      label = lab
+      pos = lstop + 1
+    end
+    local summary, fmt
+    local ostop, op
+    _, ostop, op = s:find("^{([^}]*)}", pos)
+    if ostop then
+      pos = ostop + 1
+      if op:match("%S") then
+        local head, tail = op:match("^([^;]*);(.*)$")
+        if head then
+          summary, fmt = head, tail
+        else
+          summary = op
         end
-        local summary = rest:match("^{(.-)}$") or nil
-        cols[#cols + 1] = {
-          width = width and tonumber(width) or nil,
-          property = prop,
-          label = label,
-          summary = summary,
-        }
       end
     end
+    cols[#cols + 1] = {
+      width = (width ~= "") and tonumber(width) or nil,
+      property = prop:upper(),
+      label = (label and label:match("%S")) and label or prop,
+      summary = summary,
+      format = fmt,
+    }
   end
   return cols
 end
@@ -91,7 +105,7 @@ function M.find_spec(bufnr, hl_line)
   -- 2) File-level #+COLUMNS keyword.
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   for _, ln in ipairs(lines) do
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       break
     end
     local v = ln:match("^%s*#%+COLUMNS:%s*(.-)%s*$")
@@ -110,14 +124,14 @@ local TAG_BLOCK = "(:[%w_@#%%\128-\255:]+:)%s*$"
 local function get_prop(lines, hl_line, prop_name, keywords)
   local heading = lines[hl_line] or ""
   local function todo_keyword()
-    local kw = heading:match("^%*+%s+(%S+)")
+    local kw = heading:match("^%*+ +(%S+)")
     if kw and keywords[kw] then
       return kw
     end
     return nil
   end
   if prop_name == "ITEM" then
-    local body = heading:gsub("^%*+%s+", "")
+    local body = heading:gsub("^%*+ +", "")
     local kw = todo_keyword()
     if kw then
       body = body:sub(#kw + 1):gsub("^%s+", "")
@@ -137,11 +151,17 @@ local function get_prop(lines, hl_line, prop_name, keywords)
     return heading:match("%s" .. TAG_BLOCK) or ""
   end
   -- Custom property: read from PROPERTIES drawer via element.lua
-  -- (TS-first; regex fallback inside the helper).
+  -- (TS-first; regex fallback inside the helper).  Drawer keys compare
+  -- case-insensitively, as `org-entry-get` does.
   local props =
     require("organ.element").properties_under(vim.api.nvim_get_current_buf(), hl_line - 1)
   if props[prop_name] then
     return props[prop_name]
+  end
+  for k, v in pairs(props) do
+    if k:upper() == prop_name then
+      return v
+    end
   end
   -- Continue legacy regex path below for parser-not-loaded scratch buffers.
   local i = hl_line + 1
@@ -159,8 +179,8 @@ local function get_prop(lines, hl_line, prop_name, keywords)
   if lines[i] and lines[i]:match("^%s*:PROPERTIES:") then
     local k = i + 1
     while k <= #lines and not lines[k]:match("^%s*:END:") do
-      local key, val = lines[k]:match("^%s*:([%w_]+):%s*(.-)%s*$")
-      if key == prop_name then
+      local key, val = lines[k]:match("^%s*:([%w%-_]+):%s*(.-)%s*$")
+      if key and key:upper() == prop_name then
         return val
       end
       k = k + 1
@@ -185,7 +205,7 @@ function M.collect(bufnr, root_line, columns)
     root_level = stars and #stars or 1
   end
   for i, ln in ipairs(lines) do
-    local stars = ln:match("^(%*+)%s")
+    local stars = ln:match("^(%*+) ")
     if stars then
       local level = #stars
       local include = true
@@ -229,9 +249,18 @@ local function fmt_hm(mins)
   return string.format("%d:%02d", math.floor(mins / 60), mins % 60)
 end
 
-local function aggregate(values_list, summary)
+local function aggregate(values_list, summary, fmt)
   if not summary or #values_list == 0 then
     return ""
+  end
+  local function num(n)
+    if fmt then
+      local ok, out = pcall(string.format, fmt, n)
+      if ok then
+        return out
+      end
+    end
+    return tostring(n)
   end
   local nums = {}
   for _, v in ipairs(values_list) do
@@ -255,7 +284,7 @@ local function aggregate(values_list, summary)
     for _, n in ipairs(nums) do
       s = s + n
     end
-    return tostring(s)
+    return num(s)
   end
   if summary == ":" then
     local s = 0
@@ -271,7 +300,7 @@ local function aggregate(values_list, summary)
         m = n
       end
     end
-    return tostring(m)
+    return num(m)
   end
   if summary == "max" then
     local m = nums[1]
@@ -280,14 +309,14 @@ local function aggregate(values_list, summary)
         m = n
       end
     end
-    return tostring(m)
+    return num(m)
   end
   if summary == "mean" then
     local s = 0
     for _, n in ipairs(nums) do
       s = s + n
     end
-    return string.format("%.2f", s / #nums)
+    return fmt and num(s / #nums) or string.format("%.2f", s / #nums)
   end
   return ""
 end
@@ -308,12 +337,18 @@ function M.apply_summaries(rows, columns)
     if #children == 0 then -- leaf; nothing to do
     else
       for ci, col in ipairs(columns) do
-        if col.summary and (row.values[ci] == "" or row.values[ci] == nil) then
+        if col.summary then
           local vs = {}
           for _, c in ipairs(children) do
             vs[#vs + 1] = c.values[ci]
           end
-          row.values[ci] = aggregate(vs, col.summary)
+          -- The summary REPLACES a parent's own value (org-colview does the
+          -- same, and writes it back into the drawer); a parent whose
+          -- descendants contributed nothing keeps what it had.
+          local agg = aggregate(vs, col.summary, col.format)
+          if agg ~= "" then
+            row.values[ci] = agg
+          end
         end
       end
     end

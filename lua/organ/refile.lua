@@ -7,7 +7,9 @@ local obuf = require("organ.buf")
 -- a target headline picked via the find UI.  Both keys default to current
 -- buffer + cursor.  Honors `config.refile.use_outline_path` (column choice)
 -- and `config.refile.targets` (candidate filter), mirroring Emacs's
--- `org-refile-use-outline-path` / `org-refile-targets`.
+-- `org-refile-use-outline-path` / `org-refile-targets`.  With
+-- `opts.copy` the subtree stays put and only a copy lands at the target
+-- (Emacs `org-refile-copy`).
 function M.refile(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -108,13 +110,24 @@ function M.refile(opts)
     source = "headlines",
     filter = filter,
     columns = cols,
-    title = "Refile to",
+    title = opts.copy and "Refile copy to" or "Refile to",
     default_action = "refile_here",
-    actions = { refile_here = find.make_refile_action({ bufnr = bufnr, cursor = { line, 0 } }) },
+    actions = {
+      refile_here = find.make_refile_action({
+        bufnr = bufnr,
+        cursor = { line, 0 },
+        copy = opts.copy,
+      }),
+    },
   })
 end
 
-function M.move(src_bufnr, src_line, target_file, target_line)
+-- Move the subtree owning `src_line` under the headline at
+-- (`target_file`, `target_line`).  With `move_opts.copy` the source
+-- subtree is left in place (Emacs org-refile-copy).  Returns nil on
+-- success or an error string.
+function M.move(src_bufnr, src_line, target_file, target_line, move_opts)
+  local keep = (move_opts or {}).copy == true
   if not vim.api.nvim_buf_is_valid(src_bufnr) then
     return "source buffer no longer valid"
   end
@@ -201,10 +214,12 @@ function M.move(src_bufnr, src_line, target_file, target_line)
   -- Remove first; a same-buffer destination past the cut shifts up by
   -- the removed line count.
   local insert_at = target_end - 1
-  if target_bufnr == src_bufnr and target_end > hl_line then
-    insert_at = insert_at - (end_line - hl_line)
+  if not keep then
+    if target_bufnr == src_bufnr and target_end > hl_line then
+      insert_at = insert_at - (end_line - hl_line)
+    end
+    obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
   end
-  obuf.set_lines(src_bufnr, hl_line - 1, end_line - 1, {})
   obuf.set_lines(target_bufnr, insert_at, insert_at, subtree)
   local dest_hl = insert_at + 1
 
@@ -221,15 +236,19 @@ function M.move(src_bufnr, src_line, target_file, target_line)
   -- result reads consistently in each buffer.
   pcall(function()
     local spacing = require("organ.spacing")
-    spacing.normalize_at_cut(src_bufnr, hl_line)
+    if not keep then
+      spacing.normalize_at_cut(src_bufnr, hl_line)
+    end
     spacing.normalize_around(target_bufnr, dest_hl)
   end)
 
   -- Save both. BufWritePost autocmds re-index.
   local cur = vim.api.nvim_get_current_buf()
-  vim.api.nvim_set_current_buf(src_bufnr)
-  vim.cmd("silent! write")
-  if target_bufnr ~= src_bufnr then
+  if not keep then
+    vim.api.nvim_set_current_buf(src_bufnr)
+    vim.cmd("silent! write")
+  end
+  if target_bufnr ~= src_bufnr or keep then
     vim.api.nvim_set_current_buf(target_bufnr)
     vim.cmd("silent! write")
   end
@@ -244,6 +263,12 @@ M.commands = {
       M.refile()
     end,
     desc = "Refile current subtree under chosen headline",
+  },
+  refile_copy = {
+    fn = function()
+      M.refile({ copy = true })
+    end,
+    desc = "Copy the current subtree under a chosen headline, leaving the original (Emacs C-c M-w)",
   },
 }
 

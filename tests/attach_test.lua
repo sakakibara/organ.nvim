@@ -140,9 +140,8 @@ do
   fh:close()
 
   local org_path = tmp .. "/attach4.org"
-  local b = make_buf("* Headline C\n  \n", org_path)
+  local b = make_buf("* Headline C\n  body text\n", org_path)
 
-  -- Point cursor at line 2 (body line with a space) — column 0.
   local w = vim.api.nvim_open_win(b, true, {
     relative = "editor",
     row = 0,
@@ -150,25 +149,77 @@ do
     width = 80,
     height = 10,
   })
-  vim.api.nvim_win_set_cursor(w, { 2, 2 })
+  -- Cursor ON the headline -- the normal place to start attaching from.
+  vim.api.nvim_win_set_cursor(w, { 1, 3 })
 
   -- auto_insert_link = true (default).
   local err = attach.attach(b, 1, src)
   assert(err == nil, "test4: attach error: " .. tostring(err))
 
   local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
-  local found_link = false
-  for _, l in ipairs(lines) do
+  local joined = table.concat(lines, "\n")
+  assert(
+    lines[1] == "* Headline C",
+    "test4: headline must survive the attach, got: " .. tostring(lines[1])
+  )
+  -- The link goes on its own line at the head of the body, never spliced
+  -- into the headline or into the :PROPERTIES: drawer holding the new :ID:.
+  local link_row
+  for i, l in ipairs(lines) do
     if l:find("[[attachment:linked.txt]]", 1, true) then
-      found_link = true
+      link_row = i
       break
     end
   end
+  assert(link_row, "test4: link not found in buffer (got: " .. joined .. ")")
   assert(
-    found_link,
-    "test4: [[attachment:linked.txt]] not found in buffer (got: "
-      .. table.concat(lines, " | ")
-      .. ")"
+    lines[link_row]:match("^%s*%[%[attachment:linked%.txt%]%]$"),
+    "test4: link must be alone on its line, got: " .. lines[link_row]
+  )
+  local end_row
+  for i, l in ipairs(lines) do
+    if l:match("^%s*:END:%s*$") then
+      end_row = i
+    end
+  end
+  assert(end_row, "test4: expected an :ID: property drawer")
+  assert(link_row > end_row, "test4: link landed inside the drawer:\n" .. joined)
+  assert(joined:find("  body text", 1, true), "test4: body line must survive intact:\n" .. joined)
+
+  -- Emacs stores the attachment link (`org-attach-store-link-p` defaults
+  -- to `attached`) whether or not it is inserted.
+  local stored = require("organ.link_store").list()[1]
+  assert(stored and stored.url == "attachment:linked.txt", "test4: link not stored")
+
+  vim.api.nvim_win_close(w, true)
+end
+
+-- ─── Test 4b: cursor in the body inserts at the cursor ───────────────────────
+do
+  local src = tmp .. "/inline.txt"
+  local fh = assert(io.open(src, "w"))
+  fh:write("inline content")
+  fh:close()
+
+  local org_path = tmp .. "/attach4b.org"
+  local b = make_buf("* Headline E\n:PROPERTIES:\n:ID: 0192abcdef00\n:END:\nsee  here\n", org_path)
+
+  local w = vim.api.nvim_open_win(b, true, {
+    relative = "editor",
+    row = 0,
+    col = 0,
+    width = 80,
+    height = 10,
+  })
+  vim.api.nvim_win_set_cursor(w, { 5, 4 })
+
+  local err = attach.attach(b, 1, src)
+  assert(err == nil, "test4b: attach error: " .. tostring(err))
+
+  local lines = vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  assert(
+    lines[5] == "see [[attachment:inline.txt]] here",
+    "test4b: expected in-line insertion at cursor, got: " .. tostring(lines[5])
   )
 
   vim.api.nvim_win_close(w, true)
@@ -219,6 +270,48 @@ do
     vim.deep_equal(after, before),
     "test6: buffer modified on failed attach: " .. vim.inspect(after)
   )
+
+  require("organ").config.attach = orig_cfg
+end
+
+-- ─── Test 7: `attach.dir` is file-relative, as `org-attach-id-dir` is ───────
+-- Emacs: `(defcustom org-attach-id-dir "data/" ...)` -- "If this is a
+-- relative path, it will be interpreted relative to the directory where the
+-- Org file lives."  A file in a subdirectory therefore gets its own
+-- `data/`, and an absolute setting is still used verbatim.
+do
+  local sub = tmp .. "/sub"
+  vim.fn.mkdir(sub, "p")
+  local org_path = sub .. "/rel.org"
+  local b = make_buf("* Headline F\n  body\n", org_path)
+
+  local orig_cfg = require("organ").config.attach
+  require("organ").config.attach =
+    vim.tbl_extend("force", orig_cfg, { dir = "data", auto_insert_link = false })
+
+  local id = require("organ.id").get_or_create(b, 1)
+  local d = assert(attach.dir(b, 1))
+  assert(
+    d == sub .. "/data/" .. id:sub(1, 2) .. "/" .. id:sub(3),
+    "test7: expected a data/ dir beside the org file, got " .. d
+  )
+  assert(attach.base_dir(b) == sub .. "/data", "test7: base_dir: " .. attach.base_dir(b))
+
+  -- An absolute `attach.dir` is still absolute.
+  require("organ").config.attach =
+    vim.tbl_extend("force", orig_cfg, { dir = tmp .. "/abs", auto_insert_link = false })
+  assert(attach.base_dir(b) == tmp .. "/abs", "test7: absolute dir: " .. attach.base_dir(b))
+
+  -- An attachment dir that already exists under `<org_dir>/<attach.dir>` is
+  -- still found, so files attached before this became file-relative are not
+  -- orphaned.
+  require("organ").config.attach =
+    vim.tbl_extend("force", orig_cfg, { dir = "data", auto_insert_link = false })
+  local legacy = tmp .. "/data/" .. id:sub(1, 2) .. "/" .. id:sub(3)
+  vim.fn.mkdir(legacy, "p")
+  vim.fn.delete(sub .. "/data", "rf")
+  assert(attach.dir(b, 1) == legacy, "test7: legacy root not used: " .. tostring(attach.dir(b, 1)))
+  vim.fn.delete(tmp .. "/data", "rf")
 
   require("organ").config.attach = orig_cfg
 end

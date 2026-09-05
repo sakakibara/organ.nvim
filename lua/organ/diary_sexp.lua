@@ -250,7 +250,7 @@ function M.scan(bufnr)
   local owner_hl
   local out = {}
   for i, ln in ipairs(lines) do
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       owner_hl = i
     end
     for sexp in ln:gmatch("<%%%%%b()>") do
@@ -300,10 +300,10 @@ local function scan_lines(lines)
   local out = {}
   local hl_line, hl_title
   for i, ln in ipairs(lines) do
-    local stars = ln:match("^(%*+)%s+(.*)$")
+    local stars = ln:match("^(%*+) +(.*)$")
     if stars then
       hl_line = i
-      hl_title = (ln:gsub("^%*+%s+", "")):gsub("^[A-Z][A-Z_]+%s+", ""):gsub("%s+:[%w_:@]+:%s*$", "")
+      hl_title = (ln:gsub("^%*+ +", "")):gsub("^[A-Z][A-Z_]+%s+", ""):gsub("%s+:[%w_:@]+:%s*$", "")
     end
     for sexp in ln:gmatch("<%%%%%b()>") do
       local parsed = M.parse(sexp)

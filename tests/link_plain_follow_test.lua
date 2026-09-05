@@ -190,6 +190,33 @@ do
   check("bracket description containing ]", opened == "https://bracket.example", tostring(opened))
 end
 
+-- plain_link_at must stay linear in line length.  A quadratic scan froze
+-- nvim un-interruptibly on a pasted data URI (`<CR>` and `gx` both route
+-- here), so bound the wall clock, not just the result.  The bound is
+-- ~200x the linear cost and ~1/7 of the quadratic cost at this size.
+do
+  local function seconds(line)
+    local t0 = vim.loop.hrtime()
+    link.plain_link_at(line, 1)
+    return (vim.loop.hrtime() - t0) / 1e9
+  end
+  local cases = {
+    { "no colon anywhere", string.rep("x", 32768) },
+    { "colon at every other char", string.rep("x:", 16384) },
+    { "long base64 data URI", "data:image/png;base64," .. string.rep("A", 32768) },
+    { "long trailing paren run", "http://example.com/a" .. string.rep(")", 32768) },
+    { "long trailing punctuation run", "http://example.com/a" .. string.rep(".", 32768) },
+  }
+  for _, c in ipairs(cases) do
+    local dt = seconds(c[2])
+    check(
+      "plain_link_at stays linear: " .. c[1],
+      dt < 1.0,
+      string.format("took %.3fs on a %d-char line", dt, #c[2])
+    )
+  end
+end
+
 if fails > 0 then
   print()
   print("FAILED " .. fails .. " checks")

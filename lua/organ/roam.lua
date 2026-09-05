@@ -74,8 +74,14 @@ end
 
 local function capture_ctx()
   local bufnr = vim.api.nvim_get_current_buf()
+  local win = vim.api.nvim_get_current_win()
   local cursor = vim.api.nvim_win_get_cursor(0)
-  local cword = vim.fn.expand("<cword>")
+  -- E348 on a blank or whitespace-only line, which is the most common
+  -- cursor position in an org file.
+  local has_cword, cword = pcall(vim.fn.expand, "<cword>")
+  if not has_cword then
+    cword = ""
+  end
   local in_link, in_comment = false, false
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if ok and parser then
@@ -95,6 +101,7 @@ local function capture_ctx()
   end
   return {
     bufnr = bufnr,
+    win = win,
     cursor = cursor,
     cword = cword,
     in_link = in_link,

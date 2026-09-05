@@ -95,6 +95,9 @@ do
     A.headline({ level = 4, title = { A.text("Para") } }),
     A.headline({ level = 5, title = { A.text("Subpara") } }),
   })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    headline_levels = 5,
+  })
   local out = to_latex.render(doc)
   check("level 1 -> \\section{Top}", out:find("\\section{Top}", 1, true) ~= nil, "got: " .. out)
   check("level 2 -> \\subsection{Sub}", out:find("\\subsection{Sub}", 1, true) ~= nil)
@@ -107,6 +110,9 @@ end
 do
   local doc = A.document({
     A.headline({ level = 9, title = { A.text("Way deep") } }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    headline_levels = 9,
   })
   local out = to_latex.render(doc)
   check(
@@ -153,21 +159,21 @@ do
   check("italic -> \\textit{I}", out:find("\\textit{I}", 1, true) ~= nil)
   check("underline -> \\underline{U}", out:find("\\underline{U}", 1, true) ~= nil)
   check("strike -> \\sout{S}", out:find("\\sout{S}", 1, true) ~= nil)
-  check("verbatim -> \\verb|V|", out:find("\\verb|V|", 1, true) ~= nil)
-  check("code -> \\verb|C|", out:find("\\verb|C|", 1, true) ~= nil)
+  check("verbatim -> \\texttt{V}", out:find("\\texttt{V}", 1, true) ~= nil)
+  check("code -> \\texttt{C}", out:find("\\texttt{C}", 1, true) ~= nil)
 end
 
--- Verb delimiter fallback when body contains |
+-- \texttt has no delimiter to exhaust, unlike \verb.
 do
   local doc = A.document({
     A.paragraph({
-      A.emphasis("code", { A.text("a|b") }),
+      A.emphasis("code", { A.text("a|b!c@d#e~f?g*h") }),
     }),
   })
   local out = to_latex.render(doc)
   check(
-    "verb with | in body falls back to !",
-    out:find("\\verb!a|b!", 1, true) ~= nil,
+    "every delimiter character survives verbatim",
+    out:find("\\texttt{a|b!c@d\\#e\\textasciitilde{}f?g*h}", 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -188,8 +194,8 @@ do
     "got: " .. out
   )
   check(
-    "bare link -> \\href{target}{target}",
-    out:find("\\href{https://naked.example.com}{https://naked.example.com}", 1, true) ~= nil,
+    "bare link -> \\url{target}",
+    out:find("\\url{https://naked.example.com}", 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -205,7 +211,11 @@ do
     }),
   })
   local out = to_latex.render(doc)
-  check("inline math passes through as $x^2$", out:find("$x^2$", 1, true) ~= nil, "got: " .. out)
+  check(
+    "inline math passes through as \\(x^2\\)",
+    out:find("\\(x^2\\)", 1, true) ~= nil,
+    "got: " .. out
+  )
   check(
     "display math passes through as \\[...\\]",
     out:find("\\[\\int_0^1 x\\]", 1, true) ~= nil,
@@ -237,8 +247,8 @@ do
   })
   local out = to_latex.render(doc)
   check(
-    "inline image -> \\includegraphics{fig.png}",
-    out:find("\\includegraphics{fig.png}", 1, true) ~= nil,
+    "inline image with description -> hyperlink",
+    out:find("\\href{fig.png}{fig}", 1, true) ~= nil,
     "got: " .. out
   )
 end
@@ -429,7 +439,7 @@ do
   local out = to_latex.render(doc, { body_only = true })
   check(
     "tabular begin with column spec",
-    out:find("\\begin{tabular}{ll}", 1, true) ~= nil,
+    out:find("\\begin{tabular}{lr}", 1, true) ~= nil,
     "got: " .. out
   )
   check("header row separator-terminated", out:find("name & age \\\\", 1, true) ~= nil)
@@ -520,13 +530,9 @@ do
   })
   local out = to_latex.render(doc, { body_only = true })
   check(
-    "block image includegraphics",
-    out:find("\\includegraphics{fig.png}", 1, true) ~= nil,
+    "block image with description -> hyperlink",
+    out:find("\\href{fig.png}{diagram}", 1, true) ~= nil,
     "got: " .. out
-  )
-  check(
-    "block image wrapped in figure",
-    out:find("\\begin{figure}", 1, true) ~= nil and out:find("\\end{figure}", 1, true) ~= nil
   )
   check(
     "paragraphs around image preserved",
@@ -786,6 +792,378 @@ do
     "latex unknown entity passed through as a LaTeX macro",
     out:find(" \\nosuchentity ", 1, true) ~= nil
       and out:find("\\textbackslash{}nosuchentity", 1, true) == nil
+  )
+end
+
+-- Fixed-width lines (`: text`) -- every short babel result is one.
+do
+  local doc = A.document({ { kind = "fixed_width", body = "42\nnext" } })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "fixed_width -> verbatim",
+    out:find("\\begin{verbatim}\n42\nnext\n\\end{verbatim}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- LaTeX environments pass through raw, escaped under tex:verbatim.
+do
+  local body = "\\begin{equation}\nx = 1\n\\end{equation}"
+  local doc = A.document({ { kind = "latex_environment", name = "equation", body = body } })
+  check(
+    "latex_environment passes through raw",
+    to_latex.render(doc, { body_only = true }):find(body, 1, true) ~= nil
+  )
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_latex = "verbatim",
+  })
+  check(
+    "tex:verbatim escapes it",
+    to_latex.render(doc, { body_only = true }):find("$\\backslash$", 1, true) == nil
+      and to_latex
+          .render(doc, { body_only = true })
+          :find("\\textbackslash{}begin\\{equation\\}", 1, true)
+        ~= nil,
+    "got: " .. to_latex.render(doc, { body_only = true })
+  )
+end
+
+-- Greater blocks: center, and backend-gated export blocks.
+do
+  local doc = A.document({
+    A.block("center", { content = { A.paragraph({ A.text("mid") }) } }),
+    A.block("export", { backend = "latex", body = "\\raw{}" }),
+    A.block("export", { backend = "html", body = "<b>x</b>" }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "center block -> center environment",
+    out:find("\\begin{center}\nmid\n\\end{center}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("export latex passes through", out:find("\\raw{}", 1, true) ~= nil)
+  check("export html is dropped", out:find("<b>x</b>", 1, true) == nil)
+end
+
+-- TODO keyword, priority cookie and tags reach the section title.
+do
+  local doc = A.document({
+    A.headline({
+      level = 1,
+      todo = "TODO",
+      todo_type = "todo",
+      priority = "A",
+      tags = { "work", "urgent" },
+      title = { A.text("Task one") },
+    }),
+  })
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_priority = true,
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "section title carries todo, priority and tags",
+    out:find(
+      "\\section{{\\bfseries\\sffamily TODO} \\framebox{\\#A} Task one\\hfill{}\\textsc{work:urgent}}",
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
+  doc.options.with_todo_keywords = false
+  doc.options.with_priority = false
+  doc.options.with_tags = false
+  check(
+    "options switch each part off",
+    to_latex.render(doc, { body_only = true }):find("\\section{Task one}", 1, true) ~= nil
+  )
+end
+
+-- Description lists keep their terms.
+do
+  local doc = A.document({
+    A.list(false, {
+      A.list_item({ tag = { A.text("term") }, content = { A.paragraph({ A.text("definition") }) } }),
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "description list -> description environment",
+    out:find("\\begin{description}\n\\item[{term}] definition\n\\end{description}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- \href paths are escaped: an unescaped % would comment out the rest.
+do
+  local doc = A.document({
+    A.paragraph({ A.link("https://ex.com/a%20b#frag_x&y", { A.text("desc") }) }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "href path is protected",
+    out:find("\\href{https://ex.com/a\\%20b\\#frag\\_x\\&y}{desc}", 1, true) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Verse keeps inline markup and indentation.
+do
+  local doc = A.document({
+    A.block("verse", {
+      content = {
+        A.paragraph({
+          A.text("line one "),
+          A.emphasis("bold", { A.text("b") }),
+          A.text("\n   indented line"),
+        }),
+      },
+    }),
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "verse keeps markup and indentation",
+    out:find(
+      "\\begin{verse}\nline one \\textbf{b}\\\\\n\\hspace*{3\\fontdimen2\\font}indented line\\\\\n\\end{verse}",
+      1,
+      true
+    ) ~= nil,
+    "got: " .. out
+  )
+end
+
+-- Captions reach tables, listings and figures.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "l" },
+      affiliated = {
+        { name = "CAPTION", value = "Cap", inline = { A.text("Cap") } },
+        { name = "NAME", value = "tbl-one" },
+      },
+      rows = { { cells = { { A.text("a") } }, sep = false } },
+    },
+    A.code_block("lua", "print(1)"),
+    { kind = "image", target = "./img.png" },
+  })
+  doc.children[2].affiliated = { { name = "CAPTION", value = "Code caption" } }
+  doc.children[3].affiliated = {
+    { name = "CAPTION", value = "Pic caption" },
+    { name = "NAME", value = "fig-one" },
+  }
+  local out = to_latex.render(doc, { body_only = true })
+  check(
+    "table caption",
+    out:find("\\begin{table}[htbp]\n\\caption{\\label{tab:tbl-one}Cap}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("listing caption", out:find("\\captionof{figure}{\\label{lst:", 1, true) ~= nil)
+  check("figure caption", out:find("\\caption{\\label{fig:fig-one}Pic caption}", 1, true) ~= nil)
+end
+
+-- \tableofcontents, gated on toc:.
+do
+  local doc = A.document({ A.headline({ level = 1, title = { A.text("One") } }) })
+  check("toc emitted by default", to_latex.render(doc):find("\\tableofcontents", 1, true) ~= nil)
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_toc = false,
+  })
+  check("toc:nil suppresses it", to_latex.render(doc):find("\\tableofcontents", 1, true) == nil)
+end
+
+-- Alignment cookies are metadata, not a data row.
+do
+  local doc = A.document({
+    {
+      kind = "table",
+      alignments = { "r", "l", "c" },
+      rows = {
+        { cells = { { A.text("<r>") }, { A.text("<l>") }, { A.text("<c>") } }, sep = false },
+        { cells = { { A.text("x") }, { A.text("a") }, { A.text("q") } }, sep = false },
+      },
+    },
+  })
+  local out = to_latex.render(doc, { body_only = true })
+  check("cookie row is not rendered", out:find("textless", 1, true) == nil, "got: " .. out)
+  check("cookies drive the column spec", out:find("\\begin{tabular}{rlc}", 1, true) ~= nil)
+end
+
+-- `$$...$$` keeps its delimiters outside HTML.
+do
+  local doc = A.document({
+    A.paragraph({ { kind = "math", display = true, style = "dollar", body = " x = 1 " } }),
+  })
+  check(
+    "dollar display math is preserved",
+    to_latex.render(doc, { body_only = true }):find("$$ x = 1 $$", 1, true) ~= nil,
+    "got: " .. to_latex.render(doc, { body_only = true })
+  )
+end
+
+-- Entities keep working with the `{}` terminator.
+do
+  local doc = A.document({ A.paragraph({ A.entity("alpha{}"), A.text("text") }) })
+  check(
+    "\\alpha{} is the alpha entity",
+    to_latex.render(doc, { body_only = true }):find("\\(\\alpha\\)text", 1, true) ~= nil,
+    "got: " .. to_latex.render(doc, { body_only = true })
+  )
+end
+
+-- Special strings, smart quotes and preserved line breaks.
+do
+  local doc = A.document({ A.paragraph({ A.text('He said "hi" -- a test...\nline two') }) })
+  local plain = to_latex.render(doc, { body_only = true })
+  check("... becomes \\ldots{}", plain:find("a test\\ldots{}", 1, true) ~= nil, "got: " .. plain)
+  check("-- is left to the TeX ligature", plain:find(" -- ", 1, true) ~= nil)
+  doc.options = vim.tbl_extend("force", require("organ.export.options").defaults(), {
+    with_smart_quotes = true,
+    preserve_breaks = true,
+  })
+  local rich = to_latex.render(doc, { body_only = true })
+  check("smart quotes", rich:find("``hi''", 1, true) ~= nil, "got: " .. rich)
+  check("preserved break", rich:find("\\ldots{}\\\\\nline two", 1, true) ~= nil, "got: " .. rich)
+end
+
+-- `#+OPTIONS: H:N` (org-export-low-level-p): a headline deeper than N is
+-- a list item, not a heading; `num:` picks the list type.
+do
+  local function tree()
+    return A.document({
+      A.headline({
+        level = 1,
+        title = { A.text("Top") },
+        children = {
+          A.headline({
+            level = 2,
+            title = { A.text("Sub") },
+            children = {
+              A.headline({
+                level = 3,
+                title = { A.text("Deep") },
+                children = {
+                  A.paragraph({ A.text("body") }),
+                  A.headline({ level = 4, title = { A.text("Deeper") } }),
+                },
+              }),
+              A.headline({ level = 3, title = { A.text("Deep B") } }),
+            },
+          }),
+        },
+      }),
+    })
+  end
+  local function opts(over)
+    return vim.tbl_extend(
+      "force",
+      require("organ.export.options").defaults(),
+      { headline_levels = 2, with_toc = false, with_section_numbers = false },
+      over or {}
+    )
+  end
+
+  local doc = tree()
+  doc.options = opts()
+  local out = to_latex.render(doc)
+  check(
+    "H:2 keeps level 2 a sectioning command",
+    out:find("\\subsection*{Sub}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check("H:2 emits no \\subsubsection", out:find("\\subsubsection", 1, true) == nil, "got: " .. out)
+  check(
+    "H:2 demotes level 3 into itemize",
+    out:find("\\begin{itemize}\n\\item Deep\n\\label{sec:deep}", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "H:2 nests the level 4 itemize",
+    select(2, out:gsub("\\begin{itemize}", "")) == 2
+      and out:find("\\item Deeper", 1, true) ~= nil
+      and out:find("\\item Deep B", 1, true) ~= nil,
+    "got: " .. out
+  )
+
+  local numbered = tree()
+  numbered.options = opts({ with_section_numbers = true })
+  check(
+    "num:t demotes into enumerate",
+    to_latex.render(numbered):find("\\begin{enumerate}", 1, true) ~= nil
+  )
+
+  local capped = tree()
+  capped.options = opts({ with_section_numbers = 2 })
+  check(
+    "num:2 leaves the demoted list an itemize",
+    to_latex.render(capped):find("\\begin{enumerate}", 1, true) == nil
+  )
+end
+
+-- `#+TOC:` as a directive (org-html-keyword / org-latex-keyword /
+-- org-md-keyword / org-ascii-keyword / org-texinfo-keyword), verified
+-- against Emacs 30.2 / Org 9.7.11.
+do
+  local from_org = require("organ.ast.from_org")
+  local src = {
+    "#+OPTIONS: toc:nil num:nil",
+    "",
+    "#+TOC: headlines 2",
+    "",
+    "* One",
+    "#+CAPTION: Table one",
+    "| a | b |",
+    "",
+    "#+CAPTION: Listing one",
+    "#+BEGIN_SRC lua",
+    "print(1)",
+    "#+END_SRC",
+    "",
+    "** Two",
+    "*** Three",
+    "",
+    "#+TOC: tables",
+    "",
+    "#+TOC: listings",
+    "",
+    "#+TOC: figures",
+    "",
+    "* Four",
+    "#+TOC: headlines 1 local",
+    "** Five",
+  }
+
+  local out = to_latex.render(from_org.from_lines(src))
+  check(
+    "#+TOC: headlines 2 sets tocdepth and emits the TOC",
+    out:find("\\setcounter{tocdepth}{2}\n\\tableofcontents", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: tables -> \\listoftables",
+    out:find("\\listoftables", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: listings -> \\lstlistoflistings",
+    out:find("\\lstlistoflistings", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "#+TOC: figures renders nothing, as in ox-latex",
+    out:find("\\listoffigures", 1, true) == nil
+  )
+  check(
+    "#+TOC: ... local uses titletoc, opened and closed around the subtree",
+    out:find("\\startcontents[level-1]", 1, true) ~= nil
+      and out:find("\\printcontents[level-1]{}{0}{\\setcounter{tocdepth}{2}}", 1, true) ~= nil
+      and out:find("\\stopcontents[level-1]", 1, true) ~= nil,
+    "got: " .. out
+  )
+  check(
+    "a local TOC pulls titletoc into the preamble",
+    out:find("\\usepackage{titletoc}", 1, true) ~= nil,
+    "got: " .. out
   )
 end
 

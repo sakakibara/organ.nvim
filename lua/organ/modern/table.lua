@@ -432,13 +432,8 @@ function M.attach(bufnr)
       pcall(vim.api.nvim_del_augroup_by_id, group)
     end,
   })
-  -- Concealment needs `conceallevel >= 2`.  Bump per-window unless
-  -- the user has it set higher already.
-  for _, win in ipairs(vim.fn.win_findbuf(bufnr) or {}) do
-    if vim.api.nvim_get_option_value("conceallevel", { win = win }) < 2 then
-      pcall(vim.api.nvim_set_option_value, "conceallevel", 2, { win = win, scope = "local" })
-    end
-  end
+  -- Concealment needs `conceallevel >= 2`.
+  require("organ.conceal").request_level_for_buf(bufnr, "modern")
   M.refresh(bufnr)
 end
 

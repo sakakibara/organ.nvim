@@ -43,7 +43,7 @@ function M.parse_abbrev(bufnr)
   for _, ln in ipairs(lines) do
     -- Stop scanning when we hit the first headline; #+KEYWORDS only count
     -- before the first heading per org spec.
-    if ln:match("^%*+%s") then
+    if ln:match("^%*+ ") then
       break
     end
     local name, template = ln:match("^%s*#%+LINK:%s+(%S+)%s+(.+)%s*$")
@@ -466,6 +466,16 @@ local PLAIN_SCHEMES = (function()
   return s
 end)()
 
+local MAX_SCHEME_LEN = (function()
+  local n = 0
+  for k in pairs(PLAIN_SCHEMES) do
+    if #k > n then
+      n = #k
+    end
+  end
+  return n
+end)()
+
 -- Find the org plain link (`scheme:path` outside brackets) or angle
 -- link (`<scheme:path>`, which may contain spaces) covering 1-based
 -- `col` in `line_text`.  Returns { target, start, ["end"] } or nil.
@@ -485,42 +495,60 @@ function M.plain_link_at(line_text, col)
   end
   pos = 1
   while true do
-    local s, e, scheme, path = line_text:find("(%a[%w+.-]*):([^%s%[%]<>]+)", pos)
-    if not s then
+    -- Anchor on the `:` and read the scheme backwards within the longest
+    -- registered scheme, the way `org-link-plain-re` alternates over the
+    -- finite `org-link-types` list.  Scanning forward for `scheme:` instead
+    -- rescans the tail from every start position, which is quadratic.
+    local ci = line_text:find(":", pos, true)
+    if not ci then
       break
     end
-    local prev = s > 1 and line_text:sub(s - 1, s - 1) or ""
-    if not prev:match("%w") and PLAIN_SCHEMES[scheme] then
+    local s, scheme
+    for j = math.max(1, ci - MAX_SCHEME_LEN), ci - 1 do
+      local cand = line_text:sub(j, ci - 1)
+      local prev = j > 1 and line_text:sub(j - 1, j - 1) or ""
+      if PLAIN_SCHEMES[cand] and not prev:match("%w") then
+        s, scheme = j, cand
+        break
+      end
+    end
+    local path = scheme and line_text:match("^[^%s%[%]<>]+", ci + 1)
+    if path then
       -- org-link-plain-re: the path ends with a non-punctuation char,
       -- a `/`, or a `)` closing a paren opened inside the path.
       local target = scheme .. ":" .. path
-      while #target > 0 do
-        local last = target:sub(-1)
-        if last == "/" then
+      -- Paren balance is carried across the trim; recounting it per
+      -- stripped character is quadratic on a long run of `)`.
+      local _, opens = target:gsub("%(", "")
+      local _, closes = target:gsub("%)", "")
+      local last = #target
+      while last > 0 do
+        local c = target:sub(last, last)
+        if c == "/" then
           break
-        elseif last == ")" then
-          local _, opens = target:gsub("%(", "")
-          local _, closes = target:gsub("%)", "")
-          if closes > opens then
-            target = target:sub(1, -2)
-          else
+        elseif c == ")" then
+          if closes <= opens then
             break
           end
-        elseif last:match("%p") then
-          target = target:sub(1, -2)
+          closes = closes - 1
+          last = last - 1
+        elseif c:match("%p") then
+          if c == "(" then
+            opens = opens - 1
+          end
+          last = last - 1
         else
           break
         end
       end
+      target = target:sub(1, last)
       local te = s + #target - 1
       if #target > #scheme + 1 and col >= s and col <= te then
         return { target = target, start = s, ["end"] = te }
       end
-      pos = e + 1
+      pos = ci + #path + 1
     else
-      -- Rejected match may still contain a valid link further in
-      -- (`x-http://…` hides `http://…`); rescan from the next char.
-      pos = s + 1
+      pos = ci + 1
     end
   end
   return nil
@@ -577,6 +605,11 @@ function M.follow(opts)
     return
   end
   local source = vim.api.nvim_buf_get_name(bufnr)
+  -- Remember where the jump started so `:Org mark_ring goto` walks back
+  -- through link follows, as Emacs org-open-at-point does.
+  pcall(function()
+    require("organ.mark_ring").push()
+  end)
   local action =
     M.open(target_text, source, { abbrev = M.parse_abbrev(bufnr), bufnr = bufnr, line = line })
   M.dispatch(action)

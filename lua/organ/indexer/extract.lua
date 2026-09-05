@@ -432,7 +432,7 @@ local function collect_clocks(heading_node, src)
   -- Grammar exposes (clock start: end: duration:) as named fields
   -- inside :LOGBOOK: drawers (and elsewhere). Walk every clock node
   -- under this section regardless of nesting depth.
-  local clocks = {}
+  local clocks, by_start = {}, {}
   local function visit(node)
     if node:type() == "clock" then
       local start_n = node:field("start") and node:field("start")[1] or nil
@@ -440,11 +440,26 @@ local function collect_clocks(heading_node, src)
       local start_ts = start_n and ts_text_to_unix(get_text(start_n, src)) or nil
       local end_ts = end_n and ts_text_to_unix(get_text(end_n, src)) or nil
       if start_ts then
-        clocks[#clocks + 1] = {
-          start_ts = start_ts,
-          end_ts = end_ts,
-          duration_seconds = (end_ts and (end_ts - start_ts)) or nil,
-        }
+        -- The index keys a clock by (headline, start) while org allows
+        -- repeated CLOCK lines, and `org-clock-sum` counts every one of
+        -- them -- fold a repeated start into a single total.
+        local prev = by_start[start_ts]
+        if prev then
+          if end_ts then
+            prev.duration_seconds = (prev.duration_seconds or 0) + (end_ts - start_ts)
+            if not prev.end_ts or end_ts > prev.end_ts then
+              prev.end_ts = end_ts
+            end
+          end
+        else
+          prev = {
+            start_ts = start_ts,
+            end_ts = end_ts,
+            duration_seconds = (end_ts and (end_ts - start_ts)) or nil,
+          }
+          by_start[start_ts] = prev
+          clocks[#clocks + 1] = prev
+        end
       end
       return
     end

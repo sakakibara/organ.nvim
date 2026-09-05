@@ -3,8 +3,8 @@
 --   2. ARCHIVE_FILE is written via `abbreviate-file-name` (~ prefix).
 --   3. ARCHIVE_ITAGS is the INHERITED tag set (ancestor tags +
 --      #+FILETAGS), not just the direct tags on the moved headline.
---   4. The archive file is prefixed once with
---      `# Archived entries from file <path>` when first written.
+--   4. A newly created archive file is prefixed once with the org mode
+--      line and an uncommented `Archived entries from file <path>`.
 --   5. `archive.location` parses Emacs `org-archive-location` syntax,
 --      and `#+ARCHIVE:` / `:ARCHIVE:` overrides take precedence.
 --
@@ -68,7 +68,7 @@ do
   local body = table.concat(lines, "\n")
 
   -- ARCHIVE_TIME without brackets.
-  local time_line = body:match("\n(:ARCHIVE_TIME:[^\n]+)")
+  local time_line = body:match("\n%s*(:ARCHIVE_TIME:[^\n]+)")
   check("ARCHIVE_TIME present", time_line ~= nil, vim.inspect(lines))
   check(
     "ARCHIVE_TIME has no `[` bracket",
@@ -83,7 +83,7 @@ do
 
   -- ARCHIVE_FILE uses `~` when path is under $HOME (skip the
   -- assertion if test tmpdir doesn't land under $HOME).
-  local file_line = body:match("\n(:ARCHIVE_FILE:[^\n]+)")
+  local file_line = body:match("\n%s*(:ARCHIVE_FILE:[^\n]+)")
   check("ARCHIVE_FILE present", file_line ~= nil)
   local home = vim.fn.expand("$HOME")
   if home and src:sub(1, #home) == home then
@@ -94,11 +94,23 @@ do
     )
   end
 
-  -- Source header comment.
+  -- Source header.  `emacs --batch -Q` opens a freshly created archive file
+  -- with the mode line `org-mode` inserts into an empty file, then
+  -- `org-archive-file-header-format` ("\nArchived entries from file %s\n\n"),
+  -- whose text is NOT commented:
+  --   #    -*- mode: org -*-
+  --   (blank)
+  --   (blank)
+  --   Archived entries from file <path>
   check(
-    "first archive write adds `# Archived entries from file ...` header",
-    lines[1] and lines[1]:match("^# Archived entries from file ") ~= nil,
+    "first archive write opens the file with the org mode line",
+    lines[1] == "#    -*- mode: org -*-",
     "got line 1 = " .. tostring(lines[1])
+  )
+  check(
+    "first archive write adds an uncommented `Archived entries from file ...`",
+    lines[4] and lines[4]:match("^Archived entries from file ") ~= nil,
+    "got line 4 = " .. tostring(lines[4])
   )
 
   -- Header should NOT be re-added on subsequent archives into the
@@ -118,7 +130,7 @@ do
   local lines2 = read_lines(arc)
   local header_count = 0
   for _, l in ipairs(lines2) do
-    if l:match("^# Archived entries from file ") then
+    if l:match("^Archived entries from file ") then
       header_count = header_count + 1
     end
   end
@@ -145,7 +157,7 @@ do
   local lines = read_lines(arc)
   local itags_line
   for _, l in ipairs(lines) do
-    if l:match("^:ARCHIVE_ITAGS:") then
+    if l:match("^%s*:ARCHIVE_ITAGS:") then
       itags_line = l
       break
     end
@@ -272,7 +284,7 @@ do
   local lines = read_lines(arc)
   local has_header = false
   for _, l in ipairs(lines) do
-    if l:match("^# Archived entries from file ") then
+    if l:match("^Archived entries from file ") or l:match("^#%s+%-%*%-") then
       has_header = true
     end
   end

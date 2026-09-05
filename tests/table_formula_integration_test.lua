@@ -295,4 +295,31 @@ do
   assert_eq(cells(lines[4])[1], "10", "sibling row still computed:")
 end
 
+-- Out-of-bounds column target.  Verified against `emacs --batch -Q -l org`
+-- on a 2x2 table: `@1$1000=1` widens, `@1$1001=1` and `@1$100000=1` raise
+-- "Formula column target too large" whatever `org-table-formula-create-
+-- columns` is set to, and the column form `$1001=1` widens with no cap.
+do
+  local function eval(tblfm)
+    local b = mk_buf({ "| 1 | 2 |", "| 3 | 4 |", "#+TBLFM: " .. tblfm })
+    vim.api.nvim_win_set_cursor(0, { 1, 0 })
+    local ok = tab.eval_formulas(b)
+    return ok, get_lines(b)[1]
+  end
+
+  local ok, line = eval("@1$1000=1")
+  assert_eq(ok, true, "field formula at the 1000-column limit:")
+  assert_eq(#cells(line), 1000, "columns after @1$1000=1:")
+
+  for _, f in ipairs({ "@1$1001=1", "@1$100000=1" }) do
+    ok, line = eval(f)
+    assert_eq(ok, false, f .. " must be refused:")
+    assert_eq(line, "| 1 | 2 |", f .. " must leave the table untouched:")
+  end
+
+  ok, line = eval("$1001=1")
+  assert_eq(ok, true, "column formulas have no cap in Emacs:")
+  assert_eq(#cells(line), 1001, "columns after $1001=1:")
+end
+
 io.write("table formula integration ok\n")

@@ -63,6 +63,9 @@ local function setup_buffer_todo_keywords(bufnr)
       end)
     end,
   })
+  require("organ.buf_state").on_cleanup(bufnr, "buftodo_augroup", function()
+    pcall(vim.api.nvim_del_augroup_by_id, hl_group)
+  end)
 end
 
 -- TODO keymaps (opt-in via config.todo.keymaps).
@@ -218,6 +221,7 @@ local function setup_fold_window_opts(bufnr, cfg)
         "setlocal foldtext< statuscolumn< fillchars< winhighlight<"
           .. " conceallevel< concealcursor<"
       )
+      require("organ.conceal").forget_window(0)
     end,
   })
   require("organ.errors").autocmd("BufWipeout", {
@@ -435,7 +439,7 @@ local function setup_format_options(bufnr, cfg)
   end
   if (cfg.emphasis or {}).enabled then
     pcall(function()
-      setlocal("conceallevel", 2)
+      require("organ.conceal").attach(bufnr)
     end)
   end
 end
@@ -464,6 +468,7 @@ function M.attach(bufnr)
   local cfg = organ.config
   local map = make_map(bufnr)
 
+  require("organ.ftplugin.undo").install(bufnr)
   register_cleanup(bufnr)
   setup_buffer_todo_keywords(bufnr)
   setup_todo_keymaps(bufnr, cfg, map)

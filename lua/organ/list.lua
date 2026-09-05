@@ -406,6 +406,88 @@ function M.repair(bufnr, cursor_line, opts)
   return write_struct(bufnr, st, parent, group, opts), st.s, st.e
 end
 
+-- Bullets `org-cycle-list-bullet` offers for an item, in cycle order.
+-- `*` is dropped at column 0 (an unindented `*` is a headline) and the
+-- ordered forms are dropped on a description item (a `term :: def`
+-- item cannot be numbered).
+local function bullet_cycle(indent, is_description)
+  local out = { "-", "+" }
+  if indent > 0 then
+    out[#out + 1] = "*"
+  end
+  if not is_description then
+    out[#out + 1] = "1."
+    out[#out + 1] = "1)"
+  end
+  return out
+end
+
+local function is_description_item(content)
+  return content:match("^.-%s+::%s") ~= nil or content:match("^.-%s+::$") ~= nil
+end
+
+-- Emacs org-cycle-list-bullet: cycle the bullet of the whole list that
+-- owns the item at `line`.  `which` is nil (next in the cycle),
+-- "previous", or one of the bullet strings ("-", "+", "*", "1.", "1)").
+-- The style is set on the list's first item and propagated by the
+-- structure rewrite, so sub-lists keep their own bullets.  Returns the
+-- new bullet, or nil plus a reason.
+function M.cycle_bullet(bufnr, line, which)
+  local st = parse_struct(bufnr, line)
+  if not st then
+    return nil, "not at an item"
+  end
+  local idx
+  for i, it in ipairs(st.items) do
+    if it.row == line then
+      idx = i
+      break
+    end
+  end
+  if not idx then
+    return nil, "not at an item"
+  end
+  local parent, group = analyze(st)
+  local first = idx
+  for j = idx - 1, 1, -1 do
+    if group[j] == group[idx] then
+      first = j
+    end
+  end
+  local fit = st.items[first]
+  local cycle = bullet_cycle(st.items[idx].ind, is_description_item(st.items[idx].content))
+
+  local new
+  if type(which) == "string" and which ~= "previous" then
+    for _, b in ipairs(cycle) do
+      if b == which then
+        new = b
+      end
+    end
+    if not new then
+      return nil, ("not an allowed bullet here: %s"):format(which)
+    end
+  else
+    local current = fit.sep and ("1" .. fit.sep) or fit.bullet
+    local at = #cycle
+    for i, b in ipairs(cycle) do
+      if b == current then
+        at = i - 1
+        break
+      end
+    end
+    local step = (which == "previous") and -1 or 1
+    new = cycle[(at + step) % #cycle + 1]
+  end
+
+  local sep = new:match("^1([.)])$")
+  fit.bullet = new
+  fit.sep = sep
+  fit.counter = sep and 1 or nil
+  write_struct(bufnr, st, parent, group)
+  return new
+end
+
 -- Sort items at the cursor's indent level. Sub-items move with their parent.
 -- `comparator` is "alpha" (case-insensitive) | "numeric" | function(a, b).
 function M.sort(bufnr, cursor_line, comparator)
@@ -672,6 +754,30 @@ M.commands = {
     end,
     nargs = "?",
     desc = "Sort the list at cursor by `alpha` (default), `numeric`, or `length`",
+  },
+  ["list cycle_bullet"] = {
+    fn = function(cmd)
+      local bufnr = vim.api.nvim_get_current_buf()
+      local line = vim.api.nvim_win_get_cursor(0)[1]
+      local which = (cmd and cmd.args ~= "") and cmd.args or nil
+      local new, why = M.cycle_bullet(bufnr, line, which)
+      if not new then
+        require("organ.notify").warn(why or "not at an item")
+        return
+      end
+      require("organ.notify").info(("list bullet: %s"):format(new))
+    end,
+    nargs = "?",
+    complete = function(arg_lead)
+      local out = {}
+      for _, b in ipairs({ "-", "+", "*", "1.", "1)", "previous" }) do
+        if b:sub(1, #arg_lead) == arg_lead then
+          out[#out + 1] = b
+        end
+      end
+      return out
+    end,
+    desc = "Cycle the bullet of the list at cursor (Emacs org-cycle-list-bullet)",
   },
   ["list demote"] = {
     fn = function()

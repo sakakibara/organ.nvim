@@ -95,4 +95,18 @@ do
   assert_titles(stuck, { "Proj2", "Proj3", "Shallow" })
 end
 
+-- Emacs searches its skip regexp from the project headline itself, so a
+-- project carrying a next state on its own line is not stuck.
+do
+  indexer.index_file_sync(write_file(
+    "self.org",
+    [[
+* NEXT Self next :project:
+* DONE Self done :project:
+]]
+  ))
+  local stuck = query.stuck_projects()
+  assert_titles(stuck, { "Proj2", "Proj3", "Self done", "Shallow" })
+end
+
 io.write("query stuck ok\n")

@@ -47,10 +47,12 @@ local function emit_inline(nodes)
       out[#out + 1] = "[[" .. (n.target or "") .. "]]"
     elseif n.kind == "entity" then
       out[#out + 1] = "\\" .. (n.name or "")
-    elseif n.kind == "subscript" then
-      out[#out + 1] = "_{" .. emit_inline(n.content) .. "}"
-    elseif n.kind == "superscript" then
-      out[#out + 1] = "^{" .. emit_inline(n.content) .. "}"
+    elseif n.kind == "subscript" or n.kind == "superscript" then
+      -- org-element-subscript-interpreter: braces only when the source
+      -- used them, so `x^2` does not come back as `x^{2}`.
+      local mark = n.kind == "subscript" and "_" or "^"
+      local inner = emit_inline(n.content)
+      out[#out + 1] = mark .. (n.brackets == false and inner or ("{" .. inner .. "}"))
     elseif n.kind == "statistics_cookie" then
       out[#out + 1] = n.value or ""
     elseif n.kind == "timestamp" then
@@ -224,6 +226,9 @@ local function emit_headline(node, out)
   if node.priority then
     pieces[#pieces + 1] = "[#" .. node.priority .. "]"
   end
+  if node.commented then
+    pieces[#pieces + 1] = "COMMENT"
+  end
   pieces[#pieces + 1] = emit_inline(node.title)
   local left = table.concat(pieces, " ")
   local block = ""
@@ -269,10 +274,17 @@ local function emit_headline(node, out)
   end
 end
 
+-- `#+NAME:` with no value takes no trailing space, matching org's own
+-- keyword interpreter.
+local function keyword_line(name, value)
+  value = value or ""
+  return "#+" .. name .. ":" .. (value ~= "" and (" " .. value) or "")
+end
+
 function emit_block(node, out)
   if node.affiliated then
     for _, kw in ipairs(node.affiliated) do
-      out[#out + 1] = "#+" .. kw.name .. ": " .. (kw.value or "")
+      out[#out + 1] = keyword_line(kw.name, kw.value)
     end
   end
   if node.kind == "headline" then
@@ -287,7 +299,7 @@ function emit_block(node, out)
     out[#out + 1] = "-----"
     out[#out + 1] = ""
   elseif node.kind == "directive" then
-    out[#out + 1] = "#+" .. node.name .. ": " .. (node.value or "")
+    out[#out + 1] = keyword_line(node.name, node.value)
   elseif node.kind == "block" then
     local style = node.style or "quote"
     local begin = "#+begin_" .. style
@@ -307,6 +319,9 @@ function emit_block(node, out)
     elseif node.content then
       for _, c in ipairs(node.content) do
         emit_block(c, out)
+      end
+      while #out > 0 and out[#out] == "" do
+        out[#out] = nil
       end
     end
     out[#out + 1] = "#+end_" .. style
@@ -347,6 +362,16 @@ function emit_block(node, out)
       end
     end
     out[#out + 1] = ":END:"
+    out[#out + 1] = ""
+  elseif node.kind == "fixed_width" then
+    for _, line in ipairs(vim.split(node.body or "", "\n", { plain = true })) do
+      out[#out + 1] = line == "" and ":" or (": " .. line)
+    end
+    out[#out + 1] = ""
+  elseif node.kind == "latex_environment" then
+    for _, line in ipairs(vim.split(node.body or "", "\n", { plain = true })) do
+      out[#out + 1] = line
+    end
     out[#out + 1] = ""
   elseif node.kind == "comment" then
     -- Each body line becomes `#<line>`; the captured body already

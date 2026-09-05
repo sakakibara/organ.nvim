@@ -14,7 +14,11 @@ local function escape_attr(s)
   s = s:gsub('"', "&quot;")
   s = s:gsub("<", "&lt;")
   s = s:gsub(">", "&gt;")
-  s = s:gsub("\n", " ")
+  -- XML 1.0 forbids every C0 byte but tab, LF and CR, and a raw control
+  -- character makes the whole document unparseable.  Whitespace folds
+  -- into the single line an attribute holds; the rest is dropped.
+  s = s:gsub("[\t\n\r]", " ")
+  s = s:gsub("[%z\1-\31\127]", "")
   return s
 end
 

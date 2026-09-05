@@ -28,6 +28,11 @@ require("organ").setup({
   scan_on_startup = false,
   watcher = { enabled = false },
   todo = {
+    -- The Emacs side runs `-Q`, where `org-adapt-indentation` is nil, so the
+    -- drawer it writes sits flush left.  organ's equivalent of that setting
+    -- is `planning_indent = false`; its own default ("adapt") deliberately
+    -- indents, which is not what this byte comparison is about.
+    planning_indent = false,
     log_done = false,
     log_state_changes = false,
     log_reschedule = false,

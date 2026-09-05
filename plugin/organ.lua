@@ -124,10 +124,12 @@ local DOMAIN_MODULES = {
   "organ.dependencies",
   "organ.directive",
   "organ.edit_special",
+  "organ.emphasize",
   "organ.entities",
   "organ.expand",
   "organ.export",
   "organ.find",
+  "organ.fixed_width",
   "organ.footnote",
   "organ.format",
   "organ.goto",
@@ -143,6 +145,8 @@ local DOMAIN_MODULES = {
   "organ.link",
   "organ.list",
   "organ.list_convert",
+  "organ.logbook",
+  "organ.mark_ring",
   "organ.meta_return",
   "organ.notifier",
   "organ.property",
@@ -151,12 +155,14 @@ local DOMAIN_MODULES = {
   "organ.refile",
   "organ.roam",
   "organ.schedule",
+  "organ.sort",
   "organ.sparse",
   "organ.statistics",
   "organ.structure",
   "organ.table",
   "organ.table_edit",
   "organ.tag_select",
+  "organ.timestamp",
   "organ.todo",
   "organ.watcher",
 }
@@ -322,7 +328,10 @@ local subcommands = {
         local raw = table.concat({ unpack(args, 2) }, " ")
         local value = parse_value(raw)
         local bufnr = vim.api.nvim_get_current_buf()
-        require("organ.buf_config").set(bufnr, path, value)
+        if not require("organ.buf_config").set(bufnr, path, value) then
+          require("organ.notify").error(("organ: not a config path: %s"):format(path))
+          return
+        end
         require("organ.notify").info(
           ("organ: set %s = %s (buf %d)"):format(path, tostring(value), bufnr)
         )
@@ -357,6 +366,10 @@ local subcommands = {
       end
       local bufnr = vim.api.nvim_get_current_buf()
       local new = require("organ.buf_config").toggle(bufnr, args[1])
+      if new == nil then
+        require("organ.notify").error(("organ: not a config path: %s"):format(args[1]))
+        return
+      end
       require("organ.notify").info(
         ("organ: toggle %s -> %s (buf %d)"):format(args[1], tostring(new), bufnr)
       )
@@ -383,7 +396,10 @@ local subcommands = {
         return
       end
       local bufnr = vim.api.nvim_get_current_buf()
-      require("organ.buf_config").unset(bufnr, args[1])
+      if not require("organ.buf_config").unset(bufnr, args[1]) then
+        require("organ.notify").error(("organ: not a config path: %s"):format(args[1]))
+        return
+      end
       require("organ.notify").info(("organ: unset %s (buf %d)"):format(args[1], bufnr))
     end,
     nargs = 1,

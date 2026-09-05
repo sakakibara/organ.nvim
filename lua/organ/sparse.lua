@@ -46,7 +46,7 @@ function M._compute_visible(buf_lines, predicate, bufnr)
       keywords[k] = true
     end
     for i, line in ipairs(buf_lines) do
-      local stars, body = line:match("^(%*+)%s+(.*)$")
+      local stars, body = line:match("^(%*+) +(.*)$")
       if stars then
         local todo_state, rest
         local first_token, after = body:match("^(%S+)%s+(.*)$")
@@ -152,13 +152,85 @@ function M._compute_visible(buf_lines, predicate, bufnr)
   end
   local scan_properties = (bufnr and element.parser_loaded(bufnr)) and _scan_properties_ts
     or _scan_properties_regex
-  for _, h in ipairs(headlines) do
+
+  -- Planning accessors (`h.scheduled` / `h.deadline` / `h.closed`), so an
+  -- org-match query can compare against them.  Only the line directly
+  -- under the headline is a planning line, as in org-element.
+  local PLANNING_FIELD = { SCHEDULED = "scheduled", DEADLINE = "deadline", CLOSED = "closed" }
+  local function _scan_planning(h)
+    local out = {}
+    local line = buf_lines[h.line + 1]
+    local starts_planning = line
+      and (line:match("^%s*SCHEDULED:") or line:match("^%s*DEADLINE:") or line:match("^%s*CLOSED:"))
+    if not starts_planning then
+      return out
+    end
+    for kw, ts in line:gmatch("(%u+):%s*([<%[][^>%]]*[>%]])") do
+      local field = PLANNING_FIELD[kw]
+      if field and not out[field] then
+        out[field] = ts
+      end
+    end
+    return out
+  end
+
+  -- Emacs `org-get-category`: the nearest `:CATEGORY:` at or above the
+  -- entry, else the buffer's `#+CATEGORY:` keyword.  A file with neither
+  -- falls through to the basename, which `agenda.format` supplies.
+  local buffer_category
+  local function _buffer_category()
+    if buffer_category == nil then
+      buffer_category = false
+      for _, ln in ipairs(buf_lines) do
+        local v = ln:match("^#%+[Cc][Aa][Tt][Ee][Gg][Oo][Rr][Yy]%s*:%s*(.-)%s*$")
+        if v and v ~= "" then
+          buffer_category = v
+          break
+        end
+      end
+    end
+    return buffer_category or nil
+  end
+  local function _scan_category(idx)
+    local needed = headlines[idx].level
+    for i = idx, 1, -1 do
+      local hh = headlines[i]
+      if hh.level <= needed then
+        local v = hh.properties.CATEGORY
+        if v and v ~= "" then
+          return v
+        end
+        needed = hh.level - 1
+        if needed == 0 then
+          break
+        end
+      end
+    end
+    return _buffer_category()
+  end
+
+  for idx, h in ipairs(headlines) do
     setmetatable(h, {
       __index = function(t, k)
         if k == "properties" then
           local p = scan_properties(t)
           rawset(t, "properties", p)
           return p
+        elseif type(k) == "string" and PLANNING_FIELD[k:upper()] then
+          local p = rawget(t, "_planning")
+          if not p then
+            p = _scan_planning(t)
+            rawset(t, "_planning", p)
+          end
+          return p[k]
+        elseif k == "category" then
+          local v = _scan_category(idx)
+          rawset(t, "category", v or false)
+          return v
+        elseif k == "file_path" then
+          local v = bufnr and vim.api.nvim_buf_get_name(bufnr) or ""
+          rawset(t, "file_path", v)
+          return v
         end
       end,
     })
@@ -254,10 +326,10 @@ function M.apply(bufnr, predicate)
     vim.api.nvim_set_option_value(
       "foldexpr",
       "v:lua.require'organ.sparse'.foldexpr(v:lnum)",
-      { win = winid }
+      { win = winid, scope = "local" }
     )
-    vim.api.nvim_set_option_value("foldmethod", "expr", { win = winid })
-    vim.api.nvim_set_option_value("foldlevel", 0, { win = winid })
+    vim.api.nvim_set_option_value("foldmethod", "expr", { win = winid, scope = "local" })
+    vim.api.nvim_set_option_value("foldlevel", 0, { win = winid, scope = "local" })
   end
 end
 
@@ -274,8 +346,12 @@ function M.clear(bufnr)
   end
   local winid = vim.fn.bufwinid(bufnr)
   if winid > 0 then
-    vim.api.nvim_set_option_value("foldmethod", s._saved_foldmethod or "manual", { win = winid })
-    vim.api.nvim_set_option_value("foldlevel", 99, { win = winid }) -- open all
+    vim.api.nvim_set_option_value(
+      "foldmethod",
+      s._saved_foldmethod or "manual",
+      { win = winid, scope = "local" }
+    )
+    vim.api.nvim_set_option_value("foldlevel", 99, { win = winid, scope = "local" }) -- open all
   end
   vim.b[bufnr].organ_sparse = nil
 end
@@ -357,13 +433,16 @@ M.commands = {
   ["sparse_tree regex"] = {
     fn = function(cmd)
       if cmd.args == "" then
-        require("organ.notify").warn("regex required")
+        require("organ.notify").warn("Lua pattern required")
         return
       end
-      M.show_regex(0, cmd.args)
+      local ok, err = pcall(M.show_regex, 0, cmd.args)
+      if not ok then
+        require("organ.notify").error(tostring(err))
+      end
     end,
     nargs = 1,
-    desc = "Sparse tree: headlines whose title matches this regex",
+    desc = "Sparse tree: headlines whose title matches this Lua pattern",
   },
   ["sparse_tree clear"] = {
     fn = function()

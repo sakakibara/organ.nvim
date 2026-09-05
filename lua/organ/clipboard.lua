@@ -11,7 +11,7 @@ local _top_level = nil -- integer: the heading level of the top headline
 
 -- Parse the level of a headline line. Returns integer or nil.
 local function headline_level(text)
-  local stars = text:match("^(%*+)%s")
+  local stars = text:match("^(%*+) ")
   if not stars then
     -- bare "*...\n" with no space after
     stars = text:match("^(%*+)$")

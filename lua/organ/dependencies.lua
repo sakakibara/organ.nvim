@@ -87,7 +87,7 @@ end
 -- any) split off. Used to recover the state on every relevant headline
 -- without round-tripping through todo.lua.
 local function parse_headline(line, sequence)
-  local stars, body = line:match("^(%*+)%s+(.*)$")
+  local stars, body = line:match("^(%*+) +(.*)$")
   if not stars then
     return nil
   end
@@ -104,13 +104,13 @@ end
 -- Find the parent headline (1-based line index) of `hl_line`, defined
 -- as the nearest preceding headline with `level` strictly less.
 function M.parent_of(lines, hl_line)
-  local stars = lines[hl_line]:match("^(%*+)%s")
+  local stars = lines[hl_line]:match("^(%*+) ")
   if not stars then
     return nil
   end
   local lvl = #stars
   for i = hl_line - 1, 1, -1 do
-    local s = lines[i]:match("^(%*+)%s")
+    local s = lines[i]:match("^(%*+) ")
     if s and #s < lvl then
       return i
     end
@@ -122,14 +122,14 @@ end
 -- exactly `level + 1`, stopping at the next sibling-or-shallower
 -- headline. Returns a list of 1-based line indices.
 function M.children_of(lines, hl_line)
-  local stars = lines[hl_line]:match("^(%*+)%s")
+  local stars = lines[hl_line]:match("^(%*+) ")
   if not stars then
     return {}
   end
   local lvl = #stars
   local out = {}
   for i = hl_line + 1, #lines do
-    local s = lines[i]:match("^(%*+)%s")
+    local s = lines[i]:match("^(%*+) ")
     if s then
       if #s <= lvl then
         break
@@ -146,14 +146,14 @@ end
 -- next sibling-or-shallower headline. Returns a list of 1-based line
 -- indices.
 function M.descendants_of(lines, hl_line)
-  local stars = lines[hl_line]:match("^(%*+)%s")
+  local stars = lines[hl_line]:match("^(%*+) ")
   if not stars then
     return {}
   end
   local lvl = #stars
   local out = {}
   for i = hl_line + 1, #lines do
-    local s = lines[i]:match("^(%*+)%s")
+    local s = lines[i]:match("^(%*+) ")
     if s then
       if #s <= lvl then
         break
@@ -168,14 +168,14 @@ end
 -- at the same level reached without crossing a shallower headline).
 -- Returned in document order. The result EXCLUDES `hl_line`.
 function M.previous_siblings_of(lines, hl_line)
-  local stars = lines[hl_line]:match("^(%*+)%s")
+  local stars = lines[hl_line]:match("^(%*+) ")
   if not stars then
     return {}
   end
   local lvl = #stars
   local out = {}
   for i = hl_line - 1, 1, -1 do
-    local s = lines[i]:match("^(%*+)%s")
+    local s = lines[i]:match("^(%*+) ")
     if s then
       if #s < lvl then
         break
@@ -241,13 +241,13 @@ end
 -- `hl_line` (between this headline and the next one of equal-or-shallower
 -- level) is unchecked. Excludes `[X]` / `[x]` / `[-]` (partial).
 function M.has_unchecked_box(lines, hl_line)
-  local stars = lines[hl_line]:match("^(%*+)%s")
+  local stars = lines[hl_line]:match("^(%*+) ")
   if not stars then
     return false
   end
   local lvl = #stars
   for i = hl_line + 1, #lines do
-    local s = lines[i]:match("^(%*+)%s")
+    local s = lines[i]:match("^(%*+) ")
     if s and #s <= lvl then
       break
     end
@@ -344,7 +344,7 @@ M.commands = {
       local prop = require("organ.property")
       local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
       local hl = line
-      while hl >= 1 and not (lines[hl] or ""):match("^%*+%s") do
+      while hl >= 1 and not (lines[hl] or ""):match("^%*+ ") do
         hl = hl - 1
       end
       if hl < 1 then

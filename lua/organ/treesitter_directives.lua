@@ -120,7 +120,7 @@ local function headline_stars(node, source)
     return 0
   end
   local first = text:match("^[^\n]*") or ""
-  local stars = first:match("^(%*+)%s") or ""
+  local stars = first:match("^(%*+) ") or ""
   return #stars
 end
 
@@ -304,7 +304,7 @@ local function register_has_todo_kw(q)
       return false
     end
     local first = text:match("^[^\n]*") or ""
-    local _, _, kw = first:find("^%*+%s+(%S+)")
+    local _, _, kw = first:find("^%*+ +(%S+)")
     if not kw then
       return false
     end
@@ -388,12 +388,12 @@ local function register_todo_keyword_directive(q)
       return
     end
     local first = text:match("^[^\n]*") or ""
-    local stars, _, _, _ = first:find("^(%*+)%s+(%S+)()")
+    local stars, _, _, _ = first:find("^(%*+) +(%S+)()")
     -- Pattern groups: stars (1), kw (2). `()` captures positions.
     if not stars then
       return
     end
-    local _, _, captured = first:find("^%*+%s+(%S+)")
+    local _, _, captured = first:find("^%*+ +(%S+)")
     if not captured then
       return
     end

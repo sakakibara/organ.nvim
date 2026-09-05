@@ -114,7 +114,7 @@ local function publish_one_file(src, dst, fn_spec)
   end
   local body = fd_in:read("*a")
   fd_in:close()
-  local out = backend.export(body)
+  local out = backend.export(body, { file_path = src })
   ensure_dir(dst)
   local fd_out, err = io.open(dst, "w")
   if not fd_out then

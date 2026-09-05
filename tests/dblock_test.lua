@@ -94,7 +94,7 @@ do
   local joined = table.concat(lines, "\n")
   assert(joined:find("#+CAPTION: Clock summary", 1, true), "caption present")
   assert(joined:find("| Headline", 1, true), "table header present")
-  assert(joined:find("| TOTAL", 1, true), "TOTAL row present")
+  assert(joined:find("| *Total time* | *0:00* |", 1, true), "total row present:\n" .. joined)
   assert(joined:find("#+END:", 1, true), "end marker preserved")
 end
 
@@ -115,20 +115,31 @@ end
 --    and column widths are display widths, not byte counts.
 do
   local q = require("organ.query")
-  local orig = q.clock_entries
+  local orig_clock, orig_headlines = q.clock_entries, q.headlines
   local seen
   q.clock_entries = function(opts)
     seen = opts
     return {
-      { title = "日本語の見出し", total_seconds = 3600 },
-      { title = "ascii", total_seconds = 60 },
+      {
+        headline_id = "h1",
+        file_path = "/f.org",
+        title = "日本語の見出し",
+        total_seconds = 3600,
+      },
+      { headline_id = "h2", file_path = "/f.org", title = "ascii", total_seconds = 60 },
+    }
+  end
+  q.headlines = function()
+    return {
+      { id = "h1", level = 1, line_start = 0, title = "日本語の見出し" },
+      { id = "h2", level = 1, line_start = 4, title = "ascii" },
     }
   end
   local lines = db.writers.clocktable(
     db.parse_params(':tstart "<2024-01-01 Mon 10:00>" :tend "<2024-01-31 Wed>"'),
     { bufnr = 0 }
   )
-  q.clock_entries = orig
+  q.clock_entries, q.headlines = orig_clock, orig_headlines
   assert(seen.from == "2024-01-01", "from: " .. tostring(seen.from))
   assert(seen.to == "2024-01-31", "to: " .. tostring(seen.to))
   local w = vim.fn.strdisplaywidth(lines[2])
@@ -138,7 +149,86 @@ do
       ("line %d width %d, expected %d: %s"):format(i, vim.fn.strdisplaywidth(lines[i]), w, lines[i])
     )
   end
-  assert(lines[4]:find("日本語の見出し", 1, true), "cjk row present: " .. lines[4])
+  assert(table.concat(lines, "\n"):find("日本語の見出し", 1, true), "cjk row present")
+end
+
+-- 7. clocktable shape matches `org-clocktable-write-default`.
+--
+-- `emacs --batch -Q`, org 9.7.11, on the fixture below with `#+BEGIN:
+-- clocktable :maxlevel 3` emits exactly (modulo the caption timestamp):
+--
+--   #+CAPTION: Clock summary at [2026-09-04 Fri 07:32]
+--   | Headline     |   Time |      |      |
+--   |--------------+--------+------+------|
+--   | *Total time* | *3:35* |      |      |
+--   |--------------+--------+------+------|
+--   | Project      |   3:15 |      |      |
+--   | \_  Task A   |        | 1:30 |      |
+--   | \_  Task B   |        | 1:45 |      |
+--   | \_    Sub B1 |        |      | 1:00 |
+--   | Other        |   0:20 |      |      |
+--
+-- and with `:block 2026-01` the caption gains ", for January 2026."
+do
+  local fixture = org_dir .. "/shape.org"
+  local fh = assert(io.open(fixture, "w"))
+  fh:write(table.concat({
+    "* Project",
+    "** Task A",
+    ":LOGBOOK:",
+    "CLOCK: [2026-01-01 Thu 09:00]--[2026-01-01 Thu 10:30] =>  1:30",
+    ":END:",
+    "** Task B",
+    ":LOGBOOK:",
+    "CLOCK: [2026-01-02 Fri 09:00]--[2026-01-02 Fri 09:45] =>  0:45",
+    ":END:",
+    "*** Sub B1",
+    ":LOGBOOK:",
+    "CLOCK: [2026-01-02 Fri 10:00]--[2026-01-02 Fri 11:00] =>  1:00",
+    ":END:",
+    "* Other",
+    ":LOGBOOK:",
+    "CLOCK: [2026-01-03 Sat 08:00]--[2026-01-03 Sat 08:20] =>  0:20",
+    ":END:",
+    "",
+  }, "\n"))
+  fh:close()
+  require("organ").scan_blocking(org_dir, 5000)
+  local b = vim.fn.bufadd(fixture)
+  vim.fn.bufload(b)
+
+  local got = db.writers.clocktable(db.parse_params(":maxlevel 3"), { bufnr = b })
+  local want = {
+    "| Headline     |   Time |      |      |",
+    "|--------------+--------+------+------|",
+    "| *Total time* | *3:35* |      |      |",
+    "|--------------+--------+------+------|",
+    "| Project      |   3:15 |      |      |",
+    "| \\_  Task A   |        | 1:30 |      |",
+    "| \\_  Task B   |        | 1:45 |      |",
+    "| \\_    Sub B1 |        |      | 1:00 |",
+    "| Other        |   0:20 |      |      |",
+  }
+  assert(
+    got[1]:match("^#%+CAPTION: Clock summary at %[%d%d%d%d%-%d%d%-%d%d %a%a%a %d%d:%d%d%]$"),
+    "caption: " .. tostring(got[1])
+  )
+  for i, line in ipairs(want) do
+    assert(got[i + 1] == line, ("row %d\n got %q\nwant %q"):format(i, tostring(got[i + 1]), line))
+  end
+  assert(#got == #want + 1, "extra rows: " .. table.concat(got, "\n"))
+
+  -- `:maxlevel 2` drops the level-3 row AND its time column.
+  local got2 = db.writers.clocktable(db.parse_params(":maxlevel 2"), { bufnr = b })
+  assert(got2[2] == "| Headline     |   Time |      |", "maxlevel 2 header: " .. got2[2])
+  assert(
+    not table.concat(got2, "\n"):find("Sub B1", 1, true),
+    "maxlevel 2 must drop level 3:\n" .. table.concat(got2, "\n")
+  )
+
+  -- `:block` adds the period to the caption, ending with a period.
+  local got3 = db.writers.clocktable(db.parse_params(":block thismonth"), { bufnr = b })
+  assert(got3[1]:find(", for ", 1, true) and got3[1]:sub(-1) == ".", "block caption: " .. got3[1])
 end
 
 vim.fn.delete(tmp, "rf")

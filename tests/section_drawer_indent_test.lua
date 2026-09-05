@@ -88,7 +88,8 @@ do
   check(out[5] == "  second line of note", "second note continuation keeps its indent")
 end
 
--- Reordering still happens; only the indents are left alone.
+-- A DEADLINE line below the drawer is body text to org, so it keeps both
+-- its place and its indent.
 do
   local b = mkbuf({
     "* TODO Task",
@@ -99,9 +100,9 @@ do
   })
   require("organ.format").format_buffer(b)
   local out = vim.api.nvim_buf_get_lines(b, 0, -1, false)
-  check(out[2] == "DEADLINE: <2026-06-17 Wed>", "planning reordered above the drawer, indent kept")
-  check(out[3] == "  :PROPERTIES:", "property drawer follows, indent kept")
-  check(out[5] == "  :END:", "property drawer close kept")
+  check(out[2] == "  :PROPERTIES:", "property drawer stays first, indent kept")
+  check(out[4] == "  :END:", "property drawer close kept")
+  check(out[5] == "DEADLINE: <2026-06-17 Wed>", "the keyword line below it stays body")
 end
 
 print("ALL PASS: section_drawer_indent")

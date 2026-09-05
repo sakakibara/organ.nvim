@@ -9,7 +9,7 @@ local M = {}
 -- source, tag policy, comment flag) stays in each caller because it
 -- legitimately differs between them.
 function M.split(line)
-  local stars, rest = line:match("^(%*+)%s+(.*)$")
+  local stars, rest = line:match("^(%*+) +(.*)$")
   if stars then
     return #stars, rest
   end

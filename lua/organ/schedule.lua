@@ -108,7 +108,9 @@ local function _set_planning(bufnr, hl_line, kind, date_str, time_info)
 end
 
 -- Public: set SCHEDULED timestamp via calendar picker.  `opts.bufnr` and
--- `opts.line` default to the current buffer + cursor line.
+-- `opts.line` default to the current buffer + cursor line.  `opts.date`
+-- ("YYYY-MM-DD", with optional `opts.time`) skips the picker, the way
+-- `org-agenda-schedule` does when it is handed a date.
 function M.set_schedule(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -117,6 +119,10 @@ function M.set_schedule(opts)
   local hl = structure._find_containing_headline(bufnr, line)
   if not hl then
     require("organ.notify").warn("not on a headline")
+    return
+  end
+  if opts.date then
+    _set_planning(bufnr, hl.line, "SCHEDULED", opts.date, opts.time)
     return
   end
   local prefill
@@ -140,7 +146,9 @@ function M.set_schedule(opts)
 end
 
 -- Public: set DEADLINE timestamp via calendar picker.  `opts.bufnr` and
--- `opts.line` default to the current buffer + cursor line.
+-- `opts.line` default to the current buffer + cursor line.  `opts.date`
+-- ("YYYY-MM-DD", with optional `opts.time`) skips the picker, the way
+-- `org-agenda-deadline` does when it is handed a date.
 function M.set_deadline(opts)
   opts = opts or {}
   local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
@@ -149,6 +157,10 @@ function M.set_deadline(opts)
   local hl = structure._find_containing_headline(bufnr, line)
   if not hl then
     require("organ.notify").warn("not on a headline")
+    return
+  end
+  if opts.date then
+    _set_planning(bufnr, hl.line, "DEADLINE", opts.date, opts.time)
     return
   end
   local prefill

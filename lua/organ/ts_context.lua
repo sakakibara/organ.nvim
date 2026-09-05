@@ -37,13 +37,20 @@ local function star_mode(pbuf)
   end
 end
 
+local function conceallevel(winid)
+  return vim.api.nvim_get_option_value("conceallevel", { win = winid, scope = "local" })
+end
+
 local function sync_conceallevel(winid, pwin)
-  if vim.wo[winid].conceallevel == vim.wo[pwin].conceallevel then
+  if conceallevel(winid) == conceallevel(pwin) then
     return
   end
   vim.schedule(function()
     if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_is_valid(pwin) then
-      vim.wo[winid].conceallevel = vim.wo[pwin].conceallevel
+      pcall(vim.api.nvim_set_option_value, "conceallevel", conceallevel(pwin), {
+        win = winid,
+        scope = "local",
+      })
     end
   end)
 end
@@ -76,7 +83,7 @@ vim.api.nvim_set_decoration_provider(NS, {
       return
     end
     local line = (vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false) or {})[1] or ""
-    local stars = line:match("^(%*+)%s")
+    local stars = line:match("^(%*+) ")
     if not stars then
       return
     end

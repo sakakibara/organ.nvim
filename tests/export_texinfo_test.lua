@@ -19,6 +19,7 @@ end
 -- 1. Headlines map to @chapter/@section/etc.
 do
   local out = texi.export([[
+#+OPTIONS: H:4
 * Top
 ** Sub
 *** Deep
