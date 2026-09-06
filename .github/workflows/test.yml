@@ -146,9 +146,12 @@ jobs:
         # there; this job is the only place it actually runs.  Fail on a
         # SKIP too -- a parity gate that did not run is not a pass.
         run: |
-          set -eo pipefail
+          set -o pipefail
           make deps grammar
-          out=$(nvim --headless -l tests/parser_emacs_diff_test.lua </dev/null 2>&1)
+          emacs --version | head -1
+          # Capture without -e so the diff is printed when it fails; the
+          # grep below is what decides the outcome.
+          out=$(nvim --headless -l tests/parser_emacs_diff_test.lua </dev/null 2>&1) || true
           echo "$out"
           echo "$out" | grep -q "^parser emacs diff ok"
 
