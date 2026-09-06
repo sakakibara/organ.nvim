@@ -115,7 +115,18 @@ assert(close(eval_expr("sinh(0)"), 0))
 assert(close(eval_expr("cosh(0)"), 1))
 assert(close(eval_expr("tanh(0)"), 0))
 assert(eval_expr("factorial(5)") == 120)
-assert(close(eval_expr("ln(e)"), 1))
+-- `e` is a symbol, the way Calc reads it, so `ln(e)` keeps the call.
+-- Bind the symbol and organ answers with the number.
+assert(F.format_value(eval_expr("ln(e)")) == "ln(e)")
+assert(close(
+  eval_expr("ln(e)", {
+    rows = {},
+    current_row = 1,
+    current_col = 1,
+    vars = { e = C.from_float(math.exp(1)) },
+  }),
+  1
+))
 assert(eval_expr("trunc(3/2)") == 1)
 assert(eval_expr("trunc(-3/2)") == -1)
 

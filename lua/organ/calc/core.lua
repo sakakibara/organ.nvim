@@ -84,6 +84,7 @@ function M.symbolic_refusal(what)
 end
 
 local sym_add, sym_sub, sym_mul, sym_div, sym_pow, sym_neg, sym_mod
+local inert_quotient
 
 local function new_int(b)
   return { kind = "int", n = b }
@@ -125,6 +126,12 @@ end
 function M.from_float(x)
   if x ~= x then
     error("calc.from_float: NaN")
+  end
+  -- Calc's floats run to a five-digit exponent, so it answers where a
+  -- double has already saturated. organ declines instead of storing an
+  -- infinity that would print as a number.
+  if x == math.huge or x == -math.huge then
+    error(M.OVERFLOW, 0)
   end
   return { kind = "float", v = x }
 end
@@ -513,6 +520,10 @@ function M.pow(v, n)
   if is_symbolic(v) or is_symbolic(n) then
     return sym_pow(v, n)
   end
+  -- A reciprocal of zero, so the form stands the way `1/0` does.
+  if type(n) == "table" and M.sign(v) == 0 and M.sign(n) < 0 then
+    return inert_quotient("^", v, n)
+  end
   -- Float exponent -> float result.
   if (type(n) == "table" and is_float(n)) or is_float(v) then
     return M.from_float(to_float_value(v) ^ to_float_value(n))
@@ -578,8 +589,14 @@ function M.sqrt(v)
   return M.from_float(math.sqrt(as_float(v)))
 end
 
+-- The real cube root, which a negative base has and `x ^ (1/3)` does
+-- not.
 function M.cbrt(v)
-  return M.from_float(as_float(v) ^ (1 / 3))
+  local x = as_float(v)
+  if x < 0 then
+    return M.from_float(-((-x) ^ (1 / 3)))
+  end
+  return M.from_float(x ^ (1 / 3))
 end
 function M.exp(v)
   return M.from_float(math.exp(as_float(v)))
@@ -618,7 +635,7 @@ function M.atan(v)
   return M.from_float(math.atan(as_float(v)))
 end
 function M.atan2(y, x)
-  return M.from_float(math.atan(as_float(y), as_float(x)))
+  return M.from_float(math.atan2(as_float(y), as_float(x)))
 end
 function M.sinh(v)
   local x = as_float(v)
@@ -628,11 +645,37 @@ function M.cosh(v)
   local x = as_float(v)
   return M.from_float((math.exp(x) + math.exp(-x)) / 2)
 end
+-- Folded around zero so a large argument saturates at +/-1 instead of
+-- dividing one overflowed exponential by another.
 function M.tanh(v)
   local x = as_float(v)
-  local e1 = math.exp(x)
-  local e2 = math.exp(-x)
-  return M.from_float((e1 - e2) / (e1 + e2))
+  local e = math.exp(-2 * math.abs(x))
+  local t = (1 - e) / (1 + e)
+  return M.from_float(x < 0 and -t or t)
+end
+
+-- The exact integer an integral float names. A Calc float carries
+-- twelve significant decimal digits, so the integer is read off that
+-- decimal form rather than off the wider binary double organ holds it
+-- in: 1e30 is ten to the thirtieth, not the 1000000000000000019...
+-- the double happens to sit on.
+local function exact_from_float(x)
+  if x == 0 then
+    return new_int(bn.zero())
+  end
+  local lead, rest, e = string.format("%.11e", math.abs(x)):match("^(%d)%.(%d+)e([%+%-]%d+)$")
+  if not lead then
+    error(M.OVERFLOW, 0)
+  end
+  local digits, exp = lead .. rest, tonumber(e)
+  if exp >= #digits - 1 then
+    digits = digits .. string.rep("0", exp - #digits + 1)
+  else
+    digits = digits:sub(1, exp + 1)
+  end
+  local n = bn.from_digits_string(digits)
+  n.sign = x < 0 and -1 or 1
+  return new_int(n)
 end
 
 function M.ceil(v)
@@ -646,7 +689,7 @@ function M.ceil(v)
     end
     return new_int(bn.add(q, bn.from_int(1)))
   end
-  return M.from_float(math.ceil(as_float(v)))
+  return exact_from_float(math.ceil(as_float(v)))
 end
 
 function M.floor(v)
@@ -660,7 +703,7 @@ function M.floor(v)
     end
     return new_int(bn.sub(q, bn.from_int(1)))
   end
-  return M.from_float(math.floor(as_float(v)))
+  return exact_from_float(math.floor(as_float(v)))
 end
 
 function M.trunc(v)
@@ -671,7 +714,7 @@ function M.trunc(v)
     return new_int((bn.divmod(v.num, v.den)))
   end
   local x = as_float(v)
-  return M.from_float(x >= 0 and math.floor(x) or math.ceil(x))
+  return exact_from_float(x >= 0 and math.floor(x) or math.ceil(x))
 end
 
 function M.round(v)
@@ -690,7 +733,7 @@ function M.round(v)
     return new_int(r)
   end
   local x = as_float(v)
-  return M.from_float(x >= 0 and math.floor(x + 0.5) or -math.floor(-x + 0.5))
+  return exact_from_float(x >= 0 and math.floor(x + 0.5) or -math.floor(-x + 0.5))
 end
 
 -- A float that happens to be whole counts as the integer it names.
@@ -1216,7 +1259,7 @@ end
 -- Calc answers a zero-divisor quotient or remainder with the form
 -- itself. It is a value like any other -- it renders, and it composes --
 -- but nothing rewrites it, so `8/0 - 8/0` is not 0.
-local function inert_quotient(op, a, b)
+function inert_quotient(op, a, b)
   local v = expr(op, a, b)
   v.inert = true
   return v

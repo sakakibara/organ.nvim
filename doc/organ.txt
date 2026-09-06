@@ -2047,6 +2047,8 @@ up to date for organ to use it; see |organ-requires-tablature|.
                         `@>$1=vsum(@I$1..@II$1)`
      `h1`, `x`          a field spelled like a name reads as a
                         symbol, so `$3=$1+4` gives `h1 + 4`
+     `pi`, `e`          a constant stays symbolic as it does in
+                        Calc, so `$3=pi*2` gives `2 pi`
      `8/0`              a zero divisor has no answer, so the
                         quotient is kept as Calc keeps it
 
@@ -2058,9 +2060,12 @@ up to date for organ to use it; see |organ-requires-tablature|.
     as org does. Valid org syntax organ has not implemented -- the
     other `;` mode flags, `remote()`, hlines relative to the current
     row, `if()` over a symbolic condition, `vmedian` / `vsdev` / `vvar`
-    / `vmaxabs` / `vproduct` over a symbol, and the square root of a
-    negative number, which Calc answers with a complex pair -- is
-    refused with a message and the table is left exactly as it was.
+    / `vmaxabs` / `vproduct` over a symbol, and every answer Calc
+    reaches outside the reals -- the square root or logarithm of a
+    negative number, a fractional power of one, and `arcsin` /
+    `arccos` past -1..1, each of which Calc answers with a complex
+    pair, plus a float past the range organ holds -- is refused with
+    a message and the table is left exactly as it was.
     Exact integer results are capped where Emacs caps them (65536
     bits); past that the formula is refused as an arithmetic overflow
     instead of computed.

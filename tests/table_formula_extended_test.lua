@@ -21,6 +21,23 @@ local function eval_expr_only(src)
   })
 end
 
+-- The same, with `pi` / `e` bound to numbers.  Calc reads them as
+-- symbols, so a caller that wants the number asks for it.
+local function eval_bound(src, vars, radians)
+  local parsed = f.parse("$1=" .. src)
+  local bound = {}
+  for name, x in pairs(vars) do
+    bound[name] = require("organ.calc").from_float(x)
+  end
+  return f.eval(parsed[1].expr, {
+    rows = { { cells = {} } },
+    current_row = 1,
+    current_col = 1,
+    vars = bound,
+    radians = radians,
+  })
+end
+
 -- The same, in the angular mode a formula asks for with `;R`.
 local function eval_radians(src)
   local parsed = f.parse("$1=" .. src)
@@ -39,7 +56,7 @@ assert(close(eval_expr_only("floor(2.9)"), 2), "floor")
 assert(close(eval_expr_only("round(2.5)"), 3), "round")
 assert(close(eval_expr_only("sign(-5)"), -1), "sign")
 assert(close(eval_expr_only("exp(0)"), 1), "exp")
-assert(close(eval_expr_only("log(e)"), 1), "log(e) = 1")
+assert(close(eval_bound("log(e)", { e = math.exp(1) }), 1), "log(e) = 1")
 assert(close(eval_expr_only("log10(100)"), 2), "log10")
 assert(close(eval_expr_only("log2(8)"), 3), "log2")
 assert(close(eval_expr_only("sin(0)"), 0), "sin")
@@ -57,8 +74,12 @@ assert(close(eval_expr_only("max(3, 5)"), 5), "max")
 assert(close(eval_expr_only("atan2(1, 1)"), 45), "atan2 degrees")
 assert(close(eval_radians("atan2(1, 1)"), math.pi / 4), "atan2 radians")
 
-assert(close(eval_expr_only("pi"), math.pi), "pi const")
-assert(close(eval_expr_only("e"), math.exp(1)), "e const")
+-- Calc keeps `pi` and `e` symbolic in a table formula, so that is what
+-- a bare constant evaluates to; a caller binds the symbol for a number.
+assert(f.format_value(eval_expr_only("pi")) == "pi", "pi const")
+assert(f.format_value(eval_expr_only("e")) == "e", "e const")
+assert(close(eval_bound("pi", { pi = math.pi }), math.pi), "pi bound")
+assert(close(eval_bound("e", { e = math.exp(1) }), math.exp(1)), "e bound")
 
 -- Aggregations still work over real cells.
 do
@@ -84,8 +105,10 @@ do
   assert(close(v, math.sqrt(6)), "sqrt(vsum(1..3)) = sqrt(6); got " .. tostring(v))
 end
 
--- Trig with constants: sin(pi/2) = 1, in radians.
-assert(close(eval_radians("sin(pi/2)"), 1), "sin(pi/2)")
+-- Trig with constants.  Calc leaves `sin(pi / 2)` standing because
+-- `pi` is a symbol; bind it and the radian answer is 1.
+assert(f.format_value(eval_radians("sin(pi/2)")) == "sin(pi / 2)", "sin(pi/2) stands")
+assert(close(eval_bound("sin(pi/2)", { pi = math.pi }, true), 1), "sin(pi/2)")
 
 io.write("table formula extended ok\n")
 os.exit(0)

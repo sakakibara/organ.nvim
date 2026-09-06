@@ -661,16 +661,62 @@ local function inverse_trig(C, r, ctx)
   return C.from_float(C.to_number(r) / DEGREE)
 end
 
+-- Calc answers these with a complex pair. organ has no complex tower,
+-- so it declines rather than write a real number that is not the
+-- answer: a refused formula leaves every field as the user left it.
+local function real_only(C, v, what)
+  if C.sign(v) < 0 then
+    refuse(what)
+  end
+end
+
+-- Calc's principal root of a negative base is complex whenever the
+-- exponent is not a whole number, `(-8)^(1/3)` included.
+local function power(C, a, b)
+  if not (C.is_symbolic(a) or C.is_symbolic(b)) and C.sign(a) < 0 and not C.is_whole(b) then
+    refuse("a fractional power of a negative number")
+  end
+  return C.pow(a, b)
+end
+
+-- The angle whose sine / cosine / tangent is exact, by argument, in
+-- degrees. Calc is exact only at these three points, and only for an
+-- exact argument; in Radians mode only the zero angle survives.
+local INVERSE_EXACT = {
+  arcsin = { [-1] = -90, [0] = 0, [1] = 90 },
+  arccos = { [-1] = 180, [0] = 90, [1] = 0 },
+  arctan = { [-1] = -45, [0] = 0, [1] = 45 },
+}
+
+local function inverse_on_axis(C, name, v, ctx)
+  if not C.is_int(v) then
+    return nil
+  end
+  local degrees = INVERSE_EXACT[name][C.to_number(v)]
+  if degrees == nil then
+    return nil
+  end
+  if radians_mode(ctx) and degrees ~= 0 then
+    return nil
+  end
+  return C.from_int(radians_mode(ctx) and 0 or degrees)
+end
+
+-- `arcsin` and `arccos` have no real value outside -1..1, where Calc
+-- answers with a complex pair.
+local function bounded_inverse(C, name, fn, v, ctx)
+  if math.abs(C.to_number(v)) > 1 then
+    refuse(name .. "() outside -1..1")
+  end
+  return inverse_on_axis(C, name, v, ctx) or inverse_trig(C, fn(v), ctx)
+end
+
 local SCALAR_C = {
   abs = function(C, v)
     return C.abs(v)
   end,
   sqrt = function(C, v)
-    -- Calc answers with a complex pair. organ has no complex tower, so
-    -- it declines rather than write a real number that is not the root.
-    if C.sign(v) < 0 then
-      refuse("sqrt() of a negative number")
-    end
+    real_only(C, v, "sqrt() of a negative number")
     return C.sqrt(v)
   end,
   cbrt = function(C, v)
@@ -680,12 +726,15 @@ local SCALAR_C = {
     return C.exp(v)
   end,
   ln = function(C, v)
+    real_only(C, v, "ln() of a negative number")
     return C.ln(v)
   end,
   log = function(C, v)
+    real_only(C, v, "log() of a negative number")
     return C.ln(v)
   end, -- alias of ln
   log10 = function(C, v)
+    real_only(C, v, "log10() of a negative number")
     return C.log10(v)
   end,
   log2 = function(C, v)
@@ -727,6 +776,17 @@ local SCALAR_C = {
   atan = function(C, v, ctx)
     return inverse_trig(C, C.atan(v), ctx)
   end,
+  -- Calc's own spellings, beside organ's. These answer where Calc
+  -- answers, exactly where Calc is exact.
+  arcsin = function(C, v, ctx)
+    return bounded_inverse(C, "arcsin", C.asin, v, ctx)
+  end,
+  arccos = function(C, v, ctx)
+    return bounded_inverse(C, "arccos", C.acos, v, ctx)
+  end,
+  arctan = function(C, v, ctx)
+    return inverse_on_axis(C, "arctan", v, ctx) or inverse_trig(C, C.atan(v), ctx)
+  end,
   sinh = function(C, v)
     return C.sinh(v)
   end,
@@ -755,7 +815,7 @@ local SCALAR_C = {
 
 local BINARY_C = {
   pow = function(C, a, b)
-    return C.pow(a, b)
+    return power(C, a, b)
   end,
   mod = function(C, a, b)
     return C.mod(a, b)
@@ -767,6 +827,9 @@ local BINARY_C = {
     return C.gt(a, b) and a or b
   end,
   atan2 = function(C, a, b, ctx)
+    return inverse_trig(C, C.atan2(a, b), ctx)
+  end,
+  arctan2 = function(C, a, b, ctx)
     return inverse_trig(C, C.atan2(a, b), ctx)
   end,
   gcd = function(C, a, b)
@@ -852,13 +915,34 @@ local function vector_length(args, ctx)
 end
 
 -- Where Calc has no answer for numeric arguments either and keeps the
--- call: a logarithm of zero, a gcd or lcm over a fraction.
-local LOGARITHM = { ln = true, log = true, log10 = true, log2 = true }
+-- call: a logarithm of zero, a gcd or lcm over a fraction. organ's own
+-- functions -- the ones Calc has no name for and always prints back --
+-- stand the same way wherever organ has no answer, so a field gets the
+-- call rather than an error.
+local LOGARITHM = { ln = true, log = true, log10 = true }
+local BOUNDED = { asin = true, acos = true }
 
 local function outside_domain(name, values)
   local C = calc()
   if LOGARITHM[name] then
     return C.sign(values[1]) == 0
+  end
+  if name == "log2" then
+    return C.sign(values[1]) <= 0
+  end
+  if BOUNDED[name] then
+    return math.abs(C.to_number(values[1])) > 1
+  end
+  if name == "binomial" then
+    for _, v in ipairs(values) do
+      if not C.is_whole(v) then
+        return true
+      end
+    end
+    return false
+  end
+  if name == "factorial" then
+    return not C.is_int(values[1]) or C.sign(values[1]) < 0
   end
   if name == "gcd" or name == "lcm" then
     local zeros = 0
@@ -980,11 +1064,11 @@ local function const_value(name, ctx)
     return ctx.vars[name]
   end
   local C = calc()
-  if name == "pi" then
-    return C.from_float(math.pi)
-  end
-  if name == "e" then
-    return C.from_float(math.exp(1))
+  -- Calc keeps these symbolic: `pi` is `pi`, `pi*2` is `2 pi`, and
+  -- `sin(pi/2)` stands unevaluated. A caller that wants the number
+  -- binds it through ctx.vars above.
+  if name == "pi" or name == "e" then
+    return C.sym(name)
   end
   error("formula: unknown constant '" .. tostring(name) .. "'")
 end
@@ -1047,7 +1131,7 @@ local function eval_node(node, ctx)
       return C.mod(a, b)
     end
     if node.op == "^" then
-      return C.pow(a, b)
+      return power(C, a, b)
     end
     error("formula: unknown binop '" .. tostring(node.op) .. "'")
   end
@@ -1194,6 +1278,10 @@ function M.format_result(v, fm)
   end
   if fm.conv:match("[diouxX]") then
     x = x < 0 and -math.floor(-x) or math.floor(x)
+  end
+  -- Calc has no negative zero, so nothing it prints starts "-0.".
+  if x == 0 then
+    x = 0
   end
   local ok, text = pcall(string.format, fm.fmt, x)
   if not ok then
