@@ -365,9 +365,15 @@ local function parse_mode(s)
     end
     mode.fmt = fmt
   end
+  -- `R` and `D` name the same setting from either side, so the last of
+  -- the two wins: `;RD` computes in degrees, `;DR` in radians.
   for flag in flags:gmatch("%S") do
     if flag == "N" then
       mode.numeric = true
+    elseif flag == "R" then
+      mode.radians = true
+    elseif flag == "D" then
+      mode.radians = false
     else
       refuse("unsupported formula mode flag '" .. flag .. "'")
     end
@@ -601,11 +607,70 @@ local AGG = {
   end,
 }
 
+-- Calc's angular mode. A table formula computes in Degrees; `;R` asks
+-- for Radians. `sind` / `cosd` / `tand` are organ's own spellings and
+-- stay in degrees under either.
+local DEGREE = math.pi / 180
+
+-- Where Calc has an exact answer, indexed by the argument's quarter
+-- turn. `false` is a pole: the tangent has no value there, so the call
+-- stands instead of the 1.6e16 a trip through radians would give.
+local QUADRANT = {
+  sin = { 0, 1, 0, -1 },
+  cos = { 1, 0, -1, 0 },
+  tan = { 0, false, 0, false },
+}
+
+local function radians_mode(ctx)
+  return ctx ~= nil and ctx.radians == true
+end
+
+-- The exact answer `q` quarter turns round, in the argument's own
+-- exactness; nil where the function has no value at that angle.
+local function on_axis(C, name, v, q)
+  local exact = QUADRANT[name][q % 4 + 1]
+  if exact == false then
+    return nil
+  end
+  return C.is_float(v) and C.from_float(exact) or C.from_int(exact)
+end
+
+local function degree_trig(C, name, v)
+  local x = C.to_number(v)
+  local q = x / 90
+  if math.abs(q) < 2 ^ 53 and q == math.floor(q) then
+    return on_axis(C, name, v, q)
+  end
+  return C[name](C.from_float(x * DEGREE))
+end
+
+local function trig(C, name, v, ctx)
+  if not radians_mode(ctx) then
+    return degree_trig(C, name, v)
+  end
+  if C.to_number(v) == 0 then
+    return on_axis(C, name, v, 0)
+  end
+  return C[name](v)
+end
+
+local function inverse_trig(C, r, ctx)
+  if radians_mode(ctx) then
+    return r
+  end
+  return C.from_float(C.to_number(r) / DEGREE)
+end
+
 local SCALAR_C = {
   abs = function(C, v)
     return C.abs(v)
   end,
   sqrt = function(C, v)
+    -- Calc answers with a complex pair. organ has no complex tower, so
+    -- it declines rather than write a real number that is not the root.
+    if C.sign(v) < 0 then
+      refuse("sqrt() of a negative number")
+    end
     return C.sqrt(v)
   end,
   cbrt = function(C, v)
@@ -644,23 +709,23 @@ local SCALAR_C = {
   neg = function(C, v)
     return C.neg(v)
   end,
-  sin = function(C, v)
-    return C.sin(v)
+  sin = function(C, v, ctx)
+    return trig(C, "sin", v, ctx)
   end,
-  cos = function(C, v)
-    return C.cos(v)
+  cos = function(C, v, ctx)
+    return trig(C, "cos", v, ctx)
   end,
-  tan = function(C, v)
-    return C.tan(v)
+  tan = function(C, v, ctx)
+    return trig(C, "tan", v, ctx)
   end,
-  asin = function(C, v)
-    return C.asin(v)
+  asin = function(C, v, ctx)
+    return inverse_trig(C, C.asin(v), ctx)
   end,
-  acos = function(C, v)
-    return C.acos(v)
+  acos = function(C, v, ctx)
+    return inverse_trig(C, C.acos(v), ctx)
   end,
-  atan = function(C, v)
-    return C.atan(v)
+  atan = function(C, v, ctx)
+    return inverse_trig(C, C.atan(v), ctx)
   end,
   sinh = function(C, v)
     return C.sinh(v)
@@ -672,13 +737,13 @@ local SCALAR_C = {
     return C.tanh(v)
   end,
   sind = function(C, v)
-    return C.sin(C.mul(v, C.from_float(math.pi / 180)))
+    return degree_trig(C, "sin", v)
   end,
   cosd = function(C, v)
-    return C.cos(C.mul(v, C.from_float(math.pi / 180)))
+    return degree_trig(C, "cos", v)
   end,
   tand = function(C, v)
-    return C.tan(C.mul(v, C.from_float(math.pi / 180)))
+    return degree_trig(C, "tan", v)
   end,
   factorial = function(C, v)
     return C.factorial(v)
@@ -701,8 +766,8 @@ local BINARY_C = {
   max = function(C, a, b)
     return C.gt(a, b) and a or b
   end,
-  atan2 = function(C, a, b)
-    return C.atan2(a, b)
+  atan2 = function(C, a, b, ctx)
+    return inverse_trig(C, C.atan2(a, b), ctx)
   end,
   gcd = function(C, a, b)
     return C.gcd(a, b)
@@ -796,6 +861,17 @@ local function outside_domain(name, values)
     return C.sign(values[1]) == 0
   end
   if name == "gcd" or name == "lcm" then
+    local zeros = 0
+    for _, v in ipairs(values) do
+      if C.sign(v) == 0 then
+        zeros = zeros + 1
+      end
+    end
+    -- A zero argument answers whatever the other one is, whole or not.
+    -- `lcm(0, 0)` is the exception: that one is a quotient over zero.
+    if zeros > 0 then
+      return name == "lcm" and zeros == #values
+    end
     for _, v in ipairs(values) do
       if not C.is_whole(v) then
         return true
@@ -860,7 +936,11 @@ local function apply_function(name, args, ctx)
     if C.is_symbolic(v) or outside_domain(name, { v }) then
       return C.sym_call(CALC_NAME[name] or name, { v })
     end
-    return SCALAR_C[name](C, v)
+    local result = SCALAR_C[name](C, v, ctx)
+    if result == nil then
+      return C.sym_call(CALC_NAME[name] or name, { v })
+    end
+    return result
   end
   if BINARY_C[name] then
     local a = eval_calc(args[1], ctx)
@@ -877,7 +957,7 @@ local function apply_function(name, args, ctx)
     if outside_domain(name, { a, b }) then
       return C.sym_call(CALC_NAME[name] or name, { a, b })
     end
-    return BINARY_C[name](C, a, b)
+    return BINARY_C[name](C, a, b, ctx)
   end
   -- A function Calc has no answer for stays as the call itself, with its
   -- arguments evaluated: `foo($1)` -> `foo(1)`.

@@ -103,11 +103,21 @@ assert_table("$4=$2*$3;%.2f::@4$4=vsum(@I$4..@II$4)", {
   "| sum  |     |       |  13.5 |",
 })
 
+-- `;R` and `;D` set the angular mode and change nothing else.
+-- tests/table_formula_trig_test.lua pins what they do to the trig.
+assert_table("$4=$2+$3;R::@4$4=vsum(@I$4..@II$4);D", {
+  "| item | qty | price | total |",
+  "|------+-----+-------+-------|",
+  "| pen  |   3 |     2 |     5 |",
+  "| pad  |   5 |   1.5 |   6.5 |",
+  "|------+-----+-------+-------|",
+  "| sum  |     |       |  11.5 |",
+})
+
 -- Refused: valid org organ has not implemented.  Emacs aborts the
 -- recalculation on each of these too, and in every case the fields the
 -- user typed have to come back untouched -- never #ERROR.
 local REFUSED = {
-  "$4=$2+$3;R",
   "$4=$2+$3;E",
   "$4=$2+$3;f3",
   "$4=remote(other,@1$1)",

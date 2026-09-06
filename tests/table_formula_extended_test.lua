@@ -21,6 +21,17 @@ local function eval_expr_only(src)
   })
 end
 
+-- The same, in the angular mode a formula asks for with `;R`.
+local function eval_radians(src)
+  local parsed = f.parse("$1=" .. src)
+  return f.eval(parsed[1].expr, {
+    rows = { { cells = {} } },
+    current_row = 1,
+    current_col = 1,
+    radians = true,
+  })
+end
+
 assert(close(eval_expr_only("abs(-3)"), 3), "abs")
 assert(close(eval_expr_only("sqrt(16)"), 4), "sqrt")
 assert(close(eval_expr_only("ceil(2.1)"), 3), "ceil")
@@ -31,8 +42,11 @@ assert(close(eval_expr_only("exp(0)"), 1), "exp")
 assert(close(eval_expr_only("log(e)"), 1), "log(e) = 1")
 assert(close(eval_expr_only("log10(100)"), 2), "log10")
 assert(close(eval_expr_only("log2(8)"), 3), "log2")
-assert(close(eval_expr_only("sin(0)"), 0), "sin radians")
-assert(close(eval_expr_only("cos(0)"), 1), "cos radians")
+assert(close(eval_expr_only("sin(0)"), 0), "sin")
+assert(close(eval_expr_only("cos(0)"), 1), "cos")
+assert(close(eval_expr_only("sin(30)"), 0.5), "sin degrees")
+assert(close(eval_expr_only("cos(60)"), 0.5), "cos degrees")
+assert(close(eval_expr_only("tan(45)"), 1), "tan degrees")
 assert(close(eval_expr_only("sind(90)"), 1), "sind degrees")
 assert(close(eval_expr_only("cosd(180)"), -1), "cosd degrees")
 
@@ -40,7 +54,8 @@ assert(close(eval_expr_only("pow(2, 10)"), 1024), "pow")
 assert(close(eval_expr_only("mod(7, 3)"), 1), "mod")
 assert(close(eval_expr_only("min(3, 5)"), 3), "min")
 assert(close(eval_expr_only("max(3, 5)"), 5), "max")
-assert(close(eval_expr_only("atan2(1, 1)"), math.pi / 4), "atan2")
+assert(close(eval_expr_only("atan2(1, 1)"), 45), "atan2 degrees")
+assert(close(eval_radians("atan2(1, 1)"), math.pi / 4), "atan2 radians")
 
 assert(close(eval_expr_only("pi"), math.pi), "pi const")
 assert(close(eval_expr_only("e"), math.exp(1)), "e const")
@@ -69,8 +84,8 @@ do
   assert(close(v, math.sqrt(6)), "sqrt(vsum(1..3)) = sqrt(6); got " .. tostring(v))
 end
 
--- Trig with constants: sin(pi/2) = 1.
-assert(close(eval_expr_only("sin(pi/2)"), 1), "sin(pi/2)")
+-- Trig with constants: sin(pi/2) = 1, in radians.
+assert(close(eval_radians("sin(pi/2)"), 1), "sin(pi/2)")
 
 io.write("table formula extended ok\n")
 os.exit(0)

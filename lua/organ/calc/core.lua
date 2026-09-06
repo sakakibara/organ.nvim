@@ -693,24 +693,47 @@ function M.round(v)
   return M.from_float(x >= 0 and math.floor(x + 0.5) or -math.floor(-x + 0.5))
 end
 
-function M.gcd(a, b)
-  if not (is_int(a) and is_int(b)) then
-    error("calc.gcd: integers only")
+-- A float that happens to be whole counts as the integer it names.
+local function whole_digits(v, who)
+  if is_int(v) then
+    return v.n
   end
-  return new_int(bn.gcd(a.n, b.n))
+  if is_float(v) and v.v == math.floor(v.v) and math.abs(v.v) <= 2 ^ 53 then
+    return bn.from_int(v.v)
+  end
+  error("calc." .. who .. ": integers only")
 end
 
+-- Zero divides everything, so the other argument is the answer whether
+-- or not it is whole.
+function M.gcd(a, b)
+  if M.sign(a) == 0 then
+    return M.abs(b)
+  end
+  if M.sign(b) == 0 then
+    return M.abs(a)
+  end
+  return new_int(bn.gcd(whole_digits(a, "gcd"), whole_digits(b, "gcd")))
+end
+
+-- gcd is exact whatever it was handed; lcm carries a float argument's
+-- inexactness into the result.
 function M.lcm(a, b)
-  if not (is_int(a) and is_int(b)) then
-    error("calc.lcm: integers only")
+  local inexact = is_float(a) or is_float(b)
+  local r
+  if M.sign(a) == 0 or M.sign(b) == 0 then
+    r = M.from_int(0)
+  else
+    local x, y = whole_digits(a, "lcm"), whole_digits(b, "lcm")
+    local g = bn.gcd(x, y)
+    local p = bn.mul(x, y)
+    p.sign = 1
+    r = new_int((bn.divmod(p, g)))
   end
-  if bn.is_zero(a.n) or bn.is_zero(b.n) then
-    return M.from_int(0)
+  if inexact then
+    return M.from_float(M.to_number(r))
   end
-  local g = bn.gcd(a.n, b.n)
-  local p = bn.mul(a.n, b.n)
-  p.sign = 1
-  return new_int((bn.divmod(p, g)))
+  return r
 end
 
 function M.factorial(n)

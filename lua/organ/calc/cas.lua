@@ -382,7 +382,9 @@ end
 
 local function _eval_at(ast, var, c)
   local F = require("organ.table.formula")
-  local ctx = { rows = {}, current_row = 1, current_col = 1, vars = { [var] = c } }
+  -- The derivative and integral rules here are the radian ones, so a
+  -- limit has to be taken against the same angle measure.
+  local ctx = { rows = {}, current_row = 1, current_col = 1, vars = { [var] = c }, radians = true }
   local ok, v = pcall(F.eval_calc, ast, ctx)
   if not ok or core.is_inert(v) then
     return nil

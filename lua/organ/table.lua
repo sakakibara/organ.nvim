@@ -327,6 +327,7 @@ function M.eval_formulas(bufnr)
       current_row = r,
       current_col = c,
       numeric = fm.numeric,
+      radians = fm.radians,
     })
     if not ok then
       if formula.refused(v) then
