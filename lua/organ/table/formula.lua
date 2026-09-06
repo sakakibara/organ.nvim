@@ -256,15 +256,27 @@ function Parser:parse_pow()
   return left
 end
 
-function Parser:parse_term()
+function Parser:parse_product()
   local left = self:parse_unary()
+  while self:peek() and self:peek().type == "op" and self:peek().value == "*" do
+    self:advance()
+    local right = self:parse_unary()
+    left = { kind = "binop", op = "*", left = left, right = right }
+  end
+  return left
+end
+
+-- Calc binds `*` tighter than `/` and `%`, so `a/b*c` is `a/(b*c)`
+-- while `a*b/c` stays `(a*b)/c`.
+function Parser:parse_term()
+  local left = self:parse_product()
   while
     self:peek()
     and self:peek().type == "op"
-    and (self:peek().value == "*" or self:peek().value == "/" or self:peek().value == "%")
+    and (self:peek().value == "/" or self:peek().value == "%")
   do
     local op = self:advance().value
-    local right = self:parse_unary()
+    local right = self:parse_product()
     left = { kind = "binop", op = op, left = left, right = right }
   end
   return left

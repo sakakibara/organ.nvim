@@ -88,6 +88,13 @@ assert_third("$3=-$1", { "-h1", "-x" })
 assert_third("$3=$1^2", { "h1^2", "x^2" })
 assert_third("$3=($1+2)/2", { "h1 / 2 + 1", "x / 2 + 1" })
 
+-- A denominator swallows the multiplications after it here too.
+assert_third("$3=$1/2*4", { "h1 / 8", "x / 8" })
+assert_third("$3=$1/$2*4", { "h1 / 8", "x / 12" })
+assert_third("$3=2/$1*4", { "0.5 / h1", "0.5 / x" })
+assert_third("$3=$1*2/4", { "0.5 h1", "0.5 x" })
+assert_third("$3=($1/2)*4", { "2 h1", "2 x" })
+
 -- Like terms and equal bases collect.
 assert_third("$3=$1+$1", { "2 h1", "2 x" })
 assert_third("$3=$1-$1", { "0", "0" })
