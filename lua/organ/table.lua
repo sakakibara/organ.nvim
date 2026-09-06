@@ -348,31 +348,30 @@ function M.eval_formulas(bufnr)
   -- "Formula column target too large").  Column formulas have no such cap
   -- there and keep organ's unbounded growth.
   for _, fm in ipairs(formulas) do
-    if fm.kind == "cell_formula" and fm.col > 1000 then
+    if fm.kind == "cell_formula" and fm.col and fm.col > 1000 then
       require("organ.notify").error("Formula column target too large")
       return false
     end
   end
 
+  local geometry = { rows = data_rows, ncols = ncols }
+
   local applied, err = pcall(function()
     for _, fm in ipairs(formulas) do
+      local target_row, target_col = formula.resolve_target(fm, geometry)
       if fm.kind == "col_formula" then
         for r = first_body, #data_rows do
-          if not is_alignment_marker(data_rows[r].cells[fm.col] or "") then
-            set_cell(data_rows[r], fm.col, evaluate(fm, r, fm.col))
+          if not is_alignment_marker(data_rows[r].cells[target_col] or "") then
+            set_cell(data_rows[r], target_col, evaluate(fm, r, target_col))
           end
         end
       elseif fm.kind == "cell_formula" then
-        local row = data_rows[fm.row]
-        if row then
-          set_cell(row, fm.col, evaluate(fm, fm.row, fm.col))
-        end
+        local row = data_rows[target_row]
+        set_cell(row, target_col, evaluate(fm, target_row, target_col))
       elseif fm.kind == "row_formula" then
-        local row = data_rows[fm.row]
-        if row then
-          for c = 1, #row.cells do
-            row.cells[c] = evaluate(fm, fm.row, c)
-          end
+        local row = data_rows[target_row]
+        for c = 1, #row.cells do
+          row.cells[c] = evaluate(fm, target_row, c)
         end
       end
     end

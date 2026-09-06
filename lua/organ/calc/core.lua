@@ -24,13 +24,20 @@ end
 local function is_sym(v)
   return type(v) == "table" and v.kind == "sym"
 end
+local function is_expr(v)
+  return type(v) == "table" and v.kind == "expr"
+end
 
 local function is_numeric(v)
   return is_int(v) or is_rat(v) or is_float(v)
 end
 
+local function is_symbolic(v)
+  return is_sym(v) or is_expr(v)
+end
+
 function M.is_calc(v)
-  return is_int(v) or is_rat(v) or is_float(v) or is_unit(v) or is_sym(v)
+  return is_int(v) or is_rat(v) or is_float(v) or is_unit(v) or is_sym(v) or is_expr(v)
 end
 function M.is_int(v)
   return is_int(v)
@@ -47,6 +54,20 @@ end
 function M.is_symbol(v)
   return is_sym(v)
 end
+function M.is_symbolic(v)
+  return is_symbolic(v)
+end
+
+-- Operations that have no symbolic answer organ is prepared to spell.
+-- Raised as a string so organ.table.formula reports a refusal and
+-- leaves the user's fields alone instead of writing #ERROR.
+M.SYMBOLIC = "calc: no symbolic "
+
+function M.symbolic_refusal(what)
+  error(M.SYMBOLIC .. what, 0)
+end
+
+local sym_add, sym_sub, sym_mul, sym_div, sym_pow, sym_neg
 
 local function new_int(b)
   return { kind = "int", n = b }
@@ -186,6 +207,9 @@ function M.to_string(v)
   if is_sym(v) then
     return v.name
   end
+  if is_expr(v) then
+    return M.render_expr(v, M.to_string)
+  end
   error("calc.to_string: not a Calc value")
 end
 
@@ -219,6 +243,9 @@ local function to_float_value(v)
 end
 
 function M.neg(v)
+  if is_symbolic(v) then
+    return sym_neg(v)
+  end
   if is_int(v) then
     return new_int(bn.neg(v.n))
   end
@@ -255,6 +282,9 @@ function M.abs(v)
 end
 
 function M.sign(v)
+  if is_symbolic(v) then
+    M.symbolic_refusal("sign")
+  end
   if is_int(v) then
     if bn.is_zero(v.n) then
       return 0
@@ -286,6 +316,9 @@ local function any_float(a, b)
 end
 
 function M.cmp(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    M.symbolic_refusal("comparison")
+  end
   if any_float(a, b) then
     local av, bv = to_float_value(a), to_float_value(b)
     if av < bv then
@@ -366,6 +399,9 @@ local function mul_checked(a, b)
 end
 
 function M.add(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    return sym_add(a, b)
+  end
   if is_unit(a) or is_unit(b) then
     return unit_op("add", a, b)
   end
@@ -381,6 +417,9 @@ function M.add(a, b)
 end
 
 function M.sub(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    return sym_sub(a, b)
+  end
   if is_unit(a) or is_unit(b) then
     return unit_op("sub", a, b)
   end
@@ -388,6 +427,9 @@ function M.sub(a, b)
 end
 
 function M.mul(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    return sym_mul(a, b)
+  end
   if is_unit(a) or is_unit(b) then
     return unit_op("mul", a, b)
   end
@@ -403,6 +445,9 @@ function M.mul(a, b)
 end
 
 function M.div(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    return sym_div(a, b)
+  end
   if is_unit(a) or is_unit(b) then
     return unit_op("div", a, b)
   end
@@ -422,6 +467,9 @@ function M.div(a, b)
 end
 
 function M.mod(a, b)
+  if is_symbolic(a) or is_symbolic(b) then
+    M.symbolic_refusal("modulo")
+  end
   if any_float(a, b) then
     local bv = to_float_value(b)
     if bv == 0 then
@@ -443,6 +491,9 @@ function M.mod(a, b)
 end
 
 function M.pow(v, n)
+  if is_symbolic(v) or is_symbolic(n) then
+    return sym_pow(v, n)
+  end
   -- Float exponent -> float result.
   if (type(n) == "table" and is_float(n)) or is_float(v) then
     return M.from_float(to_float_value(v) ^ to_float_value(n))
@@ -1107,6 +1158,372 @@ function M.simplify_binop(op, a, b)
     return nil
   end
   return nil
+end
+
+-- Symbolic expressions: one operator over Calc values, built by the
+-- arithmetic entry points whenever an operand is symbolic. Construction
+-- applies Calc's local rewrites (distribute a numeric factor over a
+-- sum, collect like terms and equal bases, fold an adjacent constant),
+-- so an expression prints the way Calc prints it.
+
+local function expr(op, left, right)
+  return { kind = "expr", op = op, left = left, right = right }
+end
+
+local function no_units(a, b)
+  if is_unit(a) or is_unit(b) then
+    M.symbolic_refusal("arithmetic on units")
+  end
+end
+
+local function is_minus_one(v)
+  return is_int(v) and #v.n.d == 1 and v.n.d[1] == 1 and v.n.sign == -1
+end
+
+local function same(a, b)
+  if is_sym(a) and is_sym(b) then
+    return a.name == b.name
+  end
+  if is_expr(a) and is_expr(b) then
+    if a.op ~= b.op or not same(a.left, b.left) then
+      return false
+    end
+    return (a.right == nil and b.right == nil)
+      or (a.right ~= nil and b.right ~= nil and same(a.right, b.right))
+  end
+  if is_numeric(a) and is_numeric(b) then
+    return a.kind == b.kind and M.cmp(a, b) == 0
+  end
+  return false
+end
+
+-- A term as (coefficient, base), so `2 x`, `-x` and `x / 2` all collect
+-- against `x`.
+local function term_parts(v)
+  if is_expr(v) and v.op == "*" and is_numeric(v.left) then
+    return v.left, v.right
+  end
+  if is_expr(v) and v.op == "/" and is_numeric(v.right) and not is_zero_calc(v.right) then
+    return M.div(M.from_int(1), v.right), v.left
+  end
+  if is_expr(v) and v.op == "neg" then
+    return M.from_int(-1), v.left
+  end
+  return M.from_int(1), v
+end
+
+-- Calc keeps a collected term's coefficient exact and spells a
+-- fractional one in its own `3:2` notation, which is not a form org
+-- writes back anywhere else -- refuse rather than invent a spelling.
+local function combined_coefficient(c)
+  if is_rat(c) then
+    M.symbolic_refusal("fractional coefficient")
+  end
+  return c
+end
+
+-- Calc collects `2 x` against `x` but leaves `(x + 1) + (x + 1)` spelled
+-- out, so a base that is itself a sum does not count as a like term.
+local function like_terms(a, b)
+  if not (is_symbolic(a) and is_symbolic(b)) then
+    return nil
+  end
+  local ca, base_a = term_parts(a)
+  local cb, base_b = term_parts(b)
+  if is_expr(base_a) and (base_a.op == "+" or base_a.op == "-") then
+    return nil
+  end
+  if same(base_a, base_b) then
+    return ca, cb, base_a
+  end
+  return nil
+end
+
+function sym_add(a, b)
+  no_units(a, b)
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.add(a, b)
+  end
+  if is_zero_calc(a) then
+    return b
+  end
+  if is_zero_calc(b) then
+    return a
+  end
+  if is_numeric(b) and M.sign(b) < 0 then
+    return sym_sub(a, M.neg(b))
+  end
+  if is_numeric(a) and M.sign(a) < 0 then
+    return sym_sub(b, M.neg(a))
+  end
+  if is_expr(b) and b.op == "neg" then
+    return sym_sub(a, b.left)
+  end
+  if is_expr(a) and a.op == "neg" then
+    return sym_sub(b, a.left)
+  end
+  local ca, cb, base = like_terms(a, b)
+  if base then
+    return sym_mul(combined_coefficient(M.add(ca, cb)), base)
+  end
+  if is_expr(b) and b.op == "+" then
+    return sym_add(sym_add(a, b.left), b.right)
+  end
+  if is_expr(b) and b.op == "-" then
+    return sym_sub(sym_add(a, b.left), b.right)
+  end
+  if is_numeric(b) and is_expr(a) and is_numeric(a.right) then
+    if a.op == "+" then
+      return sym_add(a.left, M.add(a.right, b))
+    end
+    if a.op == "-" then
+      return sym_sub(a.left, M.sub(a.right, b))
+    end
+  end
+  return expr("+", a, b)
+end
+
+function sym_sub(a, b)
+  no_units(a, b)
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.sub(a, b)
+  end
+  if is_zero_calc(b) then
+    return a
+  end
+  if is_numeric(b) and M.sign(b) < 0 then
+    return sym_add(a, M.neg(b))
+  end
+  if is_expr(b) and b.op == "+" then
+    return sym_sub(sym_sub(a, b.left), b.right)
+  end
+  if is_expr(b) and b.op == "-" then
+    return sym_add(a, sym_neg(b))
+  end
+  if is_expr(b) and b.op == "neg" then
+    return sym_add(a, b.left)
+  end
+  local ca, cb, base = like_terms(a, b)
+  if base then
+    return sym_mul(combined_coefficient(M.sub(ca, cb)), base)
+  end
+  if is_zero_calc(a) then
+    return sym_neg(b)
+  end
+  if is_numeric(b) and is_expr(a) and is_numeric(a.right) then
+    if a.op == "+" then
+      return sym_add(a.left, M.sub(a.right, b))
+    end
+    if a.op == "-" then
+      return sym_sub(a.left, M.add(a.right, b))
+    end
+  end
+  return expr("-", a, b)
+end
+
+function sym_mul(a, b)
+  no_units(a, b)
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.mul(a, b)
+  end
+  -- A float zero or one keeps its inexactness: Calc writes `0.`, not `0`.
+  if is_zero_calc(a) then
+    return a
+  end
+  if is_zero_calc(b) then
+    return b
+  end
+  if is_numeric(a) and M.cmp(a, M.from_int(1)) == 0 then
+    return b
+  end
+  if is_numeric(b) and M.cmp(b, M.from_int(1)) == 0 then
+    return a
+  end
+  if is_minus_one(a) then
+    return sym_neg(b)
+  end
+  if is_minus_one(b) then
+    return sym_neg(a)
+  end
+  if same(a, b) then
+    return sym_pow(a, M.from_int(2))
+  end
+  if is_expr(a) and a.op == "neg" then
+    return sym_neg(sym_mul(a.left, b))
+  end
+  if is_expr(b) and b.op == "neg" then
+    return sym_neg(sym_mul(a, b.left))
+  end
+  local ea = is_expr(a) and a.op == "^" and is_numeric(a.right) and a
+  local eb = is_expr(b) and b.op == "^" and is_numeric(b.right) and b
+  if ea and eb and same(ea.left, eb.left) then
+    return sym_pow(ea.left, M.add(ea.right, eb.right))
+  end
+  if ea and same(ea.left, b) then
+    return sym_pow(b, M.add(ea.right, M.from_int(1)))
+  end
+  if eb and same(eb.left, a) then
+    return sym_pow(a, M.add(eb.right, M.from_int(1)))
+  end
+  if is_numeric(b) then
+    return sym_mul(b, a)
+  end
+  if is_numeric(a) and is_expr(b) then
+    if b.op == "+" then
+      return sym_add(sym_mul(a, b.left), sym_mul(a, b.right))
+    end
+    if b.op == "-" then
+      return sym_sub(sym_mul(a, b.left), sym_mul(a, b.right))
+    end
+    if b.op == "*" and is_numeric(b.left) then
+      return sym_mul(M.mul(a, b.left), b.right)
+    end
+    if b.op == "/" then
+      return sym_div(sym_mul(a, b.left), b.right)
+    end
+    if b.op == "neg" then
+      return sym_neg(sym_mul(a, b.left))
+    end
+  end
+  return expr("*", a, b)
+end
+
+function sym_div(a, b)
+  no_units(a, b)
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.div(a, b)
+  end
+  if is_one_calc(b) then
+    return a
+  end
+  if same(a, b) then
+    return M.from_int(1)
+  end
+  if is_zero_calc(a) then
+    return M.from_int(0)
+  end
+  -- Calc carries a quotient's sign in a numeric denominator: -(x/2) is
+  -- x/-2. A symbolic denominator keeps the minus outside instead.
+  if is_expr(a) and a.op == "neg" then
+    if is_numeric(b) then
+      return sym_div(a.left, sym_neg(b))
+    end
+    return sym_neg(sym_div(a.left, b))
+  end
+  if is_expr(b) and b.op == "neg" then
+    return sym_neg(sym_div(a, b.left))
+  end
+  if is_numeric(b) and not is_zero_calc(b) and is_expr(a) then
+    if a.op == "+" then
+      return sym_add(sym_div(a.left, b), sym_div(a.right, b))
+    end
+    if a.op == "-" then
+      return sym_sub(sym_div(a.left, b), sym_div(a.right, b))
+    end
+    if a.op == "*" and is_numeric(a.left) then
+      return sym_mul(M.div(a.left, b), a.right)
+    end
+    if a.op == "/" and is_numeric(a.right) then
+      return sym_div(a.left, M.mul(a.right, b))
+    end
+  end
+  if
+    is_numeric(a)
+    and is_expr(b)
+    and b.op == "*"
+    and is_numeric(b.left)
+    and not is_zero_calc(b.left)
+  then
+    return sym_div(M.div(a, b.left), b.right)
+  end
+  return expr("/", a, b)
+end
+
+function sym_pow(a, b)
+  no_units(a, b)
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.pow(a, b)
+  end
+  if is_numeric(b) then
+    if is_zero_calc(b) then
+      return M.from_int(1)
+    end
+    if is_one_calc(b) then
+      return a
+    end
+    if is_expr(a) and a.op == "^" and is_numeric(a.right) then
+      return sym_pow(a.left, M.mul(a.right, b))
+    end
+    if is_expr(a) and a.op == "*" and is_numeric(a.left) then
+      return sym_mul(M.pow(a.left, b), sym_pow(a.right, b))
+    end
+    if is_expr(a) and a.op == "neg" and is_int(b) then
+      local raised = sym_pow(a.left, b)
+      return is_zero_calc(M.mod(b, M.from_int(2))) and raised or sym_neg(raised)
+    end
+  end
+  return expr("^", a, b)
+end
+
+function sym_neg(v)
+  if not is_symbolic(v) then
+    return M.neg(v)
+  end
+  if is_expr(v) then
+    if v.op == "neg" then
+      return v.left
+    end
+    if v.op == "+" then
+      return sym_sub(sym_neg(v.left), v.right)
+    end
+    if v.op == "-" then
+      return sym_sub(v.right, v.left)
+    end
+    if v.op == "*" and is_numeric(v.left) then
+      return sym_mul(M.neg(v.left), v.right)
+    end
+    if v.op == "/" and is_numeric(v.right) then
+      return sym_div(v.left, sym_neg(v.right))
+    end
+  end
+  return expr("neg", v)
+end
+
+-- Calc's spelling: a product is a space, a sum keeps the operand order
+-- it was built in, and only a lower-binding operand takes parentheses.
+-- `number_text` renders numeric leaves, so a caller can pick org's
+-- field formatting over M.to_string's.
+local PRECEDENCE = { ["+"] = 1, ["-"] = 1, ["*"] = 2, ["/"] = 2, neg = 3, ["^"] = 4 }
+
+function M.render_expr(v, number_text)
+  local function render(node, outer)
+    if is_sym(node) then
+      return node.name
+    end
+    if not is_expr(node) then
+      return number_text(node)
+    end
+    local prec = PRECEDENCE[node.op]
+    local text
+    if node.op == "neg" then
+      text = "-" .. render(node.left, prec)
+    elseif node.op == "^" then
+      text = render(node.left, prec + 1) .. "^" .. render(node.right, prec)
+    elseif node.op == "*" then
+      local left, right = render(node.left, prec), render(node.right, prec + 1)
+      -- `h1 (h1 + 1)` would read as a function call, so Calc spells that
+      -- one product with a `*`.
+      local sep = (is_sym(node.left) and right:sub(1, 1) == "(") and "*" or " "
+      text = left .. sep .. right
+    else
+      text = render(node.left, prec) .. " " .. node.op .. " " .. render(node.right, prec + 1)
+    end
+    if prec < outer then
+      return "(" .. text .. ")"
+    end
+    return text
+  end
+  return render(v, 0)
 end
 
 -- Internal bridges for the sibling calc modules (not public API).

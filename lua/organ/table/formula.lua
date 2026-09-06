@@ -25,6 +25,9 @@ function M.refused(err)
   if _calc and err == _calc.OVERFLOW then
     return "arithmetic overflow"
   end
+  if _calc and type(err) == "string" and err:sub(1, #_calc.SYMBOLIC) == _calc.SYMBOLIC then
+    return (err:gsub("^calc: ", ""))
+  end
   return nil
 end
 
@@ -293,14 +296,6 @@ function Parser:parse_expr()
   return left
 end
 
-local function lhs_index(desc)
-  local n = desc:match("^%d+$") and tonumber(desc)
-  if not n then
-    refuse("unsupported formula target '" .. desc .. "'")
-  end
-  return n
-end
-
 function Parser:parse_lhs()
   local t = self:peek()
   if not t then
@@ -308,14 +303,18 @@ function Parser:parse_lhs()
   end
   if t.type == "at" then
     self:advance()
-    local row = lhs_index(t.desc)
+    local node = { kind = "row_formula" }
+    ref_part(node, "row", t.desc)
     if self:peek() and self:peek().type == "dollar" then
-      return { kind = "cell_formula", row = row, col = lhs_index(self:advance().desc) }
+      node.kind = "cell_formula"
+      ref_part(node, "col", self:advance().desc)
     end
-    return { kind = "row_formula", row = row }
+    return node
   elseif t.type == "dollar" then
     self:advance()
-    return { kind = "col_formula", col = lhs_index(t.desc) }
+    local node = { kind = "col_formula" }
+    ref_part(node, "col", t.desc)
+    return node
   end
   error("formula parser: invalid LHS at pos " .. self.pos)
 end
@@ -398,10 +397,15 @@ function M.parse(s)
   return out
 end
 
--- Pull a raw cell, parse to a Calc value if numeric. Returns nil for
--- empty / non-numeric cells so consumers can decide whether to skip
--- (aggregations) or short-circuit (binary ops); under `;N` every field
--- in the table reads as a number, empty and non-numeric alike.
+-- Calc reads these as infinities, not as variables, and organ has no
+-- value for them.
+local NOT_A_VARIABLE = { inf = true, nan = true, uinf = true }
+
+-- Pull a raw cell, parse to a Calc value: a number, or a symbol when
+-- the field is spelled like a name. Returns nil for empty cells and
+-- for text Calc would have to parse, so consumers can decide whether
+-- to skip (aggregations) or short-circuit (binary ops); under `;N`
+-- every field in the table reads as a number, empty and textual alike.
 local function cell_value(ctx, r, c)
   local row = ctx.rows[r]
   local raw = row and (row.cells or {})[c]
@@ -415,6 +419,11 @@ local function cell_value(ctx, r, c)
     local n = tonumber(raw)
     if n then
       return calc().from_float(n)
+    end
+    -- A field spelled like a Calc variable reads as that symbol, so a
+    -- formula over a text column stays algebraic instead of failing.
+    if not ctx.numeric and raw:match("^%a[%w_]*$") and not NOT_A_VARIABLE[raw] then
+      return calc().sym(raw)
     end
     local ok, v = pcall(calc().from_string, raw)
     if ok and not (ctx.numeric and calc().is_symbol(v)) then
@@ -471,6 +480,44 @@ local function resolve_col(desc, ctx)
     return (ctx.ncols or 0) - #desc + 1
   end
   refuse("unsupported column descriptor '$" .. desc .. "'")
+end
+
+-- A target descriptor and whether it was written as an absolute index.
+local function target_index(desc, extent, axis)
+  if desc:match("^%d+$") then
+    return tonumber(desc), true
+  end
+  if desc:match("^<+$") then
+    return #desc, false
+  end
+  if desc:match("^>+$") then
+    return extent - #desc + 1, false
+  end
+  refuse("unsupported formula target '" .. axis .. desc .. "'")
+end
+
+-- Row / column a formula assigns to, resolved against the table's
+-- geometry. An edge descriptor (`@>`, `$<<`) has to land on a row or
+-- column that exists; an absolute `$N` past the last column still
+-- creates it, the way org does. An hline-relative target, a row offset
+-- or `@#` refuses -- Emacs declines to assign to those too.
+function M.resolve_target(fm, ctx)
+  local nrows, ncols = #ctx.rows, ctx.ncols or 0
+  local row, col
+  if fm.row_desc then
+    row = target_index(fm.row_desc, nrows, "@")
+    if row < 1 or row > nrows then
+      refuse("formula target '@" .. fm.row_desc .. "' is outside the table")
+    end
+  end
+  if fm.col_desc then
+    local absolute
+    col, absolute = target_index(fm.col_desc, ncols, "$")
+    if col < 1 or (not absolute and col > ncols) then
+      refuse("formula target '$" .. fm.col_desc .. "' is outside the table")
+    end
+  end
+  return row, col
 end
 
 local function collect_range_values(node, ctx)
@@ -670,6 +717,22 @@ local BINARY_C = {
 -- would lose Calc identity for further arithmetic).
 local eval_calc
 
+-- Aggregations that fold with `+` or `*` carry a symbol through; the
+-- rest need an ordering or a square root, which a symbol has no answer
+-- for. (Calc leaves `vproduct` over a symbol unevaluated rather than
+-- folding it, so that one stays out too.)
+local SYMBOLIC_AGG = { vsum = true, vmean = true, vlen = true, vcount = true }
+
+local function any_symbolic(values)
+  local C = calc()
+  for _, v in ipairs(values) do
+    if C.is_symbolic(v) then
+      return true
+    end
+  end
+  return false
+end
+
 local function apply_function(name, args, ctx)
   local C = calc()
   if name == "remote" then
@@ -684,6 +747,9 @@ local function apply_function(name, args, ctx)
     if cond == nil then
       return nil
     end
+    if C.is_symbolic(cond) then
+      C.symbolic_refusal("condition in if()")
+    end
     local taken = C.is_true(cond) and args[2] or args[3]
     return eval_calc(taken, ctx)
   end
@@ -693,12 +759,18 @@ local function apply_function(name, args, ctx)
       error("formula: " .. name .. " expects a range arg")
     end
     local values = collect_range_values(arg, ctx)
+    if not SYMBOLIC_AGG[name] and any_symbolic(values) then
+      C.symbolic_refusal(name .. "()")
+    end
     return AGG[name](C, values)
   end
   if SCALAR_C[name] then
     local v = eval_calc(args[1], ctx)
     if v == nil then
       return nil
+    end
+    if C.is_symbolic(v) then
+      C.symbolic_refusal(name .. "()")
     end
     return SCALAR_C[name](C, v)
   end
@@ -707,6 +779,9 @@ local function apply_function(name, args, ctx)
     local b = eval_calc(args[2], ctx)
     if a == nil or b == nil then
       return nil
+    end
+    if C.is_symbolic(a) or C.is_symbolic(b) then
+      C.symbolic_refusal(name .. "()")
     end
     return BINARY_C[name](C, a, b)
   end
@@ -792,7 +867,7 @@ function eval_calc(node, ctx)
       return C.mul(a, b)
     end
     if node.op == "/" then
-      if C.sign(b) == 0 then
+      if not (C.is_symbolic(a) or C.is_symbolic(b)) and C.sign(b) == 0 then
         return nil
       end
       return C.div(a, b)
@@ -902,6 +977,9 @@ function M.format_value(v)
   if C.is_float(v) or v.kind == "rat" then
     return format_float(C.to_number(v))
   end
+  if C.is_symbolic(v) then
+    return C.render_expr(v, M.format_value)
+  end
   local ok, s = pcall(C.to_string, v)
   return ok and s or "#ERROR"
 end
@@ -935,6 +1013,9 @@ function M.eval(node, ctx)
   local v = eval_calc(node, ctx)
   if v == nil then
     return nil
+  end
+  if calc().is_symbolic(v) then
+    return v
   end
   if type(v) == "table" and v.kind then
     return calc().to_number(v)

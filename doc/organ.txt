@@ -2037,6 +2037,11 @@ up to date for organ to use it; see |organ-requires-tablature|.
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
      `;%.2f`            printf format for the result
      `;N`               read every field as a number (empty is 0)
+     `@>$1=`, `$>=`     a target takes the same row / column
+                        descriptors, e.g. the bottom-row total
+                        `@>$1=vsum(@I$1..@II$1)`
+     `h1`, `x`          a field spelled like a name reads as a
+                        symbol, so `$3=$1+4` gives `h1 + 4`
 
     A column formula skips any cell holding an alignment marker
     (`<l>`, `<r>`, `<c>`, optionally with a width digit and in either
@@ -2045,8 +2050,9 @@ up to date for organ to use it; see |organ-requires-tablature|.
     A malformed right-hand side writes `#ERROR` into its target field,
     as org does. Valid org syntax organ has not implemented -- the
     other `;` mode flags, `remote()`, hlines relative to the current
-    row -- is refused with a message and the table is left exactly as
-    it was. Exact integer results are capped where Emacs caps them
+    row, a comparison or a square root over a symbol -- is refused
+    with a message and the table is left exactly as it was. Exact
+    integer results are capped where Emacs caps them
     (65536 bits); past that the formula is refused as an arithmetic
     overflow instead of computed.
 
@@ -3080,7 +3086,9 @@ Table row/col operations ~
 Spreadsheet formula engine ~
     Emacs: Full Emacs Calc (lookups, remote refs, lisp).
     organ.nvim: Subset: `$N`/`@R`/`@R$N`/`@I`/`@<`/`@>`/`@#`, ranges,
-    arithmetic, `vsum/vmean/vmax/vmin/vlen`, `;N` and `;%f` modes.
+    arithmetic, `vsum/vmean/vmax/vmin/vlen`, `;N` and `;%f` modes, the
+    same descriptors on a formula's target, and sums, differences,
+    products and powers over a symbol.
     What it does not implement it refuses, leaving the table as it was.
     Why: Practical 80%; full Calc rarely needed in Neovim workflows.
 

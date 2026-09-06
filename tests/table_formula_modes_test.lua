@@ -112,7 +112,7 @@ local REFUSED = {
   "$4=$2+$3;f3",
   "$4=remote(other,@1$1)",
   "$4=@-I$2",
-  "$>=$2+1",
+  "@-1$1=$2",
 }
 
 for _, tblfm in ipairs(REFUSED) do
