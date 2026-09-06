@@ -581,9 +581,6 @@ local AGG = {
   vmin = function(C, vs)
     return C.vmin(vs)
   end,
-  vlen = function(C, vs)
-    return C.vlen(vs)
-  end,
   vcount = function(C, vs)
     return C.vcount(vs)
   end,
@@ -729,17 +726,80 @@ local BINARY_C = {
 -- would lose Calc identity for further arithmetic).
 local eval_calc
 
--- Aggregations that fold with `+` or `*` carry a symbol through; the
--- rest need an ordering or a square root, which a symbol has no answer
--- for. (Calc leaves `vproduct` over a symbol unevaluated rather than
--- folding it, so that one stays out too.)
-local SYMBOLIC_AGG = { vsum = true, vmean = true, vlen = true, vcount = true }
+-- Aggregations that fold with `+` carry a symbol through. (Calc leaves
+-- `vproduct` over a symbol unevaluated rather than folding it, so that
+-- one stays out.)
+local SYMBOLIC_AGG = { vsum = true, vmean = true, vcount = true }
+
+-- `vmax` and `vmin` reduce a symbolic vector to nested `max` / `min`
+-- calls; the other orderings have no form organ can spell.
+local SYMBOLIC_REDUCE = { vmax = "max", vmin = "min" }
+
+-- Spelled as an operator in a result, so a symbol carries through the
+-- operator's own rules rather than leaving the call standing.
+local SYMBOLIC_BINARY = { mod = true, pow = true }
+
+-- Calc's spelling for the functions organ takes under another name.
+local CALC_NAME = { log = "ln" }
 
 local function any_symbolic(values)
   local C = calc()
   for _, v in ipairs(values) do
     if C.is_symbolic(v) then
       return true
+    end
+  end
+  return false
+end
+
+-- Every argument of an aggregation contributes: a reference or a range
+-- spreads into the cells it names, anything else stands for itself.
+local function collect_arg_values(args, ctx)
+  local out = {}
+  for _, arg in ipairs(args) do
+    local spread
+    if arg.kind == "range" or arg.kind == "ref" then
+      spread = collect_range_values(arg, ctx)
+    else
+      local v = eval_calc(arg, ctx)
+      if v == nil then
+        return nil
+      end
+      spread = (type(v) == "table" and not v.kind) and v or { v }
+    end
+    for _, v in ipairs(spread) do
+      out[#out + 1] = v
+    end
+  end
+  return out
+end
+
+-- `vlen` counts a vector's elements, so a scalar argument has length 0.
+local function vector_length(args, ctx)
+  if #args > 1 then
+    refuse("vlen() over more than one argument")
+  end
+  local arg = args[1]
+  if not arg or arg.kind ~= "range" then
+    return calc().from_int(0)
+  end
+  return calc().from_int(#collect_range_values(arg, ctx))
+end
+
+-- Where Calc has no answer for numeric arguments either and keeps the
+-- call: a logarithm of zero, a gcd or lcm over a fraction.
+local LOGARITHM = { ln = true, log = true, log10 = true, log2 = true }
+
+local function outside_domain(name, values)
+  local C = calc()
+  if LOGARITHM[name] then
+    return C.sign(values[1]) == 0
+  end
+  if name == "gcd" or name == "lcm" then
+    for _, v in ipairs(values) do
+      if not C.is_whole(v) then
+        return true
+      end
     end
   end
   return false
@@ -765,24 +825,40 @@ local function apply_function(name, args, ctx)
     local taken = C.is_true(cond) and args[2] or args[3]
     return eval_calc(taken, ctx)
   end
+  if name == "vlen" then
+    return vector_length(args, ctx)
+  end
   if AGG[name] then
-    local arg = args[1]
-    if not arg then
-      error("formula: " .. name .. " expects a range arg")
+    local values = collect_arg_values(args, ctx)
+    if values == nil then
+      return nil
     end
-    local values = collect_range_values(arg, ctx)
     if not SYMBOLIC_AGG[name] and any_symbolic(values) then
-      C.symbolic_refusal(name .. "()")
+      -- Calc reduces the elements of one vector, and leaves a call over
+      -- anything else -- a bare symbol, or a vector plus a scalar.
+      local one_vector = #args == 1 and args[1].kind == "range"
+      if not (SYMBOLIC_REDUCE[name] and one_vector) then
+        C.symbolic_refusal(name .. "()")
+      end
+      local reduced = values[1]
+      for i = 2, #values do
+        reduced = C.sym_call(SYMBOLIC_REDUCE[name], { reduced, values[i] })
+      end
+      return reduced
     end
-    return AGG[name](C, values)
+    local result = AGG[name](C, values)
+    if result == nil then
+      refuse(name .. "() over an empty vector")
+    end
+    return result
   end
   if SCALAR_C[name] then
     local v = eval_calc(args[1], ctx)
     if v == nil then
       return nil
     end
-    if C.is_symbolic(v) then
-      C.symbolic_refusal(name .. "()")
+    if C.is_symbolic(v) or outside_domain(name, { v }) then
+      return C.sym_call(CALC_NAME[name] or name, { v })
     end
     return SCALAR_C[name](C, v)
   end
@@ -793,21 +869,27 @@ local function apply_function(name, args, ctx)
       return nil
     end
     if C.is_symbolic(a) or C.is_symbolic(b) then
-      C.symbolic_refusal(name .. "()")
+      if SYMBOLIC_BINARY[name] then
+        return BINARY_C[name](C, a, b)
+      end
+      return C.sym_call(CALC_NAME[name] or name, { a, b })
+    end
+    if outside_domain(name, { a, b }) then
+      return C.sym_call(CALC_NAME[name] or name, { a, b })
     end
     return BINARY_C[name](C, a, b)
   end
-  -- Unknown functions stay symbolic with evaluated arguments, as Calc
-  -- leaves them: `foo($1)` -> `foo(1)`.
-  local parts = {}
+  -- A function Calc has no answer for stays as the call itself, with its
+  -- arguments evaluated: `foo($1)` -> `foo(1)`.
+  local values = {}
   for i, arg in ipairs(args) do
     local v = eval_calc(arg, ctx)
     if v == nil then
       return nil
     end
-    parts[i] = M.format_value(v)
+    values[i] = v
   end
-  return C.sym(name .. "(" .. table.concat(parts, ", ") .. ")")
+  return C.sym_call(name, values)
 end
 
 local function const_value(name, ctx)
@@ -827,10 +909,10 @@ local function const_value(name, ctx)
   error("formula: unknown constant '" .. tostring(name) .. "'")
 end
 
--- Internal Calc-typed evaluator. Returns a Calc value or nil on a
--- missing cell / division-by-zero (so consumers can short-circuit).
+-- Internal Calc-typed evaluator. Returns a Calc value or nil for a
+-- missing cell (so consumers can short-circuit).
 -- (Forward-declared above for apply_function's recursion.)
-function eval_calc(node, ctx)
+local function eval_node(node, ctx)
   local C = calc()
   if node.kind == "error" then
     error(node.message)
@@ -879,10 +961,7 @@ function eval_calc(node, ctx)
       return C.mul(a, b)
     end
     if node.op == "/" then
-      if not (C.is_symbolic(a) or C.is_symbolic(b)) and C.sign(b) == 0 then
-        return nil
-      end
-      return C.div(a, b)
+      return C.fdiv(a, b)
     end
     if node.op == "%" then
       return C.mod(a, b)
@@ -897,6 +976,9 @@ function eval_calc(node, ctx)
     local b = eval_calc(node.right, ctx)
     if a == nil or b == nil then
       return nil
+    end
+    if C.is_symbolic(a) or C.is_symbolic(b) then
+      return C.sym_cmp(node.op, a, b)
     end
     local r
     if node.op == "<" then
@@ -926,6 +1008,18 @@ function eval_calc(node, ctx)
     return apply_function(node.name, args or {}, ctx)
   end
   error("formula evaluator: unknown node kind '" .. tostring(node.kind) .. "'")
+end
+
+-- A table formula runs with Calc's Fraction mode off, so an inexact
+-- quotient reaches a result as the float it prints as. The exact
+-- rationals that survive are Calc's own -- the coefficient of a
+-- collected term -- and those keep its `3:2` spelling.
+function eval_calc(node, ctx)
+  local v = eval_node(node, ctx)
+  if type(v) == "table" and v.kind == "rat" then
+    return calc().from_float(calc().to_number(v))
+  end
+  return v
 end
 
 -- Calc's `(float 8)` display with `calc-internal-prec` 12: eight
@@ -996,17 +1090,27 @@ function M.format_value(v)
   return ok and s or "#ERROR"
 end
 
--- Cell text for a result under a formula's trailing `;` mode. A printf
--- template takes over the rendering entirely and reads a result it
--- cannot make a number of as 0, the way org does.
+-- Emacs reads a result it cannot make a number of the way
+-- `string-to-number` does: the number the text starts with, else 0.
+local function leading_number(text)
+  local n = text:match("^%s*[+-]?%d+%.?%d*[eE][+-]?%d+") or text:match("^%s*[+-]?%d*%.?%d+")
+  return tonumber(n) or 0
+end
+
+-- Cell text for a result under a formula's trailing `;` mode. `N` asks
+-- for a number, so an algebraic result is an error there; a printf
+-- template takes over the rendering entirely.
 function M.format_result(v, fm)
+  if fm and fm.numeric and calc().is_symbolic(v) then
+    return "#ERROR"
+  end
   if not (fm and fm.fmt) then
     return M.format_value(v)
   end
   local x = 0
   if type(v) == "table" and v.kind then
     local ok, n = pcall(calc().to_number, v)
-    x = (ok and tonumber(n)) or 0
+    x = (ok and tonumber(n)) or leading_number(M.format_value(v))
   end
   if fm.conv:match("[diouxX]") then
     x = x < 0 and -math.floor(-x) or math.floor(x)

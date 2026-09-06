@@ -2044,6 +2044,8 @@ up to date for organ to use it; see |organ-requires-tablature|.
                         `@>$1=vsum(@I$1..@II$1)`
      `h1`, `x`          a field spelled like a name reads as a
                         symbol, so `$3=$1+4` gives `h1 + 4`
+     `8/0`              a zero divisor has no answer, so the
+                        quotient is kept as Calc keeps it
 
     A column formula skips any cell holding an alignment marker
     (`<l>`, `<r>`, `<c>`, optionally with a width digit and in either
@@ -2052,11 +2054,11 @@ up to date for organ to use it; see |organ-requires-tablature|.
     A malformed right-hand side writes `#ERROR` into its target field,
     as org does. Valid org syntax organ has not implemented -- the
     other `;` mode flags, `remote()`, hlines relative to the current
-    row, a comparison or a square root over a symbol -- is refused
-    with a message and the table is left exactly as it was. Exact
-    integer results are capped where Emacs caps them
-    (65536 bits); past that the formula is refused as an arithmetic
-    overflow instead of computed.
+    row, `if()` over a symbolic condition, `vmedian` / `vsdev` / `vvar`
+    / `vmaxabs` / `vproduct` over a symbol -- is refused with a message
+    and the table is left exactly as it was. Exact integer results are
+    capped where Emacs caps them (65536 bits); past that the formula is
+    refused as an arithmetic overflow instead of computed.
 
     All table operations can also be invoked via the menu at
     `<LocalLeader>|`. See |organ-keymaps-org|.
@@ -3090,7 +3092,8 @@ Spreadsheet formula engine ~
     organ.nvim: Subset: `$N`/`@R`/`@R$N`/`@I`/`@<`/`@>`/`@#`, ranges,
     arithmetic, `vsum/vmean/vmax/vmin/vlen`, `;N` and `;%f` modes, the
     same descriptors on a formula's target, and sums, differences,
-    products and powers over a symbol.
+    products, powers, remainders, comparisons and function calls over
+    a symbol.
     What it does not implement it refuses, leaving the table as it was.
     Why: Practical 80%; full Calc rarely needed in Neovim workflows.
 

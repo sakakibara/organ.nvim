@@ -23,7 +23,11 @@
 --   - Units: SI base + common derived + decimal prefixes; dimensional
 --     analysis on `+`/`-`; conversion via `convert(v, "km")`.
 --   - Symbolic simplification of literal expressions: x+0=x, x*1=x,
---     x*0=0, x-x=0, x/x=1, double-negation.
+--     x*0=0, x-x=0, x/x=1, double-negation; like terms collect with an
+--     exact coefficient (Calc's `3:2 x`), remainders and comparisons
+--     keep their form, and a function with no answer stays as the call.
+--   - Division and remainder over a zero divisor keep the form Calc
+--     keeps rather than raising: `8/0`, `h1 % 0`.
 --   - Financial: pmt, fv, pv, npv, irr (with Excel sign convention,
 --     end- vs beginning-of-period due flag, IRR via Newton-Raphson).
 --   - Big-integer primality (Miller-Rabin) + factoring (trial division
@@ -75,8 +79,11 @@
 --   M.is_calc(v)       predicate
 --   M.is_int(v)        v is an exact integer
 --   M.add/sub/mul/div  arithmetic; promotes to rational as needed
+--   M.fdiv(a, b)       division as a table formula sees it: Calc's
+--                      Fraction mode off, zero divisor kept as a form
 --   M.pow(v, n)        integer exponent only (non-integer falls back to float)
---   M.mod(a, b)        integer mod (errors on rationals)
+--   M.mod(a, b)        integer mod (errors on rationals); a zero
+--                      divisor or a symbol keeps the `a % b` form
 --   M.neg(v)
 --   M.abs(v)
 --   M.sign(v)          -> -1 / 0 / 1
@@ -114,6 +121,8 @@ M.NOT_IMPLEMENTED = {
   integration_advanced = "integration by parts; chain-rule inverse / u-substitution",
   limit_advanced = "indeterminate forms beyond 0/0",
   cas_full = "general factor / collect / canonical form for arbitrary expressions",
+  symbolic_conditional = "if() over a symbolic condition; Calc's unevaluated `c ? a : b`",
+  symbolic_ordering = "vmedian / vsdev / vvar / vmaxabs / vproduct over a symbol",
   matrix_qr = "QR algorithm for general (non-symmetric) eigenvalues, SVD",
 }
 

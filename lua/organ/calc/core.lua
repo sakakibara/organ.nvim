@@ -27,17 +27,27 @@ end
 local function is_expr(v)
   return type(v) == "table" and v.kind == "expr"
 end
+local function is_fn(v)
+  return type(v) == "table" and v.kind == "fn"
+end
 
 local function is_numeric(v)
   return is_int(v) or is_rat(v) or is_float(v)
 end
 
 local function is_symbolic(v)
-  return is_sym(v) or is_expr(v)
+  return is_sym(v) or is_expr(v) or is_fn(v)
+end
+
+-- A quotient or remainder over a zero divisor. Calc keeps the form
+-- instead of answering, and rewrites nothing built on top of one, so
+-- `8/0 - 8/0` stays spelled out rather than collapsing to 0.
+local function is_inert(v)
+  return is_expr(v) and v.inert == true
 end
 
 function M.is_calc(v)
-  return is_int(v) or is_rat(v) or is_float(v) or is_unit(v) or is_sym(v) or is_expr(v)
+  return is_numeric(v) or is_unit(v) or is_symbolic(v)
 end
 function M.is_int(v)
   return is_int(v)
@@ -57,6 +67,12 @@ end
 function M.is_symbolic(v)
   return is_symbolic(v)
 end
+function M.is_inert(v)
+  return is_inert(v)
+end
+function M.is_whole(v)
+  return is_int(v) or (is_float(v) and v.v == math.floor(v.v))
+end
 
 -- Operations that have no symbolic answer organ is prepared to spell.
 -- Raised as a string so organ.table.formula reports a refusal and
@@ -67,7 +83,7 @@ function M.symbolic_refusal(what)
   error(M.SYMBOLIC .. what, 0)
 end
 
-local sym_add, sym_sub, sym_mul, sym_div, sym_pow, sym_neg
+local sym_add, sym_sub, sym_mul, sym_div, sym_pow, sym_neg, sym_mod
 
 local function new_int(b)
   return { kind = "int", n = b }
@@ -207,7 +223,7 @@ function M.to_string(v)
   if is_sym(v) then
     return v.name
   end
-  if is_expr(v) then
+  if is_symbolic(v) then
     return M.render_expr(v, M.to_string)
   end
   error("calc.to_string: not a Calc value")
@@ -468,7 +484,10 @@ end
 
 function M.mod(a, b)
   if is_symbolic(a) or is_symbolic(b) then
-    M.symbolic_refusal("modulo")
+    return sym_mod(a, b)
+  end
+  if is_numeric(b) and M.sign(b) == 0 then
+    return sym_mod(a, b)
   end
   if any_float(a, b) then
     local bv = to_float_value(b)
@@ -1167,7 +1186,29 @@ end
 -- so an expression prints the way Calc prints it.
 
 local function expr(op, left, right)
-  return { kind = "expr", op = op, left = left, right = right }
+  local inert = is_inert(left) or is_inert(right) or nil
+  return { kind = "expr", op = op, left = left, right = right, inert = inert }
+end
+
+-- Calc answers a zero-divisor quotient or remainder with the form
+-- itself. It is a value like any other -- it renders, and it composes --
+-- but nothing rewrites it, so `8/0 - 8/0` is not 0.
+local function inert_quotient(op, a, b)
+  local v = expr(op, a, b)
+  v.inert = true
+  return v
+end
+
+-- The positive counterpart of a negative term, or nil: a negative
+-- number, or a zero-divisor quotient with a negative numerator.
+local function negative_term(v)
+  if is_numeric(v) and M.sign(v) < 0 then
+    return M.neg(v)
+  end
+  if is_inert(v) and v.op == "/" and is_numeric(v.left) and M.sign(v.left) < 0 then
+    return inert_quotient("/", M.neg(v.left), v.right)
+  end
+  return nil
 end
 
 local function no_units(a, b)
@@ -1183,6 +1224,17 @@ end
 local function same(a, b)
   if is_sym(a) and is_sym(b) then
     return a.name == b.name
+  end
+  if is_fn(a) and is_fn(b) then
+    if a.name ~= b.name or #a.args ~= #b.args then
+      return false
+    end
+    for i = 1, #a.args do
+      if not same(a.args[i], b.args[i]) then
+        return false
+      end
+    end
+    return true
   end
   if is_expr(a) and is_expr(b) then
     if a.op ~= b.op or not same(a.left, b.left) then
@@ -1212,20 +1264,13 @@ local function term_parts(v)
   return M.from_int(1), v
 end
 
--- Calc keeps a collected term's coefficient exact and spells a
--- fractional one in its own `3:2` notation, which is not a form org
--- writes back anywhere else -- refuse rather than invent a spelling.
-local function combined_coefficient(c)
-  if is_rat(c) then
-    M.symbolic_refusal("fractional coefficient")
-  end
-  return c
-end
-
 -- Calc collects `2 x` against `x` but leaves `(x + 1) + (x + 1)` spelled
 -- out, so a base that is itself a sum does not count as a like term.
 local function like_terms(a, b)
   if not (is_symbolic(a) and is_symbolic(b)) then
+    return nil
+  end
+  if is_inert(a) or is_inert(b) then
     return nil
   end
   local ca, base_a = term_parts(a)
@@ -1250,11 +1295,13 @@ function sym_add(a, b)
   if is_zero_calc(b) then
     return a
   end
-  if is_numeric(b) and M.sign(b) < 0 then
-    return sym_sub(a, M.neg(b))
+  local positive_b = negative_term(b)
+  if positive_b then
+    return sym_sub(a, positive_b)
   end
-  if is_numeric(a) and M.sign(a) < 0 then
-    return sym_sub(b, M.neg(a))
+  local positive_a = negative_term(a)
+  if positive_a then
+    return sym_sub(b, positive_a)
   end
   if is_expr(b) and b.op == "neg" then
     return sym_sub(a, b.left)
@@ -1264,7 +1311,7 @@ function sym_add(a, b)
   end
   local ca, cb, base = like_terms(a, b)
   if base then
-    return sym_mul(combined_coefficient(M.add(ca, cb)), base)
+    return sym_mul(M.add(ca, cb), base)
   end
   if is_expr(b) and b.op == "+" then
     return sym_add(sym_add(a, b.left), b.right)
@@ -1291,8 +1338,12 @@ function sym_sub(a, b)
   if is_zero_calc(b) then
     return a
   end
-  if is_numeric(b) and M.sign(b) < 0 then
-    return sym_add(a, M.neg(b))
+  if is_zero_calc(a) then
+    return sym_neg(b)
+  end
+  local positive = negative_term(b)
+  if positive then
+    return sym_add(a, positive)
   end
   if is_expr(b) and b.op == "+" then
     return sym_sub(sym_sub(a, b.left), b.right)
@@ -1305,10 +1356,7 @@ function sym_sub(a, b)
   end
   local ca, cb, base = like_terms(a, b)
   if base then
-    return sym_mul(combined_coefficient(M.sub(ca, cb)), base)
-  end
-  if is_zero_calc(a) then
-    return sym_neg(b)
+    return sym_mul(M.sub(ca, cb), base)
   end
   if is_numeric(b) and is_expr(a) and is_numeric(a.right) then
     if a.op == "+" then
@@ -1338,6 +1386,9 @@ function sym_mul(a, b)
   end
   if is_numeric(b) and M.cmp(b, M.from_int(1)) == 0 then
     return a
+  end
+  if is_inert(a) or is_inert(b) then
+    return expr("*", a, b)
   end
   if is_minus_one(a) then
     return sym_neg(b)
@@ -1391,10 +1442,16 @@ end
 function sym_div(a, b)
   no_units(a, b)
   if not (is_symbolic(a) or is_symbolic(b)) then
-    return M.div(a, b)
+    return M.fdiv(a, b)
+  end
+  if is_numeric(b) and is_zero_calc(b) then
+    return inert_quotient("/", a, b)
   end
   if is_one_calc(b) then
     return a
+  end
+  if is_inert(a) then
+    return expr("/", a, b)
   end
   if same(a, b) then
     return M.from_int(1)
@@ -1421,7 +1478,7 @@ function sym_div(a, b)
       return sym_sub(sym_div(a.left, b), sym_div(a.right, b))
     end
     if a.op == "*" and is_numeric(a.left) then
-      return sym_mul(M.div(a.left, b), a.right)
+      return sym_mul(M.fdiv(a.left, b), a.right)
     end
     if a.op == "/" and is_numeric(a.right) then
       return sym_div(a.left, M.mul(a.right, b))
@@ -1434,7 +1491,18 @@ function sym_div(a, b)
     and is_numeric(b.left)
     and not is_zero_calc(b.left)
   then
-    return sym_div(M.div(a, b.left), b.right)
+    return sym_div(M.fdiv(a, b.left), b.right)
+  end
+  if
+    is_expr(a)
+    and a.op == "*"
+    and is_numeric(a.left)
+    and is_expr(b)
+    and b.op == "*"
+    and is_numeric(b.left)
+    and not is_zero_calc(b.left)
+  then
+    return expr("/", sym_mul(M.fdiv(a.left, b.left), a.right), b.right)
   end
   return expr("/", a, b)
 end
@@ -1451,6 +1519,14 @@ function sym_pow(a, b)
     if is_one_calc(b) then
       return a
     end
+  end
+  if is_inert(a) or is_inert(b) then
+    return expr("^", a, b)
+  end
+  if is_fn(a) and a.name == "sqrt" and #a.args == 1 and is_numeric(b) then
+    return sym_pow(a.args[1], M.fdiv(b, M.from_int(2)))
+  end
+  if is_numeric(b) then
     if is_expr(a) and a.op == "^" and is_numeric(a.right) then
       return sym_pow(a.left, M.mul(a.right, b))
     end
@@ -1465,11 +1541,100 @@ function sym_pow(a, b)
   return expr("^", a, b)
 end
 
+function sym_mod(a, b)
+  no_units(a, b)
+  if is_numeric(b) and is_zero_calc(b) then
+    return inert_quotient("%", a, b)
+  end
+  if not (is_symbolic(a) or is_symbolic(b)) then
+    return M.mod(a, b)
+  end
+  return expr("%", a, b)
+end
+
+-- Division as a table formula sees it: Calc's Fraction mode is off
+-- there, so an exact quotient that does not divide evenly comes back as
+-- a float, and a zero divisor keeps the form instead of raising.
+function M.fdiv(a, b)
+  if is_numeric(b) and is_zero_calc(b) then
+    return inert_quotient("/", a, b)
+  end
+  local q = M.div(a, b)
+  if is_rat(q) then
+    return M.from_float(M.to_number(q))
+  end
+  return q
+end
+
+-- Calc answers a function it cannot evaluate with the call itself, and
+-- goes on simplifying around it. Only three reach back inside: a
+-- positive numeric factor comes out from under a square root, `abs`
+-- drops a sign and a nested `abs`, and `sign` hands one back.
+function M.sym_call(name, args)
+  local u = args[1]
+  if #args == 1 and is_symbolic(u) then
+    if name == "sqrt" then
+      if is_expr(u) and u.op == "*" and is_numeric(u.left) and M.sign(u.left) > 0 then
+        return sym_mul(M.sqrt(u.left), M.sym_call("sqrt", { u.right }))
+      end
+      if is_expr(u) and u.op == "/" and is_numeric(u.right) and M.sign(u.right) > 0 then
+        return sym_div(M.sym_call("sqrt", { u.left }), M.sqrt(u.right))
+      end
+      if
+        is_expr(u)
+        and u.op == "/"
+        and is_numeric(u.left)
+        and M.sign(u.left) > 0
+        and not is_one_calc(u.left)
+      then
+        return sym_mul(M.sqrt(u.left), M.sym_call("sqrt", { sym_div(M.from_int(1), u.right) }))
+      end
+    elseif name == "abs" then
+      if is_expr(u) and u.op == "neg" then
+        return M.sym_call("abs", { u.left })
+      end
+      if is_expr(u) and u.op == "*" and is_numeric(u.left) and M.sign(u.left) < 0 then
+        return M.sym_call("abs", { sym_mul(M.neg(u.left), u.right) })
+      end
+      if is_fn(u) and u.name == "abs" then
+        return u
+      end
+    elseif name == "sign" then
+      if is_expr(u) and u.op == "neg" then
+        return sym_neg(M.sym_call("sign", { u.left }))
+      end
+    end
+  end
+  return { kind = "fn", name = name, args = args }
+end
+
+-- Comparisons over a symbol keep their form. Calc spells equality with
+-- a single `=`.
+local CMP_SPELLING = {
+  ["<"] = "<",
+  ["<="] = "<=",
+  [">"] = ">",
+  [">="] = ">=",
+  ["=="] = "=",
+  ["!="] = "!=",
+}
+
+function M.sym_cmp(op, a, b)
+  local spelling = CMP_SPELLING[op]
+  if not spelling then
+    error("calc.sym_cmp: unknown comparison '" .. tostring(op) .. "'")
+  end
+  return expr(spelling, a, b)
+end
+
 function sym_neg(v)
   if not is_symbolic(v) then
     return M.neg(v)
   end
   if is_expr(v) then
+    if is_inert(v) and v.op == "/" then
+      return inert_quotient("/", sym_neg(v.left), v.right)
+    end
     if v.op == "neg" then
       return v.left
     end
@@ -1493,12 +1658,42 @@ end
 -- it was built in, and only a lower-binding operand takes parentheses.
 -- `number_text` renders numeric leaves, so a caller can pick org's
 -- field formatting over M.to_string's.
-local PRECEDENCE = { ["+"] = 1, ["-"] = 1, ["*"] = 2, ["/"] = 2, neg = 3, ["^"] = 4 }
+local PRECEDENCE = {
+  ["<"] = 0,
+  ["<="] = 0,
+  [">"] = 0,
+  [">="] = 0,
+  ["="] = 0,
+  ["!="] = 0,
+  ["+"] = 1,
+  ["-"] = 1,
+  ["*"] = 2,
+  ["/"] = 2,
+  ["%"] = 2,
+  neg = 3,
+  ["^"] = 4,
+}
+
+-- Whether a product's last factor is a bare variable, which decides
+-- whether the next factor can follow it as juxtaposition.
+local function trailing_symbol(node)
+  if is_sym(node) then
+    return true
+  end
+  return is_expr(node) and node.op == "*" and trailing_symbol(node.right)
+end
 
 function M.render_expr(v, number_text)
   local function render(node, outer)
     if is_sym(node) then
       return node.name
+    end
+    if is_fn(node) then
+      local parts = {}
+      for i, arg in ipairs(node.args) do
+        parts[i] = render(arg, 0)
+      end
+      return node.name .. "(" .. table.concat(parts, ", ") .. ")"
     end
     if not is_expr(node) then
       return number_text(node)
@@ -1508,13 +1703,37 @@ function M.render_expr(v, number_text)
     if node.op == "neg" then
       text = "-" .. render(node.left, prec)
     elseif node.op == "^" then
-      text = render(node.left, prec + 1) .. "^" .. render(node.right, prec)
+      local base = render(node.left, prec + 1)
+      -- `-3^h1` would read back as -(3^h1), so a negative base keeps its
+      -- parentheses.
+      if is_numeric(node.left) and M.sign(node.left) < 0 then
+        base = "(" .. base .. ")"
+      end
+      text = base .. "^" .. render(node.right, prec)
     elseif node.op == "*" then
-      local left, right = render(node.left, prec), render(node.right, prec + 1)
+      -- A remainder or a zero-divisor quotient inside a product reads as
+      -- one term, so it keeps its parentheses on the left too.
+      local grouped = is_inert(node.left) or (is_expr(node.left) and node.left.op == "%")
+      local left = render(node.left, grouped and prec + 1 or prec)
+      -- Only a collected coefficient is exact enough to be worth Calc's
+      -- own `3:2` spelling; every other fraction has already floated.
+      if is_rat(node.left) then
+        left = bn.to_string(node.left.num) .. ":" .. bn.to_string(node.left.den)
+      end
+      local right = render(node.right, prec + 1)
       -- `h1 (h1 + 1)` would read as a function call, so Calc spells that
       -- one product with a `*`.
-      local sep = (is_sym(node.left) and right:sub(1, 1) == "(") and "*" or " "
+      local sep = (trailing_symbol(node.left) and right:sub(1, 1) == "(") and "*" or " "
       text = left .. sep .. right
+    elseif node.op == "%" then
+      -- A remainder's divisor binds like a product, so only a quotient
+      -- or another remainder needs parentheses there.
+      local tight = is_expr(node.right) and node.right.op == "*"
+      text = render(node.left, prec) .. " % " .. render(node.right, tight and prec or prec + 1)
+    elseif node.op == "/" and M.is_whole(node.left) and is_int(node.right) then
+      -- Calc writes a quotient of two whole numbers the way it writes a
+      -- fraction -- `8/0`, no spaces -- and spaces every other one out.
+      text = render(node.left, prec) .. "/" .. render(node.right, prec + 1)
     else
       text = render(node.left, prec) .. " " .. node.op .. " " .. render(node.right, prec + 1)
     end

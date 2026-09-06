@@ -35,12 +35,12 @@ do
   assert_eq(v, 7)
 end
 
--- Division by zero returns nil.
+-- Division by zero keeps the quotient standing, as Calc does.
 do
   local rows = rows_from({ { "1", "0" } })
   local ast = f.parse("$3=$1/$2")[1].expr
   local v = f.eval(ast, { rows = rows, current_row = 1, current_col = 3 })
-  assert_eq(v, nil)
+  assert_eq(f.format_value(v), "1/0")
 end
 
 -- Empty cell ref returns nil.

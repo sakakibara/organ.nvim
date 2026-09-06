@@ -117,31 +117,193 @@ assert_third("$3=vsum($1..$2)", { "h1 + 2", "x + 3" })
 assert_third("$3=vmean($1..$2)", { "h1 / 2 + 1", "x / 2 + 1.5" })
 assert_third("$3=vlen($1..$2)", { "2", "2" })
 
--- An unknown function stays symbolic over a symbolic argument.
+-- Every argument counts, scalars and ranges alike.
+assert_third("$3=vsum(3,4)", { "7", "7" })
+assert_third("$3=vsum(1,2,3)", { "6", "6" })
+assert_third("$3=vmean(2,4)", { "3", "3" })
+assert_third("$3=vmedian(1,2,3)", { "2", "2" })
+assert_third("$3=vvar(1,2,3)", { "1", "1" })
+assert_third("$3=vsdev(1,2,3)", { "1", "1" })
+assert_third("$3=vmax(3,4)", { "4", "4" })
+assert_third("$3=vmin(3,4)", { "3", "3" })
+assert_third("$3=vcount(3,4)", { "2", "2" })
+assert_third("$3=vsum(1,$1..$2,5)", { "1 + h1 + 7", "1 + x + 8" })
+assert_third("$3=vsum(5,$1..$2)", { "5 + h1 + 2", "5 + x + 3" })
+assert_third("$3=vmean(1,$1..$2,5)", { "0.25 + h1 / 4 + 1.75", "0.25 + x / 4 + 2" })
+assert_third("$3=vcount($1..$2,7)", { "3", "3" })
+-- `vlen` counts a vector's elements, so a scalar argument has length 0.
+assert_third("$3=vlen(3)", { "0", "0" })
+assert_third("$3=vlen($2)", { "0", "0" })
+
+-- A zero divisor has no answer, so Calc keeps the form and rewrites
+-- nothing built on top of it.  A quotient of two whole numbers is
+-- spelled the way a fraction is; every other one is spaced out.
+assert_third("$3=8/0", { "8/0", "8/0" })
+assert_third("$3=0/0", { "0/0", "0/0" })
+assert_third("$3=-8/0", { "-8/0", "-8/0" })
+assert_third("$3=0.16875/0", { "0.16875 / 0", "0.16875 / 0" })
+assert_third("$3=8.0/0", { "8./0", "8./0" })
+assert_third("$3=8/0.0", { "8 / 0.", "8 / 0." })
+assert_third("$3=8/(1-1)", { "8/0", "8/0" })
+assert_third("$3=2/2/0", { "1/0", "1/0" })
+assert_third("$3=1+8/0", { "1 + 8/0", "1 + 8/0" })
+assert_third("$3=8/0+1", { "8/0 + 1", "8/0 + 1" })
+assert_third("$3=8/0-8/0", { "8/0 - 8/0", "8/0 - 8/0" })
+assert_third("$3=3/0+4/0", { "3/0 + 4/0", "3/0 + 4/0" })
+assert_third("$3=(8/0)*2", { "(8/0) 2", "(8/0) 2" })
+assert_third("$3=2*(8/0)", { "2 (8/0)", "2 (8/0)" })
+assert_third("$3=(1/0)*(1/0)", { "(1/0) (1/0)", "(1/0) (1/0)" })
+assert_third("$3=(8/0)^2", { "(8/0)^2", "(8/0)^2" })
+assert_third("$3=8/0/2", { "8/0 / 2", "8/0 / 2" })
+assert_third("$3=-(8/0)", { "-8/0", "-8/0" })
+assert_third("$3=-(1+8/0)", { "-1 - 8/0", "-1 - 8/0" })
+assert_third("$3=(8/0)*0", { "0", "0" })
+assert_third("$3=(8/0)+0", { "8/0", "8/0" })
+assert_third("$3=(8/0)/1", { "8/0", "8/0" })
+assert_third("$3=(8/0)^1", { "8/0", "8/0" })
+assert_third("$3=8%0", { "8 % 0", "8 % 0" })
+assert_third("$3=mod(8,0)", { "8 % 0", "8 % 0" })
+assert_third("$3=$1/0", { "h1 / 0", "x / 0" })
+assert_third("$3=$1/0+$1/0", { "h1 / 0 + h1 / 0", "x / 0 + x / 0" })
+assert_third("$3=$1*2/0", { "2 h1 / 0", "2 x / 0" })
+
+-- Numeric coefficients divide through a quotient; the denominator loses
+-- the parentheses that held its own.
+assert_third("$3=(2*$1)/(4*$1)", { "0.5 h1 / h1", "0.5 x / x" })
+assert_third("$3=(6*$1)/(3*$1)", { "2 h1 / h1", "2 x / x" })
+assert_third("$3=(3*$1)/(2*$1)", { "1.5 h1 / h1", "1.5 x / x" })
+assert_third("$3=(2*$1)/(3*$1)", { "0.66666667 h1 / h1", "0.66666667 x / x" })
+-- Without a coefficient of its own the numerator has nothing to divide
+-- through, so the denominator keeps its parentheses.
+assert_third("$3=(1*$1)/(3*$1)", { "h1 / (3 h1)", "x / (3 x)" })
+assert_third("$3=(2*$1)/(4*$1+1)", { "2 h1 / (4 h1 + 1)", "2 x / (4 x + 1)" })
+
+-- A collected coefficient stays exact, in Calc's own fraction notation.
+assert_third("$3=$1+$1/2", { "3:2 h1", "3:2 x" })
+assert_third("$3=$1-$1/2", { "1:2 h1", "1:2 x" })
+assert_third("$3=$1/4+$1/4", { "1:2 h1", "1:2 x" })
+assert_third("$3=$1/2+$1/3", { "5:6 h1", "5:6 x" })
+assert_third("$3=$1/2+$1/2", { "h1", "x" })
+-- An inexact divisor makes it a float instead.
+assert_third("$3=$1+$1/2.0", { "1.5 h1", "1.5 x" })
+assert_third("$3=$1*(1/2)", { "0.5 h1", "0.5 x" })
+
+-- A remainder over a symbol keeps its form, and collects like any term.
+assert_third("$3=$1 % 2", { "h1 % 2", "x % 2" })
+assert_third("$3=mod($1,2)", { "h1 % 2", "x % 2" })
+assert_third("$3=2 % $1", { "2 % h1", "2 % x" })
+assert_third("$3=$1 % $1", { "h1 % h1", "x % x" })
+assert_third("$3=$1 % 2 % 3", { "h1 % 2 % 3", "x % 2 % 3" })
+assert_third("$3=($1+1) % 2", { "(h1 + 1) % 2", "(x + 1) % 2" })
+assert_third("$3=(2*$1) % 2", { "2 h1 % 2", "2 x % 2" })
+assert_third("$3=2 % (2*$1)", { "2 % 2 h1", "2 % 2 x" })
+assert_third("$3=($1 % 2) * 3", { "3 (h1 % 2)", "3 (x % 2)" })
+assert_third("$3=-($1 % 2)", { "-(h1 % 2)", "-(x % 2)" })
+assert_third("$3=($1 % 2) / 2", { "h1 % 2 / 2", "x % 2 / 2" })
+assert_third("$3=($1 % 2) ^ 2", { "(h1 % 2)^2", "(x % 2)^2" })
+assert_third("$3=$1 % 2 - $1 % 2", { "0", "0" })
+assert_third("$3=$1 % 2 + $1 % 2", { "2 (h1 % 2)", "2 (x % 2)" })
+assert_third("$3=($1 % 2)*($1+1)", { "(h1 % 2) (h1 + 1)", "(x % 2) (x + 1)" })
+-- A product whose last factor is a bare variable takes the `*` back.
+assert_third("$3=(2*$1)*($1+1)", { "2 h1*(h1 + 1)", "2 x*(x + 1)" })
+
+-- A function Calc cannot answer stays as the call itself, and the
+-- algebra around it goes on as usual.
 assert_third("$3=foo($1)", { "foo(h1)", "foo(x)" })
+assert_third("$3=foo($1,2)", { "foo(h1, 2)", "foo(x, 2)" })
+assert_third("$3=foo($1)+1", { "foo(h1) + 1", "foo(x) + 1" })
+assert_third("$3=sqrt($1)", { "sqrt(h1)", "sqrt(x)" })
+assert_third("$3=abs($1)", { "abs(h1)", "abs(x)" })
+assert_third("$3=log($1)", { "ln(h1)", "ln(x)" })
+assert_third("$3=floor($1/2)", { "floor(h1 / 2)", "floor(x / 2)" })
+assert_third("$3=min($1,2)", { "min(h1, 2)", "min(x, 2)" })
+assert_third("$3=max($1,2)", { "max(h1, 2)", "max(x, 2)" })
+assert_third("$3=gcd($1,2)", { "gcd(h1, 2)", "gcd(x, 2)" })
+assert_third("$3=not($1)", { "not(h1)", "not(x)" })
+assert_third("$3=pow($1,2)", { "h1^2", "x^2" })
+assert_third("$3=sqrt($1)+1", { "sqrt(h1) + 1", "sqrt(x) + 1" })
+assert_third("$3=sqrt($1)*2", { "2 sqrt(h1)", "2 sqrt(x)" })
+assert_third("$3=-sqrt($1)", { "-sqrt(h1)", "-sqrt(x)" })
+assert_third("$3=abs($1)/2", { "abs(h1) / 2", "abs(x) / 2" })
+assert_third("$3=sqrt($1)+sqrt($1)", { "2 sqrt(h1)", "2 sqrt(x)" })
+
+-- The three places Calc's simplifier reaches back inside a call.
+assert_third("$3=sqrt($1*4)", { "2 sqrt(h1)", "2 sqrt(x)" })
+assert_third("$3=sqrt(4*$1)", { "2 sqrt(h1)", "2 sqrt(x)" })
+assert_third("$3=sqrt($1*2)", { "1.4142136 sqrt(h1)", "1.4142136 sqrt(x)" })
+assert_third("$3=sqrt($1/4)", { "sqrt(h1) / 2", "sqrt(x) / 2" })
+assert_third("$3=sqrt($1)^2", { "h1", "x" })
+assert_third("$3=sqrt($1)*sqrt($1)", { "h1", "x" })
+assert_third("$3=abs(-$1)", { "abs(h1)", "abs(x)" })
+assert_third("$3=abs(-2*$1)", { "abs(2 h1)", "abs(2 x)" })
+assert_third("$3=abs(abs($1))", { "abs(h1)", "abs(x)" })
+assert_third("$3=sign(-$1)", { "-sign(h1)", "-sign(x)" })
+-- ... and the shapes it leaves alone.
+assert_third("$3=sqrt(-$1)", { "sqrt(-h1)", "sqrt(-x)" })
+assert_third("$3=sqrt($1*-4)", { "sqrt(-4 h1)", "sqrt(-4 x)" })
+assert_third("$3=abs($1*4)", { "abs(4 h1)", "abs(4 x)" })
+assert_third("$3=ln($1*4)", { "ln(4 h1)", "ln(4 x)" })
+assert_third("$3=ln(exp($1))", { "ln(exp(h1))", "ln(exp(x))" })
+
+-- Numbers Calc has no answer for keep the call too.
+assert_third("$3=ln(0)", { "ln(0)", "ln(0)" })
+assert_third("$3=ln(0.0)", { "ln(0.)", "ln(0.)" })
+assert_third("$3=log10(0)", { "log10(0)", "log10(0)" })
+assert_third("$3=ln(0)+1", { "ln(0) + 1", "ln(0) + 1" })
+assert_third("$3=gcd(6,0.25)", { "gcd(6, 0.25)", "gcd(6, 0.25)" })
+assert_third("$3=lcm(1.5,2)", { "lcm(1.5, 2)", "lcm(1.5, 2)" })
+assert_third("$3=gcd(4,6)", { "2", "2" })
+assert_third("$3=lcm(4,6)", { "12", "12" })
+
+-- `vmax` and `vmin` over one vector reduce to nested calls.
+assert_third("$3=vmax($1..$2)", { "max(h1, 2)", "max(x, 3)" })
+assert_third("$3=vmin($1..$2)", { "min(h1, 2)", "min(x, 3)" })
+
+-- A comparison over a symbol keeps its form; Calc spells equality `=`.
+assert_third("$3=$1==2", { "h1 = 2", "x = 2" })
+assert_third("$3=$1<2", { "h1 < 2", "x < 2" })
+assert_third("$3=$1<=2", { "h1 <= 2", "x <= 2" })
+assert_third("$3=$1>2", { "h1 > 2", "x > 2" })
+assert_third("$3=$1>=2", { "h1 >= 2", "x >= 2" })
+assert_third("$3=$1!=2", { "h1 != 2", "x != 2" })
+assert_third("$3=($1<2)+1", { "(h1 < 2) + 1", "(x < 2) + 1" })
+assert_third("$3=($1<2)*2", { "2 (h1 < 2)", "2 (x < 2)" })
+assert_third("$3=-($1<2)", { "-(h1 < 2)", "-(x < 2)" })
+assert_third("$3=($1+1)<2", { "h1 + 1 < 2", "x + 1 < 2" })
+assert_third("$3=($1<2)<3", { "h1 < 2 < 3", "x < 2 < 3" })
+assert_third("$3=sqrt($1)<2", { "sqrt(h1) < 2", "sqrt(x) < 2" })
 
 -- Under `;N` every field reads as a number, so a symbol is 0.
 assert_third("$3=$1+1;N", { "1", "1" })
+-- An algebraic result has no number to give `;N`, though.
+assert_third("$3=8/0;N", { "#ERROR", "#ERROR" })
+assert_third("$3=foo(1);N", { "#ERROR", "#ERROR" })
 
--- A printf format reads a result it cannot make a number of as 0.
+-- A printf format reads a result it cannot make a number of the way
+-- `string-to-number` does: the number the text starts with, else 0.
 assert_third("$3=$1+1;%.2f", { "0.00", "0.00" })
+assert_third("$3=8/0;%.2f", { "8.00", "8.00" })
+assert_third("$3=-8/0;%.2f", { "-8.00", "-8.00" })
+assert_third("$3=0.16875/0;%.2f", { "0.17", "0.17" })
+assert_third("$3=$1*2;%.2f", { "2.00", "2.00" })
+assert_third("$3=foo(1);%.2f", { "0.00", "0.00" })
 
 -- Refused: symbolic forms organ will not spell.  Emacs answers each of
 -- these, organ declines rather than guess, and the fields the user
 -- typed come back untouched -- never #ERROR.
 local REFUSED = {
-  "$3=$1==2",
-  "$3=$1<2",
   "$3=if($1>0,1,2)",
-  "$3=$1 % 2",
-  "$3=mod($1,2)",
-  "$3=sqrt($1)",
-  "$3=abs($1)",
-  "$3=min($1,2)",
-  "$3=vmax($1..$2)",
+  "$3=if($1,1,2)",
+  "$3=vmax($1,2,3)",
+  "$3=vmax($1..$2,7)",
+  "$3=vmax(1,$1..$2)",
   "$3=vmedian($1..$2)",
   "$3=vproduct($1..$2)",
-  "$3=$1+$1/2",
+  "$3=vsdev($1..$2)",
+  "$3=vvar($1..$2)",
+  "$3=vmaxabs($1..$2)",
+  "$3=vlen($1..$2,3)",
+  "$3=vmean()",
 }
 
 for _, tblfm in ipairs(REFUSED) do

@@ -384,7 +384,7 @@ local function _eval_at(ast, var, c)
   local F = require("organ.table.formula")
   local ctx = { rows = {}, current_row = 1, current_col = 1, vars = { [var] = c } }
   local ok, v = pcall(F.eval_calc, ast, ctx)
-  if not ok then
+  if not ok or core.is_inert(v) then
     return nil
   end
   return v
