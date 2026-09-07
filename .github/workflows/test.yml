@@ -130,11 +130,21 @@ jobs:
           neovim: true
           version: stable
 
-      - name: install system dependencies (incl. emacs)
+      - name: install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            sqlite3 libsqlite3-0 libnotify-bin emacs-nox
+            sqlite3 libsqlite3-0 libnotify-bin
+
+      # Pinned, not the distribution's emacs: the sweep compares our
+      # extractor against whatever org that build ships, and they do not
+      # agree with each other.  29.3 (org 9.6) strips COMMENT as a bare
+      # prefix, so it reads `COMMENTARY` as a commented `ARY`; 9.7 requires
+      # the whole word.  A gate against a moving oracle tests the oracle.
+      - name: install emacs
+        uses: purcell/setup-emacs@bdc64dc730ae1fcba200bfd52cb1b4cf6159cbe5
+        with:
+          version: '30.2'
 
       - name: setup node (for tree-sitter generate)
         uses: actions/setup-node@v5
