@@ -297,10 +297,6 @@ function M.install()
     notify_err("make not in PATH; cannot build grammars")
     return false, "make missing"
   end
-  if vim.fn.executable("npm") ~= 1 and vim.fn.executable("pnpm") ~= 1 then
-    notify_err("npm/pnpm not in PATH; needed for tree-sitter-cli")
-    return false, "no node package manager"
-  end
 
   local data_root = vim.fn.stdpath("data") .. "/organ"
   local parser_dir = data_root .. "/parser"
