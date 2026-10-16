@@ -8,24 +8,17 @@
 
 local bufnr = vim.api.nvim_get_current_buf()
 
--- Activate tree-sitter highlighting and force-unload Neovim's bundled
--- `syntax/org.vim` for this buffer. The legacy syntax has a buggy
--- `orgCodeInline` region (matching `~...~`) that bleeds to EOF whenever
--- a property value like `:DIR: ~/path` appears, so we want it gone.
---
--- vim.treesitter.start() sets `b:current_syntax = ""` which *prevents*
--- future syntax loading, but doesn't unload syntax that already loaded.
--- The explicit `syntax clear` below covers that case.
-local ok, err = pcall(vim.treesitter.start, bufnr, "org")
-if ok then
-  pcall(function()
-    vim.api.nvim_buf_call(bufnr, function() vim.cmd("syntax clear") end)
-  end)
-else
+-- Activate tree-sitter highlighting (see grammar_install.start_highlighter
+-- for why the bundled syntax is cleared).  A missing grammar starts a
+-- background install that highlights this buffer when it finishes, and
+-- reports failure itself, once.
+local grammar = require("organ.grammar_install")
+local ok, err = grammar.start_highlighter(bufnr)
+if not ok and not grammar.ensure() then
   vim.notify(
     "organ: tree-sitter parser not available — highlighting falls back to "
     .. "Neovim's bundled syntax/org.vim, which has a known bleed bug.\n"
-    .. "Run :lua require('organ.grammar_install').install() to fix.\n"
+    .. "Run :Org install_grammars to fix.\n"
     .. "(detail: " .. tostring(err) .. ")",
     vim.log.levels.WARN)
 end

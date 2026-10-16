@@ -114,19 +114,45 @@ local function summary_notify(msg, level)
   end
 end
 
--- Errors are surfaced eagerly via vim.notify because they're rare,
--- actionable, and the user needs to know something failed before
--- dismissing further press-ENTER prompts. Each error also lands in the
--- log — we flush eagerly here so a hard early return from install()
--- still leaves a diagnosable trace on disk.
-local function notify_err(msg)
+local RETRY_CMD = ":Org install_grammars"
+
+-- One WARN per failed install: what failed and the first line of why,
+-- with the full error going to the log only.  A multi-line notify of
+-- make's whole output is what gets lost in a plugin manager's build
+-- window.
+local function notify_err(what, err)
+  local msg = what .. ": " .. err
   progress("ERROR: " .. msg)
   flush_log()
+  local short = ("%s: %s\nlog: %s\nretry: %s"):format(
+    what,
+    (err:match("^[^\n]*")),
+    log_path(),
+    RETRY_CMD
+  )
   if vim and vim.notify then
-    vim.notify("organ: " .. msg .. "\n(full log: " .. log_path() .. ")", vim.log.levels.ERROR)
+    vim.notify("organ: " .. short, vim.log.levels.WARN)
   else
-    io.stderr:write("organ: " .. msg .. "\n")
+    io.stderr:write("organ: " .. short .. "\n")
   end
+end
+
+-- Coroutines started by install_async().  system() yields only inside
+-- one of these; any other caller -- including a plugin manager whose
+-- build task is itself a coroutine -- blocks on :wait() as before.
+local _async = setmetatable({}, { __mode = "k" })
+
+local function system(cmd, opts)
+  local co = coroutine.running()
+  if co and _async[co] then
+    vim.system(cmd, opts, function(res)
+      vim.schedule(function()
+        _async[co].resume(res)
+      end)
+    end)
+    return coroutine.yield()
+  end
+  return vim.system(cmd, opts):wait()
 end
 
 local function run(cmd, cwd)
@@ -134,7 +160,7 @@ local function run(cmd, cwd)
   if cwd then
     opts.cwd = cwd
   end
-  local res = vim.system(cmd, opts):wait()
+  local res = system(cmd, opts)
   if res.code ~= 0 then
     return false,
       string.format(
@@ -152,7 +178,7 @@ end
 -- isn't a clone / git is unavailable.  Best-effort: callers treat nil
 -- as "can't tell" and stay quiet.
 local function git_head(dir)
-  local res = vim.system({ "git", "-C", dir, "rev-parse", "HEAD" }, { text = true }):wait()
+  local res = system({ "git", "-C", dir, "rev-parse", "HEAD" }, { text = true })
   if res.code ~= 0 then
     return nil
   end
@@ -182,9 +208,7 @@ local function clone_or_pull(url, dest)
     -- install used a different URL (e.g. user reconfigured a fork),
     -- the safest move is to blow it away and reclone — otherwise
     -- `fetch origin HEAD` would pull the WRONG tree.
-    local res = vim
-      .system({ "git", "-C", dest, "remote", "get-url", "origin" }, { text = true })
-      :wait()
+    local res = system({ "git", "-C", dest, "remote", "get-url", "origin" }, { text = true })
     local current_url = (res.stdout or ""):gsub("%s+$", "")
     if res.code == 0 and current_url == url then
       progress("updating " .. vim.fn.fnamemodify(dest, ":t"))
@@ -277,24 +301,26 @@ local function copy_artifact(src, dst)
   -- guard; on Linux / other Unixes this is a no-op and `codesign` is
   -- usually absent anyway.
   if vim.uv.os_uname().sysname == "Darwin" and vim.fn.executable("codesign") == 1 then
-    local out = vim.fn.system({ "codesign", "--force", "--sign", "-", dst })
-    if vim.v.shell_error ~= 0 then
-      return false, "codesign failed for " .. dst .. ": " .. out
+    local res = system({ "codesign", "--force", "--sign", "-", dst }, { text = true })
+    if res.code ~= 0 then
+      return false, "codesign failed for " .. dst .. ": " .. (res.stderr or "")
     end
   end
   return true
 end
+
+local GRAMMAR_REPOS = "tree-sitter-organ + tree-sitter-organ-inline"
 
 -- Install both parsers. Returns (true) on full success, (false, err) on
 -- the first failure. Idempotent — re-running fast-forwards the clones
 -- and rebuilds.
 function M.install()
   if vim.fn.executable("git") ~= 1 then
-    notify_err("git not in PATH; cannot fetch grammars")
+    notify_err(GRAMMAR_REPOS .. " not fetched", "git not in PATH")
     return false, "git missing"
   end
   if vim.fn.executable("make") ~= 1 then
-    notify_err("make not in PATH; cannot build grammars")
+    notify_err(GRAMMAR_REPOS .. " not built", "make not in PATH")
     return false, "make missing"
   end
 
@@ -332,17 +358,17 @@ function M.install()
     local src_dir = src_root .. "/" .. grammar.dir_name
     local ok, err = clone_or_pull(grammar.url, src_dir)
     if not ok then
-      notify_err(grammar.dir_name .. " clone failed: " .. err)
+      notify_err(grammar.dir_name .. " clone failed", err)
       return false, err
     end
     ok, err = build_grammar(src_dir)
     if not ok then
-      notify_err(grammar.dir_name .. " build failed: " .. err)
+      notify_err(grammar.dir_name .. " build failed", err)
       return false, err
     end
     ok, err = copy_artifact(src_dir .. "/" .. grammar.built, grammar.out)
     if not ok then
-      notify_err(grammar.dir_name .. " install failed: " .. err)
+      notify_err(grammar.dir_name .. " install failed", err)
       return false, err
     end
     manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(src_dir) }
@@ -411,14 +437,123 @@ function M.check_stale()
         ("%s out of date -- a grammar update fetched a newer revision but its build did not complete. "):format(
           table.concat(stale, " + ")
         )
-          .. "Re-run the build hook (`:Lazy build organ.nvim`, or "
-          .. '`:lua require("organ.grammar_install").install()`). Full log: '
+          .. "Rebuild with `"
+          .. RETRY_CMD
+          .. "`. Full log: "
           .. log_path(),
         vim.log.levels.WARN
       )
     end
   end)
   return ok
+end
+
+local _running = false
+
+-- Run install() without blocking the UI: every external command yields
+-- the coroutine until its process exits.  On success, start tree-sitter
+-- on the org buffers that opened without it.  `on_done(ok, err)` fires
+-- when the install finishes.  Returns false, without starting anything,
+-- while an earlier call is still running.
+function M.install_async(on_done)
+  if _running then
+    return false
+  end
+  _running = true
+  local co = coroutine.create(M.install)
+  local function finish(ok, err)
+    _running = false
+    _async[co] = nil
+    if ok then
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if
+          vim.api.nvim_buf_is_loaded(buf)
+          and vim.bo[buf].filetype == "org"
+          and not vim.treesitter.highlighter.active[buf]
+        then
+          M.start_highlighter(buf)
+        end
+      end
+    end
+    if on_done then
+      on_done(ok, err)
+    end
+  end
+  _async[co] = {
+    resume = function(...)
+      local ok, res, err = coroutine.resume(co, ...)
+      if not ok then
+        notify_err("grammar install aborted", tostring(res))
+        finish(false, res)
+      elseif coroutine.status(co) == "dead" then
+        finish(res, err)
+      end
+    end,
+  }
+  vim.schedule(function()
+    _async[co].resume()
+  end)
+  return true
+end
+
+-- Start tree-sitter highlighting on an org buffer and drop the bundled
+-- syntax/org.vim, whose `~...~` region bleeds to EOF on property values
+-- like `:DIR: ~/path`.  vim.treesitter.start() stops syntax from loading
+-- later but does not unload what already loaded.  Returns pcall's
+-- (ok, err).
+function M.start_highlighter(bufnr)
+  local ok, err = pcall(vim.treesitter.start, bufnr, "org")
+  if ok then
+    pcall(vim.api.nvim_buf_call, bufnr, function()
+      vim.cmd("syntax clear")
+    end)
+  end
+  return ok, err
+end
+
+-- Grammar files no candidate location provides (see M.resolve).
+function M.missing()
+  local organ_ok, organ = pcall(require, "organ")
+  local override = organ_ok and organ.config and organ.config.parser_path or nil
+  local out = {}
+  for _, grammar in ipairs({ "org.so", "org_inline.so" }) do
+    local found = false
+    for _, p in ipairs(M.resolve(grammar, grammar == "org.so" and override or nil)) do
+      if vim.uv.fs_stat(p) ~= nil then
+        found = true
+        break
+      end
+    end
+    if not found then
+      out[#out + 1] = grammar
+    end
+  end
+  return out
+end
+
+-- Called when an org buffer opens.  When a grammar is missing, start one
+-- background install per session -- a build hook that failed (no
+-- compiler yet, an unaccepted Xcode license) never runs again on its
+-- own.  Returns true when grammars are missing, so the caller knows the
+-- install path owns the reporting and need not warn per buffer.
+local _retried = false
+function M.ensure()
+  local missing = M.missing()
+  if #missing == 0 then
+    return false
+  end
+  if not _retried then
+    _retried = true
+    vim.notify(
+      ("organ: %s missing; building in the background (log: %s)"):format(
+        table.concat(missing, " + "),
+        log_path()
+      ),
+      vim.log.levels.INFO
+    )
+    M.install_async()
+  end
+  return true
 end
 
 -- Resolve a parser path under the data dir. Returns the path string
@@ -447,7 +582,8 @@ function M.resolve(grammar, override_path)
   return out
 end
 
--- Exposed for tests; the only call site stays inside this module.
+-- Exposed for tests; the only call sites stay inside this module.
 M._copy_artifact = copy_artifact
+M._platform_triple = _platform_triple
 
 return M

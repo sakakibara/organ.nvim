@@ -167,6 +167,11 @@ into `<stdpath data>/organ/`, compiles the parsers into
 via `vim.treesitter.language.add` lazily (on first tree-sitter call,
 not at `setup()` time). nvim-treesitter is NOT required.
 
+A failed build reports one warning with the log path
+(`<stdpath data>/organ/grammar-install.log`).  If a grammar is still
+missing when an org buffer opens, organ retries the build in the
+background once per session; |:Org-install_grammars| retries on demand.
+
 `plugin/organ.lua` runs at Neovim startup and registers all `:Org*`
 commands. No DB or tree-sitter work happens at this stage, so startup
 time is unaffected regardless of how many org files you have.
@@ -1656,6 +1661,13 @@ Indexing                                                  *organ-cmd-indexing*
 *:Org-status*
     `:Org status`
     Show organ queue and DB status (headline count, file count, etc.).
+
+*:Org-install_grammars*
+    `:Org install_grammars`
+    Fetch and build the tree-sitter grammars in the background, as the
+    build hook does.  On success, highlighting starts on open org
+    buffers.  Opening an org buffer while a grammar is missing runs
+    this once per session on its own.  See |organ-installation|.
 
 ------------------------------------------------------------------------------
 Capture                                                    *organ-cmd-capture*

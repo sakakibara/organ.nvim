@@ -94,7 +94,13 @@ end)
 -- entry whose `parser/` directory Neovim auto-scans. No explicit
 -- vim.treesitter.language.add() needed; ftplugin/org.lua's
 -- vim.treesitter.start() finds the parser through the standard mechanism.
-vim.opt.runtimepath:prepend(vim.fn.stdpath("data") .. "/organ")
+-- The directory must exist before the first runtime-file lookup: Neovim
+-- caches the runtimepath without entries that are missing at that point
+-- and does not look again until the option changes, so a grammar built
+-- later in the session would stay invisible.
+local organ_data = vim.fn.stdpath("data") .. "/organ"
+vim.fn.mkdir(organ_data, "p")
+vim.opt.runtimepath:prepend(organ_data)
 
 -- :Org subcommand registry.
 --
@@ -251,6 +257,19 @@ local subcommands = {
     end,
     nargs = "?",
     desc = "Rename the headline at cursor and update all *Title references",
+  },
+
+  install_grammars = {
+    fn = function()
+      local gi = require("organ.grammar_install")
+      local started = gi.install_async()
+      vim.notify(
+        started and "organ: building grammars in the background"
+          or "organ: a grammar install is already running",
+        vim.log.levels.INFO
+      )
+    end,
+    desc = "Fetch and build the tree-sitter grammars in the background",
   },
 
   -- LSP

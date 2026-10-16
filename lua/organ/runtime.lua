@@ -139,7 +139,7 @@ function M.parser()
     require("organ.notify").error(
       (
         "tree-sitter parser not installed. Tried:\n  %s\nRun your plugin manager's build hook, "
-        .. "or :lua require('organ.grammar_install').install()"
+        .. "or :Org install_grammars"
       ):format(table.concat(candidates, "\n  "))
     )
     return
@@ -152,7 +152,7 @@ function M.parser()
         .. "grammar organ.nvim requires (%s).\n"
         .. "This is usually a cached parser from a different tree-sitter-Org plugin.\n"
         .. "Reinstall the correct grammar: "
-        .. ":lua require('organ.grammar_install').install()"
+        .. ":Org install_grammars"
       ):format(found, err_canary)
     )
     return
@@ -163,7 +163,7 @@ function M.parser()
       (
         "failed to load parser at %s.\n"
         .. "       Reason: %s\n"
-        .. "       Rebuild: :lua require('organ.grammar_install').install()"
+        .. "       Rebuild: :Org install_grammars"
       ):format(found, tostring(err))
     )
     return
