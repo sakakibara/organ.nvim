@@ -1,7 +1,7 @@
 -- :checkhealth organ support. Reports on:
 --   - tablature.nvim is installed and new enough for the table commands
 --   - libsqlite3 loads successfully
---   - grammar/org.so is present
+--   - the org and org_inline parsers are present and load
 --   - DB is reachable and writable
 --   - schema user_version matches what this plugin ships
 
@@ -23,31 +23,47 @@ end
 
 -- Parser presence + dlopen verification (catches arch mismatches early).
 local function check_parser()
-  local parser = require("organ.buf_config").read(nil, "parser_path")
+  local gi = require("organ.grammar_install")
   local plat
   do
     local u = vim.uv and vim.uv.os_uname() or vim.loop.os_uname()
     plat = (u.sysname or "?"):lower() .. "-" .. (u.machine or "?")
   end
   health.info("platform: " .. plat)
-  if not parser or not vim.loop.fs_stat(parser) then
-    health.error(
-      ("tree-sitter parser missing at %s — build for this host: `make -C grammar`"):format(
-        tostring(parser)
-      )
-    )
-  else
-    local ok_load, err_load = pcall(vim.treesitter.language.add, "org", { path = parser })
-    if ok_load then
-      health.ok("tree-sitter parser loads: " .. parser)
-    else
+  local override = require("organ.buf_config").read(nil, "parser_path")
+  local fix = ("fix: `:Org install_grammars` (log: %s)"):format(gi.log_path())
+  for _, grammar in ipairs({ "org.so", "org_inline.so" }) do
+    local candidates = gi.resolve(grammar, grammar == "org.so" and override or nil)
+    local found
+    for _, p in ipairs(candidates) do
+      if vim.uv.fs_stat(p) then
+        found = p
+        break
+      end
+    end
+    local lang = grammar:match("^(.-)%.so$")
+    if not found then
       health.error(
-        ("tree-sitter parser at %s failed to dlopen for %s\n  reason: %s\n  fix: `make -C grammar` on this host (the binary was likely built for a different OS/arch)"):format(
-          parser,
-          plat,
-          tostring(err_load)
+        ("tree-sitter parser %s missing; tried:\n  %s\n  %s"):format(
+          grammar,
+          table.concat(candidates, "\n  "),
+          fix
         )
       )
+    else
+      local ok_load, err_load = pcall(vim.treesitter.language.add, lang, { path = found })
+      if ok_load then
+        health.ok("tree-sitter parser loads: " .. found)
+      else
+        health.error(
+          ("tree-sitter parser at %s failed to dlopen for %s (likely built for another OS/arch)\n  reason: %s\n  %s"):format(
+            found,
+            plat,
+            tostring(err_load),
+            fix
+          )
+        )
+      end
     end
   end
 end
