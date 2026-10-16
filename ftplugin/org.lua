@@ -10,17 +10,13 @@ local bufnr = vim.api.nvim_get_current_buf()
 
 -- Activate tree-sitter highlighting (see grammar_install.start_highlighter
 -- for why the bundled syntax is cleared).  A missing grammar starts a
--- background install that highlights this buffer when it finishes, and
--- reports failure itself, once.
+-- background install that refreshes this buffer when it finishes and
+-- reports its own failure, once.
 local grammar = require("organ.grammar_install")
+local missing = grammar.ensure()
 local ok, err = grammar.start_highlighter(bufnr)
-if not ok and not grammar.ensure() then
-  vim.notify(
-    "organ: tree-sitter parser not available — highlighting falls back to "
-    .. "Neovim's bundled syntax/org.vim, which has a known bleed bug.\n"
-    .. "Run :Org install_grammars to fix.\n"
-    .. "(detail: " .. tostring(err) .. ")",
-    vim.log.levels.WARN)
+if not ok and not missing then
+  grammar.warn_fallback(err)
 end
 
 -- Core: TODO keymaps, fold opts, indent, completion autocmd, clock keymaps.

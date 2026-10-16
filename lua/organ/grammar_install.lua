@@ -140,9 +140,15 @@ end
 -- Coroutines started by install_async().  system() yields only inside
 -- one of these; any other caller -- including a plugin manager whose
 -- build task is itself a coroutine -- blocks on :wait() as before.
-local _async = setmetatable({}, { __mode = "k" })
+local _async = {}
+local _running = false
+
+-- Bounds a hung clone or build, which would otherwise hold the install
+-- lock for the rest of the session.
+local CMD_TIMEOUT_MS = 5 * 60 * 1000
 
 local function system(cmd, opts)
+  opts = vim.tbl_extend("keep", opts, { timeout = CMD_TIMEOUT_MS })
   local co = coroutine.running()
   if co and _async[co] then
     vim.system(cmd, opts, function(res)
@@ -161,6 +167,9 @@ local function run(cmd, cwd)
     opts.cwd = cwd
   end
   local res = system(cmd, opts)
+  if res.code == 124 and (res.signal or 0) ~= 0 then
+    return false, ("%s timed out after %ds"):format(table.concat(cmd, " "), CMD_TIMEOUT_MS / 1000)
+  end
   if res.code ~= 0 then
     return false,
       string.format(
@@ -301,7 +310,12 @@ local function copy_artifact(src, dst)
   -- guard; on Linux / other Unixes this is a no-op and `codesign` is
   -- usually absent anyway.
   if vim.uv.os_uname().sysname == "Darwin" and vim.fn.executable("codesign") == 1 then
-    local res = system({ "codesign", "--force", "--sign", "-", dst }, { text = true })
+    -- Synchronous even in a background install, so the caller can place
+    -- both parsers without yielding between them.  It takes milliseconds;
+    -- the bound is tight because the UI waits on it.
+    local res = vim
+      .system({ "codesign", "--force", "--sign", "-", dst }, { text = true, timeout = 30000 })
+      :wait()
     if res.code ~= 0 then
       return false, "codesign failed for " .. dst .. ": " .. (res.stderr or "")
     end
@@ -315,6 +329,10 @@ local GRAMMAR_REPOS = "tree-sitter-organ + tree-sitter-organ-inline"
 -- the first failure. Idempotent — re-running fast-forwards the clones
 -- and rebuilds.
 function M.install()
+  if _running and not _async[coroutine.running() or false] then
+    notify_err(GRAMMAR_REPOS .. " not built", "a background grammar install is still running")
+    return false, "install already running"
+  end
   if vim.fn.executable("git") ~= 1 then
     notify_err(GRAMMAR_REPOS .. " not fetched", "git not in PATH")
     return false, "git missing"
@@ -338,6 +356,8 @@ function M.install()
   -- source clone" -- which is exactly what happens when a subsequent
   -- update pulls a new grammar revision but its build fails.
   local manifest = {}
+  local built = {}
+  local failed
 
   for _, grammar in ipairs({
     {
@@ -359,20 +379,35 @@ function M.install()
     local ok, err = clone_or_pull(grammar.url, src_dir)
     if not ok then
       notify_err(grammar.dir_name .. " clone failed", err)
-      return false, err
+      failed = err
+      break
     end
     ok, err = build_grammar(src_dir)
     if not ok then
       notify_err(grammar.dir_name .. " build failed", err)
-      return false, err
+      failed = err
+      break
     end
-    ok, err = copy_artifact(src_dir .. "/" .. grammar.built, grammar.out)
+    grammar.src_dir = src_dir
+    built[#built + 1] = grammar
+  end
+
+  -- Place the parsers back to back, after every build and without
+  -- yielding between them: a session that parses org with org.so but not
+  -- yet org_inline.so remembers the inline parser as missing.
+  for _, grammar in ipairs(built) do
+    local ok, err = copy_artifact(grammar.src_dir .. "/" .. grammar.built, grammar.out)
     if not ok then
       notify_err(grammar.dir_name .. " install failed", err)
       return false, err
     end
-    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(src_dir) }
     progress("installed " .. grammar.dir_name .. " → " .. grammar.out)
+  end
+  for _, grammar in ipairs(built) do
+    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(grammar.src_dir) }
+  end
+  if failed then
+    return false, failed
   end
 
   do
@@ -388,7 +423,7 @@ function M.install()
   -- install / update). Per-step progress lives in the log file
   -- (`<stdpath data>/organ/grammar-install.log`) for users who want to
   -- inspect what happened.
-  summary_notify("grammars installed (org.so + org_inline.so under " .. data_root .. ")")
+  summary_notify("grammars installed (org.so + org_inline.so)")
   return true
 end
 
@@ -448,10 +483,8 @@ function M.check_stale()
   return ok
 end
 
-local _running = false
-
 -- Run install() without blocking the UI: every external command yields
--- the coroutine until its process exits.  On success, start tree-sitter
+-- the coroutine until its process exits.  When it ends, start tree-sitter
 -- on the org buffers that opened without it.  `on_done(ok, err)` fires
 -- when the install finishes.  Returns false, without starting anything,
 -- while an earlier call is still running.
@@ -460,20 +493,37 @@ function M.install_async(on_done)
     return false
   end
   _running = true
+  -- Neovim remembers for the whole session that an injected parser was
+  -- missing, so an org buffer parsed without org_inline cannot pick it up.
+  local missing = M.missing()
+  local inline_only = #missing == 1 and missing[1] == "org_inline.so"
   local co = coroutine.create(M.install)
   local function finish(ok, err)
     _running = false
     _async[co] = nil
-    if ok then
-      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-        if
-          vim.api.nvim_buf_is_loaded(buf)
-          and vim.bo[buf].filetype == "org"
-          and not vim.treesitter.highlighter.active[buf]
-        then
+    -- Even a failed install may have placed org.so (the inline build
+    -- failing after it), which still beats the bundled syntax.
+    --
+    -- The first dlopen of a freshly signed parser is slow on macOS.  Left
+    -- to the highlighter, it lands inside an async parse step, and a step
+    -- that overruns 'redrawtime' leaves the highlighter waiting forever.
+    for _, lang in ipairs({ "org", "org_inline" }) do
+      pcall(vim.treesitter.language.add, lang)
+    end
+    local org_open = false
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "org" then
+        org_open = true
+        if not vim.treesitter.highlighter.active[buf] then
           M.start_highlighter(buf)
         end
       end
+    end
+    if ok and inline_only and org_open then
+      vim.notify(
+        "organ: org_inline.so installed; restart Neovim for inline highlighting",
+        vim.log.levels.WARN
+      )
     end
     if on_done then
       on_done(ok, err)
@@ -534,8 +584,8 @@ end
 -- Called when an org buffer opens.  When a grammar is missing, start one
 -- background install per session -- a build hook that failed (no
 -- compiler yet, an unaccepted Xcode license) never runs again on its
--- own.  Returns true when grammars are missing, so the caller knows the
--- install path owns the reporting and need not warn per buffer.
+-- own.  Returns true when a grammar is missing, so the caller knows the
+-- install path owns the reporting.
 local _retried = false
 function M.ensure()
   local missing = M.missing()
@@ -545,15 +595,28 @@ function M.ensure()
   if not _retried then
     _retried = true
     vim.notify(
-      ("organ: %s missing; building in the background (log: %s)"):format(
-        table.concat(missing, " + "),
-        log_path()
-      ),
+      ("organ: %s missing; building in the background"):format(table.concat(missing, " + ")),
       vim.log.levels.INFO
     )
     M.install_async()
   end
   return true
+end
+
+-- Warn, once per session, that highlighting failed although both
+-- grammars are present (a parser built for another OS/arch, say).
+local _fallback_warned = false
+function M.warn_fallback(err)
+  if _fallback_warned then
+    return
+  end
+  _fallback_warned = true
+  vim.notify(
+    "organ: tree-sitter highlighting failed; falling back to Neovim's bundled "
+      .. "syntax/org.vim, which has a known bleed bug.\n"
+      .. ("rebuild: %s\n(detail: %s)"):format(RETRY_CMD, tostring(err)),
+    vim.log.levels.WARN
+  )
 end
 
 -- Resolve a parser path under the data dir. Returns the path string
@@ -581,6 +644,8 @@ function M.resolve(grammar, override_path)
   out[#out + 1] = vim.fn.stdpath("data") .. "/site/parser/" .. lang .. ".so"
   return out
 end
+
+M.log_path = log_path
 
 -- Exposed for tests; the only call sites stay inside this module.
 M._copy_artifact = copy_artifact

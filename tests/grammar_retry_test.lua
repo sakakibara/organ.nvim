@@ -1,8 +1,8 @@
 -- Regression: a grammar the build hook failed to install must not leave
 -- org buffers silently unhighlighted for good.  Opening an org buffer
 -- while a grammar is missing starts one background install per session;
--- success starts tree-sitter on the open org buffers, failure gives one
--- WARN naming the log, and present grammars trigger nothing.
+-- success refreshes highlighting on the open org buffers, failure gives
+-- one WARN naming the log, and present grammars trigger nothing.
 --
 -- vim.system is faked: git succeeds without touching the network, and
 -- make either "builds" by copying the developer's real parsers into the
@@ -18,7 +18,7 @@ local root = vim.fn.getcwd()
 local case = os.getenv("ORGAN_RETRY_CASE")
 if not case then
   local failed = {}
-  for _, c in ipairs({ "present", "success", "failure" }) do
+  for _, c in ipairs({ "present", "success", "inline", "failure", "partial", "busy", "broken" }) do
     local res = vim
       .system({ vim.v.progpath, "--headless", "-l", "tests/grammar_retry_test.lua" }, {
         env = { ORGAN_RETRY_CASE = c },
@@ -65,12 +65,13 @@ end
 
 local make_mode = "ok"
 local makes = 0
+local untimed = {}
 local plat = require("organ.grammar_install")._platform_triple()
 
 local function fake_result(cmd, opts)
   if cmd[1] == "make" then
     makes = makes + 1
-    if make_mode == "fail" then
+    if make_mode == "fail" or (make_mode == "fail_inline" and opts.cwd:match("%-inline$")) then
       return {
         code = 69,
         stdout = "",
@@ -97,6 +98,9 @@ vim.system = function(cmd, opts, cb)
   if cmd[1] ~= "git" and cmd[1] ~= "make" and cmd[1] ~= "codesign" then
     return real_system(cmd, opts, cb)
   end
+  if not (opts and opts.timeout) then
+    untimed[#untimed + 1] = table.concat(cmd, " ")
+  end
   local res = fake_result(cmd, opts or {})
   if cb then
     vim.defer_fn(function()
@@ -119,13 +123,26 @@ local n_file = 0
 local function open_org()
   n_file = n_file + 1
   local path = ("%s/f%d.org"):format(sandbox, n_file)
-  vim.fn.writefile({ "* TODO heading", "body" }, path)
+  vim.fn.writefile({ "* TODO heading *bold*", "body with [[x][a link]]" }, path)
   vim.cmd("edit " .. path)
   return vim.api.nvim_get_current_buf()
 end
 
 local function highlighted(buf)
   return vim.treesitter.highlighter.active[buf] ~= nil
+end
+
+local function injected(buf)
+  local parser = vim.treesitter.get_parser(buf, "org")
+  parser:parse(true)
+  return parser:children().org_inline ~= nil
+end
+
+local function install_real(files)
+  vim.fn.mkdir(parser_dir, "p")
+  for _, f in ipairs(files) do
+    assert(vim.uv.fs_copyfile(real_parser .. "/" .. f, parser_dir .. "/" .. f))
+  end
 end
 
 local function of_level(level)
@@ -139,10 +156,7 @@ local function of_level(level)
 end
 
 if case == "present" then
-  vim.fn.mkdir(parser_dir, "p")
-  for _, f in ipairs({ "org.so", "org_inline.so" }) do
-    assert(vim.uv.fs_copyfile(real_parser .. "/" .. f, parser_dir .. "/" .. f))
-  end
+  install_real({ "org.so", "org_inline.so" })
   local buf = open_org()
   vim.wait(100)
   assert(highlighted(buf), "present grammars must highlight on open")
@@ -163,6 +177,11 @@ elseif case == "success" then
   assert(#of_level(vim.log.levels.WARN) == 0, "success must not warn: " .. vim.inspect(notes))
   assert(#of_level(vim.log.levels.ERROR) == 0, "success must not error: " .. vim.inspect(notes))
   assert(#of_level(vim.log.levels.INFO) == 2, "expected start + done INFO: " .. vim.inspect(notes))
+  -- Loaded up front: a first dlopen inside the highlighter's async parse
+  -- can overrun 'redrawtime' and leave the buffer unpainted.
+  assert(vim._ts_has_language("org_inline"), "org_inline must load before any parse")
+  assert(injected(b1), "the inline grammar must be injected after the install")
+  assert(#untimed == 0, "every install command must be time-bounded: " .. vim.inspect(untimed))
   -- Missing again later in the session: the retry is spent.
   vim.fn.delete(parser_dir, "rf")
   notes = {}
@@ -170,6 +189,81 @@ elseif case == "success" then
   vim.wait(200)
   assert(makes == 2, "only one automatic retry per session, got " .. makes .. " make runs")
   assert(#notes == 0, "a spent retry must stay quiet: " .. vim.inspect(notes))
+elseif case == "inline" then
+  -- org.so alone highlights the buffer, so only the missing-file check
+  -- notices that emphasis, links and timestamps have no grammar.
+  install_real({ "org.so" })
+  local buf = open_org()
+  assert(highlighted(buf), "org.so alone still highlights")
+  assert(not injected(buf), "precondition: no inline grammar yet")
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.INFO) == 2
+    end, 10),
+    "missing org_inline.so must trigger the retry, notes: " .. vim.inspect(notes)
+  )
+  assert(notes[1].msg:find("org_inline.so missing", 1, true), "names the missing grammar")
+  assert(highlighted(buf), "the buffer stays highlighted")
+  -- Neovim memoizes the missing injected parser for the session, so the
+  -- honest outcome is one prompt to restart.
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "expected one restart prompt, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find("restart Neovim", 1, true), warns[1].msg)
+elseif case == "partial" then
+  -- The inline build failing after org.so built: org.so is still placed,
+  -- so the buffer gets block highlighting, and the failure warns once.
+  make_mode = "fail_inline"
+  local buf = open_org()
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.WARN) > 0
+    end, 10),
+    "inline failure must warn, notes: " .. vim.inspect(notes)
+  )
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "exactly one WARN, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find("tree-sitter-organ-inline build failed", 1, true), warns[1].msg)
+  assert(
+    vim.wait(5000, function()
+      return highlighted(buf)
+    end, 10),
+    "org.so placed by the partial install must highlight the buffer"
+  )
+elseif case == "busy" then
+  -- The build hook (synchronous install) must not race a background one
+  -- over the same clones.
+  local buf = open_org()
+  vim.wait(20, function()
+    return makes > 0
+  end, 1)
+  local ok, err = require("organ.grammar_install").install()
+  assert(
+    ok == false and err == "install already running",
+    "sync install must refuse: " .. tostring(err)
+  )
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1 and warns[1].msg:find("still running", 1, true), vim.inspect(warns))
+  assert(
+    vim.wait(5000, function()
+      return highlighted(buf)
+    end, 10),
+    "the background install must still finish, notes: " .. vim.inspect(notes)
+  )
+  assert(makes == 2, "only the background install builds, got " .. makes .. " make runs")
+elseif case == "broken" then
+  -- Present but unloadable (built for another arch, say): no install, and
+  -- one fallback warning however many buffers open.
+  vim.fn.mkdir(parser_dir, "p")
+  for _, f in ipairs({ "org.so", "org_inline.so" }) do
+    vim.fn.writefile({ "not a shared object" }, parser_dir .. "/" .. f)
+  end
+  open_org()
+  open_org()
+  vim.wait(200)
+  assert(makes == 0, "present grammars must not trigger an install")
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "fallback must warn once per session, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find(":Org install_grammars", 1, true), "names the rebuild command")
 elseif case == "failure" then
   make_mode = "fail"
   local b1 = open_org()
