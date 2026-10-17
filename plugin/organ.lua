@@ -99,7 +99,8 @@ end)
 -- and does not look again until the option changes, so a grammar built
 -- later in the session would stay invisible.
 local organ_data = vim.fn.stdpath("data") .. "/organ"
-vim.fn.mkdir(organ_data, "p")
+-- pcall: another Neovim starting at the same moment may create it first.
+pcall(vim.fn.mkdir, organ_data, "p")
 vim.opt.runtimepath:prepend(organ_data)
 
 -- :Org subcommand registry.

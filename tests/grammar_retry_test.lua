@@ -18,7 +18,26 @@ local root = vim.fn.getcwd()
 local case = os.getenv("ORGAN_RETRY_CASE")
 if not case then
   local failed = {}
-  for _, c in ipairs({ "present", "success", "inline", "failure", "partial", "busy", "broken" }) do
+  for _, c in ipairs({
+    "present",
+    "success",
+    "inline",
+    "failure",
+    "partial",
+    "busy",
+    "broken",
+    "unloadable",
+    "hook",
+    "inline_stuck",
+    "locked",
+    "stale_lock",
+    "reload",
+    "hang",
+    "inline_garbage",
+    "inline_broken",
+    "rebuild_wait",
+    "eperm",
+  }) do
     local res = vim
       .system({ vim.v.progpath, "--headless", "-l", "tests/grammar_retry_test.lua" }, {
         env = { ORGAN_RETRY_CASE = c },
@@ -81,7 +100,11 @@ local function fake_result(cmd, opts)
     local name = opts.cwd:match("%-inline$") and "org_inline.so" or "org.so"
     local out = opts.cwd .. "/build/" .. plat
     vim.fn.mkdir(out, "p")
-    assert(vim.uv.fs_copyfile(real_parser .. "/" .. name, out .. "/" .. name))
+    if make_mode == "garbage" or (make_mode == "garbage_inline" and name == "org_inline.so") then
+      vim.fn.writefile({ "not a shared object" }, out .. "/" .. name)
+    else
+      assert(vim.uv.fs_copyfile(real_parser .. "/" .. name, out .. "/" .. name))
+    end
     return { code = 0, stdout = "", stderr = "" }
   end
   if cmd[1] == "git" and cmd[2] == "clone" then
@@ -101,16 +124,23 @@ vim.system = function(cmd, opts, cb)
   if not (opts and opts.timeout) then
     untimed[#untimed + 1] = table.concat(cmd, " ")
   end
+  if make_mode == "hang" and cmd[2] == "clone" then
+    return { wait = function() end, kill = function() end }
+  end
   local res = fake_result(cmd, opts or {})
   if cb then
-    vim.defer_fn(function()
+    -- From a luv callback, the fast context the real vim.system uses.
+    local t = assert(vim.uv.new_timer())
+    t:start(10, 0, function()
+      t:close()
       cb(res)
-    end, 10)
+    end)
   end
   return {
     wait = function()
       return res
     end,
+    kill = function() end,
   }
 end
 
@@ -204,11 +234,118 @@ elseif case == "inline" then
   )
   assert(notes[1].msg:find("org_inline.so missing", 1, true), "names the missing grammar")
   assert(highlighted(buf), "the buffer stays highlighted")
-  -- Neovim memoizes the missing injected parser for the session, so the
-  -- honest outcome is one prompt to restart.
+  assert(injected(buf), "the open buffer picks up the inline grammar without a restart")
+  assert(#of_level(vim.log.levels.WARN) == 0, "no restart prompt: " .. vim.inspect(notes))
+elseif case == "inline_stuck" then
+  -- If Neovim ever keeps the missing injected parser cached, the buffer
+  -- cannot recover, and saying so beats leaving inline markup plain.
+  collectgarbage("stop")
+  install_real({ "org.so" })
+  local buf = open_org()
+  assert(not injected(buf), "precondition: no inline grammar yet")
+  local real_collect = collectgarbage
+  _G.collectgarbage = function(opt)
+    if opt == nil or opt == "collect" then
+      return 0
+    end
+    return real_collect(opt)
+  end
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.INFO) == 2
+    end, 10),
+    "missing org_inline.so must trigger the retry, notes: " .. vim.inspect(notes)
+  )
+  _G.collectgarbage = real_collect
   local warns = of_level(vim.log.levels.WARN)
   assert(#warns == 1, "expected one restart prompt, got: " .. vim.inspect(warns))
   assert(warns[1].msg:find("restart Neovim", 1, true), warns[1].msg)
+elseif case == "locked" then
+  -- Another live Neovim is building into the same clones: wait for it
+  -- instead of running git clean under its make.
+  local lock = vim.fn.stdpath("data") .. "/organ/install.lock"
+  vim.fn.mkdir(vim.fn.fnamemodify(lock, ":h"), "p")
+  vim.fn.writefile({ tostring(vim.uv.os_getppid()) }, lock)
+  local buf = open_org()
+  vim.wait(300)
+  assert(makes == 0, "must not build while another Neovim holds the lock")
+  local ok, err = require("organ.grammar_install").install()
+  assert(
+    ok == false and err == "install already running",
+    "sync install refuses: " .. tostring(err)
+  )
+  -- The other Neovim finishes.
+  install_real({ "org.so", "org_inline.so" })
+  vim.fn.delete(lock)
+  assert(
+    vim.wait(5000, function()
+      return highlighted(buf)
+    end, 10),
+    "the waiting install must pick up the other Neovim's build, notes: " .. vim.inspect(notes)
+  )
+  assert(makes == 0, "nothing left to build, got " .. makes .. " make runs")
+  assert(notes[#notes].msg:find("another Neovim", 1, true), vim.inspect(notes))
+  assert(vim.fn.filereadable(lock) == 0, "the lock is released")
+elseif case == "stale_lock" then
+  -- A lock left by a Neovim that died mid-build does not block.
+  local lock = vim.fn.stdpath("data") .. "/organ/install.lock"
+  vim.fn.mkdir(vim.fn.fnamemodify(lock, ":h"), "p")
+  local exited = vim.system({ "true" })
+  local dead = exited.pid
+  exited:wait()
+  vim.fn.writefile({ tostring(dead) }, lock)
+  local buf = open_org()
+  assert(
+    vim.wait(5000, function()
+      return highlighted(buf)
+    end, 10),
+    "a stale lock must not block the install, notes: " .. vim.inspect(notes)
+  )
+  assert(makes == 2, "one install expected, got " .. makes .. " make runs")
+  assert(vim.fn.filereadable(lock) == 0, "the lock is released")
+elseif case == "reload" then
+  -- Rebuilding a grammar this session already loaded cannot take effect
+  -- until a restart, and the summary says so.
+  install_real({ "org.so", "org_inline.so" })
+  local buf = open_org()
+  assert(highlighted(buf), "precondition: highlighted")
+  -- The language stays loaded with no org buffer left.
+  vim.cmd("bwipeout " .. buf)
+  local gi = require("organ.grammar_install")
+  assert(gi.install(), "the rebuild succeeds")
+  assert(
+    vim.fn.filereadable(vim.fn.stdpath("data") .. "/organ/install.lock") == 0,
+    "a sync install releases the lock"
+  )
+  assert(#notes == 1, vim.inspect(notes))
+  assert(notes[1].msg:find("restart Neovim", 1, true), notes[1].msg)
+  -- :Org install_grammars takes the background path.
+  notes = {}
+  vim.cmd("Org install_grammars")
+  assert(
+    vim.wait(5000, function()
+      return #notes == 2
+    end, 10),
+    vim.inspect(notes)
+  )
+  assert(notes[2].msg:find("restart Neovim", 1, true), notes[2].msg)
+elseif case == "hang" then
+  -- A command whose result never arrives (a grandchild holding the pipes)
+  -- must not hold the install lock for the rest of the session.
+  local gi = require("organ.grammar_install")
+  gi._timeout_ms, gi._grace_ms = 100, 100
+  make_mode = "hang"
+  open_org()
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.WARN) > 0
+    end, 10),
+    "a hung command must time out, notes: " .. vim.inspect(notes)
+  )
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1 and warns[1].msg:find("timed out", 1, true), vim.inspect(warns))
+  local lock = vim.fn.stdpath("data") .. "/organ/install.lock"
+  assert(vim.fn.filereadable(lock) == 0, "the lock is released")
 elseif case == "partial" then
   -- The inline build failing after org.so built: org.so is still placed,
   -- so the buffer gets block highlighting, and the failure warns once.
@@ -264,6 +401,105 @@ elseif case == "broken" then
   local warns = of_level(vim.log.levels.WARN)
   assert(#warns == 1, "fallback must warn once per session, got: " .. vim.inspect(warns))
   assert(warns[1].msg:find(":Org install_grammars", 1, true), "names the rebuild command")
+elseif case == "unloadable" then
+  -- Built and installed, but not loadable: the install reports success,
+  -- so the failure to highlight must warn on its own, once.
+  make_mode = "garbage"
+  local buf = open_org()
+  open_org()
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.INFO) == 2
+    end, 10),
+    "the install must finish, notes: " .. vim.inspect(notes)
+  )
+  assert(
+    #of_level(vim.log.levels.WARN) == 1,
+    "the open buffers' failure must warn: " .. vim.inspect(notes)
+  )
+  open_org()
+  vim.wait(200)
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "an unloadable build must warn once, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find(":Org install_grammars", 1, true), "names the rebuild command")
+  assert(not highlighted(buf), "precondition: the parser did not load")
+elseif case == "hook" then
+  -- A build hook that failed this session already warned; opening an org
+  -- buffer right after must not rerun the same build and warn again.
+  make_mode = "fail"
+  local ok = require("organ.grammar_install").install()
+  assert(ok == false, "the hook's install must fail")
+  assert(#of_level(vim.log.levels.WARN) == 1, "the hook warns once: " .. vim.inspect(notes))
+  open_org()
+  vim.wait(200)
+  assert(makes == 1, "no automatic retry after a failed install, got " .. makes .. " make runs")
+  assert(#notes == 1, "nothing more to say: " .. vim.inspect(notes))
+elseif case == "inline_garbage" then
+  -- org_inline built but unloadable: a restart would not help, so say
+  -- what is wrong instead.
+  install_real({ "org.so" })
+  make_mode = "garbage_inline"
+  local buf = open_org()
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.WARN) > 0
+    end, 10),
+    "must warn, notes: " .. vim.inspect(notes)
+  )
+  vim.wait(100)
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "one warning, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find("org_inline.so failed to load", 1, true), warns[1].msg)
+  assert(highlighted(buf), "org.so still highlights")
+elseif case == "inline_broken" then
+  -- Present but unloadable org_inline at open time: org.so highlights, so
+  -- only this check explains the plain inline markup.
+  install_real({ "org.so" })
+  vim.fn.writefile({ "not a shared object" }, parser_dir .. "/org_inline.so")
+  local buf = open_org()
+  open_org()
+  vim.wait(200)
+  assert(makes == 0, "present grammars must not trigger an install")
+  assert(highlighted(buf), "org.so still highlights")
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "one warning per session, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find("org_inline.so failed to load", 1, true), warns[1].msg)
+elseif case == "rebuild_wait" then
+  -- An explicit rebuild that waited on another Neovim still builds: the
+  -- other install may have failed and left the old parsers in place.
+  install_real({ "org.so", "org_inline.so" })
+  local lock = vim.fn.stdpath("data") .. "/organ/install.lock"
+  vim.fn.writefile({ tostring(vim.uv.os_getppid()) }, lock)
+  vim.cmd("Org install_grammars")
+  vim.wait(300)
+  assert(makes == 0, "must not build while the lock is held")
+  vim.fn.delete(lock)
+  assert(
+    vim.wait(5000, function()
+      return makes == 2
+    end, 10),
+    "the rebuild must run after the wait, notes: " .. vim.inspect(notes)
+  )
+  assert(
+    vim.wait(5000, function()
+      return notes[#notes].msg:find("grammars installed (", 1, true) ~= nil
+    end, 10),
+    vim.inspect(notes)
+  )
+elseif case == "eperm" then
+  -- pid 1 is alive but not this user's: not a Neovim that could hold the
+  -- lock, so the lock is stale.
+  local lock = vim.fn.stdpath("data") .. "/organ/install.lock"
+  vim.fn.mkdir(vim.fn.fnamemodify(lock, ":h"), "p")
+  vim.fn.writefile({ "1" }, lock)
+  local buf = open_org()
+  assert(
+    vim.wait(5000, function()
+      return highlighted(buf)
+    end, 10),
+    "another user's pid must not block, notes: " .. vim.inspect(notes)
+  )
+  assert(makes == 2, "one install expected, got " .. makes .. " make runs")
 elseif case == "failure" then
   make_mode = "fail"
   local b1 = open_org()

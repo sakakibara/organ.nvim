@@ -15,8 +15,15 @@ local bufnr = vim.api.nvim_get_current_buf()
 local grammar = require("organ.grammar_install")
 local missing = grammar.ensure()
 local ok, err = grammar.start_highlighter(bufnr)
-if not ok and not missing then
-  grammar.warn_fallback(err)
+if not missing then
+  if not ok then
+    grammar.warn_fallback(err)
+  else
+    local inline_ok, inline_err = pcall(vim.treesitter.language.add, "org_inline")
+    if not inline_ok then
+      grammar.warn_inline(inline_err)
+    end
+  end
 end
 
 -- Core: TODO keymaps, fold opts, indent, completion autocmd, clock keymaps.

@@ -88,12 +88,17 @@ local function progress(msg)
   end
 end
 
+-- vim.fn.mkdir() fails when another Neovim creates the directory first.
+local function mkdir_p(dir)
+  pcall(vim.fn.mkdir, dir, "p")
+end
+
 local function flush_log()
   if #_log_lines == 0 then
     return
   end
   if vim and vim.fn and vim.fn.stdpath then
-    vim.fn.mkdir(vim.fn.stdpath("data") .. "/organ", "p")
+    mkdir_p(vim.fn.stdpath("data") .. "/organ")
   end
   local fd = io.open(log_path(), "a")
   if fd then
@@ -142,23 +147,164 @@ end
 -- build task is itself a coroutine -- blocks on :wait() as before.
 local _async = {}
 local _running = false
+-- Any install this session, by hand or by the build hook, spends the
+-- automatic retry: rerunning the same build moments later fails the
+-- same way.
+local _retried = false
 
 -- Bounds a hung clone or build, which would otherwise hold the install
 -- lock for the rest of the session.
-local CMD_TIMEOUT_MS = 5 * 60 * 1000
+M._timeout_ms = 5 * 60 * 1000
+
+-- vim.system's own timeout signals only the direct child, and its result
+-- waits for the pipes: a grandchild holding them open (git's https helper
+-- on a stalled connection) delays it indefinitely.
+M._grace_ms = 10 * 1000
+local TIMED_OUT = { code = 124, signal = 9, stdout = "", stderr = "" }
+
+-- Running commands, killed when Neovim exits so no build outlives it.
+local _procs = {}
+local _exit_hooked = false
+local function track(proc)
+  if not _exit_hooked then
+    _exit_hooked = true
+    vim.api.nvim_create_autocmd("VimLeavePre", {
+      callback = function()
+        for p in pairs(_procs) do
+          pcall(p.kill, p, 9)
+        end
+        M._unlock()
+      end,
+    })
+  end
+  _procs[proc] = true
+end
 
 local function system(cmd, opts)
-  opts = vim.tbl_extend("keep", opts, { timeout = CMD_TIMEOUT_MS })
+  opts = vim.tbl_extend("keep", opts, { timeout = M._timeout_ms })
   local co = coroutine.running()
   if co and _async[co] then
-    vim.system(cmd, opts, function(res)
+    local proc, timer
+    local settled = false
+    local function settle(res)
+      if settled then
+        return
+      end
+      settled = true
+      timer:close()
+      _procs[proc] = nil
+      _async[co].resume(res)
+    end
+    proc = vim.system(cmd, opts, function(res)
       vim.schedule(function()
-        _async[co].resume(res)
+        settle(res)
       end)
     end)
+    track(proc)
+    timer = assert(vim.uv.new_timer())
+    timer:start(
+      opts.timeout + M._grace_ms,
+      0,
+      vim.schedule_wrap(function()
+        pcall(proc.kill, proc, 9)
+        settle(TIMED_OUT)
+      end)
+    )
     return coroutine.yield()
   end
-  return vim.system(cmd, opts):wait()
+  local proc = vim.system(cmd, opts)
+  track(proc)
+  local res = proc:wait(opts.timeout + M._grace_ms)
+  _procs[proc] = nil
+  return res or TIMED_OUT
+end
+
+-- Waits inside a background install without blocking the UI.
+local function sleep(ms)
+  local co = coroutine.running()
+  vim.defer_fn(function()
+    _async[co].resume()
+  end, ms)
+  coroutine.yield()
+end
+
+-- Another Neovim building into the same clones would `git clean` under
+-- this one's make.  The lock file holds the owner's pid; a dead owner's
+-- lock is stale, and so is one older than any install can take, which
+-- covers a reused pid and an owner on another host sharing the dir.
+local LOCK_WAIT_MS = 20 * 60 * 1000
+local LOCK_STALE_S = 30 * 60
+local _locked = false
+
+local function lock_path()
+  return vim.fn.stdpath("data") .. "/organ/install.lock"
+end
+
+local function read_pid(path)
+  local f = io.open(path, "r")
+  if not f then
+    return nil
+  end
+  local pid = tonumber(f:read("*a"))
+  f:close()
+  return pid
+end
+
+-- EPERM means another user's process, which is not this user's Neovim.
+local function alive(pid)
+  if not pid or pid == vim.uv.os_getpid() then
+    return false
+  end
+  return vim.uv.kill(pid, 0) == 0
+end
+
+-- Pid of the live Neovim holding the lock at `path`, or nil.
+local function holder(path)
+  local pid = read_pid(path)
+  local st = vim.uv.fs_stat(path)
+  if not (st and alive(pid)) or os.time() - st.mtime.sec > LOCK_STALE_S then
+    return nil
+  end
+  return pid
+end
+
+-- The lock appears complete or not at all: the pid is written to a
+-- private file first and hard-linked into place, which fails if the
+-- lock exists.
+local function try_lock()
+  local path = lock_path()
+  mkdir_p(vim.fn.fnamemodify(path, ":h"))
+  local mine = path .. "." .. vim.uv.os_getpid()
+  local fd = vim.uv.fs_open(mine, "w", 420)
+  if not fd then
+    return false
+  end
+  vim.uv.fs_write(fd, tostring(vim.uv.os_getpid()))
+  vim.uv.fs_close(fd)
+  local ok = vim.uv.fs_link(mine, path)
+  if not ok then
+    local stale = read_pid(path)
+    -- Rename is atomic, so one breaker wins; a breaker that grabbed a
+    -- fresh lock instead of the stale one puts it back.
+    local grabbed = path .. ".stale." .. vim.uv.os_getpid()
+    if not holder(path) and vim.uv.fs_rename(path, grabbed) then
+      if read_pid(grabbed) ~= stale then
+        vim.uv.fs_link(grabbed, path)
+      end
+      os.remove(grabbed)
+      ok = vim.uv.fs_link(mine, path)
+    end
+  end
+  os.remove(mine)
+  _locked = ok == true
+  return _locked
+end
+
+function M._unlock()
+  if _locked then
+    _locked = false
+    os.remove(lock_path())
+  end
 end
 
 local function run(cmd, cwd)
@@ -168,7 +314,7 @@ local function run(cmd, cwd)
   end
   local res = system(cmd, opts)
   if res.code == 124 and (res.signal or 0) ~= 0 then
-    return false, ("%s timed out after %ds"):format(table.concat(cmd, " "), CMD_TIMEOUT_MS / 1000)
+    return false, ("%s timed out after %gs"):format(table.concat(cmd, " "), M._timeout_ms / 1000)
   end
   if res.code ~= 0 then
     return false,
@@ -315,7 +461,7 @@ local function copy_artifact(src, dst)
     -- the bound is tight because the UI waits on it.
     local res = vim
       .system({ "codesign", "--force", "--sign", "-", dst }, { text = true, timeout = 30000 })
-      :wait()
+      :wait() or TIMED_OUT
     if res.code ~= 0 then
       return false, "codesign failed for " .. dst .. ": " .. (res.stderr or "")
     end
@@ -325,13 +471,37 @@ end
 
 local GRAMMAR_REPOS = "tree-sitter-organ + tree-sitter-organ-inline"
 
--- Install both parsers. Returns (true) on full success, (false, err) on
--- the first failure. Idempotent — re-running fast-forwards the clones
--- and rebuilds.
-function M.install()
-  if _running and not _async[coroutine.running() or false] then
-    notify_err(GRAMMAR_REPOS .. " not built", "a background grammar install is still running")
-    return false, "install already running"
+-- opts.restart_hint: the summary asks for a restart (see needs_restart).
+-- opts.for_missing: started because grammars were missing, so another
+-- Neovim's install that supplied them makes this one unnecessary.
+local function install(opts)
+  opts = opts or {}
+  if not try_lock() then
+    if not _async[coroutine.running() or false] then
+      local pid = holder(lock_path())
+      vim.notify(
+        ("organ: grammar install not started: %s holds %s"):format(
+          pid and ("Neovim pid " .. pid) or "another install",
+          lock_path()
+        ),
+        vim.log.levels.WARN
+      )
+      return false, "install already running"
+    end
+    vim.notify("organ: waiting for another Neovim's grammar install", vim.log.levels.INFO)
+    local waited = 0
+    repeat
+      if waited >= LOCK_WAIT_MS then
+        notify_err(GRAMMAR_REPOS .. " not built", "another Neovim's install never finished")
+        return false, "lock wait timed out"
+      end
+      sleep(1000)
+      waited = waited + 1000
+    until try_lock()
+    if opts.for_missing and #M.missing() == 0 then
+      summary_notify("grammars installed by another Neovim")
+      return true
+    end
   end
   if vim.fn.executable("git") ~= 1 then
     notify_err(GRAMMAR_REPOS .. " not fetched", "git not in PATH")
@@ -394,7 +564,7 @@ function M.install()
 
   -- Place the parsers back to back, after every build and without
   -- yielding between them: a session that parses org with org.so but not
-  -- yet org_inline.so remembers the inline parser as missing.
+  -- yet org_inline.so caches the inline parser as missing.
   for _, grammar in ipairs(built) do
     local ok, err = copy_artifact(grammar.src_dir .. "/" .. grammar.built, grammar.out)
     if not ok then
@@ -403,11 +573,11 @@ function M.install()
     end
     progress("installed " .. grammar.dir_name .. " → " .. grammar.out)
   end
-  for _, grammar in ipairs(built) do
-    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(grammar.src_dir) }
-  end
   if failed then
     return false, failed
+  end
+  for _, grammar in ipairs(built) do
+    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(grammar.src_dir) }
   end
 
   do
@@ -423,8 +593,68 @@ function M.install()
   -- install / update). Per-step progress lives in the log file
   -- (`<stdpath data>/organ/grammar-install.log`) for users who want to
   -- inspect what happened.
-  summary_notify("grammars installed (org.so + org_inline.so)")
+  summary_notify(
+    "grammars installed (org.so + org_inline.so)"
+      .. (opts.restart_hint and "; restart Neovim to load them" or "")
+  )
   return true
+end
+
+-- Rebuilding grammars that are present and loaded: Neovim never reloads
+-- a language, so the old org.so stays in use.
+local function needs_restart()
+  if #M.missing() > 0 then
+    return false
+  end
+  return vim._ts_has_language("org")
+end
+
+-- Reparse an org buffer with its injections; true when it has inline
+-- content but still no org_inline tree.
+local function inline_unresolved(buf)
+  local parser = vim.treesitter.get_parser(buf, "org", { error = false })
+  if not parser then
+    return false
+  end
+  parser:invalidate(true)
+  parser:parse(true)
+  if parser:children().org_inline then
+    return false
+  end
+  local query = vim.treesitter.query.get("org", "injections")
+  local tree = parser:trees()[1]
+  if not (query and tree) then
+    return false
+  end
+  for _, _, meta in query:iter_matches(tree:root(), buf) do
+    if meta["injection.language"] == "org_inline" then
+      return true
+    end
+  end
+  return false
+end
+
+-- Install both parsers. Returns (true) on full success, (false, err) on
+-- the first failure. Idempotent — re-running fast-forwards the clones
+-- and rebuilds.
+function M.install()
+  if _running then
+    -- Not through notify_err: the running install owns the log.
+    vim.notify(
+      "organ: grammar install not started: another install is still running",
+      vim.log.levels.WARN
+    )
+    return false, "install already running"
+  end
+  _running = true
+  _retried = true
+  local ok, res, err = pcall(install, { restart_hint = needs_restart() })
+  _running = false
+  M._unlock()
+  if not ok then
+    error(res, 0)
+  end
+  return res, err
 end
 
 -- Warn once per session when an installed parser is older than the
@@ -493,37 +723,60 @@ function M.install_async(on_done)
     return false
   end
   _running = true
-  -- Neovim remembers for the whole session that an injected parser was
-  -- missing, so an org buffer parsed without org_inline cannot pick it up.
+  _retried = true
   local missing = M.missing()
-  local inline_only = #missing == 1 and missing[1] == "org_inline.so"
-  local co = coroutine.create(M.install)
+  local inline_missing = vim.tbl_contains(missing, "org_inline.so")
+  local opts = { restart_hint = needs_restart(), for_missing = #missing > 0 }
+  local co = coroutine.create(install)
   local function finish(ok, err)
     _running = false
     _async[co] = nil
+    M._unlock()
     -- Even a failed install may have placed org.so (the inline build
     -- failing after it), which still beats the bundled syntax.
     --
     -- The first dlopen of a freshly signed parser is slow on macOS.  Left
     -- to the highlighter, it lands inside an async parse step, and a step
     -- that overruns 'redrawtime' leaves the highlighter waiting forever.
-    for _, lang in ipairs({ "org", "org_inline" }) do
-      pcall(vim.treesitter.language.add, lang)
+    local org_ok, org_err = pcall(vim.treesitter.language.add, "org")
+    local inline_ok, inline_err = pcall(vim.treesitter.language.add, "org_inline")
+    -- Neovim caches "no parser" for an injected language in a weak table,
+    -- so an org buffer parsed before org_inline existed keeps its inline
+    -- markup plain until a collection drops the entry.
+    if ok and inline_missing then
+      collectgarbage()
     end
-    local org_open = false
+    local reparse = {}
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.api.nvim_buf_is_loaded(buf) and vim.bo[buf].filetype == "org" then
-        org_open = true
-        if not vim.treesitter.highlighter.active[buf] then
-          M.start_highlighter(buf)
+        if vim.treesitter.highlighter.active[buf] then
+          reparse[#reparse + 1] = buf
+        else
+          local started, start_err = M.start_highlighter(buf)
+          -- Built but unloadable (an ABI this Neovim lacks, say).  A
+          -- failed build has already warned.
+          if ok and not started then
+            M.warn_fallback(start_err)
+          end
         end
       end
     end
-    if ok and inline_only and org_open then
-      vim.notify(
-        "organ: org_inline.so installed; restart Neovim for inline highlighting",
-        vim.log.levels.WARN
-      )
+    if ok and not org_ok then
+      M.warn_fallback(org_err)
+    elseif ok and not inline_ok then
+      M.warn_inline(inline_err)
+    elseif ok and inline_missing then
+      local stuck = false
+      for _, buf in ipairs(reparse) do
+        local checked, unresolved = pcall(inline_unresolved, buf)
+        stuck = (checked and unresolved) or stuck
+      end
+      if stuck then
+        vim.notify(
+          "organ: org_inline.so installed; restart Neovim for inline highlighting",
+          vim.log.levels.WARN
+        )
+      end
     end
     if on_done then
       on_done(ok, err)
@@ -541,7 +794,7 @@ function M.install_async(on_done)
     end,
   }
   vim.schedule(function()
-    _async[co].resume()
+    _async[co].resume(opts)
   end)
   return true
 end
@@ -586,14 +839,12 @@ end
 -- compiler yet, an unaccepted Xcode license) never runs again on its
 -- own.  Returns true when a grammar is missing, so the caller knows the
 -- install path owns the reporting.
-local _retried = false
 function M.ensure()
   local missing = M.missing()
   if #missing == 0 then
     return false
   end
   if not _retried then
-    _retried = true
     vim.notify(
       ("organ: %s missing; building in the background"):format(table.concat(missing, " + ")),
       vim.log.levels.INFO
@@ -614,6 +865,22 @@ function M.warn_fallback(err)
   vim.notify(
     "organ: tree-sitter highlighting failed; falling back to Neovim's bundled "
       .. "syntax/org.vim, which has a known bleed bug.\n"
+      .. ("rebuild: %s\n(detail: %s)"):format(RETRY_CMD, tostring(err)),
+    vim.log.levels.WARN
+  )
+end
+
+-- Warn, once per session, that org_inline.so is present but will not
+-- load: the block grammar still highlights, so nothing else would say
+-- why emphasis, links and timestamps stay plain.
+local _inline_warned = false
+function M.warn_inline(err)
+  if _inline_warned then
+    return
+  end
+  _inline_warned = true
+  vim.notify(
+    "organ: org_inline.so failed to load; inline markup stays unhighlighted.\n"
       .. ("rebuild: %s\n(detail: %s)"):format(RETRY_CMD, tostring(err)),
     vim.log.levels.WARN
   )

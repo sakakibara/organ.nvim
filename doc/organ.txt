@@ -170,7 +170,9 @@ not at `setup()` time). nvim-treesitter is NOT required.
 A failed build reports one warning with the log path
 (`<stdpath data>/organ/grammar-install.log`).  If a grammar is still
 missing when an org buffer opens, organ retries the build in the
-background once per session; |:Org-install_grammars| retries on demand.
+background, once per session and only if the session has not already
+run an install; |:Org-install_grammars| retries on demand.  A build
+another Neovim is running is waited for, not repeated.
 
 `plugin/organ.lua` runs at Neovim startup and registers all `:Org*`
 commands. No DB or tree-sitter work happens at this stage, so startup
@@ -2637,7 +2639,7 @@ Miscellaneous                                                 *organ-cmd-misc*
     Fetch and build the tree-sitter grammars in the background, as the
     build hook does.  On success, highlighting refreshes on open
     org buffers.  Opening an org buffer while a grammar is missing runs
-    this once per session on its own.  See |organ-installation|.
+    this on its own; see |organ-installation|.
 
 *:Org-set*  *:Org-toggle*  *:Org-unset*  *:Org-config*
     `:Org set <path> <value>`

@@ -196,8 +196,8 @@ require("organ").setup({
 
 The build step compiles the grammars into `<stdpath data>/organ/parser/`.
 If a build fails (no compiler yet, say), organ warns once with the log
-path, then retries in the background when an org file opens (once per
-Neovim session); `:Org install_grammars` retries on demand.
+path.  Opening an org file in a later Neovim session retries the build
+in the background; `:Org install_grammars` retries on demand.
 nvim‑treesitter is **not** required.
 
 **Related repositories** (your plugin manager fetches the runtime
