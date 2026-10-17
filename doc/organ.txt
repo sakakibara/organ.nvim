@@ -163,9 +163,9 @@ With vim.pack (Neovim 0.12+ built-in, no third-party manager): ~
 
 The build step clones `tree-sitter-organ` + `tree-sitter-organ-inline`
 into `<stdpath data>/organ/`, compiles the parsers into
-`<stdpath data>/organ/parser/{org,org_inline}.so`, and registers them
-via `vim.treesitter.language.add` lazily (on first tree-sitter call,
-not at `setup()` time). nvim-treesitter is NOT required.
+`<stdpath data>/organ/parser/{org,org_inline}.so`.  organ registers
+them when the first org buffer opens, not at `setup()` time.
+nvim-treesitter is NOT required.
 
 A failed build reports one warning with the log path
 (`<stdpath data>/organ/grammar-install.log`).  If a grammar is still
@@ -283,7 +283,14 @@ Top-level options:
 
                                                     *organ-config-parser_path*
     `parser_path` (string)
-    Path to the compiled `org.so` grammar. Set automatically.
+    Path to the compiled `org.so` grammar organ loads; `org_inline.so` is
+    loaded from the same directory.  Defaults to where grammar installs
+    write.  Pointing it elsewhere means you build those grammars
+    yourself: organ then neither builds nor retries them.  organ
+    registers the grammars when an org buffer opens; anything that
+    parses one earlier (a |FileType| handler of yours that runs first,
+    say) finds them through 'runtimepath' instead, which holds the
+    install directory, not this path.
 
                                                 *organ-config-scan_on_startup*
     `scan_on_startup` (bool, default: `false`)
@@ -2639,7 +2646,9 @@ Miscellaneous                                                 *organ-cmd-misc*
     Fetch and build the tree-sitter grammars in the background, as the
     build hook does.  On success, highlighting refreshes on open
     org buffers.  Opening an org buffer while a grammar is missing runs
-    this on its own; see |organ-installation|.
+    this on its own; see |organ-installation|.  Refuses when
+    |organ-config-parser_path| points outside organ's install
+    directory, since organ does not load what it would build.
 
 *:Org-set*  *:Org-toggle*  *:Org-unset*  *:Org-config*
     `:Org set <path> <value>`

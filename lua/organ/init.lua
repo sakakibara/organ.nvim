@@ -947,6 +947,11 @@ local function setup_autocmds(group)
     pattern = "org",
     callback = function(ev)
       local bnum = ev.buf
+      -- Before anything parses (folding does, in core.attach): a parser
+      -- created first would register the grammars from the runtimepath.
+      local grammar = require("organ.grammar_install")
+      grammar.load("org_inline")
+      grammar.load("org")
       require("organ.ftplugin.core").attach(bnum)
       require("organ.ftplugin.subtree").attach(bnum)
       require("organ.ftplugin.inline_edit").attach(bnum)

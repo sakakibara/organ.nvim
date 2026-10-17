@@ -14,11 +14,9 @@
 --     org.so
 --     org_inline.so
 --
--- The `parser/` directory uses Neovim's standard tree-sitter parser
--- discovery layout: at startup, plugin/organ.lua prepends the parent
--- (stdpath("data")/organ) onto runtimepath, so Neovim auto-discovers
--- the parsers without needing explicit vim.treesitter.language.add()
--- calls.
+-- organ registers the parsers by path (M.load).  plugin/organ.lua also
+-- prepends stdpath("data")/organ onto runtimepath, so a parser created
+-- before that registration finds the installed files.
 --
 -- One-binary-per-machine; matches nvim-treesitter's convention. Users
 -- syncing the data dir across heterogenous machines should re-run the
@@ -144,9 +142,12 @@ end
 
 -- Coroutines started by install_async().  system() yields only inside
 -- one of these; any other caller -- including a plugin manager whose
--- build task is itself a coroutine -- blocks on :wait() as before.
+-- build task is itself a coroutine -- blocks as before.
 local _async = {}
 local _running = false
+-- Languages M.load registered, as opposed to any other caller resolving
+-- them from the runtimepath first.
+local _registered = {}
 -- Any install this session, by hand or by the build hook, spends the
 -- automatic retry: rerunning the same build moments later fails the
 -- same way.
@@ -161,6 +162,7 @@ M._timeout_ms = 5 * 60 * 1000
 -- on a stalled connection) delays it indefinitely.
 M._grace_ms = 10 * 1000
 local TIMED_OUT = { code = 124, signal = 9, stdout = "", stderr = "" }
+local INTERRUPTED = { code = 130, signal = 9, stdout = "", stderr = "" }
 
 -- Running commands, killed when Neovim exits so no build outlives it.
 local _procs = {}
@@ -178,6 +180,24 @@ local function track(proc)
     })
   end
   _procs[proc] = true
+end
+
+-- Blocks for the result, at most timeout + grace.  SystemObj:wait() is
+-- not used: after its own deadline it kills and then waits as long again.
+local function wait_sync(cmd, opts)
+  local result
+  local proc = vim.system(cmd, opts, function(res)
+    result = res
+  end)
+  track(proc)
+  local _, why = vim.wait(opts.timeout + M._grace_ms, function()
+    return result ~= nil
+  end, 10)
+  _procs[proc] = nil
+  if not result then
+    pcall(proc.kill, proc, 9)
+  end
+  return result or (why == -2 and INTERRUPTED or TIMED_OUT)
 end
 
 local function system(cmd, opts)
@@ -212,11 +232,7 @@ local function system(cmd, opts)
     )
     return coroutine.yield()
   end
-  local proc = vim.system(cmd, opts)
-  track(proc)
-  local res = proc:wait(opts.timeout + M._grace_ms)
-  _procs[proc] = nil
-  return res or TIMED_OUT
+  return wait_sync(cmd, opts)
 end
 
 -- Waits inside a background install without blocking the UI.
@@ -229,19 +245,22 @@ local function sleep(ms)
 end
 
 -- Another Neovim building into the same clones would `git clean` under
--- this one's make.  The lock file holds the owner's pid; a dead owner's
--- lock is stale, and so is one older than any install can take, which
--- covers a reused pid and an owner on another host sharing the dir.
+-- this one's make.  An flock on the lock file serializes them, and the
+-- kernel drops it when its holder exits, however it exits.  The file
+-- records the holder's pid for messages only.
+local ffi = require("ffi")
+pcall(ffi.cdef, "int flock(int fd, int operation);")
+local LOCK_EX, LOCK_NB = 2, 4
 local LOCK_WAIT_MS = 20 * 60 * 1000
-local LOCK_STALE_S = 30 * 60
-local _locked = false
+local _lock_fd
 
 local function lock_path()
   return vim.fn.stdpath("data") .. "/organ/install.lock"
 end
 
-local function read_pid(path)
-  local f = io.open(path, "r")
+-- Pid recorded by the current holder, or nil.
+local function holder()
+  local f = io.open(lock_path(), "r")
   if not f then
     return nil
   end
@@ -250,60 +269,30 @@ local function read_pid(path)
   return pid
 end
 
--- EPERM means another user's process, which is not this user's Neovim.
-local function alive(pid)
-  if not pid or pid == vim.uv.os_getpid() then
-    return false
-  end
-  return vim.uv.kill(pid, 0) == 0
-end
-
--- Pid of the live Neovim holding the lock at `path`, or nil.
-local function holder(path)
-  local pid = read_pid(path)
-  local st = vim.uv.fs_stat(path)
-  if not (st and alive(pid)) or os.time() - st.mtime.sec > LOCK_STALE_S then
-    return nil
-  end
-  return pid
-end
-
--- The lock appears complete or not at all: the pid is written to a
--- private file first and hard-linked into place, which fails if the
--- lock exists.
+-- True when held now, false when another process holds it.  A filesystem
+-- without flock support cannot serialize installs, so it does not block
+-- them either.
 local function try_lock()
-  local path = lock_path()
-  mkdir_p(vim.fn.fnamemodify(path, ":h"))
-  local mine = path .. "." .. vim.uv.os_getpid()
-  local fd = vim.uv.fs_open(mine, "w", 420)
+  mkdir_p(vim.fn.fnamemodify(lock_path(), ":h"))
+  local fd = vim.uv.fs_open(lock_path(), "a+", 420)
   if not fd then
-    return false
+    return true
   end
+  if ffi.C.flock(fd, LOCK_EX + LOCK_NB) ~= 0 then
+    local busy = ffi.errno() == -vim.uv.errno.EAGAIN
+    vim.uv.fs_close(fd)
+    return not busy
+  end
+  vim.uv.fs_ftruncate(fd, 0)
   vim.uv.fs_write(fd, tostring(vim.uv.os_getpid()))
-  vim.uv.fs_close(fd)
-  local ok = vim.uv.fs_link(mine, path)
-  if not ok then
-    local stale = read_pid(path)
-    -- Rename is atomic, so one breaker wins; a breaker that grabbed a
-    -- fresh lock instead of the stale one puts it back.
-    local grabbed = path .. ".stale." .. vim.uv.os_getpid()
-    if not holder(path) and vim.uv.fs_rename(path, grabbed) then
-      if read_pid(grabbed) ~= stale then
-        vim.uv.fs_link(grabbed, path)
-      end
-      os.remove(grabbed)
-      ok = vim.uv.fs_link(mine, path)
-    end
-  end
-  os.remove(mine)
-  _locked = ok == true
-  return _locked
+  _lock_fd = fd
+  return true
 end
 
 function M._unlock()
-  if _locked then
-    _locked = false
-    os.remove(lock_path())
+  if _lock_fd then
+    vim.uv.fs_close(_lock_fd)
+    _lock_fd = nil
   end
 end
 
@@ -313,6 +302,9 @@ local function run(cmd, cwd)
     opts.cwd = cwd
   end
   local res = system(cmd, opts)
+  if res == INTERRUPTED then
+    return false, table.concat(cmd, " ") .. " interrupted"
+  end
   if res.code == 124 and (res.signal or 0) ~= 0 then
     return false, ("%s timed out after %gs"):format(table.concat(cmd, " "), M._timeout_ms / 1000)
   end
@@ -459,9 +451,10 @@ local function copy_artifact(src, dst)
     -- Synchronous even in a background install, so the caller can place
     -- both parsers without yielding between them.  It takes milliseconds;
     -- the bound is tight because the UI waits on it.
-    local res = vim
-      .system({ "codesign", "--force", "--sign", "-", dst }, { text = true, timeout = 30000 })
-      :wait() or TIMED_OUT
+    local res = wait_sync(
+      { "codesign", "--force", "--sign", "-", dst },
+      { text = true, timeout = 30000 }
+    )
     if res.code ~= 0 then
       return false, "codesign failed for " .. dst .. ": " .. (res.stderr or "")
     end
@@ -476,13 +469,16 @@ local GRAMMAR_REPOS = "tree-sitter-organ + tree-sitter-organ-inline"
 -- Neovim's install that supplied them makes this one unnecessary.
 local function install(opts)
   opts = opts or {}
+  if not M.managed() then
+    M.notify_unmanaged()
+    return false, "parser_path is user-managed"
+  end
   if not try_lock() then
     if not _async[coroutine.running() or false] then
-      local pid = holder(lock_path())
+      local pid = holder()
       vim.notify(
-        ("organ: grammar install not started: %s holds %s"):format(
-          pid and ("Neovim pid " .. pid) or "another install",
-          lock_path()
+        ("organ: grammar install not started: %s is installing them"):format(
+          pid and ("Neovim pid " .. pid) or "another Neovim"
         ),
         vim.log.levels.WARN
       )
@@ -513,12 +509,11 @@ local function install(opts)
   end
 
   local data_root = vim.fn.stdpath("data") .. "/organ"
-  local parser_dir = data_root .. "/parser"
   local plat = _platform_triple()
   local src_root = data_root .. "/src"
 
   vim.fn.mkdir(src_root, "p")
-  vim.fn.mkdir(parser_dir, "p")
+  vim.fn.mkdir(data_root .. "/parser", "p")
 
   -- Records the source revision each parser was BUILT from, keyed by
   -- grammar file.  Written only after a fully successful install, so a
@@ -535,14 +530,14 @@ local function install(opts)
       dir_name = "tree-sitter-organ",
       built = "build/" .. plat .. "/org.so",
       file = "org.so",
-      out = parser_dir .. "/org.so",
+      out = M.install_path("org.so"),
     },
     {
       url = REPO_INLINE,
       dir_name = "tree-sitter-organ-inline",
       built = "build/" .. plat .. "/org_inline.so",
       file = "org_inline.so",
-      out = parser_dir .. "/org_inline.so",
+      out = M.install_path("org_inline.so"),
     },
   }) do
     local src_dir = src_root .. "/" .. grammar.dir_name
@@ -565,6 +560,11 @@ local function install(opts)
   -- Place the parsers back to back, after every build and without
   -- yielding between them: a session that parses org with org.so but not
   -- yet org_inline.so caches the inline parser as missing.
+  --
+  -- "org" registered by anything but M.add before the parsers are placed
+  -- came from another plugin's parser on the runtimepath; after, it can
+  -- only be the one placed here.
+  opts.foreign = vim._ts_has_language("org") and not _registered.org
   for _, grammar in ipairs(built) do
     local ok, err = copy_artifact(grammar.src_dir .. "/" .. grammar.built, grammar.out)
     if not ok then
@@ -572,6 +572,32 @@ local function install(opts)
       return false, err
     end
     progress("installed " .. grammar.dir_name .. " → " .. grammar.out)
+  end
+  -- macOS validates a new library's signature on its first dlopen, which
+  -- takes long enough to freeze the UI, and caches the result system
+  -- wide; a throwaway Neovim pays that cost off the UI thread.
+  if
+    #built > 0
+    and _async[coroutine.running() or false]
+    and vim.uv.os_uname().sysname == "Darwin"
+    and vim.fn.executable(vim.v.progpath) == 1
+  then
+    local adds = {}
+    for _, grammar in ipairs(built) do
+      adds[#adds + 1] = ("pcall(vim.treesitter.language.add, %q, { path = %q })"):format(
+        grammar.file:match("^(.-)%.so$"),
+        grammar.out
+      )
+    end
+    system({
+      vim.v.progpath,
+      "--clean",
+      "--headless",
+      "-c",
+      "lua " .. table.concat(adds, " "),
+      "-c",
+      "qa!",
+    }, {})
   end
   if failed then
     return false, failed
@@ -603,35 +629,51 @@ end
 -- Rebuilding grammars that are present and loaded: Neovim never reloads
 -- a language, so the old org.so stays in use.
 local function needs_restart()
-  if #M.missing() > 0 then
+  if not M.managed() or #M.missing() > 0 then
     return false
   end
   return vim._ts_has_language("org")
 end
 
--- Reparse an org buffer with its injections; true when it has inline
--- content but still no org_inline tree.
-local function inline_unresolved(buf)
+-- Drop an org buffer's trees so its injections resolve again, then pass
+-- `done` true when the lines its windows show have inline content but no
+-- org_inline tree.  Only those lines are parsed, as the highlighter
+-- does: injections are computed in one step, which on a whole large
+-- buffer freezes the UI.  A hidden buffer reparses when it is shown.
+local function check_inline(buf, done)
   local parser = vim.treesitter.get_parser(buf, "org", { error = false })
   if not parser then
-    return false
+    return done(false)
   end
   parser:invalidate(true)
-  parser:parse(true)
-  if parser:children().org_inline then
-    return false
+  local ranges = {}
+  for _, win in ipairs(vim.fn.win_findbuf(buf)) do
+    ranges[#ranges + 1] = { vim.fn.line("w0", win) - 1, 0, vim.fn.line("w$", win), 0 }
   end
-  local query = vim.treesitter.query.get("org", "injections")
-  local tree = parser:trees()[1]
-  if not (query and tree) then
-    return false
+  if #ranges == 0 then
+    return done(false)
   end
-  for _, _, meta in query:iter_matches(tree:root(), buf) do
-    if meta["injection.language"] == "org_inline" then
-      return true
+  table.sort(ranges, function(a, b)
+    return a[1] < b[1]
+  end)
+  parser:parse(ranges, function(err)
+    if err or parser:children().org_inline then
+      return done(false)
     end
-  end
-  return false
+    local ok, query = pcall(vim.treesitter.query.get, "org", "injections")
+    local tree = parser:trees()[1]
+    if not (ok and query and tree) then
+      return done(false)
+    end
+    for _, r in ipairs(ranges) do
+      for _, _, meta in query:iter_matches(tree:root(), buf, r[1], r[3]) do
+        if meta["injection.language"] == "org_inline" then
+          return done(true)
+        end
+      end
+    end
+    done(false)
+  end)
 end
 
 -- Install both parsers. Returns (true) on full success, (false, err) on
@@ -648,11 +690,16 @@ function M.install()
   end
   _running = true
   _retried = true
-  local ok, res, err = pcall(install, { restart_hint = needs_restart() })
+  local org_missing = vim.tbl_contains(M.missing(), "org.so")
+  local opts = { restart_hint = needs_restart() }
+  local ok, res, err = pcall(install, opts)
   _running = false
   M._unlock()
   if not ok then
     error(res, 0)
+  end
+  if res and org_missing and opts.foreign then
+    M.notify_foreign()
   end
   return res, err
 end
@@ -671,7 +718,7 @@ end
 -- clone, or git unavailable.
 local _stale_warned = false
 function M.check_stale()
-  if _stale_warned then
+  if _stale_warned or not M.managed() then
     return
   end
   local ok = pcall(function()
@@ -726,6 +773,7 @@ function M.install_async(on_done)
   _retried = true
   local missing = M.missing()
   local inline_missing = vim.tbl_contains(missing, "org_inline.so")
+  local org_missing = vim.tbl_contains(missing, "org.so")
   local opts = { restart_hint = needs_restart(), for_missing = #missing > 0 }
   local co = coroutine.create(install)
   local function finish(ok, err)
@@ -738,8 +786,10 @@ function M.install_async(on_done)
     -- The first dlopen of a freshly signed parser is slow on macOS.  Left
     -- to the highlighter, it lands inside an async parse step, and a step
     -- that overruns 'redrawtime' leaves the highlighter waiting forever.
-    local org_ok, org_err = pcall(vim.treesitter.language.add, "org")
-    local inline_ok, inline_err = pcall(vim.treesitter.language.add, "org_inline")
+    -- Another plugin's "org" stays registered for the session.
+    local foreign = ok and org_missing and opts.foreign
+    local inline_ok, inline_err = M.load("org_inline")
+    local org_ok, org_err = M.load("org")
     -- Neovim caches "no parser" for an injected language in a weak table,
     -- so an org buffer parsed before org_inline existed keeps its inline
     -- markup plain until a collection drops the entry.
@@ -755,27 +805,33 @@ function M.install_async(on_done)
           local started, start_err = M.start_highlighter(buf)
           -- Built but unloadable (an ABI this Neovim lacks, say).  A
           -- failed build has already warned.
-          if ok and not started then
+          if ok and not started and not foreign then
             M.warn_fallback(start_err)
           end
         end
       end
     end
-    if ok and not org_ok then
+    if ok and foreign then
+      M.notify_foreign()
+    elseif ok and not org_ok then
       M.warn_fallback(org_err)
     elseif ok and not inline_ok then
       M.warn_inline(inline_err)
     elseif ok and inline_missing then
-      local stuck = false
+      local warned = false
       for _, buf in ipairs(reparse) do
-        local checked, unresolved = pcall(inline_unresolved, buf)
-        stuck = (checked and unresolved) or stuck
-      end
-      if stuck then
-        vim.notify(
-          "organ: org_inline.so installed; restart Neovim for inline highlighting",
-          vim.log.levels.WARN
-        )
+        local checked = pcall(check_inline, buf, function(stuck)
+          if stuck and not warned then
+            warned = true
+            vim.notify(
+              "organ: org_inline.so installed; restart Neovim for inline highlighting",
+              vim.log.levels.WARN
+            )
+          end
+        end)
+        if not checked then
+          break
+        end
       end
     end
     if on_done then
@@ -802,32 +858,46 @@ end
 -- Start tree-sitter highlighting on an org buffer and drop the bundled
 -- syntax/org.vim, whose `~...~` region bleeds to EOF on property values
 -- like `:DIR: ~/path`.  vim.treesitter.start() stops syntax from loading
--- later but does not unload what already loaded.  Returns pcall's
--- (ok, err).
+-- later but does not unload what already loaded.  Returns (ok, err) for
+-- the highlighter, then for loading org_inline.
 function M.start_highlighter(bufnr)
-  local ok, err = pcall(vim.treesitter.start, bufnr, "org")
+  local inline_ok, inline_err = M.load("org_inline")
+  local ok, err = M.load("org")
+  if ok then
+    ok, err = pcall(vim.treesitter.start, bufnr, "org")
+  end
   if ok then
     pcall(vim.api.nvim_buf_call, bufnr, function()
       vim.cmd("syntax clear")
     end)
   end
+  return ok, err, inline_ok, inline_err
+end
+
+-- pcall'd language.add by explicit path, noting a registration it made.
+-- A no-op once the language is registered, from wherever it came.
+function M.add(lang, path)
+  local had = vim._ts_has_language(lang)
+  local ok, err = pcall(vim.treesitter.language.add, lang, { path = path })
+  if ok and not had then
+    _registered[lang] = true
+  end
   return ok, err
 end
 
--- Grammar files no candidate location provides (see M.resolve).
+-- Register a grammar from M.path.
+function M.load(lang)
+  return M.add(lang, M.path(lang .. ".so"))
+end
+
+-- Grammar files organ manages that are not installed.
 function M.missing()
-  local organ_ok, organ = pcall(require, "organ")
-  local override = organ_ok and organ.config and organ.config.parser_path or nil
   local out = {}
+  if not M.managed() then
+    return out
+  end
   for _, grammar in ipairs({ "org.so", "org_inline.so" }) do
-    local found = false
-    for _, p in ipairs(M.resolve(grammar, grammar == "org.so" and override or nil)) do
-      if vim.uv.fs_stat(p) ~= nil then
-        found = true
-        break
-      end
-    end
-    if not found then
+    if vim.uv.fs_stat(M.install_path(grammar)) == nil then
       out[#out + 1] = grammar
     end
   end
@@ -865,7 +935,7 @@ function M.warn_fallback(err)
   vim.notify(
     "organ: tree-sitter highlighting failed; falling back to Neovim's bundled "
       .. "syntax/org.vim, which has a known bleed bug.\n"
-      .. ("rebuild: %s\n(detail: %s)"):format(RETRY_CMD, tostring(err)),
+      .. ("%s\n(detail: %s)"):format(M.fix_hint(), tostring(err)),
     vim.log.levels.WARN
   )
 end
@@ -881,35 +951,95 @@ function M.warn_inline(err)
   _inline_warned = true
   vim.notify(
     "organ: org_inline.so failed to load; inline markup stays unhighlighted.\n"
-      .. ("rebuild: %s\n(detail: %s)"):format(RETRY_CMD, tostring(err)),
+      .. ("%s\n(detail: %s)"):format(M.fix_hint(), tostring(err)),
     vim.log.levels.WARN
   )
 end
 
--- Resolve a parser path under the data dir. Returns the path string
--- and a boolean indicating whether the file exists.
-function M.parser_path(grammar)
-  local p = vim.fn.stdpath("data") .. "/organ/parser/" .. grammar
-  return p, vim.uv.fs_stat(p) ~= nil
+-- Where install() writes each grammar.
+function M.install_path(grammar)
+  return vim.fn.stdpath("data") .. "/organ/parser/" .. grammar
 end
 
--- Best-effort path probe. Returns a list of candidate parser paths in
--- preference order:
---   1. cfg.parser_path (if user has overridden it)
---   2. organ's data-dir install (this module's output)
---   3. nvim-treesitter's parser dir, when the plugin is loaded
-function M.resolve(grammar, override_path)
-  local out = {}
-  if override_path and override_path ~= "" then
-    out[#out + 1] = override_path
+-- Where organ loads each grammar from: the configured parser_path for
+-- org.so, which defaults to the install path, with org_inline.so beside
+-- it.  Loading by explicit path keeps a parser another plugin put on the
+-- runtimepath under the name "org" from being picked up instead.
+function M.path(grammar)
+  local ok, organ = pcall(require, "organ")
+  local org = M.normalize(ok and organ.config and organ.config.parser_path or nil)
+    or M.install_path("org.so")
+  if grammar == "org.so" then
+    return org
   end
-  out[#out + 1] = (M.parser_path(grammar))
-  -- nvim-treesitter integration: it stores parsers under
-  -- `stdpath("data")/site/parser/<lang>.so`. The language name here
-  -- maps to the grammar filename without extension.
-  local lang = grammar:match("^(.-)%.[^.]+$") or grammar
-  out[#out + 1] = vim.fn.stdpath("data") .. "/site/parser/" .. lang .. ".so"
-  return out
+  return M.inline_path(org)
+end
+
+-- A parser_path setting as an absolute path, or nil when unset or empty.
+function M.normalize(parser_path)
+  if not parser_path or parser_path == "" then
+    return nil
+  end
+  return vim.fn.fnamemodify(vim.fs.normalize(parser_path), ":p")
+end
+
+-- The directory of `path` with symlinks resolved, through the nearest
+-- existing ancestor when it does not exist yet.
+local function real_dir(path)
+  local dir = vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+  local rest = {}
+  while true do
+    local real = vim.uv.fs_realpath(dir)
+    if real then
+      table.insert(rest, 1, real)
+      return table.concat(rest, "/")
+    end
+    local parent = vim.fs.dirname(dir)
+    if parent == dir then
+      return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+    end
+    table.insert(rest, 1, vim.fs.basename(dir))
+    dir = parent
+  end
+end
+
+-- True unless parser_path points outside organ's install directory, at
+-- grammars the user builds; organ does not build or retry those.
+function M.managed()
+  local org = M.path("org.so")
+  return vim.fn.fnamemodify(org, ":t") == "org.so"
+    and real_dir(org) == real_dir(M.install_path("org.so"))
+end
+
+function M.notify_foreign()
+  vim.notify(
+    "organ: grammars installed; restart Neovim to replace the org parser loaded before the install",
+    vim.log.levels.WARN
+  )
+end
+
+-- Building would write grammars organ does not load.
+function M.notify_unmanaged()
+  vim.notify(
+    ("organ: grammar install not started: parser_path points at %s, outside organ's install directory"):format(
+      M.path("org.so")
+    ),
+    vim.log.levels.WARN
+  )
+end
+
+-- The line a warning ends with to say how to fix a grammar.
+function M.fix_hint()
+  if M.managed() then
+    return "rebuild: " .. RETRY_CMD
+  end
+  return ("rebuild the grammars in %s: parser_path points there, outside organ's install directory"):format(
+    vim.fn.fnamemodify(M.path("org.so"), ":h")
+  )
+end
+
+function M.inline_path(org_path)
+  return vim.fn.fnamemodify(org_path, ":h") .. "/org_inline.so"
 end
 
 M.log_path = log_path

@@ -30,34 +30,44 @@ local function check_parser()
     plat = (u.sysname or "?"):lower() .. "-" .. (u.machine or "?")
   end
   health.info("platform: " .. plat)
-  local override = require("organ.buf_config").read(nil, "parser_path")
-  local fix = ("fix: `:Org install_grammars` (log: %s)"):format(gi.log_path())
+  local fix = gi.fix_hint() .. (gi.managed() and (" (log: %s)"):format(gi.log_path()) or "")
   for _, grammar in ipairs({ "org.so", "org_inline.so" }) do
-    local candidates = gi.resolve(grammar, grammar == "org.so" and override or nil)
-    local found
-    for _, p in ipairs(candidates) do
-      if vim.uv.fs_stat(p) then
-        found = p
-        break
-      end
-    end
+    local path = gi.path(grammar)
     local lang = grammar:match("^(.-)%.so$")
-    if not found then
-      health.error(
-        ("tree-sitter parser %s missing; tried:\n  %s\n  %s"):format(
-          grammar,
-          table.concat(candidates, "\n  "),
-          fix
-        )
-      )
+    if not vim.uv.fs_stat(path) then
+      health.error(("tree-sitter parser %s missing at %s\n  %s"):format(grammar, path, fix))
     else
-      local ok_load, err_load = pcall(vim.treesitter.language.add, lang, { path = found })
+      -- In a child Neovim: this one may already hold the language, or the
+      -- library under this path, and would pass whatever is on disk now.
+      local started, res = pcall(vim.system, {
+        vim.v.progpath,
+        "--clean",
+        "--headless",
+        "-c",
+        ("lua local ok, err = pcall(vim.treesitter.language.add, 'probe', { path = %q, symbol_name = %q }) if not ok then io.stderr:write(tostring(err)) vim.cmd('cquit 1') end"):format(
+          path,
+          lang
+        ),
+        "-c",
+        "qa!",
+      }, { text = true, timeout = 10000 })
+      res = started and res:wait() or res
+      -- A library that crashes its loader exits by signal with code 0.
+      local ok_load = started and res ~= nil and res.code == 0 and (res.signal or 0) == 0
+      local err_load
+      if not started then
+        err_load = "could not start Neovim to check it: " .. tostring(res)
+      elseif not ok_load then
+        err_load = res.stderr ~= "" and res.stderr
+          or (res.signal or 0) ~= 0 and ("killed by signal " .. res.signal)
+          or ("exited " .. tostring(res.code))
+      end
       if ok_load then
-        health.ok("tree-sitter parser loads: " .. found)
+        health.ok("tree-sitter parser loads: " .. path)
       else
         health.error(
           ("tree-sitter parser at %s failed to dlopen for %s (likely built for another OS/arch)\n  reason: %s\n  %s"):format(
-            found,
+            path,
             plat,
             tostring(err_load),
             fix

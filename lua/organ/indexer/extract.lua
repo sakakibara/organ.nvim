@@ -35,6 +35,8 @@ local function extractor_version()
   -- Parser binary mtime (rebuild bumps this).
   local organ = require("organ")
   local pp = organ.config and require("organ.buf_config").read(nil, "parser_path")
+  local gi = require("organ.grammar_install")
+  pp = gi.normalize(pp) or gi.install_path("org.so")
   if pp then
     local st = vim.uv.fs_stat(pp)
     if st then
@@ -756,14 +758,11 @@ local function collect_all_headings(node, out, yield_fn)
   end
 end
 
--- Sibling inline parser is colocated with the block parser. Works for
--- both the data-dir layout (`organ/parser/org.so`) and any
--- explicit override the user may have provided.
 local function inline_parser_path(parser_path)
   if not parser_path then
     return nil
   end
-  return (parser_path:gsub("/org%.so$", "/org_inline.so"))
+  return require("organ.grammar_install").inline_path(parser_path)
 end
 
 -- Exposed for tests + downstream callers.
@@ -784,7 +783,7 @@ local function safe_add_lang(name, path)
   if not vim.uv.fs_stat(path) then
     return false, name .. " parser not built at " .. path
   end
-  local ok, err = pcall(vim.treesitter.language.add, name, { path = path })
+  local ok, err = require("organ.grammar_install").add(name, path)
   if ok then
     _lang_loaded[key] = true
   end
@@ -872,13 +871,21 @@ end
 -- Register the org + org_inline languages from the installed parser dir.
 -- Idempotent; both extract and the async indexer call it before parsing.
 function M.ensure_languages(parser_path)
+  local gi = require("organ.grammar_install")
+  parser_path = gi.normalize(parser_path) or gi.install_path("org.so")
   local ipath = inline_parser_path(parser_path)
   if ipath then
     pcall(safe_add_lang, "org_inline", ipath)
   end
   local ok_lang, err_lang = safe_add_lang("org", parser_path)
   if not ok_lang then
-    error("organ.indexer: " .. tostring(err_lang) .. " (rebuild on this host: `make -C grammar`)")
+    error(
+      "organ.indexer: "
+        .. tostring(err_lang)
+        .. " ("
+        .. require("organ.grammar_install").fix_hint()
+        .. ")"
+    )
   end
 end
 

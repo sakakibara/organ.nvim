@@ -50,13 +50,8 @@ pcall(require, "organ.fold")
 -- Org parser would produce wrong highlights / wrong indexing / silent
 -- breakage. The right behavior is for `:TSInstall org` to install OUR
 -- grammar, so users running both organ.nvim and nvim-treesitter end up
--- with consistent state.
---
--- The runtime separately canary-verifies the loaded parser at load
--- time (see lua/organ/runtime.lua) — so even if a stale foreign parser
--- is cached at <data>/site/parser/org.so from before organ.nvim was
--- installed, we'll detect the mismatch and refuse to use it rather
--- than silently producing wrong ASTs.
+-- with consistent state.  organ itself loads its grammars by explicit
+-- path (grammar_install.path), never from nvim-treesitter's parser dir.
 pcall(function()
   local has_ts, parsers = pcall(require, "nvim-treesitter.parsers")
   if not has_ts then
@@ -87,14 +82,10 @@ pcall(function()
   }
 end)
 
--- Make the built parsers discoverable via Neovim's standard tree-sitter
--- runtimepath search. grammar_install.install() writes to
--- stdpath("data")/organ/parser/{org,org_inline}.so — by prepending
--- stdpath("data")/organ here, that becomes equivalent to a runtimepath
--- entry whose `parser/` directory Neovim auto-scans. No explicit
--- vim.treesitter.language.add() needed; ftplugin/org.lua's
--- vim.treesitter.start() finds the parser through the standard mechanism.
--- The directory must exist before the first runtime-file lookup: Neovim
+-- Make the default install (stdpath("data")/organ/parser/) discoverable
+-- through Neovim's runtimepath search, for a parser created before
+-- ftplugin/org.lua registers the grammars by path.  The directory must
+-- exist before the first runtime-file lookup: Neovim
 -- caches the runtimepath without entries that are missing at that point
 -- and does not look again until the option changes, so a grammar built
 -- later in the session would stay invisible.
@@ -263,6 +254,9 @@ local subcommands = {
   install_grammars = {
     fn = function()
       local gi = require("organ.grammar_install")
+      if not gi.managed() then
+        return gi.notify_unmanaged()
+      end
       local started = gi.install_async()
       vim.notify(
         started and "organ: building grammars in the background"
