@@ -560,11 +560,6 @@ local function install(opts)
   -- Place the parsers back to back, after every build and without
   -- yielding between them: a session that parses org with org.so but not
   -- yet org_inline.so caches the inline parser as missing.
-  --
-  -- "org" registered by anything but M.add before the parsers are placed
-  -- came from another plugin's parser on the runtimepath; after, it can
-  -- only be the one placed here.
-  opts.foreign = vim._ts_has_language("org") and not _registered.org
   for _, grammar in ipairs(built) do
     local ok, err = copy_artifact(grammar.src_dir .. "/" .. grammar.built, grammar.out)
     if not ok then
@@ -698,8 +693,13 @@ function M.install()
   if not ok then
     error(res, 0)
   end
-  if res and org_missing and opts.foreign then
-    M.notify_foreign()
+  if res and org_missing then
+    local foreign, probe_err = M.foreign()
+    if foreign then
+      M.notify_foreign()
+    elseif probe_err then
+      M.warn_shadowed(probe_err)
+    end
   end
   return res, err
 end
@@ -787,7 +787,10 @@ function M.install_async(on_done)
     -- to the highlighter, it lands inside an async parse step, and a step
     -- that overruns 'redrawtime' leaves the highlighter waiting forever.
     -- Another plugin's "org" stays registered for the session.
-    local foreign = ok and org_missing and opts.foreign
+    local foreign, probe_err = false, nil
+    if ok and org_missing then
+      foreign, probe_err = M.foreign()
+    end
     local inline_ok, inline_err = M.load("org_inline")
     local org_ok, org_err = M.load("org")
     -- Neovim caches "no parser" for an injected language in a weak table,
@@ -805,7 +808,7 @@ function M.install_async(on_done)
           local started, start_err = M.start_highlighter(buf)
           -- Built but unloadable (an ABI this Neovim lacks, say).  A
           -- failed build has already warned.
-          if ok and not started and not foreign then
+          if ok and not started and not foreign and not probe_err then
             M.warn_fallback(start_err)
           end
         end
@@ -813,6 +816,8 @@ function M.install_async(on_done)
     end
     if ok and foreign then
       M.notify_foreign()
+    elseif ok and probe_err then
+      M.warn_shadowed(probe_err)
     elseif ok and not org_ok then
       M.warn_fallback(org_err)
     elseif ok and not inline_ok then
@@ -883,6 +888,29 @@ function M.add(lang, path)
     _registered[lang] = true
   end
   return ok, err
+end
+
+-- True when "org" is registered from a parser other than the one at
+-- M.path, compared by the grammar's tables since the library it came
+-- from is not exposed.  When organ's own fails to load, returns false
+-- and the error.
+local _probes = 0
+function M.foreign()
+  if _registered.org or not vim._ts_has_language("org") then
+    return false
+  end
+  -- Under a fresh name: a registered language is never reloaded.
+  _probes = _probes + 1
+  local probe = "organ_probe" .. _probes
+  local ok, err =
+    pcall(vim.treesitter.language.add, probe, { path = M.path("org.so"), symbol_name = "org" })
+  if not ok then
+    return false, (tostring(err):gsub(probe, "org"))
+  end
+  return not vim.deep_equal(
+    vim.treesitter.language.inspect("org"),
+    vim.treesitter.language.inspect(probe)
+  )
 end
 
 -- Register a grammar from M.path.
@@ -976,17 +1004,18 @@ function M.path(grammar)
 end
 
 -- A parser_path setting as an absolute path, or nil when unset or empty.
+-- A leading ~/ is expanded; environment variables are not.
 function M.normalize(parser_path)
   if not parser_path or parser_path == "" then
     return nil
   end
-  return vim.fn.fnamemodify(vim.fs.normalize(parser_path), ":p")
+  return vim.fn.fnamemodify(vim.fs.normalize(parser_path, { expand_env = false }), ":p")
 end
 
 -- The directory of `path` with symlinks resolved, through the nearest
 -- existing ancestor when it does not exist yet.
 local function real_dir(path)
-  local dir = vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+  local dir = vim.fs.normalize(vim.fn.fnamemodify(path, ":h"), { expand_env = false })
   local rest = {}
   while true do
     local real = vim.uv.fs_realpath(dir)
@@ -996,7 +1025,7 @@ local function real_dir(path)
     end
     local parent = vim.fs.dirname(dir)
     if parent == dir then
-      return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"))
+      return vim.fs.normalize(vim.fn.fnamemodify(path, ":h"), { expand_env = false })
     end
     table.insert(rest, 1, vim.fs.basename(dir))
     dir = parent
@@ -1013,7 +1042,17 @@ end
 
 function M.notify_foreign()
   vim.notify(
-    "organ: grammars installed; restart Neovim to replace the org parser loaded before the install",
+    "organ: grammars installed; restart Neovim to replace the other org parser already loaded",
+    vim.log.levels.WARN
+  )
+end
+
+-- organ's org.so will not load, and another org parser is registered in
+-- its place.
+function M.warn_shadowed(err)
+  vim.notify(
+    "organ: org.so failed to load; another org parser is registered in its place.\n"
+      .. ("%s\n(detail: %s)"):format(M.fix_hint(), tostring(err)),
     vim.log.levels.WARN
   )
 end

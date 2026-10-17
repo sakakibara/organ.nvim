@@ -706,6 +706,10 @@ end
 M._warn_unknown_keys = warn_unknown_keys
 
 local function setup_validate_config()
+  if M.config.parser_path ~= nil and type(M.config.parser_path) ~= "string" then
+    error("organ: parser_path must be a string, got " .. type(M.config.parser_path))
+  end
+
   -- Capture templates: structural validation.
   if M.config.capture and M.config.capture.templates and #M.config.capture.templates > 0 then
     local ok, err =
@@ -1101,6 +1105,9 @@ function M.setup(opts)
     M.config.agenda.views = user_views
   end
   setup_validate_config()
+  -- Resolved now, so a relative path means the directory setup() ran in.
+  local gi = require("organ.grammar_install")
+  M.config.parser_path = gi.normalize(M.config.parser_path) or gi.install_path("org.so")
 
   -- Remove subcommands for any feature whose `enabled` flag is false.
   -- plugin/organ.lua registers the full :Org subcommand tree at startup

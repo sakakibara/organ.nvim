@@ -50,6 +50,11 @@ if not case then
     "rtp_registers",
     "empty_path",
     "foreign_sync",
+    "foreign_late",
+    "relative_path",
+    "literal_path",
+    "foreign_unloadable",
+    "foreign_unloadable_sync",
   }) do
     local res = vim
       .system({ vim.v.progpath, "--headless", "-l", "tests/grammar_retry_test.lua" }, {
@@ -100,7 +105,27 @@ local makes = 0
 local untimed = {}
 local plat = require("organ.grammar_install")._platform_triple()
 
+-- Another plugin's "org", registered by explicit path right after
+-- org.so is placed: at its codesign on macOS, else at the first command
+-- after placement.  Any later and organ's own indexer may register org
+-- first.  The inline grammar stands in for the other plugin's.
+local late_added = false
+local function add_late_foreign()
+  if case ~= "foreign_late" or late_added then
+    return
+  end
+  late_added = true
+  assert(not vim._ts_has_language("org"), "premise: org not registered yet")
+  assert(pcall(vim.treesitter.language.add, "org", {
+    path = real_parser .. "/org_inline.so",
+    symbol_name = "org_inline",
+  }))
+end
+
 local function fake_result(cmd, opts)
+  if cmd[1] == "codesign" and cmd[#cmd]:match("/org%.so$") then
+    add_late_foreign()
+  end
   if cmd[1] == "make" then
     makes = makes + 1
     if make_mode == "fail" or (make_mode == "fail_inline" and opts.cwd:match("%-inline$")) then
@@ -131,6 +156,7 @@ local function fake_result(cmd, opts)
     elseif case == "rtp_registers" then
       assert(pcall(vim.treesitter.language.add, "org"))
     end
+    add_late_foreign()
     return { code = 0, stdout = "deadbeef\n", stderr = "" }
   end
   return { code = 0, stdout = "", stderr = "" }
@@ -193,6 +219,11 @@ if ft_first then
 end
 local custom = sandbox .. "/custom/org.so"
 local linked = sandbox .. "/linked/org.so"
+-- A literal $, which an env-expanding reading would turn into $HOME.
+local literal = sandbox .. "/$HOME/org.so"
+if case == "relative_path" then
+  vim.cmd.cd(sandbox)
+end
 if case == "symlink" then
   -- Another spelling of the install directory, through a symlink, on a
   -- machine where the parser directory does not exist yet.
@@ -205,8 +236,13 @@ require("organ").setup({
   parser_path = (case == "override" or case == "override_missing") and custom
     or case == "symlink" and linked
     or case == "empty_path" and ""
+    or case == "relative_path" and "custom/org.so"
+    or case == "literal_path" and literal
     or nil,
 })
+if case == "relative_path" then
+  vim.cmd.cd("/")
+end
 if not ft_first then
   vim.cmd("filetype plugin on")
 end
@@ -577,6 +613,42 @@ elseif case == "unloadable" then
   assert(#warns == 1, "an unloadable build must warn once, got: " .. vim.inspect(warns))
   assert(warns[1].msg:find(":Org install_grammars", 1, true), "names the rebuild command")
   assert(not highlighted(buf), "precondition: the parser did not load")
+elseif case == "foreign_unloadable_sync" then
+  -- The same through the build hook's synchronous install.
+  make_mode = "garbage"
+  assert(pcall(vim.treesitter.language.add, "org", {
+    path = real_parser .. "/org_inline.so",
+    symbol_name = "org_inline",
+  }))
+  assert(require("organ.grammar_install").install(), "the install succeeds")
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "one warning, got: " .. vim.inspect(notes))
+  assert(warns[1].msg:find("org.so failed to load", 1, true), warns[1].msg)
+  assert(
+    not warns[1].msg:find("organ_probe", 1, true),
+    "names the language as org: " .. warns[1].msg
+  )
+elseif case == "foreign_unloadable" then
+  -- organ's build will not load while another plugin's "org" is
+  -- registered: a rebuild is what helps, not a restart.
+  make_mode = "garbage"
+  assert(pcall(vim.treesitter.language.add, "org", {
+    path = real_parser .. "/org_inline.so",
+    symbol_name = "org_inline",
+  }))
+  open_org()
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.INFO) == 2
+    end, 10),
+    "the install must finish, notes: " .. vim.inspect(notes)
+  )
+  vim.wait(100)
+  local warns = of_level(vim.log.levels.WARN)
+  assert(#warns == 1, "one warning, got: " .. vim.inspect(warns))
+  assert(warns[1].msg:find("org.so failed to load", 1, true), warns[1].msg)
+  assert(warns[1].msg:find(":Org install_grammars", 1, true), "names the rebuild command")
+  assert(not warns[1].msg:find("restart Neovim", 1, true), warns[1].msg)
 elseif case == "hook" then
   -- A build hook that failed this session already warned; opening an org
   -- buffer right after must not rerun the same build and warn again.
@@ -783,14 +855,28 @@ elseif case == "override_missing" then
     vim.inspect(notes)
   )
 elseif case == "foreign_ftfirst" then
-  -- Another plugin's org parser on the runtimepath, picked up by folding
-  -- after the install has started: still detected when it finishes.
+  -- A copy of organ's grammar elsewhere on the runtimepath, picked up by
+  -- folding after the install has started: the same grammar, so no
+  -- restart is asked for.
   local site = sandbox .. "/other"
   vim.fn.mkdir(site .. "/parser", "p")
   assert(vim.uv.fs_copyfile(real_parser .. "/org.so", site .. "/parser/org.so"))
   vim.opt.runtimepath:append(site)
-  open_org()
+  local buf = open_org()
   assert(vim._ts_has_language("org"), "precondition: org registered from the runtimepath")
+  assert(
+    vim.wait(5000, function()
+      return #of_level(vim.log.levels.INFO) == 2
+    end, 10),
+    vim.inspect(notes)
+  )
+  vim.wait(100)
+  assert(highlighted(buf), "highlighted, notes: " .. vim.inspect(notes))
+  assert(#of_level(vim.log.levels.WARN) == 0, "no restart prompt: " .. vim.inspect(notes))
+elseif case == "foreign_late" then
+  -- Another plugin's "org" registered by explicit path after the parsers
+  -- are placed, before the install finishes.
+  open_org()
   assert(
     vim.wait(5000, function()
       return #of_level(vim.log.levels.WARN) > 0
@@ -801,6 +887,27 @@ elseif case == "foreign_ftfirst" then
   local warns = of_level(vim.log.levels.WARN)
   assert(#warns == 1, "one warning, got: " .. vim.inspect(warns))
   assert(warns[1].msg:find("restart Neovim", 1, true), warns[1].msg)
+  assert(late_added, "the foreign parser was registered")
+elseif case == "relative_path" or case == "literal_path" then
+  -- A relative parser_path names the directory setup() ran in, across a
+  -- later :cd; a $ in it is part of the name.
+  local want = case == "relative_path" and custom or literal
+  vim.fn.mkdir(vim.fn.fnamemodify(want, ":h"), "p")
+  for _, f in ipairs({ "org.so", "org_inline.so" }) do
+    assert(vim.uv.fs_copyfile(real_parser .. "/" .. f, vim.fn.fnamemodify(want, ":h") .. "/" .. f))
+  end
+  local gi = require("organ.grammar_install")
+  -- Through realpath: the temp dir is reached through a symlink on macOS.
+  assert(
+    vim.uv.fs_realpath(gi.path("org.so")) == vim.uv.fs_realpath(want),
+    "loads from " .. gi.path("org.so")
+  )
+  local buf = open_org()
+  vim.wait(200)
+  assert(makes == 0, "organ must not build a user-managed parser_path")
+  assert(highlighted(buf), "highlighted, notes: " .. vim.inspect(notes))
+  assert(injected(buf), "the inline grammar loads from beside it")
+  assert(#notes == 0, vim.inspect(notes))
 elseif case == "indexer_registers" or case == "rtp_registers" then
   -- organ's own grammars registered mid-install, by the indexer or through
   -- the runtimepath once placed, are not a foreign parser.

@@ -285,7 +285,9 @@ Top-level options:
     `parser_path` (string)
     Path to the compiled `org.so` grammar organ loads; `org_inline.so` is
     loaded from the same directory.  Defaults to where grammar installs
-    write.  Pointing it elsewhere means you build those grammars
+    write.  A leading `~/` is expanded, environment variables are not,
+    and a relative path is resolved against the directory `setup()`
+    runs in.  Pointing it elsewhere means you build those grammars
     yourself: organ then neither builds nor retries them.  organ
     registers the grammars when an org buffer opens; anything that
     parses one earlier (a |FileType| handler of yours that runs first,
