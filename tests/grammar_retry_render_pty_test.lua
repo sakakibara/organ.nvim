@@ -104,7 +104,7 @@ local function attr_of(row, word)
   return col and vim.fn.screenattr(row, col) or -1
 end
 local function cells()
-  return attr_of(1, "TODO"), attr_of(2, "plain")
+  return attr_of(1, "TODO"), attr_of(2, "plain"), attr_of(2, "a link")
 end
 
 local result = {}
@@ -115,13 +115,14 @@ local function poll()
   end
   -- Give the main loop time to redraw on its own after the install.
   if result.done_at and vim.uv.now() - result.done_at > 1500 then
-    local todo, body = cells()
+    local todo, body, link = cells()
     result.active = vim.treesitter.highlighter.active[vim.api.nvim_get_current_buf()] ~= nil
     vim.fn.writefile({
       "done=" .. tostring(done),
       "active=" .. tostring(result.active),
       "todo_attr=" .. todo,
       "body_attr=" .. body,
+      "link_attr=" .. link,
     }, out)
     vim.cmd("qa!")
   elseif vim.uv.now() - t0 > 15000 then
@@ -143,19 +144,27 @@ local cmd = ("%s -u NONE -i NONE --noplugin -S %s"):format(
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
-  invocation = ("script -q /dev/null %s >/dev/null 2>&1"):format(cmd)
+  invocation = ("script -q /dev/null %s </dev/null >%s 2>&1"):format(cmd, sandbox .. "/pty.log")
 else
-  invocation = ("script -qec %s /dev/null >/dev/null 2>&1"):format(vim.fn.shellescape(cmd))
+  invocation = ("script -qec %s /dev/null </dev/null >%s 2>&1"):format(
+    vim.fn.shellescape(cmd),
+    sandbox .. "/pty.log"
+  )
 end
 -- Bounded: the inner nvim quits itself after 15s, the outer timeout is a
 -- backstop against a wedged pty.
 if vim.fn.executable("timeout") == 1 then
   invocation = "timeout 60 " .. invocation
 end
+-- stdin from /dev/null: `script` fails to set up the pty when its stdin
+-- is a socket, as under some CI runners and agent shells.
 os.execute(invocation)
 
 if vim.fn.filereadable(out) ~= 1 then
-  skip("pty run produced no screen dump (script variant mismatch?)")
+  local log = table.concat(vim.fn.readfile(sandbox .. "/pty.log"), "\n")
+  print("FAIL  the pty run produced no screen dump\n" .. log)
+  vim.fn.delete(sandbox, "rf")
+  os.exit(1)
 end
 local kv = {}
 for _, l in ipairs(vim.fn.readfile(out)) do
@@ -184,6 +193,11 @@ check(
     and kv.todo_attr ~= "-1"
     and kv.body_attr ~= "-1"
     and kv.todo_attr ~= kv.body_attr,
+  detail
+)
+check(
+  "the link, from the inline grammar, is painted differently from body text",
+  kv.link_attr ~= nil and kv.link_attr ~= "-1" and kv.link_attr ~= kv.body_attr,
   detail
 )
 
