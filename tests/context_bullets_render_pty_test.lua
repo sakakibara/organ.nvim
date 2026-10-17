@@ -108,13 +108,14 @@ vim.cmd("qa!")
   local sys = (vim.uv or vim.loop).os_uname().sysname
   local invocation
   if sys == "Darwin" then
-    invocation = ("script -q /dev/null %s >%s 2>&1"):format(cmd, vim.fn.shellescape(log))
+    invocation = ("script -q /dev/null %s </dev/null >%s 2>&1"):format(cmd, vim.fn.shellescape(log))
   else
-    invocation = ("script -qec %s /dev/null >%s 2>&1"):format(
+    invocation = ("script -qec %s /dev/null </dev/null >%s 2>&1"):format(
       vim.fn.shellescape(cmd),
       vim.fn.shellescape(log)
     )
   end
+  -- script cannot set up a pty when its stdin is a socket.
   os.execute(invocation)
 
   if vim.fn.filereadable(out) ~= 1 then

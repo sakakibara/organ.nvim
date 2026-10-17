@@ -52,14 +52,18 @@ local cmd = ("%s -u NONE --noplugin -S %s"):format(
 local sys = (vim.uv or vim.loop).os_uname().sysname
 local invocation
 if sys == "Darwin" then
-  invocation = ("script -q /dev/null %s >/dev/null 2>&1"):format(cmd)
+  invocation = ("script -q /dev/null %s </dev/null >/dev/null 2>&1"):format(cmd)
 else
-  invocation = ("script -qec %s /dev/null >/dev/null 2>&1"):format(vim.fn.shellescape(cmd))
+  invocation = ("script -qec %s /dev/null </dev/null >/dev/null 2>&1"):format(
+    vim.fn.shellescape(cmd)
+  )
 end
+-- script cannot set up a pty when its stdin is a socket.
 os.execute(invocation)
 
 if vim.fn.filereadable(out) ~= 1 then
-  skip("pty run produced no screen dump (script variant mismatch?)")
+  print("FAIL  the pty run produced no screen dump")
+  os.exit(1)
 end
 local kv = {}
 for _, l in ipairs(vim.fn.readfile(out)) do
