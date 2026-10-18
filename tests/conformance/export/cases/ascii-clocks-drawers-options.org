@@ -1,0 +1,15 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil tasks:("TODO") c:t d:t prop:("FOO") inline:nil arch:t creator:t timestamp:t
+* TODO keep
+:PROPERTIES:
+:FOO: 1
+:BAR: 2
+:END:
+:LOGBOOK:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+:END:
+CLOCK: [2026-01-01 Thu 12:00]--[2026-01-01 Thu 13:00] =>  1:00
+* DONE dropped
+* plain heading
+* Arch :ARCHIVE:
+arch body

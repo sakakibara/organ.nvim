@@ -1,0 +1,8 @@
+# conformance: md full
+#+OPTIONS: toc:nil
+Stars a*b*c and _x_y and `tick` and back\\slash <tag> & amp [brackets](x) ![bang] 1. num
+# not a comment? no
+#hash start
++ list
+
+1986. A great year

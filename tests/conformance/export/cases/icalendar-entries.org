@@ -1,0 +1,29 @@
+# conformance: icalendar full
+#+TITLE: Cal
+#+FILETAGS: :ft:
+* Meeting :work:
+<2026-01-02 Fri 10:00-11:00>
+Body *text*, with; specials.
+* TODO Task :home:
+SCHEDULED: <2026-01-05 Mon>
+DEADLINE: <2026-01-07 Wed 17:00>
+:PROPERTIES:
+:ID: abc-123
+:CATEGORY: chores
+:LOCATION: Office
+:END:
+Task body.
+* DONE Finished
+CLOSED: [2026-01-01 Thu] SCHEDULED: <2026-01-01 Thu>
+* Not todo deadline
+DEADLINE: <2026-01-10 Sat>
+* Repeating
+<2026-01-03 Sat 09:00 +1w>
+* Range
+<2026-01-04 Sun>--<2026-01-06 Tue>
+* Inactive only
+[2026-01-02 Fri]
+* No date
+x
+* Diary
+<%%(diary-float t 4 2)>

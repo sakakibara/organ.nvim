@@ -1,0 +1,80 @@
+# conformance: org full
+#+TITLE: RT
+#+OPTIONS: toc:nil
+
+Para *b* /i/ _u_ +s+ =v= ~c~ x^{2} a_b \alpha [[https://e.com][d]] [[https://bare]] <2026-01-02 Fri> [fn:1] [fn::inl] \\
+line2 <<t>> <<<r>>> src_sh{echo} @@html:x@@ {{{m(a,b)}}} [1/2] \(x\) call_f()
+
+* TODO [#A] Head :a:b:
+SCHEDULED: <2026-01-02 Fri> DEADLINE: <2026-01-03 Sat>
+:PROPERTIES:
+:ID: x
+:END:
+:LOGBOOK:
+- note
+:END:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+
+- a
+  - [X] b
+- t :: d
+1. [@3] c
+
+#+NAME: s
+#+begin_src python :results output
+print(1)
+#+end_src
+
+#+RESULTS: s
+: 1
+
+#+begin_example
+ex
+#+end_example
+
+#+begin_quote
+q
+#+end_quote
+
+#+begin_verse
+  v
+#+end_verse
+
+#+begin_center
+c
+#+end_center
+
+#+begin_foo
+sp
+#+end_foo
+
+#+begin_export html
+<b/>
+#+end_export
+
+#+begin_comment
+cm
+#+end_comment
+
+# comment line
+: fixed
+
+| a | b |
+|---+---|
+| 1 | 2 |
+#+TBLFM: $2=$1
+
+-----
+
+\begin{equation}
+x
+\end{equation}
+
+#+BEGIN: clocktable :scope file
+dyn
+#+END:
+
+*************** inline task
+*************** END
+** COMMENT sub
+[fn:1] fn def

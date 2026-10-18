@@ -1,0 +1,9 @@
+# conformance: opml full
+#+title: My *Doc* & co
+#+author: A
+#+email: a@b.c
+#+date: <2026-01-02 Fri>
+#+OPTIONS: email:t
+* TODO H1 & <x> :tag:
+note line one
+line two

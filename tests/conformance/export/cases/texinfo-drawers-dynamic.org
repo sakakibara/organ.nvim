@@ -1,0 +1,13 @@
+# conformance: texinfo full
+#+OPTIONS: toc:nil
+* H
+:MYDRAWER:
+in drawer
+:END:
+:LOGBOOK:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+:END:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+#+BEGIN: clocktable
+dyn content
+#+END:

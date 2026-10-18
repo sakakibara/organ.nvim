@@ -1,0 +1,10 @@
+# conformance: md full
+#+OPTIONS: toc:nil \\n:t p:t pri:t ::nil
+* TODO [#A] H :t:
+SCHEDULED: <2026-01-02 Fri>
+Text x^{2} y_z \alpha *b* <2026-01-03 Sat> [1/2] \(m\) line
+break[fn:1] [[https://a.b][L]]
+: fixed
+| t |
+-----
+[fn:1] fn

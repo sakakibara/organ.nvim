@@ -1,0 +1,28 @@
+# conformance: icalendar-combine full
+#+TITLE: Cal
+#+FILETAGS: :ft:
+* TODO [#A] Task :home:
+SCHEDULED: <2026-01-05 Mon> DEADLINE: <2026-01-07 Wed 17:00>
+:PROPERTIES:
+:ID: abc-123
+:CATEGORY: chores
+:LOCATION: Office
+:CLASS: PRIVATE
+:END:
+Task body.
+* DONE Finished
+CLOSED: [2026-01-01 Thu] SCHEDULED: <2026-01-01 Thu 08:00>
+* Plain scheduled
+SCHEDULED: <2026-01-08 Thu>
+* Noexport :noexport:
+<2026-01-02 Fri>
+* Alarm
+:PROPERTIES:
+:APPT_WARNTIME: 15
+:END:
+<2026-01-09 Fri 12:00>
+* Meet :w:
+<2026-02-02 Mon 10:00>
+body
+* TODO Plain
+SCHEDULED: <2026-02-03 Tue>

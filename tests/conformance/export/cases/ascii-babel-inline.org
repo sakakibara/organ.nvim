@@ -1,0 +1,12 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+Val src_emacs-lisp{(+ 1 1)} and src_emacs-lisp[:exports code]{(+ 2 2)} end.
+
+#+NAME: f
+#+begin_src emacs-lisp :exports none
+(* 3 3)
+#+end_src
+
+#+CALL: f()
+
+Inline call_f() here.

@@ -1,0 +1,12 @@
+# conformance: opml full
+#+title: My *Doc* & co
+#+author: A
+#+date: <2026-01-02 Fri>
+#+OPTIONS: title:nil
+Preamble.
+* TODO H1 & <x> :tag:
+note line one
+line two
+** H2 [[https://e.com][L]]
+* 
+* Hidden :noexport:

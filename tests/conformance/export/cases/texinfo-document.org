@@ -1,0 +1,56 @@
+# conformance: texinfo full
+#+TITLE: Test Doc
+#+AUTHOR: Jane Doe
+#+DATE: 2026-01-02
+
+Intro paragraph with *bold*, /italic/, _under_, =verb=, ~code~, +strike+.
+Second line of the paragraph.
+
+* TODO [#A] First heading :tag1:tag2:
+SCHEDULED: <2026-01-05 Mon>
+:PROPERTIES:
+:CUSTOM_ID: first
+:END:
+Body text with a [[https://example.com][link]] and [[https://bare.example]].
+
+** Sub heading
+- item one
+- item two
+  - nested
+1. ordered
+2. second
+- [ ] unchecked
+- [X] checked
+- term :: definition
+
+*** Third level
+Text.
+
+**** Fourth level
+Deep text.
+
+* Second heading
+#+begin_src python
+print("hi")
+#+end_src
+
+#+begin_example
+example text
+#+end_example
+
+: fixed width
+
+#+begin_quote
+Quoted text.
+#+end_quote
+
+| a | b |
+|---+---|
+| 1 | 2 |
+| 30 | 4 |
+
+-----
+
+Footnote ref[fn:1].
+
+[fn:1] The footnote.

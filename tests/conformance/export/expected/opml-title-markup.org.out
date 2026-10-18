@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <title>My Doc &amp; co</title>
+    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>
+    <ownerName>A</ownerName>
+    <ownerEmail>a@b.c</ownerEmail>
+  </head>
+  <body>
+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">
+    </outline>
+  </body>
+</opml>

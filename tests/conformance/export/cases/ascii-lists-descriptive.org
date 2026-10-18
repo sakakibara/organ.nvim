@@ -1,0 +1,6 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+- term :: desc
+- [X] t2 :: desc2
+  more
+- t3 ::

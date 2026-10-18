@@ -1,0 +1,11 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+* One
+Ref[fn:a] and inline[fn::inline body] and named[fn:n:named body].
+Link [[https://e.com][desc]] here.
+* Two
+Again[fn:a].
+
+[fn:a] Def A with *bold*.
+
+Second para of A.

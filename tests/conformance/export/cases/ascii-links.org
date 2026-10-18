@@ -1,0 +1,12 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+* Target heading
+:PROPERTIES:
+:CUSTOM_ID: cid
+:ID: 1234-abcd
+:END:
+<<tgt>>Text.
+#+NAME: tbl
+| 1 |
+* Links
+[[*Target heading]] / [[*Target heading][desc]] / [[#cid]] / [[id:1234-abcd]] / [[tgt]] / [[tbl]] / [[file:other.org]] / [[file:other.org::*H][o]] / https://plain.example / <https://angle.example> / [[https://x.y][*bold* desc]] / [[./img.png]] / [[file:a.pdf][PDF]] / [[elisp:(foo)][e]]

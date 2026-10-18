@@ -1,0 +1,4 @@
+# conformance: texinfo full
+#+OPTIONS: toc:nil
+Emph *bold* /it/ _un_ =verb= ~code~ +strike+ x^2 a_b \alpha \alpha{} -- --- ... [2/3] [50%] <2026-01-02 Fri> [2026-01-02 Fri 10:00] \\
+next line src_python{1+1} @@ascii:RAW@@ @@html:H@@ <<target>> <<<radio>>> radio \(x+y\) $z$ [[file:foo.org][Foo]] [[file:img.png]] [[*Heading]] [[#cid]] mailto:a@b.c

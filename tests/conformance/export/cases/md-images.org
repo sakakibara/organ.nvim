@@ -1,0 +1,8 @@
+# conformance: md full
+#+OPTIONS: toc:nil
+[[file:img.png]]
+
+#+CAPTION: Cap
+[[./b.jpg]]
+
+x [[https://e.com/i.png]] y

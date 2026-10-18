@@ -1,0 +1,21 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+#+begin_justifyright
+right aligned text
+#+end_justifyright
+
+#+begin_justifyleft
+left text
+#+end_justifyleft
+
+#+begin_center
+a very long centered paragraph that exceeds the text width of seventy two characters for sure
+#+end_center
+
+| / | <    |   > |
+| a | b    |   c |
+|---+------+-----|
+| 1 | 2    |   3 |
+
+#+ATTR_ASCII: :width 10
+| xx | yy |

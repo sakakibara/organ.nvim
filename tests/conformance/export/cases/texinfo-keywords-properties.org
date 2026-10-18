@@ -1,0 +1,59 @@
+# conformance: texinfo full
+#+TITLE: Manual
+#+SUBTITLE: for v1
+#+AUTHOR: A
+#+SUBAUTHOR: B
+#+EMAIL: a@b.c
+#+TEXINFO_FILENAME: man.info
+#+TEXINFO_DIR_CATEGORY: Emacs
+#+TEXINFO_DIR_NAME: Man
+#+TEXINFO_DIR_DESC: A manual
+#+TEXINFO_HEADER: @syncodeindex pg cp
+#+LANGUAGE: fr
+#+OPTIONS: toc:nil
+
+* Copying
+:PROPERTIES:
+:COPYING: t
+:END:
+Copyright text.
+
+* Chapter
+:PROPERTIES:
+:DESCRIPTION: chapter desc
+:ALT_TITLE: Chap
+:END:
+#+CINDEX: concept
+#+FINDEX: func
+Text @ { } with specials.
+
+#+ATTR_TEXINFO: :table-type vtable :indic @asis
+- foo :: bar
+- baz :: qux
+
+#+ATTR_TEXINFO: :enum A
+1. a
+2. b
+
+#+begin_defun
+A function.
+#+end_defun
+
+#+ATTR_TEXINFO: :columns .3 .7
+| a | b |
+
+#+begin_export texinfo
+@raw
+#+end_export
+
+@@texinfo:@inline@@
+
+* Appendix
+:PROPERTIES:
+:APPENDIX: t
+:END:
+App.
+* Index
+:PROPERTIES:
+:INDEX: cp
+:END:

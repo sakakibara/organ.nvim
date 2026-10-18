@@ -1,0 +1,8 @@
+# conformance: md full
+#+OPTIONS: toc:nil
+| Name     | Value | <5>        |
+|----------+-------+------------|
+| alpha    |  1.5  | long text here |
+| β wide   |    20 | x          |
+|----------+-------+------------|
+| total    |  21.5 |            |

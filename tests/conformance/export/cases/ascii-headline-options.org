@@ -1,0 +1,17 @@
+# conformance: ascii full
+#+OPTIONS: H:2 num:t pri:t p:t prop:t
+* DONE [#B] One :a:
+CLOSED: [2026-01-01 Thu] SCHEDULED: <2026-01-02 Fri>
+:PROPERTIES:
+:FOO: bar
+:END:
+:LOGBOOK:
+- note
+:END:
+** Two
+*** Three
+text3
+**** Four
+* COMMENT hidden
+* Archived :ARCHIVE:
+x

@@ -1,0 +1,58 @@
+# conformance: texinfo full
+#+OPTIONS: toc:nil
+#+begin_verse
+  Roses are red
+   Violets
+#+end_verse
+
+#+begin_center
+centered text
+#+end_center
+
+#+begin_quote
+quote para one
+
+quote para two
+#+end_quote
+
+#+begin_export ascii
+raw ascii
+#+end_export
+
+#+begin_export html
+<b>no</b>
+#+end_export
+
+#+begin_comment
+gone
+#+end_comment
+
+#+begin_foo
+special block
+#+end_foo
+
+#+CAPTION: A src
+#+NAME: s1
+#+begin_src elisp -n
+(+ 1 2)
+#+end_src
+
+#+begin_src sh :exports both
+echo hi
+#+end_src
+
+#+RESULTS:
+: hi
+
+\begin{equation}
+x=1
+\end{equation}
+
+:DRAWER:
+in drawer
+:END:
+
+#+CAPTION: Tab cap
+| x | y |
+|---+---|
+| long cell | 2 |

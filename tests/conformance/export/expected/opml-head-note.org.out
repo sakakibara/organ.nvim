@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0">
+  <head>
+    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>
+    <ownerName>A</ownerName>
+  </head>
+  <body>
+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">
+      <outline text="H2 L">
+      </outline>
+    </outline>
+    <outline text="">
+    </outline>
+  </body>
+</opml>

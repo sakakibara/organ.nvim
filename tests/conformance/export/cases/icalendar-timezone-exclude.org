@@ -1,0 +1,11 @@
+# conformance: icalendar full
+#+ICALENDAR_EXCLUDE_TAGS: private
+* Tz
+:PROPERTIES:
+:TIMEZONE: Asia/Tokyo
+:END:
+<2026-01-02 Fri 10:00>
+* Priv :private:
+<2026-01-03 Sat>
+* Inactive
+[2026-01-04 Sun 10:00]

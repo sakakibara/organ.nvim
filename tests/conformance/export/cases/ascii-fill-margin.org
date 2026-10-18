@@ -1,0 +1,5 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+This is a long paragraph that should be filled at the fill column of seventy-two characters by ox-ascii when exporting the text, and wrapped accordingly.
+* H
+A long paragraph under a heading that should also be filled and indented by the inner margin when exported with org-ascii exporter to plain text.

@@ -1,0 +1,14 @@
+# conformance: ascii full
+#+OPTIONS: toc:nil
+- a
+- b
+
+  continued para in b
+- [-] partial
+  1. x
+  2. y
+3. [@3] counter
+- term :: desc
+- tag2 ::
+  desc2 long paragraph
++ plus bullet

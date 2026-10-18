@@ -1,0 +1,11 @@
+# conformance: texinfo full
+#+OPTIONS: toc:nil
+#+TOC: headlines 1
+#+TOC: tables
+* A
+#+CAPTION: T one
+| 1 |
+** A2
+* B
+#+TOC: headlines 1 local
+** B1
