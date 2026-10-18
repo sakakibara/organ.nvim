@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-log-done 'time)
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "time"
+* TODO <CURSOR>Close me

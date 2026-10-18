@@ -133,6 +133,8 @@ covers:
 | `log-note-indentation.org` (`PROFILE: defaults`) | keywords `TODO(!) \| DONE(!)`, `org-log-into-drawer t` | same sequence, `todo.log_done = false` |
 | `defaults-log-drawer.org` | keywords `TODO \| DONE(!)` | same sequence |
 | `clock-into-drawer-nil.org` | `org-clock-into-drawer nil` | `clock.into_drawer = false` |
+| `section-close.org`, `section-plan.org` (where CLOSED, SCHEDULED and DEADLINE land) | `org-log-done 'time` | `todo.log_done = "time"` |
+| `section-logbook.org`, `section-full.org` (state note and clock order inside the drawer) | `org-log-done 'time`, keywords `TODO \| DONE(!)` | `todo.log_done = "time"`, same sequence |
 | `clock-into-drawer-integer.org` | `org-clock-into-drawer 2` | `clock.into_drawer = 2` |
 | `clock-zero-time-removed.org` | `org-clock-out-remove-zero-time-clocks t` | no option (TD-45) |
 | `clock-rounding.org` | `org-clock-rounding-minutes 5`, `NOW` 09:32 | no option (TD-45) |

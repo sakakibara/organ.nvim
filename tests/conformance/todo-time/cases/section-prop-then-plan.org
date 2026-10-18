@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: schedule 2026-05-06
+* TODO <CURSOR>Prop then plan
+:PROPERTIES:
+:CUSTOM_ID: existing
+:END:

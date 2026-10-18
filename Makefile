@@ -12,7 +12,6 @@ GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
 
 .PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
         demos demos-force clean-demos \
-        parity-section parity-section-emacs parity-section-organ parity-section-check \
         conformance conformance-ids
 
 help:
@@ -332,37 +331,3 @@ $(DEMO_OUTDIR)/%.gif: assets/tapes/%.tape
 clean:
 	@rm -rf $(DEPS_DIR)
 	@echo "removed $(DEPS_DIR) (run 'make deps' to refetch)"
-
-# Section placement parity: organ's and Emacs's section writers (planning,
-# logbook, clock) applied to tests/fixtures/parity/section/seed and compared
-# as committed snapshots; parity-section-check fails on drift.
-PARITY_SECTION_DIR    := $(TEST_DIR)/fixtures/parity/section
-PARITY_SECTION_SEED   := $(PARITY_SECTION_DIR)/seed
-PARITY_SECTION_EMACS  := $(PARITY_SECTION_DIR)/EMACS-EXPECTED.txt
-PARITY_SECTION_ORGAN  := $(PARITY_SECTION_DIR)/ORGAN-EXPECTED.txt
-
-parity-section-emacs:
-	@command -v emacs >/dev/null 2>&1 || { \
-	  echo "emacs not on PATH; install GNU Emacs first" >&2; exit 1; }
-	@TZ=UTC emacs --batch -Q -l scripts/emacs-section-snapshot.el \
-	  --eval '(organ-section-snapshot "$(PWD)/$(PARITY_SECTION_SEED)")' \
-	  2>/dev/null > $(PARITY_SECTION_EMACS)
-	@echo "wrote $(PARITY_SECTION_EMACS) ($$(wc -l < $(PARITY_SECTION_EMACS)) lines)"
-
-parity-section-organ: grammar
-	@TZ=UTC $(NVIM) --headless -l scripts/organ-section-snapshot.lua \
-	  $(PWD)/$(PARITY_SECTION_SEED) \
-	  2>/dev/null > $(PARITY_SECTION_ORGAN)
-	@echo "wrote $(PARITY_SECTION_ORGAN) ($$(wc -l < $(PARITY_SECTION_ORGAN)) lines)"
-
-parity-section: parity-section-emacs parity-section-organ
-	@diff -u $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN) || true
-
-parity-section-check: parity-section-emacs parity-section-organ
-	@if ! git diff --quiet -- $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN); then \
-	  echo ""; \
-	  echo "SECTION PARITY DRIFT against committed fixtures:"; \
-	  git --no-pager diff -- $(PARITY_SECTION_EMACS) $(PARITY_SECTION_ORGAN); \
-	  exit 1; \
-	fi
-	@echo "parity-section-check: no drift"

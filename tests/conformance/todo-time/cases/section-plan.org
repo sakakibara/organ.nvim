@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: schedule 2026-05-06
+#+CONFORMANCE-OP: deadline 2026-05-07
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-log-done 'time)
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "time"
+* TODO <CURSOR>Plan me

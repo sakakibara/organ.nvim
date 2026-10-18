@@ -1,0 +1,14 @@
+#+CONFORMANCE-OP: schedule 2026-05-06
+#+CONFORMANCE-OP: deadline 2026-05-07
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 5400
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-EMACS: (org-log-done 'time)
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO" "|" "DONE(!)")))
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "time"; cfg.todo.sequence = { "TODO", "|", "DONE(!)" }
+#+STARTUP: logdrawer
+* TODO <CURSOR>Full house
+:PROPERTIES:
+:FOO:      bar
+:END:

@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 5400
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-EMACS: (org-log-done 'time)
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO" "|" "DONE(!)")))
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "time"; cfg.todo.sequence = { "TODO", "|", "DONE(!)" }
+#+STARTUP: logdrawer
+* TODO <CURSOR>Logbook me

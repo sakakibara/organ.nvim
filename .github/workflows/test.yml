@@ -112,14 +112,11 @@ jobs:
           echo "$out" | grep -q "from_md_emphasis_oracle_test: PASS"
 
   parity:
-    # Regenerates both agenda parity snapshots and asserts neither has
-    # drifted from the committed fixtures.  Catches:
-    #   * organ render changed without an explicit baseline update
-    #   * emacs upstream changed (new release produces different output)
-    # Runs once (no nvim-version matrix) since the emacs install is
-    # heavy and the organ side already ranges across versions in the
-    # matrixed `test` job above.
-    name: agenda parity check (emacs vs organ)
+    # Compares organ against Emacs: the parser diff and every conformance
+    # gate (tests/conformance/).  Runs once (no nvim-version matrix) since
+    # the emacs install is heavy and the organ side already ranges across
+    # versions in the matrixed `test` job above.
+    name: emacs conformance
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -164,9 +161,6 @@ jobs:
           out=$(nvim --headless -l tests/parser_emacs_diff_test.lua </dev/null 2>&1) || true
           echo "$out"
           echo "$out" | grep -q "^parser emacs diff ok"
-
-      - name: section parity-check
-        run: make parity-section-check
 
       - name: fetch org-roam and its dependencies (pinned)
         # The capture gate's roam cases compare against org-roam; pinned
