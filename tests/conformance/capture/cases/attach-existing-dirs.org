@@ -1,0 +1,13 @@
+#+CONFORMANCE-FILE: a.org
+* TS heading
+:PROPERTIES:
+:ID: 20260504T123456.000000
+:END:
+* Short
+:PROPERTIES:
+:ID: abc
+:END:
+#+CONFORMANCE-FILE: data/__/a/abc/old.txt
+fb
+#+CONFORMANCE-FILE: data/202605/04T123456.000000/old.txt
+old

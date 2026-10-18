@@ -1,0 +1,12 @@
+#+CONFORMANCE-FILE: a.org
+#+TITLE: A
+* TODO [#A] Tasks [1/2] :work:
+body of tasks
+** DONE old child
+* Other
+#+CONFORMANCE-FILE: b.org
+#+TITLE: A
+* TODO [#A] Tasks [1/2] :work:
+body of tasks
+** DONE old child
+* Other

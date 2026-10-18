@@ -1,0 +1,16 @@
+#+CONFORMANCE-FILE: d.org
+:PROPERTIES:
+:ID: file-level-id
+:END:
+#+title: D
+* First
+:PROPERTIES:
+:ID: same-id
+:END:
+* Second
+:PROPERTIES:
+:ID: same-id
+:END:
+* Third
+#+CONFORMANCE-FILE: file.txt
+payload

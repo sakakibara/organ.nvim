@@ -1,0 +1,4 @@
+#+CONFORMANCE-FILE: multi.org
+#+ARCHIVE: first_arch.org::
+#+ARCHIVE: second_arch.org::
+* Entry

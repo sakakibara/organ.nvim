@@ -1,0 +1,13 @@
+#+CONFORMANCE-FILE: src/a.org
+#+TITLE: Aardvark
+#+CONFORMANCE-FILE: src/draft.org
+#+TITLE: Draft
+wip
+#+CONFORMANCE-FILE: src/index.org
+#+TITLE: Home
+See [[file:sub/page.org][Page]] and [[file:draft.org]] and [[./notes.txt]].
+#+CONFORMANCE-FILE: src/notes.txt
+plain
+#+CONFORMANCE-FILE: src/sub/page.org
+#+TITLE: Sub Page
+Back to [[file:../index.org][home]].

@@ -1,0 +1,174 @@
+# Expected capture differences against Emacs (format: tests/conformance/_signatures.lua).
+archive-all-done.org	CF-55	TRANSITIONAL	1	+** DONE d1
+archive-all-done.org	CF-55	TRANSITIONAL	1	+** DONE d2
+archive-all-done.org	CF-55	TRANSITIONAL	1	-\n-* DONE d1\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: A\n-:ARCHIVE_CATEGORY: src\n-:ARCHIVE_TODO: DONE\n-:END:\n-\n-* DONE d2\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: A\n-:ARCHIVE_CATEGORY: src\n-:ARCHIVE_TODO: DONE\n-:END:
+archive-datetree.org	CF-50	TRANSITIONAL	1	-***** grand\n+*** grand
+archive-datetree.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
+archive-datetree.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-datetree.org	CF-45,CF-50,CF-58	TRANSITIONAL	1	-Archived entries from file $WORK/src.org\n-* 2026\n-** 2026-05 May\n-*** 2026-05-04 Monday\n-**** TODO [#A] Child task                                                :ct:\n+Archived entries from file ~$WORK/src.org\n+\n+\n+* datetree/\n+** TODO [#A] Child task :ct:
+archive-default.org	CF-46	TRANSITIONAL	1	-
+archive-default.org	CF-58	TRANSITIONAL	1	-* TODO [#A] Child task                                                   :ct:\n+* TODO [#A] Child task :ct:
+archive-default.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
+archive-default.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-default.org	CF-42,~CF-59	TRANSITIONAL	1	-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_CATEGORY: Cat\n-:ARCHIVE_ITAGS: ft\n-:END:\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_CATEGORY: src\n+  :ARCHIVE_ITAGS: ft\n+  :END:
+archive-default.org	CF-42,CF-43,CF-46,~CF-59	TRANSITIONAL	1	-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: Parent\n-:ARCHIVE_CATEGORY: Cat\n-:ARCHIVE_ITAGS: ft pt\n-:END:\n-\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_OLPATH: Parent\n+  :ARCHIVE_CATEGORY: src\n+  :ARCHIVE_ITAGS: pt ft\n+  :END:
+archive-default.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/src.org\n+Archived entries from file ~$WORK/src.org
+archive-heading-location.org	CF-46	TRANSITIONAL	1	-
+archive-heading-location.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
+archive-heading-location.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-in-file.org	CF-52	TRANSITIONAL	1	-
+archive-in-file.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
+archive-in-file.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-in-file.org	CF-52	TRANSITIONAL	1	-\n-** TODO [#A] Child task                                            :ft:pt:ct:\n+** TODO [#A] Child task :ct:
+archive-inherited-property.org	CF-44,CF-45,CF-48,~CF-59	TRANSITIONAL	1	+=== inherit.org_archive\n+#    -*- mode: org -*-\n+\n+\n+Archived entries from file ~$WORK/inherit.org\n+\n+\n+* Child\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/inherit.org\n+  :ARCHIVE_OLPATH: TODO [#B] Parent [1/2]\n+  :ARCHIVE_CATEGORY: inherit\n+  :ARCHIVE_ITAGS: pt\n+  :END:\n+<<EOF>>
+archive-inherited-property.org	CF-48	TRANSITIONAL	1	-=== inh_arch.org\n-\n-Archived entries from file $WORK/inherit.org\n-\n-\n-* From inherit.org\n-\n-** Child\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/inherit.org\n-:ARCHIVE_OLPATH: Parent\n-:ARCHIVE_CATEGORY: inherit\n-:ARCHIVE_ITAGS: pt\n-:END:\n-<<EOF>>
+archive-keyword-after-line-50.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/late.org\n-:ARCHIVE_CATEGORY: late\n-:END:\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/late.org\n+  :ARCHIVE_CATEGORY: late\n+  :END:
+archive-keyword-after-line-50.org	CF-45,CF-47	TRANSITIONAL	1	-=== late_arch.org\n+=== late.org_archive\n+#    -*- mode: org -*-
+archive-keyword-after-line-50.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/late.org\n+\n+Archived entries from file ~$WORK/late.org
+archive-keyword-first-wins.org	CF-45	TRANSITIONAL	1	+#    -*- mode: org -*-
+archive-keyword-first-wins.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/multi.org\n-:ARCHIVE_CATEGORY: multi\n-:END:\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/multi.org\n+  :ARCHIVE_CATEGORY: multi\n+  :END:
+archive-keyword-first-wins.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/multi.org\n+\n+Archived entries from file ~$WORK/multi.org
+archive-level-2-heading.org	CF-45	TRANSITIONAL	1	+#    -*- mode: org -*-
+archive-level-2-heading.org	CF-45	TRANSITIONAL	1	+Archived entries from file ~$WORK/src.org
+archive-level-2-heading.org	CF-49	TRANSITIONAL	1	-** Deep Archive
+archive-level-2-heading.org	CF-42,CF-43,CF-49,~CF-59	TRANSITIONAL	1	-*** Sibling\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: Parent\n-:ARCHIVE_CATEGORY: Cat\n-:ARCHIVE_ITAGS: ft pt\n-:END:\n+* Deep Archive\n+** Sibling\n+   :PROPERTIES:\n+   :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+   :ARCHIVE_FILE: ~$WORK/src.org\n+   :ARCHIVE_OLPATH: Parent\n+   :ARCHIVE_CATEGORY: src\n+   :ARCHIVE_ITAGS: pt ft\n+   :END:
+archive-level-2-heading.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/src.org
+archive-location-without-colons.org	CF-57	KEEP	1	-** DONE d1
+archive-location-without-colons.org	CF-43,CF-45,~CF-57,~CF-59	TRANSITIONAL	1	-ERROR\n+=== no-colons.org\n+#    -*- mode: org -*-\n+\n+\n+Archived entries from file ~$WORK/src.org\n+\n+\n+* DONE d1\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_OLPATH: A\n+  :ARCHIVE_TODO: DONE\n+  :ARCHIVE_CATEGORY: src\n+  :END:\n+<<EOF>>
+archive-mark-done.org	CF-51,CF-58	TRANSITIONAL	1	-* DONE [#A] Child task                                                   :ct:\n+* TODO [#A] Child task :ct:
+archive-mark-done.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
+archive-mark-done.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-mark-done.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/src.org\n+Archived entries from file ~$WORK/src.org
+archive-missing-directory.org	CF-18	KEEP	1	-* Top level
+archive-missing-directory.org	CF-42,CF-45,~CF-18,~CF-59	TRANSITIONAL	1	-ERROR\n+=== arch/src.org\n+#    -*- mode: org -*-\n+\n+\n+Archived entries from file ~$WORK/src.org\n+\n+\n+* Top level\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_CATEGORY: src\n+  :ARCHIVE_ITAGS: ft\n+  :END:\n+<<EOF>>
+archive-reversed-order.org	CF-43,CF-56,~CF-59	TRANSITIONAL	1	+* DONE d1\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_OLPATH: A\n+  :ARCHIVE_TODO: DONE\n+  :ARCHIVE_CATEGORY: src\n+  :END:\n+* DONE d2\n+  :PROPERTIES:\n+  :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+  :ARCHIVE_FILE: ~$WORK/src.org\n+  :ARCHIVE_OLPATH: A\n+  :ARCHIVE_TODO: DONE\n+  :ARCHIVE_CATEGORY: src\n+  :END:
+archive-reversed-order.org	CF-56	TRANSITIONAL	1	-* DONE d2\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: A\n-:ARCHIVE_CATEGORY: src\n-:ARCHIVE_TODO: DONE\n-:END:\n-* DONE d1\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_OLPATH: A\n-:ARCHIVE_CATEGORY: src\n-:ARCHIVE_TODO: DONE\n-:END:
+archive-sibling.org	CF-53	TRANSITIONAL	1	+:ARCHIVE_OLPATH: Parent\n+:ARCHIVE_TODO: TODO\n+:ARCHIVE_ITAGS: pt ft
+archive-sibling.org	CF-53,CF-58	TRANSITIONAL	1	-** Archive                                                          :ARCHIVE:\n-*** TODO [#A] Child task                                                 :ct:\n+* Top level\n+* Archive\n+** TODO [#A] Child task :ct:
+archive-sibling.org	CF-53,CF-58,~CF-59	TRANSITIONAL	1	-**** grand\n-*** Sibling\n-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:END:\n-* Top level\n-* Archive                                                           :ARCHIVE:\n+*** grand\n+** Sibling\n+   :PROPERTIES:\n+   :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+   :ARCHIVE_OLPATH: Parent\n+   :ARCHIVE_ITAGS: pt ft\n+   :END:
+archive-sibling.org	CF-53,~CF-59	TRANSITIONAL	1	-:PROPERTIES:\n-:ARCHIVE_TIME: 2026-05-04 Mon 09:30\n-:END:\n+   :PROPERTIES:\n+   :ARCHIVE_TIME: 2026-05-04 Mon 09:30\n+   :ARCHIVE_ITAGS: ft\n+   :END:\n+
+archive-tag-toggle.org	CF-54	TRANSITIONAL	1	-** TODO [#A] Child task                                                  :ct:\n+** TODO [#A] Child task                                          :ct:ARCHIVE:
+archive-tag-toggle.org	CF-54	TRANSITIONAL	1	-after toggle 2: ** TODO [#A] Child task                                                  :ct:\n+after toggle 2: ** TODO [#A] Child task                                          :ct:ARCHIVE:
+attach-existing-dirs.org	CF-69	TRANSITIONAL	1	-TS heading: existing dir=data/202605/04T123456.000000\n-TS heading: attachment:old.txt -> data/202605/04T123456.000000/old.txt\n-Short: existing dir=data/__/a/abc\n-Short: attachment:old.txt -> data/__/a/abc/old.txt\n+TS heading: existing dir=data/20/260504T123456.000000\n+TS heading: attachment:old.txt -> data/20/260504T123456.000000/old.txt\n+Short: existing dir=data/ab/c\n+Short: attachment:old.txt -> data/ab/c/old.txt
+attach-id-layouts.org	CF-70	KEEP	1	+  [[attachment:file.txt]]
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	+:ID:       <ID of a.org::Dir heading>
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* Dir heading                                                        :ATTACH:\n+  [[attachment:file.txt]]\n+* Dir heading
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* Short heading                                                      :ATTACH:\n+  [[attachment:file.txt]]\n+* Short heading
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* TS heading                                                         :ATTACH:\n+  [[attachment:file.txt]]\n+* TS heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* UUID heading                                                       :ATTACH:\n+* UUID heading
+attach-id-layouts.org	CF-67,~CF-59,~CF-70	TRANSITIONAL	1	-** Child no id                                                       :ATTACH:\n-:PROPERTIES:\n-:ID:       <ID of a.org::Child no id>\n-:END:\n+** Child no id\n+   :PROPERTIES:\n+   :ID:       <ID of a.org::Child no id>\n+   :END:\n+   [[attachment:file.txt]]
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== data/ab/c/file.txt\n+=== data/<ID of a.org::Dir heading> as dir/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== file.txt\n+=== data/ab/c/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== mydir/file.txt\n+=== file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	-Dir heading: dir=mydir\n+Dir heading: dir=data/<ID of a.org::Dir heading> as dir
+capture-blank-separated-file.org	CF-11	TRANSITIONAL	1	-
+capture-datetree-existing.org	CF-32	TRANSITIONAL	1	+* 2026\n+** 2026-05 May
+capture-datetree-existing.org	CF-31	TRANSITIONAL	1	+* 2026\n+** 2026-05 May\n+*** 2026-05-04 Monday\n+**** P
+capture-datetree-existing.org	CF-32	TRANSITIONAL	1	+** 2026-05 May
+capture-datetree-existing.org	CF-31	TRANSITIONAL	1	-*** 2026-05 May\n-**** 2026-05-04 Monday\n-***** P
+capture-datetree-tree-types.org	CF-34	TRANSITIONAL	3	-
+capture-datetree-tree-types.org	CF-15	TRANSITIONAL	1	-** 2026-02 February\n-*** 2026-02-14 Saturday\n-**** P [2026-02-14 Sat 00:00]\n+** 2026-05 May\n+*** 2026-05-04 Monday\n+**** P [2026-05-04 Mon 09:30]
+capture-datetree-tree-types.org	CF-15,CF-30	TRANSITIONAL	1	-** 2026-Q2\n-*** 2026-05 May\n+** 2026-05 May\n+*** 2026-05-04 Monday
+capture-datetree-tree-types.org	CF-33	TRANSITIONAL	1	-[2026-05-04 Mon]
+capture-datetree-week-month.org	CF-15,CF-30	TRANSITIONAL	1	-** 2026-W19\n+** 2026-W20\n+** 2026-05 May
+capture-datetree-week-month.org	CF-15,CF-30	TRANSITIONAL	1	-** 2026-W20
+capture-datetree-week-month.org	CF-15,CF-30	TRANSITIONAL	1	-*** mo\n+*** 2026-05-04 Monday\n+**** mo
+capture-datetree.org	CF-34	TRANSITIONAL	1	-
+capture-empty-lines.org	CF-10	TRANSITIONAL	2	-
+capture-entry-without-star.org	CF-1	TRANSITIONAL	1	-** Note x\n-* Loose y\n+Note x\n+Loose y
+capture-escapes-annotation.org	CF-23,CF-24	TRANSITIONAL	1	-a=[[file:~$WORK/src.org::*Source heading][Source heading]]\n+a=[[file:$WORK/src.org][src.org:2]]
+capture-escapes-annotation.org	CF-23,CF-24	TRANSITIONAL	1	-a=[[file:~$WORK/src.org::*Source heading][Source heading]]\n+a=[[file:$WORK/src.org][src.org:3]]
+capture-escapes-annotation.org	CF-23,CF-24	TRANSITIONAL	1	-a=[[file:~$WORK/src.org::*With id][With id]]\n+a=[[file:$WORK/src.org][src.org:8]]
+capture-escapes-annotation.org	CF-25	TRANSITIONAL	1	-l=[[file:~$WORK/src.org::*Source heading]]\n-L=file:~$WORK/src.org::*Source heading\n-A=[[file:~$WORK/src.org::*Source heading][DESC]]\n-kw=||\n+l=%l\n+L=%L\n+A=%A\n+kw=%:file|%:link|%:description
+capture-escapes-basic.org	CF-21	TRANSITIONAL	1	-esc=%t\n+esc=\\<2026-05-04 Mon>
+capture-escapes-basic.org	CF-22	TRANSITIONAL	1	-n=Test User\n+n=tester
+capture-escapes-basic.org	CF-20	TRANSITIONAL	1	-pct=%%\n+pct=%
+capture-escapes-clock-file-sexp.org	CF-59	KEEP	1	-:LOGBOOK:\n-CLOCK: [2026-05-04 Mon 09:30]--[2026-05-04 Mon 09:30] =>  0:00\n-:END:\n+  :LOGBOOK:\n+  CLOCK: [2026-05-04 Mon 09:30]--[2026-05-04 Mon 09:30] =>  0:00\n+  :END:
+capture-escapes-clock-file-sexp.org	CF-26	TRANSITIONAL	1	-k=Clocked task\n-K=[[file:~$WORK/src.org:::END:\n-** Other]]\n-inc=included text\n-\n-sexp=3\n+k=%k\n+K=%K\n+inc=%[$WORK/inc.txt]\n+sexp=%(number-to-string (+ 1 2))
+capture-escapes-prompts.org	CF-27	TRANSITIONAL	1	-** G body                                                           :work:home:\n+** G body work:home
+capture-escapes-prompts.org	CF-29	TRANSITIONAL	1	-** PICK body\n-pick=dflt
+capture-escapes-prompts.org	CF-28	TRANSITIONAL	1	-:PROPERTIES:\n-:Effort:   1:30\n-:END:\n+1:30p
+capture-escapes-prompts.org	CF-28	TRANSITIONAL	1	-G=:x:\n-C=KILLTEXT\n-L=[[KILLTEXT]]\n+G=%^G\n+C=%^C\n+L=%^L
+capture-escapes-prompts.org	CF-28	TRANSITIONAL	1	-back=Alice\n+back=%\\1
+capture-escapes-prompts.org	CF-28	TRANSITIONAL	1	-when=<2026-05-10 Sun>\n+when=2026-05-10t
+capture-file-olp.org	CF-9	TRANSITIONAL	1	+*** D y
+capture-file-olp.org	CF-9	TRANSITIONAL	1	-ERROR
+capture-file-regexp.org	CF-7	TRANSITIONAL	1	+* E1 x
+capture-file-regexp.org	CF-8	TRANSITIONAL	1	- line here
+capture-file-regexp.org	CF-7	TRANSITIONAL	1	-* E1 x
+capture-file-regexp.org	CF-7	TRANSITIONAL	1	-** E2 x\n+* E2 x
+capture-file-regexp.org	CF-8	TRANSITIONAL	1	-marker\n+marker line here
+capture-missing-directory.org	CF-18	KEEP	1	-ERROR\n+=== sub/new.org\n+* N x\n+<<EOF>>
+capture-prepend.org	CF-3	TRANSITIONAL	1	+* TOP y
+capture-prepend.org	CF-3	TRANSITIONAL	1	-* TOP y
+capture-relevel.org	CF-2	TRANSITIONAL	1	-** Sub x\n-*** child\n-* Deep y\n-** deeper\n+*** Sub x\n+**** child\n+*** Deep y\n+**** deeper
+capture-targets.org	CF-14	TRANSITIONAL	1	+* F x
+capture-targets.org	CF-13	TRANSITIONAL	2	+ERROR
+capture-targets.org	CF-14	TRANSITIONAL	1	-** F x
+capture-targets.org	CF-13	TRANSITIONAL	1	-** I x
+capture-targets.org	CF-13,~CF-59	TRANSITIONAL	1	-:LOGBOOK:\n-CLOCK: [2026-05-04 Mon 09:30]--[2026-05-04 Mon 09:30] =>  0:00\n-:END:\n-** K x\n+  :LOGBOOK:\n+  CLOCK: [2026-05-04 Mon 09:30]--[2026-05-04 Mon 09:30] =>  0:00\n+  :END:
+capture-template-properties.org	CF-15	TRANSITIONAL	1	-** IMM done
+capture-template-properties.org	CF-15	TRANSITIONAL	1	-:LOGBOOK:\n-CLOCK: [2026-05-04 Mon 09:30]--[2026-05-04 Mon 09:30] =>  0:00\n-:END:
+capture-template-properties.org	CF-15	TRANSITIONAL	1	-capture buffer open after immediate-finish: no\n-clocking during capture: yes\n-after finalize: buffer=n.org line=** JMP x\n+capture buffer open after immediate-finish: yes\n+clocking during capture: no\n+after finalize: buffer= line=
+capture-template-whitespace.org	CF-12	TRANSITIONAL	1	-        Tabbed\n+\tTabbed
+capture-template-whitespace.org	CF-12	TRANSITIONAL	1	- tail** NoCursor\n+** NoCursor tail
+capture-types.org	CF-5	TRANSITIONAL	1	+item X
+capture-types.org	CF-4	TRANSITIONAL	1	+plain X
+capture-types.org	CF-6	TRANSITIONAL	1	+| X | z |
+capture-types.org	CF-5	TRANSITIONAL	1	-- first X\n+first X
+capture-types.org	CF-5	TRANSITIONAL	1	-- item X
+capture-types.org	CF-4	TRANSITIONAL	1	-plain X
+capture-types.org	CF-6	TRANSITIONAL	1	-| X | z |
+id-create.org	CF-61	TRANSITIONAL	1	-20260504T093000.dddddd\n+20260504T093000-ddd
+id-create.org	CF-63	TRANSITIONAL	1	-:PROPERTIES:\n-:ID:       <ID of a.org::>\n-:END:
+id-create.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ID:       <ID of a.org::Plain heading>\n-:END:\n+  :PROPERTIES:\n+  :ID:       <ID of a.org::Plain heading>\n+  :END:
+id-create.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ID:       <ID of a.org::Planned heading>\n-:END:\n+  :PROPERTIES:\n+  :ID:       <ID of a.org::Planned heading>\n+  :END:
+id-create.org	CF-60	KEEP	1	-hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 4\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 7
+id-create.org	CF-62	TRANSITIONAL	1	-hhhhhhkhkxkh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
+id-create.org	CF-62	TRANSITIONAL	1	-pfx:hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
+id-duplicate.org	CF-66	TRANSITIONAL	1	+ERROR
+id-duplicate.org	CF-63	TRANSITIONAL	1	-=== data/fi/le-level-id/file.txt\n-payload\n-<<EOF>>
+id-duplicate.org	CF-63	TRANSITIONAL	1	-dir=data/fi/le-level-id\n+ERROR
+id-duplicate.org	CF-66	TRANSITIONAL	1	-same-id -> d.org:5 * First\n-file-level-id -> d.org:1 :PROPERTIES:\n+same-id -> nil\n+file-level-id -> nil
+id-links-locations.org	CF-64	TRANSITIONAL	1	-[[id:aaa-111::*Sub two]] -> a.org:6 ** Sub two\n+ERROR
+id-links-locations.org	CF-65	TRANSITIONAL	1	-\n-(("~$WORK/a.org" "aaa-111") ("~$WORK/sub/b.org" "file-b" "dup-1"))\n+;; -*- coding: utf-8 -*-\n+(\n+ ("$WORK/a.org" "aaa-111" "$WORK/a.org#L4" "$WORK/a.org#L5")\n+ ("$WORK/sub/b.org" "file-b" "dup-1")\n+)
+publish-components.org	CF-86	TRANSITIONAL	1	-pub/extra.html\n-pub/one.html\n-pub/style.css\n-pub/theindex.html\n+ERROR
+publish-components.org	CF-86	TRANSITIONAL	1	-src/theindex.inc\n-src/theindex.org
+publish-exclude.org	CF-87	TRANSITIONAL	1	-exclude draft\\.org -> keep.org\n+exclude draft\\.org -> draft.org keep.org old-draft.org
+publish-recursive-sitemap.org	CF-83	TRANSITIONAL	1	+--- pub-flat/sub/page.html hrefs: ../index.html
+publish-recursive-sitemap.org	CF-84	TRANSITIONAL	1	---- pub-full/sitemap.html hrefs: a.html index.html sub/page.html\n+--- pub-full/sitemap.html hrefs: \n+=== pub-full/sitemap.org\n+* Sitemap\n+\n+- [[a.html][a.org]]\n+- [[index.html][index.org]]\n+- [[sub/page.html][sub/page.org]]\n+<<EOF>>
+publish-recursive-sitemap.org	CF-84	TRANSITIONAL	1	-=== src/sitemap.org\n-#+TITLE: Sitemap for project full\n-\n-- [[file:a.org][Aardvark]]\n-- [[file:index.org][Home]]\n-- sub\n-  - [[file:sub/page.org][Sub Page]]<<EOF>>
+publish-recursive-sitemap.org	CF-85	TRANSITIONAL	1	-after re-publish, pub-flat/index.html starts: STALE\n+after re-publish, pub-flat/index.html starts: <!DOC
+refile-copy.org	CF-41,CF-58	TRANSITIONAL	1	-\n-** TODO Move me                                                           :t:\n+** TODO Move me :t:
+refile-create-parent.org	CF-39	TRANSITIONAL	1	+** TODO Move me :t:\n+SCHEDULED: <2026-05-05 Tue>\n+body\n+*** sub
+refile-create-parent.org	CF-39	TRANSITIONAL	1	-** New Parent\n-\n-*** TODO Move me                                                          :t:\n-SCHEDULED: <2026-05-05 Tue>\n-body\n-**** sub
+refile-default-targets.org	CF-35	KEEP	1	+src.org:Inbox/Move me\n+src.org:Inbox/Move me/sub\n+src.org:Inbox/Stay
+refile-default-targets.org	CF-35	KEEP	1	+src.org:Projects/Alpha\n+src.org:Projects/Alpha/Deep\n+src.org:Projects/Alpha/Deep/Deeper\n+tgt.org:After\n+tgt.org:Target\n+tgt.org:Target/Existing child
+refile-log.org	CF-59	KEEP	1	-:LOGBOOK:\n-- Refiled on [2026-05-04 Mon 09:30]\n-:END:\n+   :LOGBOOK:\n+   - Refiled on [2026-05-04 Mon 09:30]\n+   :END:
+refile-log.org	CF-41,CF-58	TRANSITIONAL	1	-\n-** TODO Move me                                                           :t:\n+** TODO Move me :t:
+refile-move.org	CF-41,CF-58	TRANSITIONAL	1	-\n-** TODO Move me                                                           :t:\n+** TODO Move me :t:
+refile-reverse-order.org	CF-40,CF-41	TRANSITIONAL	1	-** Existing child\n-
+refile-reverse-order.org	CF-40,CF-58	TRANSITIONAL	1	-** TODO Move me                                                           :t:\n+** Existing child\n+** TODO Move me :t:
+refile-same-file.org	CF-58	TRANSITIONAL	1	-*** TODO Move me                                                          :t:\n+*** TODO Move me :t:
+refile-targets.org	CF-37	TRANSITIONAL	1	+src.org:Done\n+src.org:Inbox
+refile-targets.org	CF-36	TRANSITIONAL	1	+src.org:Done\n+src.org:Inbox\n+src.org:Inbox/Move me
+refile-targets.org	CF-37	TRANSITIONAL	1	+src.org:Inbox/Move me/sub\n+src.org:Inbox/Stay\n+src.org:Projects
+refile-targets.org	CF-36	TRANSITIONAL	1	+src.org:Inbox/Stay\n+src.org:Projects\n+src.org:Projects/Alpha
+refile-targets.org	CF-36	TRANSITIONAL	1	+src.org:Projects/Alpha/Deep/Deeper
+refile-targets.org	CF-37	TRANSITIONAL	1	+src.org:Projects/Alpha/Deep\n+src.org:Projects/Alpha/Deep/Deeper
+refile-targets.org	CF-36	TRANSITIONAL	1	+tgt.org:Target/Existing child
+refile-top-level.org	CF-38	TRANSITIONAL	1	+** TODO Move me :t:\n+SCHEDULED: <2026-05-05 Tue>\n+body\n+*** sub
+refile-top-level.org	CF-38	TRANSITIONAL	1	-* TODO Move me                                                            :t:\n-SCHEDULED: <2026-05-05 Tue>\n-body\n-** sub
+roam-create-node.org	CF-79	TRANSITIONAL	1	-
+roam-create-node.org	CF-78	TRANSITIONAL	1	-"Ünïcödé Ⅻ ① ﬁ" -> "unicode_ⅻ_ﬁ"\n+"Ünïcödé Ⅻ ① ﬁ" -> "unicode"
+roam-create-node.org	CF-78	TRANSITIONAL	1	-"Ελληνικά" -> "ελληνικα"\n+"Ελληνικά" -> "ελληνικά"
+roam-daily-existing.org	CF-80	TRANSITIONAL	1	-* first\n-* second\n+* firstsecond
+roam-links.org	CF-81	TRANSITIONAL	1	-[[roam:Note One]] -> n1.org:1 :PROPERTIES:\n-[[roam:Alias One]] -> n1.org:1 :PROPERTIES:\n+[[roam:Note One]] -> (property_value)\n+[[roam:Alias One]] -> (property_value)
+roam-nodes.org	CF-73	TRANSITIONAL	1	+$WORK/n1.org#L13 -> n2
+roam-nodes.org	CF-74	TRANSITIONAL	1	+node ex1\n+  level 2\n+  title Excluded
+roam-nodes.org	CF-71	TRANSITIONAL	1	+node n2\n+  level 0\n+  title Note Two
+roam-nodes.org	CF-75	TRANSITIONAL	1	-  title Linked title [1/2]\n+  title [[https://x.org][Linked]] title [1/2]
+roam-nodes.org	CF-77	KEEP	1	-  title \n+  title n3
+roam-nodes.org	CF-72,CF-73	TRANSITIONAL	1	-n1 -> n2\n-n1 -> n2
+roam-nodes.org	CF-76	TRANSITIONAL	1	-n1 https://example.com\n-n1 cite:key2
+roam-nodes.org	CF-71	TRANSITIONAL	1	-n2 -> nil\n+n2 -> n2.org:1 #+title: Note Two

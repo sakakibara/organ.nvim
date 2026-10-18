@@ -1,0 +1,14 @@
+#+CONFORMANCE-DIR: daily
+#+CONFORMANCE-FILE: slugs.txt
+My First Note
+Café au lait
+naïve résumé
+日本語のノート
+C++ & Rust: a/b?
+  spaced  out  
+Ünïcödé Ⅻ ① ﬁ
+Straße
+Ελληνικά
+emoji 🎉 here
+a—b–c
+x_y__z

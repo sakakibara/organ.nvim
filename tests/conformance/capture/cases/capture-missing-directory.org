@@ -1,0 +1,1 @@
+# No fixture files: the target directory sub/ does not exist.

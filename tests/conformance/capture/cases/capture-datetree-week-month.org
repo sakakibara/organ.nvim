@@ -1,0 +1,8 @@
+#+CONFORMANCE-FILE: m.org
+* 2026
+** 2026-04 April
+#+CONFORMANCE-FILE: w.org
+* 2026
+** 2026-W18
+*** 2026-04-27 Monday
+** 2026-W20

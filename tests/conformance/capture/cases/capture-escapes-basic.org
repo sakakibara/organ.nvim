@@ -1,0 +1,5 @@
+#+CONFORMANCE-FILE: n.org
+* Inbox
+#+CONFORMANCE-FILE: src.org
+* Source heading
+some body line

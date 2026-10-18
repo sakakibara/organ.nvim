@@ -1,0 +1,20 @@
+#+CONFORMANCE-FILE: e1.org
+* A
+marker line here
+more
+* B
+#+CONFORMANCE-FILE: e2.org
+* A
+marker line here
+more
+* B
+#+CONFORMANCE-FILE: p1.org
+* A
+marker line here
+more
+* B
+#+CONFORMANCE-FILE: p2.org
+* A
+marker line here
+more
+* B

@@ -1,0 +1,8 @@
+#+CONFORMANCE-FILE: src/extra.txt
+x
+#+CONFORMANCE-FILE: src/one.org
+#+TITLE: One
+#+INDEX: alpha
+* H
+#+CONFORMANCE-FILE: src/style.css
+static

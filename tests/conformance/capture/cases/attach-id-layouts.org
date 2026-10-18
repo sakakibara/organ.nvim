@@ -1,0 +1,25 @@
+#+CONFORMANCE-OPTIONS: attach-no-link flush-left-drawers
+#+CONFORMANCE-FILE: a.org
+* UUID heading
+:PROPERTIES:
+:ID: 83C2A10F-1111-2222-3333-444455556666
+:END:
+* TS heading
+:PROPERTIES:
+:ID: 20260504T123456.000000
+:END:
+* Short heading
+:PROPERTIES:
+:ID: abc
+:END:
+* Dir heading
+:PROPERTIES:
+:DIR: mydir
+:END:
+* Parent with id
+:PROPERTIES:
+:ID: pppppppp-0000-0000-0000-000000000000
+:END:
+** Child no id
+#+CONFORMANCE-FILE: file.txt
+payload

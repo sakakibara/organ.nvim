@@ -1,0 +1,14 @@
+#+CONFORMANCE-FILE: a.org
+#+TITLE: P
+Preamble text
+* Tasks
+body
+** first child
+* Second
+#+CONFORMANCE-FILE: b.org
+#+TITLE: P
+Preamble text
+* Tasks
+body
+** first child
+* Second

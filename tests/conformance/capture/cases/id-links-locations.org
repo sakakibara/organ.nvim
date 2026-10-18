@@ -1,0 +1,21 @@
+#+CONFORMANCE-FILE: a.org
+* Node A
+:PROPERTIES:
+:ID: aaa-111
+:END:
+** Sub one
+** Sub two
+text
+* Dup
+:PROPERTIES:
+:ID: dup-1
+:END:
+#+CONFORMANCE-FILE: sub/b.org
+:PROPERTIES:
+:ID: file-b
+:END:
+#+title: B
+* Dup in b
+:PROPERTIES:
+:ID: dup-1
+:END:

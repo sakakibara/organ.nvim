@@ -1,0 +1,8 @@
+#+CONFORMANCE-FILE: src.org
+* A
+** DONE d1
+** TODO t1
+** DONE d2
+* B
+#+CONFORMANCE-FILE: src.org_archive
+* Old one

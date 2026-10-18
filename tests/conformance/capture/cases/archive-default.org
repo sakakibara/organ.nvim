@@ -1,0 +1,15 @@
+#+CONFORMANCE-OPTIONS: flush-left-drawers
+#+CONFORMANCE-FILE: src.org
+#+FILETAGS: :ft:
+#+CATEGORY: Cat
+* Parent :pt:
+** TODO [#A] Child task :ct:
+SCHEDULED: <2026-05-05 Tue>
+:PROPERTIES:
+:X: 1
+:END:
+body
+*** grand
+** Sibling
+* Top level
+* Other

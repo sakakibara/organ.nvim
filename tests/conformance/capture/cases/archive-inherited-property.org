@@ -1,0 +1,7 @@
+#+CONFORMANCE-FILE: inherit.org
+* TODO [#B] Parent [1/2] :pt:
+:PROPERTIES:
+:ARCHIVE: inh_arch.org::* From %s
+:END:
+** Child
+* Other

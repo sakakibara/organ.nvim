@@ -1,0 +1,7 @@
+# Expected capture differences against Emacs, option run "uuid-v4" (format: tests/conformance/_signatures.lua).
+id-create.org	CF-61	TRANSITIONAL	1	-20260504T093000.dddddd\n+20260504T093000-ddd
+id-create.org	CF-63	TRANSITIONAL	1	-:PROPERTIES:\n-:ID:       <ID of a.org::>\n-:END:
+id-create.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ID:       <ID of a.org::Plain heading>\n-:END:\n+  :PROPERTIES:\n+  :ID:       <ID of a.org::Plain heading>\n+  :END:
+id-create.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ID:       <ID of a.org::Planned heading>\n-:END:\n+  :PROPERTIES:\n+  :ID:       <ID of a.org::Planned heading>\n+  :END:
+id-create.org	CF-62	TRANSITIONAL	1	-hhhhhhkhkxkh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
+id-create.org	CF-62	TRANSITIONAL	1	-pfx:hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh

@@ -1,0 +1,20 @@
+#+CONFORMANCE-OPTIONS: flush-left-drawers
+#+CONFORMANCE-FILE: src.org
+* Inbox
+** TODO Move me :t:
+SCHEDULED: <2026-05-05 Tue>
+body
+*** sub
+** Stay
+* Projects
+** Alpha
+*** Deep
+**** Deeper
+* Done
+#+CONFORMANCE-FILE: tgt.org
+#+TITLE: T
+* Target
+existing body
+** Existing child
+
+* After

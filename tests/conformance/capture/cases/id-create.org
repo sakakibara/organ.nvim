@@ -1,0 +1,14 @@
+#+CONFORMANCE-OPTIONS: uuid-v4 flush-left-drawers
+#+CONFORMANCE-FILE: a.org
+#+title: File Title
+#+filetags: :x:
+
+Intro text.
+* Plain heading
+* Planned heading
+SCHEDULED: <2026-05-05 Tue>
+body
+* With drawer
+:PROPERTIES:
+:X: 1
+:END:

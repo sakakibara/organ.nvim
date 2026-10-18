@@ -1,0 +1,11 @@
+#+CONFORMANCE-FILE: a.org
+* TODO Projects :p:
+** [#B] Tasks
+t
+*** Old
+* Tasks
+#+CONFORMANCE-FILE: dup.org
+* Proj
+** Dup
+* Proj
+** Dup

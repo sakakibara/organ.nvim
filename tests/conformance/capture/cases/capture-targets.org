@@ -1,0 +1,13 @@
+#+CONFORMANCE-OPTIONS: flush-left-drawers
+#+CONFORMANCE-FILE: clk.org
+* Clocked
+* Other
+#+CONFORMANCE-FILE: fn.org
+* A
+* B
+#+CONFORMANCE-FILE: id.org
+* Target
+:PROPERTIES:
+:ID: tgt-1
+:END:
+** kid

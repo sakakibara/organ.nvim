@@ -1,0 +1,10 @@
+#+CONFORMANCE-OPTIONS: flush-left-drawers
+#+CONFORMANCE-FILE: inc.txt
+included text
+#+CONFORMANCE-FILE: n.org
+* Inbox
+#+CONFORMANCE-FILE: src.org
+* Clocked task
+* Other
+region line one
+region line two

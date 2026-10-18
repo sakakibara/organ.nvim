@@ -1,0 +1,2 @@
+#+CONFORMANCE-FILE: n.org
+* Inbox

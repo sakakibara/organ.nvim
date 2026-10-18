@@ -1,0 +1,100 @@
+#+CONFORMANCE-FILE: ch.org
+* Plain
+intro
+** child
+* List
+:PROPERTIES:
+:X: 1
+:END:
+- one
+- two
+
+after list
+* Check
+- [ ] a
+* Table
+| a | b |
+|---+---|
+| 1 | 2 |
+text
+* Empty
+#+CONFORMANCE-FILE: em.org
+* Plain
+intro
+** child
+* List
+:PROPERTIES:
+:X: 1
+:END:
+- one
+- two
+
+after list
+* Check
+- [ ] a
+* Table
+| a | b |
+|---+---|
+| 1 | 2 |
+text
+* Empty
+#+CONFORMANCE-FILE: li.org
+* Plain
+intro
+** child
+* List
+:PROPERTIES:
+:X: 1
+:END:
+- one
+- two
+
+after list
+* Check
+- [ ] a
+* Table
+| a | b |
+|---+---|
+| 1 | 2 |
+text
+* Empty
+#+CONFORMANCE-FILE: pl.org
+* Plain
+intro
+** child
+* List
+:PROPERTIES:
+:X: 1
+:END:
+- one
+- two
+
+after list
+* Check
+- [ ] a
+* Table
+| a | b |
+|---+---|
+| 1 | 2 |
+text
+* Empty
+#+CONFORMANCE-FILE: ta.org
+* Plain
+intro
+** child
+* List
+:PROPERTIES:
+:X: 1
+:END:
+- one
+- two
+
+after list
+* Check
+- [ ] a
+* Table
+| a | b |
+|---+---|
+| 1 | 2 |
+text
+* Empty

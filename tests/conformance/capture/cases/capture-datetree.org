@@ -1,0 +1,13 @@
+#+CONFORMANCE-FILE: j.org
+* 2025
+** 2025-12 December
+*** 2025-12-31 Wednesday
+* 2026
+** 2026-04 April
+*** 2026-04-30 Thursday
+** 2026-06 June
+* 2027
+#+CONFORMANCE-FILE: p.org
+* Journal
+** 2026
+* Other

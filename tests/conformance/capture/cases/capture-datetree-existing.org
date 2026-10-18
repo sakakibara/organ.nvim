@@ -1,0 +1,15 @@
+#+CONFORMANCE-FILE: loc.org
+* 2026
+** 2026-05 Mai
+*** 2026-05-01 Freitag
+#+CONFORMANCE-FILE: prop.org
+* Notes
+* Journal
+:PROPERTIES:
+:DATE_TREE: t
+:END:
+** 2026
+* Tail
+#+CONFORMANCE-FILE: todo.org
+* TODO 2026 :y:
+** 2026-05 May

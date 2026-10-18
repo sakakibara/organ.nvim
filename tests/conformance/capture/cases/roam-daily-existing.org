@@ -1,0 +1,6 @@
+#+CONFORMANCE-FILE: daily/2026-05-04.org
+:PROPERTIES:
+:ID: d1
+:END:
+#+title: 2026-05-04
+* first

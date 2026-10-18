@@ -1,0 +1,13 @@
+#+CONFORMANCE-FILE: n.org
+* Inbox
+#+CONFORMANCE-FILE: src.org
+#+TITLE: S
+* Source heading :tg:
+some body line
+* With id
+:PROPERTIES:
+:ID: abc-123
+:END:
+id body
+#+CONFORMANCE-FILE: links.org
+* Inbox

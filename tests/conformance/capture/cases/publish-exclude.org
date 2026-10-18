@@ -1,0 +1,6 @@
+#+CONFORMANCE-FILE: src/draft.org
+* d
+#+CONFORMANCE-FILE: src/keep.org
+* k
+#+CONFORMANCE-FILE: src/old-draft.org
+* o
