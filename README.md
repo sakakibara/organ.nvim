@@ -194,7 +194,8 @@ require("organ").setup({
 
 </details>
 
-The build step compiles the grammars into `<stdpath data>/organ/parser/`.
+The build step compiles the grammar revisions this version of organ pins
+into `<stdpath data>/organ/parser/`.
 If a build fails (no compiler yet, say), organ warns once with the log
 path.  Opening an org file in a later Neovim session retries the build
 in the background; `:Org install_grammars` retries on demand.

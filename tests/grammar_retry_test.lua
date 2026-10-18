@@ -146,8 +146,12 @@ local function fake_result(cmd, opts)
     -- would stall it in a way no real install does.
     return { cp = { "cp", real_parser .. "/" .. name, out .. "/" .. name } }
   end
-  if cmd[1] == "git" and cmd[2] == "clone" then
+  if cmd[1] == "git" and cmd[2] == "init" then
     vim.fn.mkdir(cmd[#cmd] .. "/.git", "p")
+  end
+  if cmd[1] == "git" and cmd[4] == "rev-parse" and cmd[5] == "--verify" then
+    local pin = require("organ.grammar_install").pins()[vim.fs.basename(cmd[3])]
+    return { code = 0, stdout = pin .. "\n", stderr = "" }
   end
   if cmd[1] == "git" and cmd[4] == "rev-parse" then
     -- After the parsers are placed, before the install finishes.
@@ -177,7 +181,7 @@ vim.system = function(cmd, opts, cb)
   if not (opts and opts.timeout) then
     untimed[#untimed + 1] = table.concat(cmd, " ")
   end
-  if make_mode == "hang" and cmd[2] == "clone" then
+  if make_mode == "hang" and cmd[2] == "init" then
     -- SystemObj:wait(t) on a process whose pipes never close: it waits t,
     -- kills, waits t again and returns nil.
     return {

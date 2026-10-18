@@ -1,12 +1,10 @@
 -- Regression: grammar_install.check_stale() must warn exactly when an
--- installed parser is older than the source revision the build hook last
--- fetched -- the silent-degradation case where an update pulled a new
--- grammar revision but its build failed, leaving the parser frozen.
+-- installed parser is not the pinned revision (organ updated, grammars
+-- not rebuilt) or is not the file the last completed install built (a
+-- partial install replaced it), and stay silent otherwise.
 --
--- The check compares the build manifest's recorded revision against the
--- source clone's current HEAD, using only local git.  This test drives it
--- against a sandboxed data dir (own XDG_DATA_HOME) with a real throwaway
--- git clone, and captures vim.notify.
+-- Drives check_stale() against a sandboxed data dir (own XDG_DATA_HOME)
+-- with a stand-in parser file and manifest, and captures vim.notify.
 --
 -- Run via: nvim --headless -l tests/grammar_stale_test.lua
 
@@ -21,51 +19,30 @@ vim.notify = function(msg, level)
   notes[#notes + 1] = { msg = msg, level = level }
 end
 
-local function git(dir, ...)
-  local res = vim.system({ "git", "-C", dir, ... }, { text = true }):wait()
-  if res.code ~= 0 then
-    error(("git %s failed: %s"):format(table.concat({ ... }, " "), res.stderr or ""))
-  end
-  return (res.stdout or ""):gsub("%s+$", "")
-end
-
 -- Sandbox stdpath("data") by pointing XDG_DATA_HOME at a temp dir.  nvim
 -- resolves stdpath("data") = $XDG_DATA_HOME/nvim, cached per process, so
 -- set it before the first stdpath("data") call this test cares about.
 local sandbox = vim.fn.tempname()
 vim.fn.mkdir(sandbox, "p")
 vim.env.XDG_DATA_HOME = sandbox
-
--- Hermetic git env: don't inherit the dev's global config (which may
--- enable commit.gpgsign and need a signing agent the test sandbox
--- doesn't run). Empty config files work cross-platform.
-local empty_cfg = sandbox .. "/empty.gitconfig"
-io.open(empty_cfg, "w"):close()
-vim.env.GIT_CONFIG_GLOBAL = empty_cfg
-vim.env.GIT_CONFIG_SYSTEM = empty_cfg
 local data = vim.fn.stdpath("data") .. "/organ"
 assert(data:find(sandbox, 1, true), "sandbox not in effect: " .. data)
 
 local parser_dir = data .. "/parser"
-local src_root = data .. "/src"
 vim.fn.mkdir(parser_dir, "p")
-vim.fn.mkdir(src_root, "p")
 
--- A real one-commit git clone standing in for the fetched source tree.
 local repo = "tree-sitter-organ"
-local src = src_root .. "/" .. repo
-vim.fn.mkdir(src, "p")
-git(src, "init", "--quiet")
-git(src, "config", "user.email", "t@e.st")
-git(src, "config", "user.name", "t")
-vim.fn.writefile({ "v1" }, src .. "/grammar.js")
-git(src, "add", "grammar.js")
-git(src, "commit", "--quiet", "-m", "one")
-local rev1 = git(src, "rev-parse", "HEAD")
+local rev1 = "1111111111111111111111111111111111111111"
+local pin = rev1
 
-local function write_manifest(rev)
+vim.fn.writefile({ "built parser" }, parser_dir .. "/org.so")
+local built_sha = vim.fn.sha256("built parser\n")
+
+local function write_manifest(rev, local_src)
   local fd = assert(io.open(parser_dir .. "/.build-manifest.json", "w"))
-  fd:write(vim.json.encode({ ["org.so"] = { repo = repo, rev = rev } }))
+  fd:write(vim.json.encode({
+    ["org.so"] = { repo = repo, rev = rev, sha256 = built_sha, local_src = local_src },
+  }))
   fd:close()
 end
 
@@ -74,45 +51,67 @@ local function reset_check_state()
   -- private _stale_warned flag between cases.
   package.loaded["organ.grammar_install"] = nil
   gi = require("organ.grammar_install")
+  gi.pins = function()
+    return { [repo] = pin }
+  end
 end
 
--- Case 1: manifest matches HEAD -> silent.
-notes = {}
+local function run()
+  notes = {}
+  reset_check_state()
+  gi.check_stale()
+end
+
+-- Case 1: the pinned revision, the file the install built -> silent.
 write_manifest(rev1)
-reset_check_state()
-gi.check_stale()
+run()
 assert(#notes == 0, "in-sync install must not warn, got: " .. vim.inspect(notes))
 
--- Case 2: source clone advances past the recorded rev -> one WARN.
-vim.fn.writefile({ "v2" }, src .. "/grammar.js")
-git(src, "add", "grammar.js")
-git(src, "commit", "--quiet", "-m", "two")
-notes = {}
-reset_check_state()
-gi.check_stale()
-assert(#notes == 1, "stale install must warn exactly once, got: " .. #notes)
+-- Case 2: organ pins another revision (updated without a rebuild) -> one
+-- WARN naming the pin mismatch.
+pin = "0123456789abcdef0123456789abcdef01234567"
+run()
+assert(#notes == 1, "unpinned install must warn exactly once, got: " .. #notes)
 assert(notes[1].level == vim.log.levels.WARN, "warning must be WARN level")
-assert(notes[1].msg:find("org.so", 1, true), "message must name the stale parser")
+assert(notes[1].msg:find("org.so not the grammar revision", 1, true), notes[1].msg)
 
 -- Case 3: warned-once guard -> a second call in the same session is silent.
 notes = {}
 gi.check_stale()
 assert(#notes == 0, "check_stale must warn at most once per session, got: " .. #notes)
 
--- Case 4: no manifest (installed before the feature / prebuilt path) -> silent.
+-- Case 4: a parser built from ORGAN_GRAMMAR_SRC is not checked against
+-- the pin.
+write_manifest(rev1, "/src/tree-sitter-organ")
+run()
+assert(#notes == 0, "local-source build must be silent, got: " .. vim.inspect(notes))
+pin = rev1
+
+-- Case 5: the installed file is not the one the manifest records (a
+-- partial install replaced it) -> one WARN, local source or not.
+vim.fn.writefile({ "another parser" }, parser_dir .. "/org.so")
+write_manifest(rev1)
+run()
+assert(#notes == 1, "replaced parser must warn, got: " .. vim.inspect(notes))
+assert(notes[1].msg:find("not the parser the last completed install built", 1, true), notes[1].msg)
+write_manifest(rev1, "/src/tree-sitter-organ")
+run()
+assert(#notes == 1, "replaced local-source parser must warn, got: " .. vim.inspect(notes))
+vim.fn.writefile({ "built parser" }, parser_dir .. "/org.so")
+
+-- Case 6: no manifest (installed before the feature / prebuilt path) -> silent.
 vim.fn.delete(parser_dir .. "/.build-manifest.json")
-notes = {}
-reset_check_state()
-gi.check_stale()
+run()
 assert(#notes == 0, "missing manifest must be silent, got: " .. vim.inspect(notes))
 
--- Case 5: manifest present but no source clone -> silent (can't compare).
-write_manifest(rev1)
-vim.fn.delete(src, "rf")
-notes = {}
-reset_check_state()
-gi.check_stale()
-assert(#notes == 0, "absent source clone must be silent, got: " .. vim.inspect(notes))
+-- Case 7: a manifest from before hashes were recorded is checked against
+-- the pin only.
+local fd = assert(io.open(parser_dir .. "/.build-manifest.json", "w"))
+fd:write(vim.json.encode({ ["org.so"] = { repo = repo, rev = rev1 } }))
+fd:close()
+vim.fn.writefile({ "another parser" }, parser_dir .. "/org.so")
+run()
+assert(#notes == 0, "hashless in-pin manifest must be silent, got: " .. vim.inspect(notes))
 
 io.write("grammar stale detection ok\n")
 os.exit(0)

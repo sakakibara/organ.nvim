@@ -8,8 +8,8 @@
 -- Layout under stdpath("data")/organ/:
 --
 --   src/
---     tree-sitter-organ/         <- git clone
---     tree-sitter-organ-inline/  <- git clone
+--     tree-sitter-organ/         <- clone at the pinned revision
+--     tree-sitter-organ-inline/  <- clone at the pinned revision
 --   parser/
 --     org.so
 --     org_inline.so
@@ -26,6 +26,14 @@ local M = {}
 
 local REPO_BLOCK = "https://github.com/sakakibara/tree-sitter-organ"
 local REPO_INLINE = "https://github.com/sakakibara/tree-sitter-organ-inline"
+
+-- The grammar revisions to build (lua/organ/grammar_pins.lua): exactly
+-- these, never a branch tip, so a grammar change reaches users only with
+-- the organ commit that pins it.  Read from disk, not `require`d.
+function M.pins()
+  local here = debug.getinfo(1, "S").source:sub(2)
+  return dofile(vim.fn.fnamemodify(here, ":h") .. "/grammar_pins.lua")
+end
 
 -- Local platform fragment used only to locate the build artifact inside
 -- each grammar's `build/` directory (the upstream Makefile is per-arch).
@@ -332,64 +340,119 @@ local function git_head(dir)
   return (res.stdout or ""):gsub("%s+$", "")
 end
 
+-- The commit checked out in `dir`, or nil when there is none yet.
+local function checked_out(dir)
+  local res = system(
+    { "git", "-C", dir, "rev-parse", "--verify", "--quiet", "HEAD^{commit}" },
+    { text = true }
+  )
+  if res.code ~= 0 then
+    return nil
+  end
+  return (res.stdout or ""):gsub("%s+$", "")
+end
+
 local function manifest_path()
   return vim.fn.stdpath("data") .. "/organ/parser/.build-manifest.json"
 end
 
-local function clone_or_pull(url, dest)
-  -- Case 1: dest is a managed git clone — hard-sync to remote tip.
-  -- This is a managed clone (organ owns the directory, not the user),
-  -- so we hard-sync rather than `pull --ff-only`.  That handles:
-  --   1. Untracked generated files (`src/tree_sitter/*.h`,
-  --      `src/parser.c`) that overlap paths now tracked upstream —
-  --      this is exactly what bites users who installed before the
-  --      headers were committed to the grammar repos.
-  --   2. Local tracked-file edits (e.g. accidental save into the
-  --      install dir) that would otherwise turn a fast-forward into
-  --      a 3-way merge.
-  --   3. History rewinds upstream (rare, but `--ff-only` would fail).
-  -- A fresh `clean -fdx` afterwards drops `node_modules/`, `build/`
-  -- etc. so the next `make` step regenerates them deterministically.
+-- Brings the managed clone at `dest` to exactly `rev` of `url`.  organ
+-- owns the directory, so it is hard-synced rather than merged: local
+-- edits, untracked generated files that overlap tracked ones, and old
+-- build output are dropped, and `make` starts from a clean tree.
+local function sync_clone(url, dest, rev)
   if vim.fn.isdirectory(dest .. "/.git") == 1 then
-    -- Verify the remote points at the URL we expect.  If a prior
-    -- install used a different URL (e.g. user reconfigured a fork),
-    -- the safest move is to blow it away and reclone — otherwise
-    -- `fetch origin HEAD` would pull the WRONG tree.
+    -- A clone of another URL (a fork configured earlier) is replaced, so
+    -- the pinned revision is never looked up in the wrong repository.
     local res = system({ "git", "-C", dest, "remote", "get-url", "origin" }, { text = true })
     local current_url = (res.stdout or ""):gsub("%s+$", "")
-    if res.code == 0 and current_url == url then
-      progress("updating " .. vim.fn.fnamemodify(dest, ":t"))
-      local ok, err = run({ "git", "-C", dest, "fetch", "--quiet", "--depth=1", "origin", "HEAD" })
-      if not ok then
-        return false, err
-      end
-      ok, err = run({ "git", "-C", dest, "reset", "--hard", "--quiet", "FETCH_HEAD" })
-      if not ok then
-        return false, err
-      end
-      return run({ "git", "-C", dest, "clean", "-fdxq" })
-    end
-    progress(
-      string.format(
-        "remote mismatch in %s (got %s, want %s); reinstalling",
-        vim.fn.fnamemodify(dest, ":t"),
-        current_url ~= "" and current_url or "<unknown>",
-        url
+    if res.code ~= 0 or current_url ~= url then
+      progress(
+        string.format(
+          "remote mismatch in %s (got %s, want %s); reinstalling",
+          vim.fn.fnamemodify(dest, ":t"),
+          current_url ~= "" and current_url or "<unknown>",
+          url
+        )
       )
-    )
-    vim.fn.delete(dest, "rf")
+      vim.fn.delete(dest, "rf")
+    end
   elseif vim.fn.isdirectory(dest) == 1 then
-    -- Case 2: dest exists but has NO `.git` — almost always the
-    -- residue of a previous failed `git clone` (or a partial unzip).
-    -- `git clone` refuses to write into a non-empty directory, so
-    -- we'd loop forever.  Wipe and start clean.
+    -- The residue of an interrupted clone.
     progress("removing partial " .. vim.fn.fnamemodify(dest, ":t") .. " (no .git found)")
     vim.fn.delete(dest, "rf")
   end
 
-  -- Case 3: fresh clone.
-  progress("cloning " .. url)
-  return run({ "git", "clone", "--depth=1", "--quiet", url, dest })
+  local ok, err
+  if vim.fn.isdirectory(dest .. "/.git") == 0 then
+    progress("cloning " .. url)
+    ok, err = run({ "git", "init", "--quiet", dest })
+    if ok then
+      ok, err = run({ "git", "-C", dest, "remote", "add", "origin", url })
+    end
+    if not ok then
+      return false, err
+    end
+  end
+  if checked_out(dest) ~= rev then
+    progress("fetching " .. vim.fn.fnamemodify(dest, ":t") .. " " .. rev:sub(1, 12))
+    ok, err = run({ "git", "-C", dest, "fetch", "--quiet", "--depth=1", "origin", rev })
+    if not ok then
+      return false, err
+    end
+    ok, err = run({ "git", "-C", dest, "reset", "--hard", "--quiet", "FETCH_HEAD" })
+  else
+    ok, err = run({ "git", "-C", dest, "reset", "--hard", "--quiet", "HEAD" })
+  end
+  if not ok then
+    return false, err
+  end
+  local head = checked_out(dest)
+  if head ~= rev then
+    return false, ("checked out %s, want the pinned %s"):format(tostring(head), rev)
+  end
+  return run({ "git", "-C", dest, "clean", "-fdxq" })
+end
+
+-- sync_clone, started over once from a fresh clone when it fails on an
+-- existing one: a killed git can leave a lock file that fails every later
+-- command, and organ owns the directory.
+function M._fetch_pinned(url, dest, rev)
+  local ok, err = sync_clone(url, dest, rev)
+  if not ok and vim.fn.isdirectory(dest) == 1 then
+    progress(
+      "retrying " .. vim.fn.fnamemodify(dest, ":t") .. " from a fresh clone: " .. tostring(err)
+    )
+    vim.fn.delete(dest, "rf")
+    ok, err = sync_clone(url, dest, rev)
+  end
+  return ok, err
+end
+
+-- A developer testing unpushed grammar work points ORGAN_GRAMMAR_SRC at
+-- a directory holding tree-sitter-organ/ and tree-sitter-organ-inline/
+-- checkouts, which are built as they are.  CI refuses it, so CI always
+-- builds the pinned revisions.  Returns the directory, nil when unset, or
+-- nil plus an error.
+local function override_root()
+  local dir = vim.env.ORGAN_GRAMMAR_SRC
+  if dir == nil or dir == "" then
+    return nil
+  end
+  if vim.env.CI and vim.env.CI ~= "" then
+    return nil, "ORGAN_GRAMMAR_SRC is set, and CI builds only the pinned grammar revisions"
+  end
+  return (vim.fn.fnamemodify(dir, ":p"):gsub("/$", ""))
+end
+
+local function file_sha256(path)
+  local fd = io.open(path, "rb")
+  if not fd then
+    return nil
+  end
+  local bytes = fd:read("*a")
+  fd:close()
+  return require("organ.compat").sha256(bytes)
 end
 
 local function build_grammar(src_dir)
@@ -508,6 +571,12 @@ local function install(opts)
     return false, "make missing"
   end
 
+  local override, override_err = override_root()
+  if override_err then
+    notify_err(GRAMMAR_REPOS .. " not built", override_err)
+    return false, override_err
+  end
+
   local data_root = vim.fn.stdpath("data") .. "/organ"
   local plat = _platform_triple()
   local src_root = data_root .. "/src"
@@ -515,14 +584,14 @@ local function install(opts)
   vim.fn.mkdir(src_root, "p")
   vim.fn.mkdir(data_root .. "/parser", "p")
 
-  -- Records the source revision each parser was BUILT from, keyed by
-  -- grammar file.  Written only after a fully successful install, so a
-  -- later `check_stale()` can tell "installed parser is behind the
-  -- source clone" -- which is exactly what happens when a subsequent
-  -- update pulls a new grammar revision but its build fails.
+  -- Records, per grammar file, the source revision each parser was built
+  -- from and the sha256 of the installed file.  Written only after a
+  -- fully successful install, so `check_stale()` can tell a parser that
+  -- is behind its source clone or its pin.
   local manifest = {}
   local built = {}
   local failed
+  local pins = M.pins()
 
   for _, grammar in ipairs({
     {
@@ -540,10 +609,23 @@ local function install(opts)
       out = M.install_path("org_inline.so"),
     },
   }) do
-    local src_dir = src_root .. "/" .. grammar.dir_name
-    local ok, err = clone_or_pull(grammar.url, src_dir)
+    local src_dir, ok, err
+    local what
+    if override then
+      what = " not found"
+      src_dir = override .. "/" .. grammar.dir_name
+      ok = vim.fn.isdirectory(src_dir) == 1
+      err = "ORGAN_GRAMMAR_SRC has no " .. grammar.dir_name .. " checkout"
+      if ok then
+        progress("building local " .. src_dir)
+      end
+    else
+      what = " clone failed"
+      src_dir = src_root .. "/" .. grammar.dir_name
+      ok, err = M._fetch_pinned(grammar.url, src_dir, pins[grammar.dir_name])
+    end
     if not ok then
-      notify_err(grammar.dir_name .. " clone failed", err)
+      notify_err(grammar.dir_name .. what, err)
       failed = err
       break
     end
@@ -598,7 +680,12 @@ local function install(opts)
     return false, failed
   end
   for _, grammar in ipairs(built) do
-    manifest[grammar.file] = { repo = grammar.dir_name, rev = git_head(grammar.src_dir) }
+    manifest[grammar.file] = {
+      repo = grammar.dir_name,
+      rev = git_head(grammar.src_dir),
+      sha256 = file_sha256(grammar.out),
+      local_src = override and grammar.src_dir or nil,
+    }
   end
 
   do
@@ -681,7 +768,7 @@ local function check_inline(buf, done)
 end
 
 -- Install both parsers. Returns (true) on full success, (false, err) on
--- the first failure. Idempotent — re-running fast-forwards the clones
+-- the first failure. Idempotent: re-running syncs the clones to the pins
 -- and rebuilds.
 function M.install()
   if _running then
@@ -713,18 +800,16 @@ function M.install()
   return res, err
 end
 
--- Warn once per session when an installed parser is older than the
--- source revision the build hook last fetched.  `clone_or_pull` advances
--- the source clone to the new tip BEFORE building, so a failed build
--- leaves the clone ahead of the still-old parser -- a silent, indefinite
--- degradation (the user runs a month-old grammar and never knows).  This
--- turns that into a visible, actionable prompt, using only local git
--- (no network): the build manifest's recorded revision vs the clone's
--- current HEAD.
+-- Warn once per session when an installed parser is not the pinned
+-- revision (organ was updated but its grammars were not rebuilt, or the
+-- rebuild failed), or is not the file the last completed install built
+-- (a partial or interrupted install replaced it).  Either way the user
+-- would run a grammar organ was not tested with, without knowing.  Local,
+-- no network.  A parser built from ORGAN_GRAMMAR_SRC is checked only
+-- against its recorded hash.
 --
 -- Silent no-op when there's nothing to compare: no manifest (installed
--- before this existed, or via a prebuilt/nvim-treesitter path), no source
--- clone, or git unavailable.
+-- before this existed, or via a prebuilt/nvim-treesitter path).
 local _stale_warned = false
 function M.check_stale()
   if _stale_warned or not M.managed() then
@@ -741,27 +826,35 @@ function M.check_stale()
     if not ok_json or type(manifest) ~= "table" then
       return
     end
-    local src_root = vim.fn.stdpath("data") .. "/organ/src"
-    local stale = {}
+    local pins = M.pins()
+    local replaced, unpinned = {}, {}
     for file, entry in pairs(manifest) do
       if type(entry) == "table" and entry.repo and entry.rev then
-        local head = git_head(src_root .. "/" .. entry.repo)
-        if head and head ~= entry.rev then
-          stale[#stale + 1] = file
+        local installed = entry.sha256 and file_sha256(M.install_path(file))
+        if installed and installed ~= entry.sha256 then
+          replaced[#replaced + 1] = file
+        elseif not entry.local_src and pins[entry.repo] and entry.rev ~= pins[entry.repo] then
+          unpinned[#unpinned + 1] = file
         end
       end
     end
-    if #stale > 0 then
+    if #replaced + #unpinned > 0 then
       _stale_warned = true
-      table.sort(stale)
-      summary_notify(
-        ("%s out of date -- a grammar update fetched a newer revision but its build did not complete. "):format(
-          table.concat(stale, " + ")
+      table.sort(replaced)
+      table.sort(unpinned)
+      local why = {}
+      if #unpinned > 0 then
+        why[#why + 1] = ("%s not the grammar revision this organ version is built for. "):format(
+          table.concat(unpinned, " + ")
         )
-          .. "Rebuild with `"
-          .. RETRY_CMD
-          .. "`. Full log: "
-          .. log_path(),
+      end
+      if #replaced > 0 then
+        why[#why + 1] = ("%s not the parser the last completed install built. "):format(
+          table.concat(replaced, " + ")
+        )
+      end
+      summary_notify(
+        table.concat(why) .. "Rebuild with `" .. RETRY_CMD .. "`. Full log: " .. log_path(),
         vim.log.levels.WARN
       )
     end

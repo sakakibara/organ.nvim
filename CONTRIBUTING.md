@@ -53,7 +53,10 @@ tests/
 
 Every test bootstraps via `dofile("tests/_bootstrap.lua")`, which
 verifies the tree-sitter grammar is built and the dep symlinks
-resolve.  Tests print a `PASS  <label>` / `FAIL  <label>` line per
+resolve.  The make targets run with `XDG_DATA_HOME` set to
+`tests/.tmp/xdg-data`, so `make grammar` builds the pinned grammars
+there and tests never load or overwrite the parser your own Neovim
+uses.  Tests print a `PASS  <label>` / `FAIL  <label>` line per
 check and exit non-zero on any failure -- `make test-only` aggregates
 the per-file results.
 
@@ -132,3 +135,13 @@ against any of them go to the upstream repo, not here:
 - [narrow.nvim](https://github.com/sakakibara/narrow.nvim) — subtree narrowing (runtime dep)
 - [tree-sitter-organ](https://github.com/sakakibara/tree-sitter-organ) — block-level tree-sitter grammar (cloned by `grammar_install.lua`)
 - [tree-sitter-organ-inline](https://github.com/sakakibara/tree-sitter-organ-inline) — inline tree-sitter grammar (emphasis, links, timestamps, ...)
+
+organ builds the grammar revisions pinned in `M.PINS` in
+`lua/organ/grammar_install.lua`.  A grammar change reaches organ by
+pushing it to the grammar repo first, then bumping the pin in the organ
+commit that adapts to it.  To test unpushed grammar work, point
+`ORGAN_GRAMMAR_SRC` at a directory holding `tree-sitter-organ/` and
+`tree-sitter-organ-inline/` checkouts: `make test
+ORGAN_GRAMMAR_SRC=$HOME/src` builds them as they are and runs the suite
+against them (a later `make test` without it rebuilds the pins).  CI
+refuses the override.

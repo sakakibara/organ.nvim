@@ -56,8 +56,11 @@ local function fake(cmd, opts)
     local dir = opts.cwd .. "/build/" .. plat
     vim.fn.mkdir(dir, "p")
     assert(vim.uv.fs_copyfile(real_parser .. "/" .. name, dir .. "/" .. name))
-  elseif cmd[2] == "clone" then
+  elseif cmd[2] == "init" then
     vim.fn.mkdir(cmd[#cmd] .. "/.git", "p")
+  elseif cmd[4] == "rev-parse" and cmd[5] == "--verify" then
+    local pin = require("organ.grammar_install").pins()[vim.fs.basename(cmd[3])]
+    return { code = 0, stdout = pin .. "\n", stderr = "" }
   elseif cmd[4] == "rev-parse" then
     return { code = 0, stdout = "deadbeef\n", stderr = "" }
   end

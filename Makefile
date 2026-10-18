@@ -5,10 +5,12 @@
 
 NVIM      ?= nvim
 TEST_DIR  := tests
+
+# Every target builds and loads the grammars from a data dir of its own,
+# never the one the developer's Neovim uses.
+export XDG_DATA_HOME := $(CURDIR)/$(TEST_DIR)/.tmp/xdg-data
+GRAMMAR   := $(XDG_DATA_HOME)/nvim/organ/parser/org.so
 DEPS_DIR  := $(TEST_DIR)/deps
-GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
-                 -c 'lua io.write(vim.fn.stdpath("data") .. "/organ/parser/org.so")' \
-                 -c 'qa' 2>&1 | tr -d '\r')
 
 .PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
         demos demos-force clean-demos \
@@ -44,13 +46,14 @@ deps:
 demo-deps:
 	@bash scripts/demo-deps.sh
 
-# Fetch + build the tree-sitter grammars into <stdpath data>/organ/parser/.
-# Nothing is vendored: grammar_install clones tree-sitter-organ and
-# tree-sitter-organ-inline from GitHub and compiles them locally.
-# Skips work when the .so is already up to date.
+# Fetch + build the pinned tree-sitter grammars into
+# $(XDG_DATA_HOME)/nvim/organ/parser/.  Nothing is vendored:
+# grammar_install fetches tree-sitter-organ and tree-sitter-organ-inline
+# at the revisions it pins and compiles them locally; ORGAN_GRAMMAR_SRC
+# builds local checkouts instead (see CONTRIBUTING.md).
 grammar:
-	@$(NVIM) --headless --cmd "set rtp+=$(PWD)" \
-	  -c 'lua require("organ.grammar_install").install()' \
+	@$(NVIM) --clean --headless --cmd "set rtp+=$(PWD)" \
+	  -c 'lua local ok, err = require("organ.grammar_install").install(); if not ok then io.stdout:write("grammar install failed: " .. tostring(err) .. "\n"); os.exit(1) end' \
 	  -c 'qa' 2>/dev/null
 	@test -f "$(GRAMMAR)" || (echo "grammar build failed: $(GRAMMAR) not found" && exit 1)
 

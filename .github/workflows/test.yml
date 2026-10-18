@@ -118,6 +118,10 @@ jobs:
     # versions in the matrixed `test` job above.
     name: emacs conformance
     runs-on: ubuntu-latest
+    # The Makefile builds and loads the grammars from this data dir; the
+    # steps that start nvim directly use the same one.
+    env:
+      XDG_DATA_HOME: ${{ github.workspace }}/tests/.tmp/xdg-data
     steps:
       - uses: actions/checkout@v5
 
