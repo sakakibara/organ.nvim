@@ -1,0 +1,18 @@
+* L
+Inline $a$ and \(b\) and \[c\] in text and $$d$$.
+
+\begin{equation}
+E = mc^2
+\end{equation}
+
+\begin{align*}
+x &= 1
+\end{align*}
+
+#+NAME: eq1
+\begin{equation}
+y=2
+\end{equation}
+
+Price is $5 and $6 dollars. A $ alone.
+Entity \pi{} and \LaTeX{} and \hellip and \ast and \under{}score.

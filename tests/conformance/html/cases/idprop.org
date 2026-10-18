@@ -1,0 +1,6 @@
+* With ID
+:PROPERTIES:
+:ID: abc-123
+:END:
+* Other
+[[id:abc-123]] [[id:abc-123][d]]

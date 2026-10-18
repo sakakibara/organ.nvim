@@ -1,0 +1,27 @@
+#+OPTIONS: toc:nil
+* A
+#+TOC: headlines 2
+** A1
+#+TOC: headlines 1 local
+*** A11
+*** A12
+** A2
+#+CAPTION: T one
+| x |
+#+CAPTION: L one
+#+begin_src sh
+ls
+#+end_src
+#+TOC: tables
+#+TOC: listings
+#+TOC: figures
+* B
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+** B1
+* C
+:PROPERTIES:
+:UNNUMBERED: notoc
+:END:
+* D

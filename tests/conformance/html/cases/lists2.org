@@ -1,0 +1,10 @@
+* L
+1. [@3] counter start
+2. next
+
+para after
+- item with
+  second paragraph
+
+  third para
+- last

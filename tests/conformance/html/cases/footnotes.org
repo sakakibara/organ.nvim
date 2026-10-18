@@ -1,0 +1,11 @@
+* F
+Ref one[fn:1] and named[fn:name] and inline[fn:: anonymous body] and
+named inline[fn:nl: named inline body] and again[fn:1].
+Undefined ref none.
+
+[fn:1] First def.
+
+Still part? no, blank line ends? 
+
+[fn:name] Named def with *bold*.
+  Second line.

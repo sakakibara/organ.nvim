@@ -1,0 +1,61 @@
+* B
+#+begin_src python :exports code
+print("hi" < 3)
+#+end_src
+
+#+begin_src emacs-lisp -n
+(message "x")
+(foo)
+#+end_src
+
+#+begin_src
+nolang
+#+end_src
+
+#+begin_example
+ex <ample>
+  indented
+#+end_example
+
+#+begin_verse
+  Roses are *red*
+Violets --- blue
+
+second stanza
+#+end_verse
+
+#+begin_quote
+Quoted /text/.
+
+Second para.
+#+end_quote
+
+#+begin_center
+Centered
+#+end_center
+
+#+begin_note
+A special block.
+#+end_note
+
+#+begin_export html
+<div class="raw">raw</div>
+#+end_export
+
+#+begin_export latex
+\LaTeX
+#+end_export
+
+#+begin_comment
+hidden comment block
+#+end_comment
+
+: fixed width
+:   line two
+
+#+html: <b>inline html keyword</b>
+#+latex: \foo
+
+-----
+
+# a comment line

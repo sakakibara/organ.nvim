@@ -1,0 +1,10 @@
+#+TITLE: TT
+* H
+#+begin_src sh
+echo {{{title}}}
+#+end_src
+: fixed {{{title}}}
+=verb {{{title}}}=
+#+begin_example
+{{{title}}}
+#+end_example

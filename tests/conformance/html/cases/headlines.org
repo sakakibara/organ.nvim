@@ -1,0 +1,16 @@
+#+title: Heads
+#+TODO: TODO NEXT | DONE CANCELED
+* TODO [#A] Task one :work:urgent:
+body1
+* DONE Finished                                   :home:
+* NEXT [#C] Custom kw
+* COMMENT Commented out
+secret
+* Excluded :noexport:
+hidden
+* Plain [#B]
+** Child
+*** Grand
+**** Great
+***** Great2
+* CANCELED cancelled one

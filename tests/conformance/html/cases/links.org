@@ -1,0 +1,28 @@
+#+title: Links
+* Target heading
+:PROPERTIES:
+:CUSTOM_ID: cid
+:ID: 1234-abcd
+:END:
+<<mytarget>> here. A <<<radio phrase>>> defined.
+* Other
+- fuzzy [[Target heading]]
+- star [[*Target heading]]
+- custom [[#cid]]
+- id [[id:1234-abcd]]
+- target [[mytarget]]
+- radio phrase used here
+- file org [[file:other.org]] and [[file:other.org::*Head][desc]] and [[./x.org]]
+- file pdf [[file:doc.pdf]]
+- image [[file:img.png]] and [[./pic.jpg]]
+- image with desc [[file:img.png][alt]]
+- link desc image [[https://x.com][file:thumb.png]]
+- http [[https://example.com][Example]] and [[https://example.com]]
+- mailto [[mailto:a@b.c]]
+- news [[news:comp.emacs]]
+- doi [[doi:10.1000/182]]
+- elisp [[elisp:(+ 1 2)]]
+- shell [[shell:ls]]
+- unresolved [[nonexistent thing]]
+- custom type [[foo:bar]]
+- plain file:plain.org and https://plain.com

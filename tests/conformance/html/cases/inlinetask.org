@@ -1,0 +1,8 @@
+* H
+pre
+*************** TODO inline task :tg:
+inline body
+*************** END
+post
+
+*************** Single inline

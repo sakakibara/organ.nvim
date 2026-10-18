@@ -1,0 +1,7 @@
+* Top
+#+INCLUDE: "inc_target.org"
+#+INCLUDE: "inc_code.txt" src text
+#+INCLUDE: "inc_code.txt" example
+#+INCLUDE: "inc_target.org::*Inc head" :only-contents t
+#+INCLUDE: "inc_target.org" :lines "1-2"
+#+INCLUDE: "inc_target.org" :minlevel 3

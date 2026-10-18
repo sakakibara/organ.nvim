@@ -1,0 +1,6 @@
+#+cite_export: basic
+#+bibliography: refs.bib
+* C
+See [cite:@knuth1984] and [cite:@doe2020 p. 5] and [cite/t:@knuth1984] and [cite:see;@doe2020;@knuth1984].
+
+#+print_bibliography:

@@ -1,0 +1,21 @@
+* L
+- a
+- b
+  - nested
+    1. deep ordered
+- c
+
+1. one
+2. two
+3) three
+
+- [ ] off
+- [X] on
+- [-] trans
+
+- term :: definition
+- other term :: other def
+  continued
+
++ plus item
+* not a heading because column 0? no

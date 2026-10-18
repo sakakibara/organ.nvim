@@ -1,0 +1,7 @@
+#+OPTIONS: <:active
+* H
+<2026-01-01 Thu>
+
+[2026-01-02 Fri]
+
+<2026-01-01 Thu> mixed

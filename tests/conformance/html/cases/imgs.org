@@ -1,0 +1,4 @@
+* I
+[[file:x.svg]] [[file:X.PNG]] [[./a.webp]] [[./b.avif]] [[file:c.gif]] [[file:d.jpeg]] [[file:e.tiff]]
+
+[[file:solo.svg]]

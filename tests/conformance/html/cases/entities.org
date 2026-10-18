@@ -1,0 +1,5 @@
+* E
+Differing: \ast \circ \star \tilde \simeq \nexist \nexists \Diamond \hookleftarrow \preceq \succeq \varepsilon.
+Emacs only: \Amacr \amacr \Idot \inodot \acutex \arg \asciicirc \equal \odot.
+organ only: \Box \aa \ddagger \flat \iff \integral \lozenge \mapsto \mp \natural \sharp.
+Braces: \LaTeX{} and \alpha{}x.

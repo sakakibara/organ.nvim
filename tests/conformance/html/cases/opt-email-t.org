@@ -1,0 +1,31 @@
+#+OPTIONS: email:t
+#+TITLE: Opt Doc
+#+SUBTITLE: The sub
+#+AUTHOR: Ann Author
+#+EMAIL: ann@example.com
+#+DATE: 2026-01-01
+#+LANGUAGE: fr
+#+DESCRIPTION: desc text
+#+KEYWORDS: kw1 kw2
+* TODO [#A] One :t1:
+SCHEDULED: <2026-01-05 Mon>
+:PROPERTIES:
+:B: 2
+:A: 1
+:END:
+:NOTES:
+note drawer
+:END:
+Text with "q" -- dash ... and x^2 a_b \alpha $m$ [fn:1] <<tgt>> *emph*
+line two \\
+line three
+<2026-01-01 Thu>
+[fn:1] Foot.
+** DONE Two
+*** Three
+**** Four
+* Untagged :noexport:
+gone
+* Keep :sel:
+kept
+** Inner

@@ -1,0 +1,12 @@
+* H
+: fixed
+| t |
+<2026-01-01 Thu> text [2026-01-02 Fri]
+#+begin_export html
+<b>exp</b>
+#+end_export
+@@html:<i>snip</i>@@
+- [-] partially
+** Sub [1/2]
+*** S3
+**** S4

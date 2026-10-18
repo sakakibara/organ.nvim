@@ -1,0 +1,6 @@
+#+LINK: gh https://github.com/%s
+#+LINK: wp https://en.wikipedia.org/wiki/
+* L
+[[gh:org/repo]] [[wp:Org_mode][Wiki]] [[file:x.org::42]] [[file:/abs/path.org]] [[file:~/home.txt]] [[x.html]] [[file:dir/]] [[https://a.com/a b]] [[https://a.com/?q="x"&y=<z>]]
+[[file:img.png][file:thumb.jpg]] [[https://e.com/i.png]] [[file:docs/a.ORG]] [[attachment:f.png]] [[info:org#Links]] [[help:org-mode]]
+[[#missing-cid]] [[id:missing-id]] <<Target With Spaces>> [[Target With Spaces]] [[target with spaces]]

@@ -1,0 +1,7 @@
+#+OPTIONS: inline:nil
+* H
+pre
+*************** TODO inline task
+inline body
+*************** END
+post

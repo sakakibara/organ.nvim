@@ -1,0 +1,17 @@
+#+TITLE: Mac Title
+#+AUTHOR: Mac Author
+#+DATE: 2026-02-03
+#+EMAIL: m@x.y
+#+MACRO: greet Hello, $1!
+#+MACRO: two $1-$2
+#+PROPERTY: myprop pv
+* Macro head
+:PROPERTIES:
+:LOCAL: lv
+:END:
+T={{{title}}} A={{{author}}} D={{{date}}} E={{{email}}}
+G={{{greet(World)}}} Two={{{two(a,b\,c)}}} Esc={{{greet(x\,y)}}}
+N={{{n}}} N={{{n}}} N2={{{n(c2)}}} N={{{n}}} Nreset={{{n(,-)}}}
+P={{{property(LOCAL)}}} Kw={{{keyword(AUTHOR)}}}
+Inp={{{input-file}}} Mod={{{modification-time(%Y)}}}
+Time={{{time(%Y)}}}

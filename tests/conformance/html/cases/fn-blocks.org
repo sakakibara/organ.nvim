@@ -1,0 +1,11 @@
+* F
+Ref[fn:a] and[fn:b].
+
+[fn:a] Para one.
+- list in fn
+- second
+
+[fn:b]
+#+begin_src sh
+echo fn
+#+end_src

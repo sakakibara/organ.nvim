@@ -1,0 +1,6 @@
+#+TODO: TODO NEXT | DONE
+#+OPTIONS: tasks:("NEXT")
+* TODO a
+* DONE b
+* NEXT c
+* plain d

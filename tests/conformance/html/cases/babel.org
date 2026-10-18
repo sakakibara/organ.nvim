@@ -1,0 +1,49 @@
+* B
+#+begin_src emacs-lisp :exports none :eval never
+(+ 1 1)
+#+end_src
+
+#+begin_src emacs-lisp :exports results :eval never
+(+ 2 2)
+#+end_src
+
+#+RESULTS:
+: 4
+
+#+begin_src emacs-lisp :exports both :eval never
+(+ 3 3)
+#+end_src
+
+#+RESULTS:
+: 6
+
+#+begin_src emacs-lisp :exports code :eval never
+(+ 5 5)
+#+end_src
+
+#+RESULTS:
+: 10
+
+#+begin_src sh -n 10 -r :eval never
+echo a  (ref:lbl)
+echo b
+#+end_src
+See line [[(lbl)]].
+
+#+begin_src sh :eval never
+  indented
+	tab
+#+end_src
+
+#+begin_example -n
+one
+two
+#+end_example
+
+#+NAME: named-res
+#+begin_src emacs-lisp :eval never :exports both
+1
+#+end_src
+
+#+RESULTS: named-res
+| a | b |

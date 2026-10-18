@@ -1,0 +1,23 @@
+* A
+Inline image [[file:img.png]] in text and [[img.svg]] bare.
+
+[[file:img.png]]
+
+#+CAPTION: A figure
+#+NAME: fig1
+[[file:fig.png]]
+
+#+ATTR_HTML: :width 100 :alt Alt text
+[[file:w.png]]
+
+See [[fig1]] and [[tbl]] and [[src1]] and [[file:other.org::*Head][head]] and [[file:other.org::#ocid]] and [[file:other.org::Second]].
+
+#+NAME: tbl
+| a |
+
+#+NAME: src1
+#+begin_src sh
+ls
+#+end_src
+** Sub
+[[A]] [[*A][custom desc]] [[Sub]]
