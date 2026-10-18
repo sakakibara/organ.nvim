@@ -1,0 +1,12 @@
+#+CONFORMANCE-VIEW: day 2026-05-05
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: g.org
+* TODO Timed deadline
+  DEADLINE: <2026-05-05 Tue 15:00>
+* TODO Untimed on tue
+  SCHEDULED: <2026-05-05 Tue>
+* Meeting <2026-05-05 Tue 09:00>--<2026-05-05 Tue 10:30>
+* Late night <2026-05-05 Tue 23:30>
+* Early <2026-05-05 Tue 7:15>
+* TODO Timed sched with end
+  SCHEDULED: <2026-05-05 Tue 13:00-14:00>

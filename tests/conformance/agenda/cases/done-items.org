@@ -1,0 +1,9 @@
+#+CONFORMANCE-OPTIONS: show-done
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: work.org
+* TODO Plain scheduled
+  SCHEDULED: <2026-05-04 Mon>
+* DONE Done scheduled
+  SCHEDULED: <2026-05-04 Mon>
+* DONE Done deadline
+  CLOSED: [2026-05-03 Sun 10:00] DEADLINE: <2026-05-04 Mon>

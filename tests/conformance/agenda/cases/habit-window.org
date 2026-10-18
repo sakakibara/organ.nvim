@@ -1,0 +1,11 @@
+#+CONFORMANCE-HABITS: on
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: h.org
+* TODO Window
+SCHEDULED: <2026-04-24 Fri .+1w/2w>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-04-17 Fri 08:00]
+:END:

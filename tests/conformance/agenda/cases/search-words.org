@@ -1,0 +1,14 @@
+#+CONFORMANCE-VIEW: search apples
+#+CONFORMANCE-VIEW: search +apples -pie
+#+CONFORMANCE-VIEW: search market
+#+CONFORMANCE-VIEW: search food
+#+CONFORMANCE-VIEW: search *apples
+#+CONFORMANCE-FILE: s.org
+* TODO Buy apples
+  Remember the green ones from the market.
+* Meeting notes
+  Discuss apples and oranges budget.
+* DONE Oranges shipment
+* Apple pie recipe :food:
+* TODO Fix the BANANA bug
+* Something about apples pie

@@ -1,0 +1,14 @@
+#+CONFORMANCE-EMACS: (org-agenda-start-with-log-mode t)
+#+CONFORMANCE-ORGAN: cfg.agenda.log_mode.on_start = true
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: l.org
+* DONE Closed today
+  CLOSED: [2026-05-04 Mon 10:15]
+* TODO Clocked today
+  :LOGBOOK:
+  CLOCK: [2026-05-04 Mon 09:00]--[2026-05-04 Mon 09:45] =>  0:45
+  :END:
+* TODO State changed
+  :LOGBOOK:
+  - State "TODO"       from "NEXT"       [2026-05-04 Mon 11:00]
+  :END:

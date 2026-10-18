@@ -1,0 +1,9 @@
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: averyveryverylongfilename.org
+* TODO Item in long file :tag:
+  SCHEDULED: <2026-05-04 Mon>
+#+CONFORMANCE-FILE: s.org
+* TODO Short file item
+  SCHEDULED: <2026-05-04 Mon 10:00>
+* TODO Another :x:
+  SCHEDULED: <2026-05-04 Mon>

@@ -1,0 +1,9 @@
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: k.org
+#+TODO: TODO STARTED | FINISHED ABANDONED
+* TODO one
+* STARTED two
+* FINISHED three
+* ABANDONED four
+* DONE five-not-a-keyword-here
+* plain

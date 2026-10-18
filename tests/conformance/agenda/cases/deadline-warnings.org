@@ -1,0 +1,19 @@
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-VIEW: week
+#+CONFORMANCE-FILE: d.org
+* TODO S-past D-future
+  SCHEDULED: <2026-05-01 Fri> DEADLINE: <2026-05-07 Thu>
+* TODO D warn 2
+  DEADLINE: <2026-05-07 Thu -2d>
+* TODO D warn 5
+  DEADLINE: <2026-05-07 Thu -5d>
+* TODO D 15 days out
+  DEADLINE: <2026-05-19 Tue>
+* TODO D 14 days out
+  DEADLINE: <2026-05-18 Mon>
+* TODO Repeating deadline overdue
+  DEADLINE: <2026-04-27 Mon +1w>
+* TODO Same day both
+  SCHEDULED: <2026-05-04 Mon> DEADLINE: <2026-05-04 Mon>
+* TODO Yearly deadline
+  DEADLINE: <2025-05-08 Thu +1y>

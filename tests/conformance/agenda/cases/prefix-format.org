@@ -1,0 +1,75 @@
+#+CONFORMANCE-EMACS: (org-agenda-prefix-format '((agenda . " %i %-12:c%?-12t% s") (todo . " %i %-12:c %e %l %T %b") (tags . " %i %-12:c") (search . " %i %-12:c")))
+#+CONFORMANCE-ORGAN: cfg.agenda.prefix_format = { agenda = " %i %-12:c%?-12t% s", todo = " %i %-12:c %e %l %T %b" }
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: work.org
+#+TODO: TODO NEXT WAITING | DONE CANCELLED
+* TODO Plain scheduled
+  SCHEDULED: <2026-05-04 Mon>
+* WAITING Long keyword timed
+  SCHEDULED: <2026-05-04 Mon 09:30>
+* No keyword scheduled
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Time range item
+  SCHEDULED: <2026-05-04 Mon 10:00-11:30>
+* TODO Overdue sched
+  SCHEDULED: <2026-04-28 Tue>
+* TODO Deadline today
+  DEADLINE: <2026-05-04 Mon>
+* TODO Deadline overdue
+  DEADLINE: <2026-05-01 Fri>
+* TODO Deadline soon
+  DEADLINE: <2026-05-08 Fri>
+* TODO Deadline far with warning
+  DEADLINE: <2026-05-20 Wed -20d>
+* TODO Deadline far default
+  DEADLINE: <2026-05-25 Mon>
+* Plain active timestamp <2026-05-04 Mon 14:00>
+* Plain active date only
+  <2026-05-05 Tue>
+* TODO Inactive only [2026-05-04 Mon]
+* DONE Done scheduled
+  SCHEDULED: <2026-05-04 Mon>
+* DONE Done deadline
+  CLOSED: [2026-05-03 Sun 10:00] DEADLINE: <2026-05-04 Mon>
+* TODO [#A] Priority A
+  SCHEDULED: <2026-05-04 Mon>
+* TODO [#C] Priority C
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Both sched and deadline
+  SCHEDULED: <2026-05-04 Mon> DEADLINE: <2026-05-06 Wed>
+* TODO Weekly repeater
+  SCHEDULED: <2026-04-20 Mon +1w>
+* TODO Multi-day range
+  <2026-05-03 Sun>--<2026-05-05 Tue>
+* TODO Link [[https://example.com][Example site]] and *bold* and =code=
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Sched delay
+  SCHEDULED: <2026-05-02 Sat -3d>
+* TODO Extremely long title that goes on and on and on beyond the tag column for sure yes :tagone:tagtwo:
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Tagged item :work:urgent:
+  SCHEDULED: <2026-05-04 Mon 08:00>
+#+CONFORMANCE-FILE: a.org
+#+TODO: TODO NEXT WAITING | DONE CANCELLED
+#+FILETAGS: :proj:
+* TODO [#A] Alpha :work:urgent:
+  :PROPERTIES:
+  :Effort:   1:30
+  :COLOR:    red
+  :END:
+* NEXT Beta :work:
+  SCHEDULED: <2026-05-02 Sat>
+* DONE Gamma :work:
+* WAITING Delta :home:
+  DEADLINE: <2026-05-10 Sun>
+* Epsilon no todo :home:urgent:
+** TODO Zeta child :errand:
+*** Eta grandchild
+* TODO [#C] Theta @at :@office:
+  :PROPERTIES:
+  :Effort:   0:20
+  :COLOR:    blue
+  :END:
+* CANCELLED Iota :work:
+* TODO Kappa WorkLike :Work:

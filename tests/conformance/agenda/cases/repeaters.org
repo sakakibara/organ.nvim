@@ -1,0 +1,18 @@
+#+CONFORMANCE-VIEW: week
+#+CONFORMANCE-FILE: d.org
+* DONE Done past sched
+  SCHEDULED: <2026-05-01 Fri>
+* TODO Sched future
+  SCHEDULED: <2026-05-06 Wed>
+* TODO Repeat delay
+  SCHEDULED: <2026-05-01 Fri +1w --2d>
+* TODO Daily plus
+  SCHEDULED: <2026-05-02 Sat +1d>
+* TODO Catchup plus
+  SCHEDULED: <2026-05-02 Sat ++1d>
+* TODO Dot plus
+  SCHEDULED: <2026-05-02 Sat .+2d>
+* TODO Monthly
+  SCHEDULED: <2026-04-06 Mon +1m>
+* TODO Hour repeater
+  SCHEDULED: <2026-05-04 Mon 09:00 +12h>

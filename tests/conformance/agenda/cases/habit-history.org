@@ -1,0 +1,66 @@
+#+CONFORMANCE-HABITS: on
+#+CONFORMANCE-NOW: 2026-05-06 09:30
+#+CONFORMANCE-TODO: TODO | DONE
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: h.org
+#+TODO: TODO | DONE FINISHED
+* TODO Daily
+SCHEDULED: <2026-05-04 Mon .+1d>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-05-03 Sun 08:00]
+- State "DONE"       from "TODO"       [2026-05-03 Sun 20:00]
+- State "DONE"       from "TODO"       [2026-05-01 Fri 08:00]
+- State "DONE"       from "TODO"       [2026-04-28 Tue 08:00]
+:END:
+* TODO Weekly window
+SCHEDULED: <2026-05-06 Wed ++1w/2w>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-04-29 Wed 08:00]
+- State "DONE"       from "TODO"       [2026-04-20 Mon 08:00]
+:END:
+* TODO Custom done kw
+SCHEDULED: <2026-05-05 Tue .+2d>
+:PROPERTIES:
+:STYLE: habit
+:END:
+- State "FINISHED"   from "TODO"       [2026-05-03 Sun 08:00]
+- State "CANCELLED"  from "TODO"       [2026-04-30 Thu 08:00]
+- CLOSING NOTE [2026-04-27 Mon 09:00]
+* TODO Plain plus
+SCHEDULED: <2026-05-02 Sat +2d>
+:PROPERTIES:
+:STYLE: habit
+:END:
+* TODO Monthly
+SCHEDULED: <2026-05-20 Wed .+1m>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-04-20 Mon 08:00]
+:END:
+#+CONFORMANCE-FILE: h2.org
+* TODO Cancel counts?
+SCHEDULED: <2026-05-04 Mon .+1d>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "CANCELLED"  from "TODO"       [2026-05-02 Sat 08:00]
+:END:
+- State "DONE"       from "TODO"       [2026-05-01 Fri 08:00]
+* TODO Lowercase/timeless
+SCHEDULED: <2026-05-04 Mon .+1d>
+:PROPERTIES:
+:STYLE: habit
+:END:
+:LOGBOOK:
+- State "DONE"       from "TODO"       [2026-05-02 Sat]
+- State "DONE"       from              [2026-05-01 Fri 07:00]
+:END:

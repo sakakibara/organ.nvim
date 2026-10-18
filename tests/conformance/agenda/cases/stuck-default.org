@@ -1,0 +1,17 @@
+#+CONFORMANCE-VIEW: stuck
+#+CONFORMANCE-FILE: p.org
+#+TODO: TODO NEXT WAITING PROJ | DONE
+* Projects
+** PROJ Has next
+*** NEXT do thing
+** PROJ No next
+*** WAITING blocked
+** Plain level2 no children
+** TODO Level2 todo with todo child
+*** TODO child
+** DONE Finished project
+** PROJ Has next deep
+*** Sub
+**** NEXT deep next
+* PROJ Top-level project
+** WAITING w

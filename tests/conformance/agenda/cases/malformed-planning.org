@@ -1,0 +1,35 @@
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: k.org
+* TODO Archived item :ARCHIVE:
+  SCHEDULED: <2026-05-04 Mon>
+* Archived parent :ARCHIVE:
+** TODO Child of archived
+   SCHEDULED: <2026-05-04 Mon>
+* COMMENT Commented
+** TODO Child of comment
+   SCHEDULED: <2026-05-04 Mon>
+* TODO No weekday
+  SCHEDULED: <2026-05-04>
+* TODO Wrong weekday
+  SCHEDULED: <2026-05-04 Fri>
+* TODO Bad hour
+  SCHEDULED: <2026-05-04 Mon 25:00>
+* TODO Lowercase planning
+  scheduled: <2026-05-04 Mon>
+* TODO Planning after blank line
+
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Two planning lines
+  SCHEDULED: <2026-05-04 Mon>
+  DEADLINE: <2026-05-04 Mon>
+* TODO Planning after drawer
+  :PROPERTIES:
+  :X: 1
+  :END:
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Sched in body text
+  Some body SCHEDULED: <2026-05-04 Mon>
+* TODO Two timestamps <2026-05-04 Mon 11:00> and <2026-05-04 Mon 15:00>
+* TODO Inactive sched
+  SCHEDULED: [2026-05-04 Mon]
+* TODO Week-end range <2026-05-04 Mon 22:00>--<2026-05-05 Tue 02:00>

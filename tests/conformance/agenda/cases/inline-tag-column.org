@@ -1,0 +1,5 @@
+#+CONFORMANCE-OPTIONS: inline-tags-no-marker
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: work.org
+* TODO Short title :short:
+  SCHEDULED: <2026-05-04 Mon>

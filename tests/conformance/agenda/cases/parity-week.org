@@ -1,0 +1,76 @@
+#+CONFORMANCE-TODO: TODO NEXT WAIT PROJ | DONE CANCELLED
+#+CONFORMANCE-VIEW: week
+#+CONFORMANCE-FILE: habits.org
+#+CATEGORY: Habits
+#+TITLE: Habits
+
+* TODO Morning walk                                                            :habit:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+* TODO Read for 30 minutes                                                     :habit:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+* TODO Stretch                                                                 :habit:
+  SCHEDULED: <2026-05-04 Mon .+1d>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+* TODO Donate                                                                  :habit:
+  SCHEDULED: <2026-05-01 Fri .+1w>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+* NEXT Long run (10km+)                                                        :habit:
+  SCHEDULED: <2026-05-04 Mon .+7d>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+* NEXT Weekly review                                                           :habit:
+  SCHEDULED: <2026-05-04 Mon 17:00 .+7d>
+* PROJ Strength training                                                       :habit:
+  SCHEDULED: <2026-05-07 Thu .+3d>
+  :PROPERTIES:
+  :STYLE:    habit
+  :END:
+#+CONFORMANCE-FILE: playground.org
+#+CATEGORY: playground
+#+TITLE: Playground
+
+* PROJ Sync with Sarah on Q4 product priorities                            :@office:
+  SCHEDULED: <2026-05-04 Mon 10:00>
+* NEXT Sync with Anil on infra capacity                                    :@office:
+  SCHEDULED: <2026-05-05 Tue 14:00>
+* NEXT Marketing alignment                                                 :@email:
+  SCHEDULED: <2026-05-06 Wed>
+* TODO Task with tag                                                  :playground:test:urgent:
+  SCHEDULED: <2026-05-04 Mon>
+* NEXT Task with priority [#A]                                       :playground:test:@office:
+  SCHEDULED: <2026-05-05 Tue>
+* WAIT Task with deadline                                                  :playground:test:
+  DEADLINE: <2026-05-10 Sun>
+#+CONFORMANCE-FILE: tasks.org
+#+CATEGORY: Tasks
+#+TITLE: Tasks
+
+* TODO Call dentist for cleaning appointment                           :gtd:@phone:
+  SCHEDULED: <2026-05-04 Mon 09:00>
+* NEXT Weekly review                                                          :gtd:
+  SCHEDULED: <2026-05-04 Mon 17:00>
+* NEXT [#A] Submit expense report                                       :gtd:@computer:
+  SCHEDULED: <2026-05-05 Tue>
+  DEADLINE: <2026-05-07 Thu>
+* NEXT Take out trash                                                          :gtd:
+  SCHEDULED: <2026-05-05 Tue>
+* NEXT Pay rent                                                                :gtd:
+  SCHEDULED: <2026-05-01 Fri>
+* NEXT Pick up dry cleaning                                              :gtd:@errand:
+  SCHEDULED: <2026-05-04 Mon>
+* NEXT Water plants                                                            :gtd:
+  SCHEDULED: <2026-05-04 Mon ++3d>
+* NEXT Draft Q4 OKR proposal                                          :gtd:@office:deep:
+  SCHEDULED: <2026-05-08 Fri>
+  DEADLINE: <2026-05-08 Fri>

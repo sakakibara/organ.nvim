@@ -1,0 +1,9 @@
+#+CONFORMANCE-EMACS: (org-agenda-todo-list-sublevels nil)
+#+CONFORMANCE-ORGAN: cfg.agenda.todo_list_sublevels = false
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: k.org
+* TODO Parent todo
+** TODO Child of todo
+* Plain parent
+** TODO Child of plain
+*** TODO Grandchild

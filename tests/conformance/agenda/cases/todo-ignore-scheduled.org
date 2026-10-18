@@ -1,0 +1,9 @@
+#+CONFORMANCE-EMACS: (org-agenda-todo-ignore-scheduled 'future)
+#+CONFORMANCE-ORGAN: cfg.agenda.todo_ignore_scheduled = "future"
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: k.org
+* TODO Sched past
+  SCHEDULED: <2026-04-26 Sun>
+* TODO Sched future
+  SCHEDULED: <2026-05-11 Mon>
+* TODO Unscheduled

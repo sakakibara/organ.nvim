@@ -1,0 +1,20 @@
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: averyveryverylongfilename.org
+* TODO Item in long file :tag:
+  SCHEDULED: <2026-05-04 Mon>
+* Sub category section
+  :PROPERTIES:
+  :CATEGORY: SubCat
+  :END:
+** TODO Inherits subcat
+   SCHEDULED: <2026-05-04 Mon>
+#+CATEGORY: MidFile
+* TODO After midfile category
+  SCHEDULED: <2026-05-04 Mon>
+#+CONFORMANCE-FILE: b.org
+#+CATEGORY: First
+* TODO In first
+  SCHEDULED: <2026-05-04 Mon>
+#+CATEGORY: Second
+* TODO In second
+  SCHEDULED: <2026-05-04 Mon>

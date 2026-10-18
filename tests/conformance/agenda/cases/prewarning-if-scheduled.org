@@ -1,0 +1,5 @@
+#+CONFORMANCE-OPTIONS: prewarning-if-scheduled
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: d.org
+* TODO S-past D-future
+  SCHEDULED: <2026-05-01 Fri> DEADLINE: <2026-05-07 Thu>

@@ -1,0 +1,6 @@
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: a.org
+* TODO Estimated task
+  :PROPERTIES:
+  :Effort:   1:30
+  :END:

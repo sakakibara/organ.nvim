@@ -1,0 +1,5 @@
+#+CONFORMANCE-OPTIONS: inline-tags-no-marker
+#+CONFORMANCE-VIEW: day
+#+CONFORMANCE-FILE: work.org
+* TODO Extremely long title that goes on and on and on beyond the tag column for sure yes :tagone:tagtwo:
+  SCHEDULED: <2026-05-04 Mon>

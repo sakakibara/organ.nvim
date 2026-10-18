@@ -1,0 +1,10 @@
+#+CONFORMANCE-NOW: 2026-05-06 09:30
+#+CONFORMANCE-VIEW: default
+#+CONFORMANCE-VIEW: week
+#+CONFORMANCE-FILE: w.org
+* TODO Monday item
+  SCHEDULED: <2026-05-04 Mon>
+* TODO Saturday item
+  SCHEDULED: <2026-05-09 Sat>
+* TODO Next Tuesday item
+  SCHEDULED: <2026-05-12 Tue>

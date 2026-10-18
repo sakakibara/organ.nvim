@@ -1,0 +1,22 @@
+#+CONFORMANCE-VIEW: tags work
+#+CONFORMANCE-VIEW: tags LEVEL>1
+#+CONFORMANCE-VIEW: tags {^w}
+#+CONFORMANCE-VIEW: tags TODO={NEXT\|WAITING}
+#+CONFORMANCE-VIEW: tags Effort>1:00
+#+CONFORMANCE-VIEW: tags-todo work
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: a.org
+#+TODO: TODO NEXT WAITING | DONE CANCELLED
+#+FILETAGS: :proj:
+* TODO [#A] Alpha :work:urgent:
+* NEXT Beta :work:
+  SCHEDULED: <2026-05-02 Sat>
+* DONE Gamma :work:
+* WAITING Delta :home:
+  DEADLINE: <2026-05-10 Sun>
+* Epsilon no todo :home:urgent:
+** TODO Zeta child :errand:
+*** Eta grandchild
+* TODO [#C] Theta @at :@office:
+* CANCELLED Iota :work:
+* TODO Kappa WorkLike :Work:
