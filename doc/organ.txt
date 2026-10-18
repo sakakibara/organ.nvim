@@ -3060,11 +3060,6 @@ DIFFERENCES FROM EMACS                                     *organ-differences*
 
 Intentional differences from Emacs org-mode / org-roam:
 
-Clock-in with active clock ~
-    Emacs: Prompts keep / stop / cancel.
-    organ.nvim: Auto-stops current, starts new (with notification).
-    Why: Single-clock UX; prompt is friction.
-
 Clock report default range ~
     Emacs: All time.
     organ.nvim: Current week (Mon–Sun).
@@ -3112,36 +3107,15 @@ Inline increment/decrement ~
     organ.nvim: `<C-a>` / `<C-x>` (extends Vim's number increment).
     Why: Reuse Vim's canonical increment keys.
 
-Table editing realign trigger ~
-    Emacs: `|` typing AND `<Tab>`.
-    organ.nvim: `<Tab>` only.
-    Why: Keystroke-noise reduction.
-
 Table row/col operations ~
     Emacs: `M-S-Up/Down/Left/Right`.
     organ.nvim: `<LocalLeader>|` menu or `:Org table_*` commands.
     Why: One discoverable menu vs. 8 separate keys.
 
-Spreadsheet formula engine ~
-    Emacs: Full Emacs Calc (lookups, remote refs, lisp).
-    organ.nvim: Subset: `$N`/`@R`/`@R$N`/`@I`/`@<`/`@>`/`@#`, ranges,
-    arithmetic, `vsum/vmean/vmax/vmin/vlen`, the `;N`, `;R`, `;D` and
-    `;%f` modes, the same descriptors on a formula's target, and sums,
-    differences, products, powers, remainders, comparisons and
-    function calls over a symbol.
-    What it does not implement it refuses, leaving the table as it was.
-    Why: Practical 80%; full Calc rarely needed in Neovim workflows.
-
 Column formulas over alignment markers ~
     Emacs: Overwrites an `<l>` / `<r>` / `<c>` cell with the result.
     organ.nvim: Leaves the marker cell alone.
     Why: Recalculating shouldn't silently drop a column's alignment.
-
-Agenda multi-view dispatcher ~
-    Emacs: Always shows dispatcher.
-    organ.nvim: Shows `vim.ui.select` only when `agenda.views` is
-    non-empty; single-view users get zero friction.
-    Why: No modal overhead for single-view users.
 
 Find headline filter ~
     Emacs: Plain-text title/tag search.
