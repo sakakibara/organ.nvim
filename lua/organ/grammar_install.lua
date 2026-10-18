@@ -648,11 +648,8 @@ local function check_inline(buf, done)
   if #ranges == 0 then
     return done(false)
   end
-  table.sort(ranges, function(a, b)
-    return a[1] < b[1]
-  end)
-  parser:parse(ranges, function(err)
-    if err or parser:children().org_inline then
+  local function inspect()
+    if parser:children().org_inline then
       return done(false)
     end
     local ok, query = pcall(vim.treesitter.query.get, "org", "injections")
@@ -668,7 +665,19 @@ local function check_inline(buf, done)
       end
     end
     done(false)
-  end)
+  end
+  local function parse_from(i)
+    if i > #ranges then
+      return inspect()
+    end
+    parser:parse(ranges[i], function(err)
+      if err then
+        return done(false)
+      end
+      parse_from(i + 1)
+    end)
+  end
+  parse_from(1)
 end
 
 -- Install both parsers. Returns (true) on full success, (false, err) on

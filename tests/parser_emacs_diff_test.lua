@@ -77,6 +77,7 @@ end
 local out_dir = vim.fn.tempname()
 local argv = { script, "--out", out_dir }
 vim.list_extend(argv, files)
+vim.env.ORGAN_NVIM = vim.v.progpath
 local out = vim.fn.system(argv)
 local status = vim.v.shell_error
 vim.fn.delete(corpus_dir, "rf")

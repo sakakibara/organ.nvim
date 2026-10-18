@@ -22,6 +22,8 @@
 #
 # Passing every file in one invocation is much faster than one call per
 # file: each side pays its interpreter startup once.
+#
+# ORGAN_NVIM names the nvim binary for the organ side (default: nvim on PATH).
 
 set -u
 
@@ -45,7 +47,8 @@ if [ "$#" -eq 0 ]; then
 fi
 
 command -v emacs >/dev/null 2>&1 || die "emacs not on PATH"
-command -v nvim >/dev/null 2>&1 || die "nvim not on PATH"
+nvim_bin=${ORGAN_NVIM:-nvim}
+command -v "$nvim_bin" >/dev/null 2>&1 || die "$nvim_bin not found"
 
 EMACS_DUMP="$ROOT/scripts/emacs-element-dump.el"
 ORGAN_DUMP="$ROOT/scripts/organ-element-dump.lua"
@@ -71,7 +74,7 @@ if ! emacs --batch -Q -l "$EMACS_DUMP" \
   die "emacs dump failed"
 fi
 
-if ! (cd "$ROOT" && nvim --headless -l "$ORGAN_DUMP" "$list") \
+if ! (cd "$ROOT" && "$nvim_bin" --headless -l "$ORGAN_DUMP" "$list") \
      > "$tmpdir/organ.txt" 2> "$tmpdir/organ.err"; then
   sed 's/^/  /' "$tmpdir/organ.err" >&2
   die "organ dump failed"

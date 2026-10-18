@@ -10,7 +10,7 @@ local fix = root .. "/tests/fixtures/01-headlines.org"
 
 local r = vim
   .system({
-    "nvim",
+    vim.v.progpath,
     "--headless",
     "--cmd",
     "set rtp^=" .. root,

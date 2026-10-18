@@ -1078,7 +1078,7 @@ local function cache_hash(block, body)
     keys[#keys + 1] = "var " .. k .. "=" .. tostring(v)
   end
   table.sort(keys)
-  return vim.fn.sha256(body .. "\0" .. table.concat(keys, "\0")):sub(1, 40)
+  return vim.fn.sha256(vim.json.encode({ body, keys })):sub(1, 40)
 end
 
 -- Execute the src block at cursor; insert / update its #+RESULTS:.
