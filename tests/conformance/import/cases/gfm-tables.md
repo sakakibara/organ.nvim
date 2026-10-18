@@ -1,0 +1,187 @@
+# GFM 0.29 spec extension, section "Tables (extension)"
+
+## example 198
+
+```````````````````````````````` example
+| foo | bar |
+| --- | --- |
+| baz | bim |
+.
+<table>
+<thead>
+<tr>
+<th>foo</th>
+<th>bar</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>baz</td>
+<td>bim</td>
+</tr>
+</tbody>
+</table>
+````````````````````````````````
+
+## example 199
+
+```````````````````````````````` example
+| abc | defghi |
+:-: | -----------:
+bar | baz
+.
+<table>
+<thead>
+<tr>
+<th align="center">abc</th>
+<th align="right">defghi</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td align="center">bar</td>
+<td align="right">baz</td>
+</tr>
+</tbody>
+</table>
+````````````````````````````````
+
+## example 200
+
+```````````````````````````````` example
+| f\|oo  |
+| ------ |
+| b `\|` az |
+| b **\|** im |
+.
+<table>
+<thead>
+<tr>
+<th>f|oo</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>b <code>|</code> az</td>
+</tr>
+<tr>
+<td>b <strong>|</strong> im</td>
+</tr>
+</tbody>
+</table>
+````````````````````````````````
+
+## example 201
+
+```````````````````````````````` example
+| abc | def |
+| --- | --- |
+| bar | baz |
+> bar
+.
+<table>
+<thead>
+<tr>
+<th>abc</th>
+<th>def</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bar</td>
+<td>baz</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p>bar</p>
+</blockquote>
+````````````````````````````````
+
+## example 202
+
+```````````````````````````````` example
+| abc | def |
+| --- | --- |
+| bar | baz |
+bar
+
+bar
+.
+<table>
+<thead>
+<tr>
+<th>abc</th>
+<th>def</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bar</td>
+<td>baz</td>
+</tr>
+<tr>
+<td>bar</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>bar</p>
+````````````````````````````````
+
+## example 203
+
+```````````````````````````````` example
+| abc | def |
+| --- |
+| bar |
+.
+<p>| abc | def |
+| --- |
+| bar |</p>
+````````````````````````````````
+
+## example 204
+
+```````````````````````````````` example
+| abc | def |
+| --- | --- |
+| bar |
+| bar | baz | boo |
+.
+<table>
+<thead>
+<tr>
+<th>abc</th>
+<th>def</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bar</td>
+<td></td>
+</tr>
+<tr>
+<td>bar</td>
+<td>baz</td>
+</tr>
+</tbody>
+</table>
+````````````````````````````````
+
+## example 205
+
+```````````````````````````````` example
+| abc | def |
+| --- | --- |
+.
+<table>
+<thead>
+<tr>
+<th>abc</th>
+<th>def</th>
+</tr>
+</thead>
+</table>
+````````````````````````````````
+

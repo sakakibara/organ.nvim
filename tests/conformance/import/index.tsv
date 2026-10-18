@@ -1,0 +1,43 @@
+# Coverage of the import area (IM, XT-4, XT-5; IM-34..38 belong to the tables gate).
+# XT-4 (the command ignores its bang) and XT-5 ([@N] on every ordered item) change
+# the org text or the command, not the exported HTML, so a unit test covers them.
+IM-1	import:autolinks-in-text.md	pending
+IM-2	import:lists-markers-and-starts.md	pending
+IM-3	import:commonmark-lists.md	pending
+IM-4	import:code-blocks.md	pending
+IM-5	import:code-blocks.md	pending
+IM-6	import:commonmark-indented-code-blocks.md	pending
+IM-7	import:org-syntax-in-text.md	pending
+IM-8	import:commonmark-emphasis-and-strong-emphasis.md	pending
+IM-9	import:commonmark-emphasis-and-strong-emphasis.md	pending
+IM-10	import:org-syntax-at-line-start.md	pending
+IM-11	import:commonmark-entity-and-numeric-character-references.md	pending
+IM-12	import:commonmark-setext-headings.md	pending
+IM-13	import:headings-org-bait.md	pending
+IM-14	import:org-syntax-in-text.md	pending
+IM-15	import:org-syntax-in-text.md	pending
+IM-16	import:org-syntax-in-text.md	pending
+IM-18	import:raw-html.md	pending
+IM-19	import:link-targets.md	pending
+IM-20	import:link-targets.md	pending
+IM-21	import:commonmark-links.md	pending
+IM-22	import:images-alt-title-in-link.md	pending
+IM-23	import:commonmark-links.md	pending
+IM-24	import:commonmark-links.md	pending
+IM-25	import:images-alt-title-in-link.md	pending
+IM-26	import:tables-alignment-and-cells.md	pending
+IM-27	import:tables-alignment-and-cells.md	pending
+IM-28	import:gfm-tables.md	pending
+IM-29	import:quotes-nested.md	pending
+IM-30	import:headings-org-bait.md	pending
+IM-31	import:commonmark-code-spans.md	pending
+IM-32	import:front-matter.md	pending
+IM-33	import:footnotes.md	pending
+XT-4	unit	todo
+XT-5	unit	todo
+IM-39	import:commonmark-atx-headings.md	pending
+IM-40	import:commonmark-lists.md	pending
+IM-41	import:commonmark-block-quotes.md	pending
+IM-42	import:commonmark-links.md	pending
+IM-43	import:input-bytes-crlf-nul.md	pending
+IM-44	import:link-targets.md	pending
