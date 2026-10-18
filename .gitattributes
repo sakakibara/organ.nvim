@@ -1,0 +1,2 @@
+# Conformance cases are compared byte for byte; keep line endings as written.
+tests/conformance/*/cases/** -text

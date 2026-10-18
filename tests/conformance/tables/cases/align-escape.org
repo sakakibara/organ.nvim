@@ -1,0 +1,3 @@
+# op: align
+| a \vert b | c |
+| 1 | 2 |

@@ -1,0 +1,2 @@
+# Expected tables differences in the emphasis option run (emphasis.enabled = true).
+align-link.org	TB-46	TRANSITIONAL	1	-| [[https://example.com/very/long/url][ex]]            | b |\n-| abc           | d |\n-| [[file:foo.org]]  | x |\n-| *bold* =code= | y |\n+| [[https://example.com/very/long/url][ex]] | b |\n+| abc                                       | d |\n+| [[file:foo.org]]                          | x |\n+| *bold* =code=                             | y |

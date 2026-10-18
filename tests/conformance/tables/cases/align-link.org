@@ -1,0 +1,6 @@
+# op: align
+# options: emphasis
+| [[https://example.com/very/long/url][ex]] | b |
+| abc | d |
+| [[file:foo.org]] | x |
+| *bold* =code= | y |

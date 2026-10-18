@@ -1,0 +1,3 @@
+# op: align
+	| a | b |
+	| ccc | d |

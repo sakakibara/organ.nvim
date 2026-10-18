@@ -1,0 +1,8 @@
+* H
+:PROPERTIES:
+:Factor: 3
+:END:
+| x |   |
+|---+---|
+| 4 |   |
+#+TBLFM: $2=$1*$PROP_Factor
