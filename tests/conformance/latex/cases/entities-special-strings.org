@@ -1,0 +1,5 @@
+\alpha \beta{} \to \rightarrow \nbsp \copy \pound \euro \deg x\alpha\beta y \ldots \hellip \mdash \ndash \ast \star \infin \Alpha \smile \frac12 \nexist \unknownentity
+
+Special: -- --- ... \- \\ test
+
+Quotes: "double" and 'single' and it's.

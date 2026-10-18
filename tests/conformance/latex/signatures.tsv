@@ -1,0 +1,160 @@
+# Expected differences of the latex gate, default run (format: tests/conformance/_signatures.lua).
+blocks.org	LX-16,LX-29	TRANSITIONAL	1	-\\inlineraw\n-\\noindent\\rule{\\textwidth}{0.5pt}\n+\\hrule
+blocks.org	LX-29	TRANSITIONAL	1	-\\begin{quote}\n+\\begin{quotation}
+blocks.org	LX-29	TRANSITIONAL	1	-\\begin{theorem}[Title]\n+\\begin{theorem}
+blocks.org	LX-29	TRANSITIONAL	1	-\\end{quote}\n+\n+\\end{quotation}
+blocks.org	LX-29	TRANSITIONAL	1	-\\hspace*{3\\fontdimen2\\font}Violets are blue\n-\n+\\hspace*{3\\fontdimen2\\font}Violets are blue\\\\\n+\\\\
+document-default.org	LX-11	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n+\\usepackage{hyperref}
+document-default.org	LX-11,LX-12,LX-13	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\date{\\today}\n-\\title{}\n-\\hypersetup{\n- pdfauthor={},\n- pdftitle={},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}\n+\\usepackage{graphicx}\n+
+document-default.org	LX-8,LX-10,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex\n-\\documentclass[11pt]{article}\n-\n+\\documentclass{article}
+document-keywords.org	LX-10,LX-11	TRANSITIONAL	1	-\\usepackage{fontspec}\n+\\usepackage{amssymb}
+document-keywords.org	LX-12	TRANSITIONAL	1	-Emacs (Org mode)\n+
+document-keywords.org	LX-12	TRANSITIONAL	1	-\\title{My \\textbf{Title}\\\\\\medskip\n-\\large Sub}\n-\\hypersetup{\n- pdfauthor={Jane Doe},\n- pdftitle={My \\textbf{Title}},\n- pdfkeywords={k1 k2},\n- pdfsubject={desc},\n- pdfcreator={Emacs (Org mode)},\n- pdflang={French}}
+document-keywords.org	LX-8	TRANSITIONAL	1	-\\chapter{Sec}\n+\n+\\subsection{Sec}
+document-keywords.org	LX-8	TRANSITIONAL	1	-\\part{Chapter one}\n+\\section{Chapter one}
+document-keywords.org	LX-8,LX-10,LX-11,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: xelatex\n-\\documentclass[a4paper,12pt]{report}\n-\n+\\documentclass{article}\n+\\usepackage[utf8]{inputenc}\n+\\usepackage[T1]{fontenc}\n+\\usepackage{hyperref}\n+\\usepackage[normalem]{ulem}
+document-keywords.org	LX-9,LX-11,LX-12	TRANSITIONAL	1	-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n-\\usepackage[normalem]{ulem}\n-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\usepackage{xcolor}\n-\\usepackage{extra}\n+\n+\\title{My *Title*}
+drawers-cookies-snippets.org	LX-24	TRANSITIONAL	1	-Some text with a \\LaTeX{} snippet and html.\n+Some text with a @@latex:\\LaTeX{}@@ snippet and @@html:<b>@@ html.
+drawers-cookies-snippets.org	LX-29	TRANSITIONAL	1	-in drawer\n-
+drawers-dynamic-logbook.org	LX-29	TRANSITIONAL	1	-\\begin{itemize}\n-\\item State "DONE"\n-\\end{itemize}
+drawers-dynamic-logbook.org	LX-29	TRANSITIONAL	1	-dyn \\textbf{content}\n-\n-drawer \\textbf{text}
+emphasis-special-chars.org	LX-17,LX-18,LX-44	TRANSITIONAL	1	-\\textbf{bold} \\emph{italic} \\uline{underline} \\sout{strike} \\texttt{verbatim} \\texttt{code} \\textbf{nested \\emph{it}} \\texttt{a-{}-{}b<{}<{}c>{}>{}\\textasciitilde{}d\\textasciicircum{}e\\textbackslash{}f\\{g\\}\\$\\%\\&\\_\\#}\n-Special chars: \\& \\% \\$ \\# \\_ \\{ \\} \\textasciitilde{} \\^{} $\\backslash$ < > | [ ]\n-Line break here\\\\\n-next line.\n+\\textbf{bold} \\textit{italic} \\underline{underline} \\sout{strike} \\texttt{verbatim} \\texttt{code} \\textbf{nested \\textit{it}} \\texttt{a-{}-{}b<{}<{}c>{}>{}\\textasciitilde{}d\\textasciicircum{}e\\textbackslash{}f\\{g\\}\\$\\%\\&\\_\\#}\n+Special chars: \\& \\% \\$ \\# \\_ \\{ \\} \\textasciitilde{} \\textasciicircum{} \\textbackslash{} \\textless{} \\textgreater{} | [ ]\n+Line break here\\\\next line.
+entities-all.org	LX-23	KEEP	1	-\\item[{Oslash}] \\O\n+\\item[{Oslash}] \\O{}
+entities-all.org	LX-23	KEEP	1	-\\item[{S}] \\S\n-\\item[{sect}] \\S\n+\\item[{S}] \\S{}\n+\\item[{sect}] \\S{}
+entities-all.org	LX-23	KEEP	1	-\\item[{cdots}] \\(\\cdots{}\\)\n-\\item[{hellip}] \\dots{}\n+\\item[{cdots}] \\(\\cdots\\)\n+\\item[{hellip}] \\ldots{}
+entities-all.org	LX-23	KEEP	1	-\\item[{dag}] \\dag{}\n+\\item[{dag}] \\textdagger{}
+entities-all.org	LX-23	KEEP	1	-\\item[{ddag}] \\ddag{}\n+\\item[{ddag}] \\textdaggerdbl{}
+entities-all.org	LX-23	KEEP	1	-\\item[{ensp}] \\hspace*{.5em}\n+\\item[{ensp}] \\hspace*{0.5em}
+entities-all.org	LX-23	KEEP	1	-\\item[{icirc}] \\^{i}\n+\\item[{icirc}] \\^{\\i}
+entities-all.org	LX-23	KEEP	1	-\\item[{iexcl}] !`\n-\\item[{iquest}] ?`\n+\\item[{iexcl}] \\textexclamdown{}\n+\\item[{iquest}] \\textquestiondown{}
+entities-all.org	LX-23	KEEP	1	-\\item[{igrave}] \\`{i}\n+\\item[{igrave}] \\`{\\i}
+entities-all.org	LX-23	KEEP	1	-\\item[{iuml}] \\"{i}\n+\\item[{iuml}] \\"{\\i}
+entities-all.org	LX-23	KEEP	1	-\\item[{le}] \\(\\le\\)\n-\\item[{leq}] \\(\\le\\)\n-\\item[{ge}] \\(\\ge\\)\n-\\item[{geq}] \\(\\ge\\)\n+\\item[{le}] \\(\\leq\\)\n+\\item[{leq}] \\(\\leq\\)\n+\\item[{ge}] \\(\\geq\\)\n+\\item[{geq}] \\(\\geq\\)
+entities-all.org	LX-23	KEEP	1	-\\item[{lsquo}] \\textquoteleft{}\n-\\item[{rsquo}] \\textquoteright{}\n+\\item[{lsquo}] `\n+\\item[{rsquo}] '
+entities-all.org	LX-23	KEEP	1	-\\item[{ndash}] --\n-\\item[{mdash}] ---\n+\\item[{ndash}] \\textendash{}\n+\\item[{mdash}] \\textemdash{}
+entities-all.org	LX-23	KEEP	1	-\\item[{ne}] \\(\\ne\\)\n+\\item[{ne}] \\(\\neq\\)
+entities-all.org	LX-23	KEEP	1	-\\item[{not}] \\textlnot{}\n-\\item[{neg}] \\(\\neg{}\\)\n+\\item[{not}] \\(\\lnot\\)\n+\\item[{neg}] \\(\\neg\\)
+entities-all.org	LX-23	KEEP	1	-\\item[{pm}] \\textpm{}\n-\\item[{plusmn}] \\textpm{}\n+\\item[{pm}] \\(\\pm\\)\n+\\item[{plusmn}] \\(\\pm\\)
+entities-all.org	LX-23	KEEP	1	-\\item[{thinsp}] \\hspace*{.2em}\n+\\item[{thinsp}] \\hspace*{0.2em}
+entities-all.org	LX-23	KEEP	1	-\\item[{zwnj}] \\/{}\n-\\item[{zwj}] \n-\\item[{lrm}] \n-\\item[{rlm}] \n+\\item[{zwnj}] {}\n+\\item[{zwj}] {}\n+\\item[{lrm}] {}\n+\\item[{rlm}] {}
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{Amacr}] \\={A}\n-\\item[{amacr}] \\={a}\n+\\item[{Amacr}] \\Amacr\n+\\item[{amacr}] \\amacr
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{acutex}] \\(\\acute x\\)\n+\\item[{acutex}] \\acutex
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{arg}] \\(\\arg\\)\n+\\item[{arg}] \\arg
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{ast}] \\(\\ast\\)\n-\\item[{odot}] \\(\\odot\\)\n+\\item[{ast}] *\n+\\item[{odot}] \\odot
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{asymp}] \\(\\asymp\\)\n+\\item[{asymp}] \\(\\approx\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{circ}] \\^{}\n-\\item[{vert}] \\(\\vert{}\\)\n-\\item[{vbar}] |\n+\\item[{circ}] \\(\\circ\\)\n+\\item[{vert}] \\(\\vert\\)\n+\\item[{vbar}] \\(\\vert\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{colon}] \\(\\colon\\)\n-\\item[{div}] \\textdiv{}\n-\\item[{frac12}] \\textonehalf{}\n-\\item[{frac14}] \\textonequarter{}\n-\\item[{frac34}] \\textthreequarters{}\n+\\item[{colon}] :\n+\\item[{div}] \\(\\div\\)\n+\\item[{frac12}] \\frac12\\{\\}\n+\\item[{frac14}] \\frac14\\{\\}\n+\\item[{frac34}] \\frac34\\{\\}
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{diamond}] \\(\\diamondsuit\\)\n-\\item[{Diamond}] \\(\\diamondsuit\\)\n+\\item[{diamond}] \\(\\diamond\\)\n+\\item[{Diamond}] \\(\\Diamond\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{epsilon}] \\(\\epsilon\\)\n-\\item[{varepsilon}] \\(\\varepsilon\\)\n+\\item[{epsilon}] \\(\\varepsilon\\)\n+\\item[{varepsilon}] \\(\\epsilon\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{equal}] =\n-\\item[{asciicirc}] \\textasciicircum{}\n+\\item[{equal}] \\equal\n+\\item[{asciicirc}] \\asciicirc
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{iacute}] \\'{i}\n-\\item[{Idot}] \\.{I}\n-\\item[{inodot}] \\i\n+\\item[{iacute}] \\'{\\i}\n+\\item[{Idot}] \\Idot\n+\\item[{inodot}] \\inodot
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{lt}] \\textless{}\n-\\item[{gt}] \\textgreater{}\n-\\item[{tilde}] \\textasciitilde{}\n+\\item[{lt}] \\(<\\)\n+\\item[{gt}] \\(>\\)\n+\\item[{tilde}] \\~{}
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{micro}] \\textmu{}\n+\\item[{micro}] \\(\\mathrm{\\mu}\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{oline}] \\(\\overline{~}\\)\n+\\item[{oline}] \\textasciimacron{}
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{omicron}] \\textit{o}\n+\\item[{omicron}] \\(o\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{phi}] \\(\\phi\\)\n-\\item[{varphi}] \\(\\varphi\\)\n+\\item[{phi}] \\(\\varphi\\)\n+\\item[{varphi}] \\(\\phi\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{prime}] \\(\\prime\\)\n-\\item[{Prime}] \\(\\prime{}\\prime\\)\n+\\item[{prime}] \\({'}\\)\n+\\item[{Prime}] \\({''}\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{sup1}] \\textonesuperior{}\n-\\item[{sup2}] \\texttwosuperior{}\n-\\item[{sup3}] \\textthreesuperior{}\n-\\item[{radic}] \\(\\sqrt{\\,}\\)\n+\\item[{sup1}] \\(\\supset\\)1\\{\\}\n+\\item[{sup2}] \\(\\supset\\)2\\{\\}\n+\\item[{sup3}] \\(\\supset\\)3\\{\\}\n+\\item[{radic}] \\(\\surd\\)
+entities-all.org	LX-23	TRANSITIONAL	1	-\\item[{there4}] \\(\\therefore\\)\n+\\item[{there4}] \\there4\\{\\}
+entities-all.org	LX-23,LX-44	TRANSITIONAL	1	-\\item[{\\_}] a\\hspace*{0.5em}b\n-\\item[{\\_}] a\\hspace*{1.0em}b\n-\\item[{\\_}] a\\hspace*{1.5em}b\n-\\item[{\\_}] a\\hspace*{2.0em}b\n-\\item[{\\_}] a\\hspace*{2.5em}b\n-\\item[{\\_}] a\\hspace*{3.0em}b\n-\\item[{\\_}] a\\hspace*{3.5em}b\n-\\item[{\\_}] a\\hspace*{4.0em}b\n-\\item[{\\_}] a\\hspace*{4.5em}b\n-\\item[{\\_}] a\\hspace*{5.0em}b\n-\\item[{\\_}] a\\hspace*{5.5em}b\n-\\item[{\\_}] a\\hspace*{6.0em}b\n-\\item[{\\_}] a\\hspace*{6.5em}b\n-\\item[{\\_}] a\\hspace*{7.0em}b\n-\\item[{\\_}] a\\hspace*{7.5em}b\n-\\item[{\\_}] a\\hspace*{8.0em}b\n-\\item[{\\_}] a\\hspace*{8.5em}b\n-\\item[{\\_}] a\\hspace*{9.0em}b\n-\\item[{\\_}] a\\hspace*{9.5em}b\n-\\item[{\\_}] a\\hspace*{10.0em}b\n+\\item[{\\_}] a\\textbackslash{}\\_ b\n+\\item[{\\_}] a\\textbackslash{}\\_  b\n+\\item[{\\_}] a\\textbackslash{}\\_   b\n+\\item[{\\_}] a\\textbackslash{}\\_    b\n+\\item[{\\_}] a\\textbackslash{}\\_     b\n+\\item[{\\_}] a\\textbackslash{}\\_      b\n+\\item[{\\_}] a\\textbackslash{}\\_       b\n+\\item[{\\_}] a\\textbackslash{}\\_        b\n+\\item[{\\_}] a\\textbackslash{}\\_         b\n+\\item[{\\_}] a\\textbackslash{}\\_          b\n+\\item[{\\_}] a\\textbackslash{}\\_           b\n+\\item[{\\_}] a\\textbackslash{}\\_            b\n+\\item[{\\_}] a\\textbackslash{}\\_             b\n+\\item[{\\_}] a\\textbackslash{}\\_              b\n+\\item[{\\_}] a\\textbackslash{}\\_               b\n+\\item[{\\_}] a\\textbackslash{}\\_                b\n+\\item[{\\_}] a\\textbackslash{}\\_                 b\n+\\item[{\\_}] a\\textbackslash{}\\_                  b\n+\\item[{\\_}] a\\textbackslash{}\\_                   b\n+\\item[{\\_}] a\\textbackslash{}\\_                    b
+entities-all.org	LX-23,LX-44	TRANSITIONAL	1	-\\item[{pound}] \\pounds{}\n+\\item[{pound}] \\textsterling{}
+entities-special-strings.org	LX-23,LX-44	TRANSITIONAL	1	-\\(\\alpha\\) \\(\\beta\\) \\(\\to\\) \\(\\rightarrow\\) ~ \\textcopyright{} \\pounds{} \\texteuro{} \\textdegree{} x\\(\\alpha \\beta\\) y \\ldots \\dots{} --- -- \\(\\ast\\) \\(\\star\\) \\(\\infty\\) A \\(\\smile\\) \\textonehalf{} \\(\\nexists\\) \\unknownentity\n+\\(\\alpha\\) \\(\\beta\\) \\(\\to\\) \\(\\rightarrow\\) ~ \\textcopyright{} \\textsterling{} \\texteuro{} \\textdegree{} x\\(\\alpha\\beta\\) y \\ldots \\ldots{} \\textemdash{} \\textendash{} * \\(\\star\\) \\(\\infty\\) A \\(\\smile\\) \\frac12 \\(\\nexists\\) \\unknownentity
+entities-special-strings.org	LX-44,LX-45	TRANSITIONAL	1	-Special: -- --- \\ldots{} \\- $\\backslash$\\ test\n+Special: -- --- \\ldots{} \\textbackslash{}- \\textbackslash{}\\textbackslash{} test
+fragments-commands-snippet.org	LX-21,LX-24,LX-25	TRANSITIONAL	1	-A \\ref{x} B \\foo[o]{a} \\X \n+A \\ref{x\\} B \\foo[o]\\{a\\} @@latex:\\X@@ src_c{int}
+fragments-environments.org	LX-21	TRANSITIONAL	1	-Inline \\(a+b\\) and \\(c\\) and $$d$$ and \\[e\\] and \\(1 and 2\\) and \\ref{x} and \\cite{y}.\n-Command \\textbf{bold cmd} and \\foo[opt]{arg}.\n+Inline \\(a+b\\) and \\(c\\) and $$d$$ and \\[e\\] and \\(1 and 2\\) and \\ref{x\\} and \\cite{y\\}.\n+Command \\textbf{bold cmd\\} and \\foo[opt]\\{arg\\}.
+fragments-environments.org	LX-22	TRANSITIONAL	1	-\\label{eq:org9ea3049}
+headline-alt-title-footnote.org	LX-3	TRANSITIONAL	1	-\\section[Short]{Title with fn\\footnote{note} and \\href{https://x.y}{link}}\n+\\section{Title with fn\\footnote{note} and \\href{https://x.y}{link}}
+headline-alt-title-footnote.org	LX-3,LX-16	TRANSITIONAL	1	-\\clearpage\n-\\section[Alt]{Plain}\n+\n+\\section{Plain}
+headline-options-planning.org	LX-1	TRANSITIONAL	1	-\\paragraph*{Four}\n+\n+\\paragraph{Four}
+headline-options-planning.org	LX-1	TRANSITIONAL	1	-\\subsubsection*{Three}\n+\n+\\subsubsection{Three}
+headline-options-planning.org	LX-6	TRANSITIONAL	1	-\\noindent\\textbf{DEADLINE:} \\textit{<2024-01-05 Fri>} \\textbf{SCHEDULED:} \\textit{<2024-01-02 Tue> }\\\\\n+\n+\\noindent\\textbf{DEADLINE:} \\textit{\\textless{}2024-01-05 Fri\\textgreater{}} \\textbf{SCHEDULED:} \\textit{\\textless{}2024-01-02 Tue\\textgreater{}}\\\\
+images.org	LX-7	TRANSITIONAL	1	-Inline \\begin{center}\n-\\includegraphics[width=.9\\linewidth]{inline.png}\n-\\end{center} image in text.\n+Inline \\url{inline.png} image in text.
+images.org	LX-7	TRANSITIONAL	1	-\\begin{center}\n-\\includegraphics[width=.9\\linewidth]{img.pdf}\n-\\end{center}\n+\\url{img.pdf}
+images.org	LX-7	TRANSITIONAL	1	-\\begin{center}\n-\\includegraphics[width=.9\\linewidth]{nofloat.png}\n-\\end{center}\n+\\begin{figure}[htbp]\n+\\centering\n+\\includegraphics{file:nofloat.png}\n+\\end{figure}
+images.org	LX-7	TRANSITIONAL	1	-\\begin{center}\n-\\includesvg[width=.9\\linewidth]{img}\n-\\end{center}\n+\\begin{figure}[htbp]\n+\\centering\n+\\includegraphics{file:img.svg}\n+\\end{figure}
+images.org	LX-7	TRANSITIONAL	1	-\\begin{figure}[H]\n+\\begin{figure}[htbp]
+images.org	LX-7	TRANSITIONAL	1	-\\begin{wrapfigure}{l}{0.5\\textwidth}\n+\\begin{figure}[htbp]
+images.org	LX-7	TRANSITIONAL	1	-\\includegraphics[width=0.4\\textwidth]{./img.jpg}\n-\\end{wrapfigure}\n+\\includegraphics{./img.jpg}\n+\\end{figure}
+images.org	LX-7	TRANSITIONAL	1	-\\includegraphics[width=5cm]{img.png}\n+\\includegraphics{file:img.png}
+linebreak-bracket.org	LX-18	TRANSITIONAL	1	-a\\\\\n-{[}b] c\n+a\\\\[b] c
+links-broken-default.org	LX-5,LX-7,LX-42	TRANSITIONAL	1	-EXPORT-ERROR: Org export aborted.  Unable to resolve link: "1234-abcd"\n-See `org-export-with-broken-links'\n+\\label{tgt} Target here.\n+\n+\\section{Head}\n+\\label{sec:cid}\n+\n+\\begin{itemize}\n+\\item \\href{https://example.com}{Example} and \\url{https://example.com} and \\url{https://bare.example.com/a\\_b\\%20c}\n+\\item \\href{other.org}{File link} and \\url{doc.pdf} and \\url{./rel.txt}\n+\\item \\href{other.org\\#heading}{file headline}\n+\\item \\hyperref[sec:cid]{custom id} and \\hyperref[sec:cid]{Head}\n+\\item \\hyperref[sec:cid]{star link} and \\hyperref[sec:cid]{Head}\n+\\item \\hyperref[tgt]{to target} and \\ref{tgt}\n+\\item \\texttt{id link}\n+\\item \\href{mailto:a@b.c}{mail}\n+\\item \\texttt{nonexistent}\n+\\item \\href{elisp:(message "x")}{elisp}\n+\\item \\href{doi:10.1000/182}{doi}\n+\\item \\href{img.png}{desc image}\n+\\end{itemize}
+links-broken-mark.org	LX-42	TRANSITIONAL	1	-\\item \\href{https://doi.org/10.1000/182}{doi}\n+\\item \\href{doi:10.1000/182}{doi}
+links-broken-mark.org	LX-42	TRANSITIONAL	1	-\\item {[}BROKEN LINK: 1234-abcd]\n+\\item \\texttt{id link}
+links-broken-mark.org	LX-42	TRANSITIONAL	1	-\\item {[}BROKEN LINK: nonexistent]\n+\\item \\texttt{nonexistent}
+links-broken-mark.org	LX-5,LX-7,LX-42	TRANSITIONAL	1	-\\item \\href{other.org}{File link} and \\begin{center}\n-\\includegraphics[width=.9\\linewidth]{doc.pdf}\n-\\end{center} and \\url{./rel.txt}\n-\\item \\href{other.org}{file headline}\n-\\item \\hyperref[sec:cid]{custom id} and \\ref{sec:cid}\n-\\item \\hyperref[sec:cid]{star link} and \\ref{sec:cid}\n+\\item \\href{other.org}{File link} and \\url{doc.pdf} and \\url{./rel.txt}\n+\\item \\href{other.org\\#heading}{file headline}\n+\\item \\hyperref[sec:cid]{custom id} and \\hyperref[sec:cid]{Head}\n+\\item \\hyperref[sec:cid]{star link} and \\hyperref[sec:cid]{Head}
+list-item-continued-example.org	LX-26	TRANSITIONAL	1	-
+list-item-continued-example.org	LX-26	TRANSITIONAL	1	-\\begin{verbatim}\n+\\#+begin\\textsubscript{example}
+list-item-continued-example.org	LX-26	TRANSITIONAL	1	-\\end{verbatim}\n+\\#+end\\textsubscript{example}
+list-item-example-blocks.org	LX-26	TRANSITIONAL	2	-\\begin{verbatim}\n+\\#+begin\\textsubscript{example}
+list-item-example-blocks.org	LX-26	TRANSITIONAL	2	-\\end{verbatim}\n+\\#+end\\textsubscript{example}
+list-item-src-after-blank.org	LX-26	TRANSITIONAL	1	-\\end{verbatim}\n+\\#+end\\textsubscript{src}
+list-item-src-after-blank.org	LX-26	TRANSITIONAL	1	-\n-\\begin{verbatim}\n+\\#+begin\\textsubscript{src} c
+list-item-src-quote-table.org	LX-26	TRANSITIONAL	1	-\\begin{center}\n-\\begin{tabular}{ll}\n-a & b\\\\\n-\\end{tabular}\n-\\end{center}\n+| a | b |
+list-item-src-quote-table.org	LX-26	TRANSITIONAL	1	-\\begin{quote}\n+\\#+begin\\textsubscript{quote}
+list-item-src-quote-table.org	LX-26	TRANSITIONAL	1	-\\begin{verbatim}\n+\\#+begin\\textsubscript{src} c
+list-item-src-quote-table.org	LX-26	TRANSITIONAL	1	-\\end{quote}\n+\\#+end\\textsubscript{quote}
+list-item-src-quote-table.org	LX-26	TRANSITIONAL	1	-\\end{verbatim}\n+\\#+end\\textsubscript{src}
+lists-counters-descriptions.org	LX-26	TRANSITIONAL	1	-
+lists-counters-descriptions.org	LX-26	TRANSITIONAL	1	-\\begin{verbatim}\n+\\#+begin\\textsubscript{example}
+lists-counters-descriptions.org	LX-26	TRANSITIONAL	1	-\\end{verbatim}\n+\\#+end\\textsubscript{example}
+lists-counters-descriptions.org	LX-27	TRANSITIONAL	1	-\\item[{$\\square$ box}] with tag\n-\\item notag\n+\\item[{box}] [ ] with tag\n+\\item[{}] notag
+lists-counters-descriptions.org	LX-27	TRANSITIONAL	1	-\\item{$\\boxtimes$} checked ordered\n+\\item [X] checked ordered
+lists-counters-descriptions.org	LX-27	TRANSITIONAL	1	-\\setcounter{enumii}{2}
+lists-counters-descriptions.org	LX-27	TRANSITIONAL	1	-\\setcounter{enumi}{4}
+lists.org	LX-27	TRANSITIONAL	1	-\\item[{$\\square$}] todo item\n-\\item[{$\\boxtimes$}] done item\n-\\item[{$\\boxminus$}] partial\n-\n+\\item [ ] todo item\n+\\item [X] done item\n+\\item [-] partial
+lists.org	LX-27	TRANSITIONAL	1	-\\setcounter{enumi}{4}
+lists.org	LX-27	TRANSITIONAL	1	-\n-\\item[{term}] definition\n-\\item[{other}] def2\n-\n+\\item definition\n+\\item def2
+macros-undefined.org	LX-46	KEEP	1	-EXPORT-ERROR: Undefined Org macro: undefined; aborting\n+\\{\\{\\{undefined(x)\\}\\}\\} stays.
+options-disabled.org	LX-29	TRANSITIONAL	1	-Fn.\\\\\n+\\begin{verbatim}\n+fixed\n+\\end{verbatim}\n+\n+Fn.
+options-disabled.org	LX-29,LX-44	TRANSITIONAL	1	-a\\_b x\\^{}2 $\\backslash$alpha *bold* /it/ ... -- $\\backslash$-\\\\\n-second line\\\\\n+a\\_b x\\textasciicircum{}2  \\textbackslash{}alpha *bold* /it/ ... -- \\textbackslash{}-\\\\\n+second line
+options-tex-verbatim-title.org	LX-11	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n+\\usepackage{hyperref}
+options-tex-verbatim-title.org	LX-11,LX-12,LX-13	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\date{}\n-\\title{Hidden}\n-\\hypersetup{\n- pdfauthor={},\n- pdftitle={},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}\n+\\usepackage{graphicx}\n+
+options-tex-verbatim-title.org	LX-44	TRANSITIONAL	1	-$\\backslash$begin\\{equation\\}\n+\\textbackslash{}begin\\{equation\\}
+options-tex-verbatim-title.org	LX-44	TRANSITIONAL	1	-$\\backslash$end\\{equation\\}\n+\\textbackslash{}end\\{equation\\}\n+
+options-tex-verbatim-title.org	LX-44	TRANSITIONAL	1	-\\$x\\$ and $\\backslash$(y$\\backslash$) and \\(\\alpha\\)\n+\\$x\\$ and \\textbackslash{}(y\\textbackslash{}) and \\(\\alpha\\)
+options-tex-verbatim-title.org	LX-8,LX-10,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex\n-\\documentclass[11pt]{article}\n-\n+\\documentclass{article}
+radio-clock-captions.org	LX-19	TRANSITIONAL	1	-\\end{center}
+radio-clock-captions.org	LX-19	TRANSITIONAL	1	-\\end{table}\n-\\begin{center}\n+
+radio-clock-captions.org	LX-19,LX-20	TRANSITIONAL	1	-\\begin{table}[htbp]\n-\\caption{attr cap}\n-\\centering\n-\\begin{tabular}{l}\n-a\\\\\n+\n+\\begin{tabular}{ll}\n+a &\\\\
+radio-clock-captions.org	LX-29	TRANSITIONAL	1	-\\label{org6ddbab2}radio and \\hyperref[org6ddbab2]{radio} again.\n+radio and radio again.\n+
+radio-clock-captions.org	LX-29	TRANSITIONAL	1	-dyn content\n+
+src-blocks.org	LX-25	TRANSITIONAL	1	-Inline and \\texttt{int z;}.\n+Inline src_python{1+1} and src_c[:exports code]{int z;}.
+src-blocks.org	LX-28	TRANSITIONAL	1	-1  echo 1\n-2  echo 2\n+echo 1\n+echo 2
+src-caption-options.org	LX-25,LX-4	TRANSITIONAL	1	-\\captionof{figure}{cap}\n-Inline .\n+\\captionof{figure}{\\label{lst:lst1}cap}\n+\n+Inline src_python{1+1}.
+src-caption-options.org	LX-28	TRANSITIONAL	1	-1  print(1)\n+print(1)
+tables.org	LX-19	TRANSITIONAL	1	-\\[\n-\\begin{bmatrix}\n- 1 & 2\\\\\n- 3 & 4\\\\\n-\\end{bmatrix}\n-\\]\n+\\begin{tabular}{rr}\n+1 & 2\\\\\n+3 & 4\\\\\n+\\end{tabular}
+tables.org	LX-19	TRANSITIONAL	1	-\\begin{center}
+tables.org	LX-19	TRANSITIONAL	1	-\\begin{center}\n-\\begin{tabularx}{\\textwidth}{lX}\n+\\begin{tabular}{ll}
+tables.org	LX-19	TRANSITIONAL	1	-\\begin{longtable}{l|r}\n+\\begin{tabular}{rr}
+tables.org	LX-19	TRANSITIONAL	1	-\\begin{sidewaystable}[H]\n-\\centering
+tables.org	LX-19	TRANSITIONAL	1	-\\bottomrule\n-\\end{tabular}}\n+\\end{tabular}
+tables.org	LX-19	TRANSITIONAL	1	-\\end{center}
+tables.org	LX-19	TRANSITIONAL	1	-\\end{longtable}\n+\\end{tabular}
+tables.org	LX-19	TRANSITIONAL	1	-\\end{sidewaystable}
+tables.org	LX-19	TRANSITIONAL	1	-\\end{tabularx}\n-\\end{center}\n+\\end{tabular}
+tables.org	LX-19	TRANSITIONAL	1	-\\midrule\n+\\hline
+tables.org	LX-19	TRANSITIONAL	1	-\\toprule
+tables.org	LX-19	TRANSITIONAL	1	-{\\small
+tables.org	LX-19,LX-20	TRANSITIONAL	1	-\\begin{tabular}{rr}\n-x & y\\\\\n-\\hline\n-1 & 2\\\\\n-\\end{tabular}\n-\\end{table}\n-\n-\\begin{center}
+tables.org	LX-19,LX-20	TRANSITIONAL	1	-\\end{center}\n+\\end{table}
+tables.org	LX-20	TRANSITIONAL	1	+x & y &\\\\\n+\\hline\n+1 & 2 &\\\\\n+\\hline
+timestamps.org	LX-6	TRANSITIONAL	1	-Active \\textit{<2024-01-02 Tue> } inactive \\textit{{[}2024-01-02 Tue 10:00] } range \\textit{<2024-01-02 Tue>--<2024-01-03 Wed> } repeater \\textit{<2024-01-02 Tue +1w> } time range \\textit{<2024-01-02 Tue 10:00-11:00>}.\n+Active \\textit{\\textless{}2024-01-02 Tue\\textgreater{}} inactive \\textit{[2024-01-02 Tue 10:00]} range \\textit{\\textless{}2024-01-02 Tue\\textgreater{}--\\textless{}2024-01-03 Wed\\textgreater{}} repeater \\textit{\\textless{}2024-01-02 Tue +1w\\textgreater{}} time range \\textit{\\textless{}2024-01-02 Tue 10:00-11:00\\textgreater{}}.\n+
+toc.org	LX-11	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n+\\usepackage{hyperref}
+toc.org	LX-11,LX-12,LX-13,LX-15	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\date{\\today}\n-\\title{}\n-\\hypersetup{\n- pdfauthor={},\n- pdftitle={},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}\n+\\usepackage{graphicx}\n+\n+\\usepackage{titletoc}
+toc.org	LX-14	TRANSITIONAL	1	-\\setcounter{tocdepth}{2}
+toc.org	LX-8,LX-10,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex\n-\\documentclass[11pt]{article}\n-\n+\\documentclass{article}
+unnumbered.org	LX-2	TRANSITIONAL	1	-\\section*{C}\n+\n+\\section{C}
+unnumbered.org	LX-2	TRANSITIONAL	1	-\\section*{D}\n+\n+\\section{D}
+unnumbered.org	LX-2	TRANSITIONAL	1	-\\subsection*{C1}\n+\n+\\subsection{C1}
+document-default.org	LX-61	TRANSITIONAL	2	+
+document-keywords.org	LX-61	TRANSITIONAL	2	+
+footnotes.org	LX-43	TRANSITIONAL	1	-Second para line.} and inline\\footnote{inline body} and named inline\\footnote{named inline def}.\n+Second para line.} and inline\\footnote{ inline body} and named inline\\footnote{ named inline def}.
+footnotes.org	LX-61	TRANSITIONAL	2	+
+headline-options-planning.org	LX-61	TRANSITIONAL	3	+
+headlines-nonum-custom-id.org	LX-61	TRANSITIONAL	4	+
+headlines-todo-tags.org	LX-61	TRANSITIONAL	8	+
+inlinetask.org	LX-63	TRANSITIONAL	1	-\\begin{center}\n-\\fbox{\n-\\begin{minipage}[c]{.6\\linewidth}\n-Inline task
+inlinetask.org	LX-63	TRANSITIONAL	1	-\\rule[.8em]{\\linewidth}{2pt}\n-\n-inline body\n-\\end{minipage}\n-}\n-\\end{center}
+links-broken-mark.org	LX-61	TRANSITIONAL	2	+
+list-item-example-blocks.org	LX-61	TRANSITIONAL	1	+
+toc.org	LX-61	TRANSITIONAL	7	+

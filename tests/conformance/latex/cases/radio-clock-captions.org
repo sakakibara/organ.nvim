@@ -1,0 +1,19 @@
+<<<radio>>> and radio again.
+* H
+CLOCK: [2024-01-01 Mon 10:00]--[2024-01-01 Mon 11:00] =>  1:00
+#+BEGIN: clocktable
+dyn content
+#+END:
+#+begin_export beamer
+\beameronly
+#+end_export
+#+CAPTION: ex cap
+#+begin_example
+cap ex
+#+end_example
+#+ATTR_LATEX: :caption \caption{attr cap}
+| a |
+| b | c |
+#+TBLFM: $2=1
+|---|
+| x |

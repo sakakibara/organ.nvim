@@ -1,0 +1,3 @@
+Active <2024-01-02 Tue> inactive [2024-01-02 Tue 10:00] range <2024-01-02 Tue>--<2024-01-03 Wed> repeater <2024-01-02 Tue +1w> time range <2024-01-02 Tue 10:00-11:00>.
+* H
+CLOSED: [2024-01-02 Tue 10:00]

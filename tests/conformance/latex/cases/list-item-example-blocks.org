@@ -1,0 +1,14 @@
+- item
+  #+begin_example
+  ex
+  #+end_example
+- b
+  para
+  #+begin_example
+  ex2
+  #+end_example
+
+Top para
+#+begin_example
+ex3
+#+end_example

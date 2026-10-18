@@ -1,0 +1,3 @@
+#+MACRO: greet Hello, $1!
+#+TITLE: Mac
+{{{greet(World)}}} {{{title}}} {{{date}}} {{{n}}} {{{n}}} {{{keyword(TITLE)}}}

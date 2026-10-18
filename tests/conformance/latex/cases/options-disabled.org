@@ -1,0 +1,15 @@
+#+OPTIONS: ^:nil tex:nil e:nil *:nil ::nil |:nil f:nil \n:t -:nil
+a_b x^2 $math$ \alpha *bold* /it/ ... -- \-
+second line
+
+: fixed
+
+| t | t |
+
+Fn[fn:1].
+
+\begin{equation}
+x
+\end{equation}
+
+[fn:1] def

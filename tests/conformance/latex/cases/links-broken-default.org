@@ -1,0 +1,17 @@
+<<tgt>> Target here.
+* Head
+:PROPERTIES:
+:CUSTOM_ID: cid
+:END:
+- [[https://example.com][Example]] and [[https://example.com]] and https://bare.example.com/a_b%20c
+- [[file:other.org][File link]] and [[file:doc.pdf]] and [[./rel.txt]]
+- [[file:other.org::*Heading][file headline]]
+- [[#cid][custom id]] and [[#cid]]
+- [[*Head][star link]] and [[*Head]]
+- [[tgt][to target]] and [[tgt]]
+- [[id:1234-abcd][id link]]
+- [[mailto:a@b.c][mail]]
+- [[nonexistent]]
+- [[elisp:(message "x")][elisp]]
+- [[doi:10.1000/182][doi]]
+- [[file:img.png][desc image]]

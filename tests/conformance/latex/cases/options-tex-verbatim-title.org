@@ -1,0 +1,9 @@
+# conformance: latex full
+#+OPTIONS: tex:verbatim title:nil author:nil date:nil toc:nil
+#+TITLE: Hidden
+#+AUTHOR: Nobody
+$x$ and \(y\) and \alpha
+
+\begin{equation}
+x
+\end{equation}

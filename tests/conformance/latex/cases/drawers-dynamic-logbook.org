@@ -1,0 +1,13 @@
+#+BEGIN: clocktable :scope file
+dyn *content*
+#+END:
+
+:MYDRAWER:
+drawer *text*
+:END:
+
+#+OPTIONS: d:t
+* H
+:LOGBOOK:
+- State "DONE"
+:END:

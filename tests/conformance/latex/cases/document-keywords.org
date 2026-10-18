@@ -1,0 +1,18 @@
+# conformance: latex full
+#+TITLE: My *Title*
+#+SUBTITLE: Sub
+#+AUTHOR: Jane Doe
+#+EMAIL: jane@example.com
+#+DATE: 2024-01-02
+#+KEYWORDS: k1 k2
+#+DESCRIPTION: desc
+#+LANGUAGE: fr
+#+OPTIONS: email:t creator:t
+#+LATEX_CLASS: report
+#+LATEX_CLASS_OPTIONS: [a4paper,12pt]
+#+LATEX_HEADER: \usepackage{xcolor}
+#+LATEX_HEADER_EXTRA: \usepackage{extra}
+#+LATEX_COMPILER: xelatex
+* Chapter one
+text
+** Sec

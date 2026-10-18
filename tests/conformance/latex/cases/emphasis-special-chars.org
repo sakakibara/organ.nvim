@@ -1,0 +1,4 @@
+*bold* /italic/ _underline_ +strike+ =verbatim= ~code~ *nested /it/* =a--b<<c>>~d^e\f{g}$%&_#=
+Special chars: & % $ # _ { } ~ ^ \ < > | [ ]
+Line break here\\
+next line.

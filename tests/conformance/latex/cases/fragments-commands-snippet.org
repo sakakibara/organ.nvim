@@ -1,0 +1,1 @@
+A \ref{x} B \foo[o]{a} @@latex:\X@@ src_c{int}

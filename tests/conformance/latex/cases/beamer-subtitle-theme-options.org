@@ -1,0 +1,8 @@
+# conformance: beamer full
+#+TITLE: T
+#+SUBTITLE: S
+#+INSTITUTE: I
+#+BEAMER_THEME: Rochester [height=20pt]
+#+OPTIONS: toc:nil
+* F
+x

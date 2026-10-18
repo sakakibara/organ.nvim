@@ -1,0 +1,16 @@
+#+CAPTION: A figure
+#+NAME: fig1
+#+ATTR_LATEX: :width 5cm :placement [H]
+[[file:img.png]]
+
+#+ATTR_LATEX: :float wrap :width 0.4\textwidth
+[[./img.jpg]]
+
+[[file:img.pdf]]
+
+Inline [[file:inline.png]] image in text.
+
+#+ATTR_LATEX: :float nil
+[[file:nofloat.png]]
+
+[[file:img.svg]]

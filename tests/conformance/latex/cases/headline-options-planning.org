@@ -1,0 +1,11 @@
+#+OPTIONS: todo:t pri:t tags:t num:2 H:4 p:t prop:t
+* TODO [#B] Pri :a:b:
+SCHEDULED: <2024-01-02 Tue> DEADLINE: <2024-01-05 Fri>
+:PROPERTIES:
+:FOO: bar
+:END:
+text
+** Two
+*** Three
+**** Four
+***** Five

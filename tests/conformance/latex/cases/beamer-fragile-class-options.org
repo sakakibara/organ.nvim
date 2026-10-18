@@ -1,0 +1,18 @@
+# conformance: beamer full
+#+TITLE: T
+#+BEAMER_FRAME_LEVEL: 2
+#+BEAMER_OPTIONS: handout
+#+LATEX_CLASS_OPTIONS: [bigger]
+Preamble paragraph.
+* Sec
+** Frame
+text with =code= and /it/ and $x$
+#+begin_src python
+print(1)
+#+end_src
+*** Sub
+**** Deep
+deep text
+* Frame with fragile
+** F2
+: fixed

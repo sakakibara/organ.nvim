@@ -1,0 +1,72 @@
+# conformance: beamer full
+#+TITLE: Talk
+#+AUTHOR: Me
+#+DATE: 2024
+#+BEAMER_THEME: Madrid
+#+BEAMER_COLOR_THEME: whale
+#+BEAMER_FONT_THEME: serif
+#+BEAMER_INNER_THEME: circles
+#+BEAMER_OUTER_THEME: infolines
+#+BEAMER_HEADER: \institute{Inst}
+#+OPTIONS: H:2 toc:nil
+* Section one
+** Frame A
+Content A
+- item 1
+- item 2
+** Frame B with options
+:PROPERTIES:
+:BEAMER_opt: allowframebreaks,label=fb
+:END:
+*** Block title
+Block body
+*** Alert
+:PROPERTIES:
+:BEAMER_env: alertblock
+:END:
+Danger
+*** Example :B_exampleblock:
+:PROPERTIES:
+:BEAMER_env: exampleblock
+:END:
+Ex
+** Columns
+*** Left
+:PROPERTIES:
+:BEAMER_col: 0.5
+:END:
+left
+*** Right
+:PROPERTIES:
+:BEAMER_col: 0.5
+:END:
+right
+** Overlays
+:PROPERTIES:
+:BEAMER_act: [<+->]
+:END:
+- a
+- b
+*** Only :B_onlyenv:
+:PROPERTIES:
+:BEAMER_env: onlyenv
+:BEAMER_act: <2>
+:END:
+only two
+** Note frame
+*** A note :B_note:
+:PROPERTIES:
+:BEAMER_env: note
+:END:
+Speaker note
+** Again
+:PROPERTIES:
+:BEAMER_env: againframe
+:BEAMER_ref: *Frame B with options
+:END:
+* Section two
+** Frame C
+@@beamer:<2->@@ text and *bold* alert @@beamer:\pause@@
+#+ATTR_BEAMER: :overlay <+->
+- x
+- y

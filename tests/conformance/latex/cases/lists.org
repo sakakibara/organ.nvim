@@ -1,0 +1,17 @@
+- one
+- two
+  - nested a
+  - nested b
+- [ ] todo item
+- [X] done item
+- [-] partial
+
+1. first
+2. second
+3. [@5] fifth
+
+- term :: definition
+- other :: def2
+
++ plus bullet
+  * star bullet

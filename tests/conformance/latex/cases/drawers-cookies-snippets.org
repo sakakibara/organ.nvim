@@ -1,0 +1,17 @@
+#+OPTIONS: ':t
+Para "quoted" text.
+
+# a comment line
+
+:DRAWER:
+in drawer
+:END:
+
+:LOGBOOK:
+- note
+:END:
+
+[3/4] [50%] stat cookies.
+
+Some text with a @@latex:\LaTeX{}@@ snippet and @@html:<b>@@ html.
+

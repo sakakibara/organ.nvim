@@ -1,0 +1,6 @@
+#+CAPTION: cap
+#+ATTR_LATEX: :options frame=single
+#+begin_src python -n
+print(1)
+#+end_src
+Inline src_python{1+1}.

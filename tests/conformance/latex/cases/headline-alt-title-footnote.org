@@ -1,0 +1,11 @@
+* Title with fn[fn:1] and [[https://x.y][link]]
+:PROPERTIES:
+:ALT_TITLE: Short
+:END:
+#+LATEX: \clearpage
+#+LATEX_HEADER: \usepackage{x}
+[fn:1] note
+* Plain
+:PROPERTIES:
+:ALT_TITLE: Alt
+:END:

@@ -1,0 +1,16 @@
+Inline $a+b$ and \(c\) and $$d$$ and \[e\] and $1 and 2$ and \ref{x} and \cite{y}.
+Command \textbf{bold cmd} and \foo[opt]{arg}.
+
+\begin{equation}
+E = mc^2
+\end{equation}
+
+\begin{align*}
+a &= b
+\end{align*}
+
+#+CAPTION: Eq caption
+#+NAME: eq1
+\begin{equation}
+x = y
+\end{equation}

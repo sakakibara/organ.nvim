@@ -1,0 +1,5 @@
+* H
+*************** Inline task
+inline body
+*************** END
+after

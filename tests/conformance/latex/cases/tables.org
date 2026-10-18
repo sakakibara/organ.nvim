@@ -1,0 +1,32 @@
+| a | b | c |
+|---+---+---|
+| 1 | 2 | x |
+| 3 | 4 | y |
+
+#+CAPTION: My table
+#+NAME: tbl
+| x | y |
+|---+---|
+| 1 | 2 |
+
+| <r> | <c> | <l5> |
+| r | c | l |
+
+#+ATTR_LATEX: :environment longtable :align l|r
+| p | q |
+| 1 | 2 |
+
+#+ATTR_LATEX: :booktabs t :center nil :font \small
+| h1 | h2 |
+|----+----|
+| 1  | 2  |
+
+#+ATTR_LATEX: :mode math :environment bmatrix
+| 1 | 2 |
+| 3 | 4 |
+
+#+ATTR_LATEX: :environment tabularx :width \textwidth :align lX
+| a | b |
+
+#+ATTR_LATEX: :float sideways :placement [H]
+| s | t |

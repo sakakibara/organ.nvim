@@ -1,0 +1,38 @@
+# Expected differences of the latex gate, beamer run (format: tests/conformance/_signatures.lua).
+beamer-environments.org	LX-24,LX-30,LX-32,LX-34,LX-36,LX-40	TRANSITIONAL	1	-\\againframe{fb}\n-\\section{Section two}\n-\\label{sec:org9174c38}\n-\\begin{frame}[label={sec:org6a76138}]{Frame C}\n-text and \\alert{bold} alert \\pause\n-\\begin{itemize}[<+->]\n+\n+\\begin{frame}{Section two}\n+\\begin{block}{Frame C}\n+@@beamer:<2->@@ text and \\textbf{bold} alert @@beamer:\\pause@@\n+\n+\\begin{itemize}
+beamer-environments.org	LX-30	TRANSITIONAL	1	+\n+\\end{block}\n+
+beamer-environments.org	LX-30,LX-32,LX-33,LX-36	TRANSITIONAL	1	-\\end{exampleblock}\n-\\end{frame}\n-\\begin{frame}[label={sec:org239af77}]{Columns}\n-\\begin{columns}\n-\\begin{column}{0.5\\columnwidth}\n+\n+\\end{block}\n+\n+\\end{block}\n+\n+\\begin{block}{Columns}\n+\\begin{block}{Left}
+beamer-environments.org	LX-30,LX-32,LX-36	TRANSITIONAL	1	-\\end{onlyenv}\n-\\end{frame}\n-\\begin{frame}[label={sec:orgceac705}]{Note frame}\n-\\note{A note\n-Speaker note}\n+\n+\\end{block}\n+\n+\\end{block}\n+\n+\\begin{block}{Note frame}\n+\\begin{block}{A note}\n+Speaker note\n+\n+\\end{block}\n+\n+\\end{block}\n+\n+\\begin{block}{Again}\n+\\end{block}\n+
+beamer-environments.org	LX-30,LX-33,LX-34,LX-36	TRANSITIONAL	1	-\\end{column}\n-\\end{columns}\n-\\end{frame}\n-\\begin{frame}[<+->][label={sec:org194f905}]{Overlays}\n+\n+\\end{block}\n+\n+\\end{block}\n+\n+\\begin{block}{Overlays}
+beamer-environments.org	LX-30,LX-34	TRANSITIONAL	1	-\\end{frame}\n-\\begin{frame}[allowframebreaks,label=fb]{Frame B with options}\n+\n+\\end{block}\n+\n+\\begin{block}{Frame B with options}
+beamer-environments.org	LX-30,LX-36	TRANSITIONAL	1	-\\section{Section one}\n-\\label{sec:org481e66c}\n-\\begin{frame}[label={sec:org8c60fd4}]{Frame A}\n+\n+\\begin{frame}{Section one}\n+\\begin{block}{Frame A}
+beamer-environments.org	LX-32	TRANSITIONAL	1	-\\begin{alertblock}{Alert}\n+\n+\\begin{block}{Alert}
+beamer-environments.org	LX-32,LX-34	TRANSITIONAL	1	-\\begin{onlyenv}<2>\n+\n+\\begin{block}{Only}
+beamer-environments.org	LX-32,LX-36	TRANSITIONAL	1	-\\end{alertblock}\n-\\begin{exampleblock}{Example}\\label{sec:org041703b}\n+\n+\\end{block}\n+\n+\\begin{block}{Example}
+beamer-environments.org	LX-33	TRANSITIONAL	1	-\\end{column}\n-\\begin{column}{0.5\\columnwidth}\n+\n+\\end{block}\n+\n+\\begin{block}{Right}
+beamer-environments.org	LX-37	TRANSITIONAL	1	-\\usecolortheme{whale}\n-\\usefonttheme{serif}\n-\\useinnertheme{circles}\n-\\useoutertheme{infolines}\n+\\institute{Inst}\n+\\title{Talk}
+beamer-environments.org	LX-41,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex
+beamer-environments.org	LX-41	TRANSITIONAL	1	-\\title{Talk}\n-\\institute{Inst}\n-\\hypersetup{\n- pdfauthor={Me},\n- pdftitle={Talk},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}
+beamer-environments.org	LX-41	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n+\\usepackage{graphicx}
+beamer-environments.org	LX-41	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n-\\usepackage[normalem]{ulem}\n+\\usepackage{hyperref}\n+\\usepackage{ulem}
+beamer-fragile-class-options.org	LX-35,LX-36	TRANSITIONAL	1	-\\begin{frame}[label={sec:org8f77147},fragile]{Frame with fragile}\n- \\begin{block}{F2}\n+\n+\\begin{frame}{Frame with fragile}\n+\\begin{block}{F2}
+beamer-fragile-class-options.org	LX-35,LX-36,LX-40	TRANSITIONAL	1	-\\begin{frame}[label={sec:org1b7a9f5},fragile]{Sec}\n- \\begin{block}{Frame}\n-text with \\texttt{code} and \\emph{it} and \\(x\\)\n+\n+\\begin{frame}{Sec}\n+\\begin{block}{Frame}\n+text with \\texttt{code} and \\textit{it} and \\(x\\)\n+
+beamer-fragile-class-options.org	LX-37,LX-39,LX-41	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\usetheme{default}\n-\\date{\\today}\n+\\usepackage{graphicx}\n+\\mode<beamer>{ \\setbeameroption{handout} }
+beamer-fragile-class-options.org	LX-38	TRANSITIONAL	1	-\\begin{frame}{Outline}\n-\\tableofcontents\n-\\end{frame}
+beamer-fragile-class-options.org	LX-39,LX-41,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex\n-\\documentclass[bigger]{beamer}\n-\n+\\documentclass[presentation]{beamer}
+beamer-fragile-class-options.org	LX-41	TRANSITIONAL	1	-\\hypersetup{\n- pdfauthor={},\n- pdftitle={T},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}
+beamer-fragile-class-options.org	LX-41	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n-\\usepackage[normalem]{ulem}\n+\\usepackage{hyperref}\n+\\usepackage{ulem}
+beamer-frame-level-default.org	LX-36	TRANSITIONAL	1	-\\begin{frame}[label={sec:org7a7a72e}]{One}\n+\n+\\begin{frame}{One}
+beamer-frame-level-default.org	LX-36	TRANSITIONAL	1	-\\begin{frame}[label={sec:org9f19764}]{Three}\n+\n+\\begin{frame}{Three}
+beamer-subtitle-theme-options.org	LX-36	TRANSITIONAL	1	-\\begin{frame}[label={sec:org99c1f5a}]{F}\n+\n+\\begin{frame}{F}
+beamer-subtitle-theme-options.org	LX-37,LX-41	TRANSITIONAL	1	-\\usepackage{capt-of}\n-\\usepackage{hyperref}\n-\\usetheme[height=20pt]{Rochester}\n-\\date{\\today}\n+\\usepackage{graphicx}\n+\\usetheme{Rochester [height=20pt]}
+beamer-subtitle-theme-options.org	LX-38,LX-39,LX-41	TRANSITIONAL	1	-\\subtitle{S}\n-\\hypersetup{\n- pdfauthor={},\n- pdftitle={T},\n- pdfkeywords={},\n- pdfsubject={},\n- pdfcreator={},\n- pdflang={English}}\n+\\institute{I}
+beamer-subtitle-theme-options.org	LX-41,LX-62	TRANSITIONAL	1	-% Created 2026-05-04 Mon 09:30\n-% Intended LaTeX compiler: pdflatex
+beamer-subtitle-theme-options.org	LX-41	TRANSITIONAL	1	-\\usepackage{graphicx}\n-\\usepackage{longtable}\n-\\usepackage{wrapfig}\n-\\usepackage{rotating}\n-\\usepackage[normalem]{ulem}\n+\\usepackage{hyperref}\n+\\usepackage{ulem}
+beamer-environments.org	LX-61	TRANSITIONAL	2	+
+beamer-environments.org	LX-61	TRANSITIONAL	2	-
+beamer-fragile-class-options.org	LX-61	TRANSITIONAL	1	-
+beamer-fragile-class-options.org	LX-61	TRANSITIONAL	7	+
+beamer-frame-level-default.org	LX-61	TRANSITIONAL	3	+
+beamer-subtitle-theme-options.org	LX-61	TRANSITIONAL	1	+
+beamer-subtitle-theme-options.org	LX-61	TRANSITIONAL	2	-

@@ -1,0 +1,12 @@
+#+OPTIONS: num:nil toc:nil
+* A
+** B
+* C
+:PROPERTIES:
+:UNNUMBERED: t
+:END:
+* D
+:PROPERTIES:
+:CUSTOM_ID: my-id
+:END:
+See [[#my-id]] and [[*A]].

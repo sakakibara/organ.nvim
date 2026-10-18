@@ -1,0 +1,46 @@
+#+begin_example
+example  $ text_ \ {x}
+#+end_example
+
+#+begin_verse
+Roses are red
+   Violets are blue
+
+Second stanza
+#+end_verse
+
+#+begin_quote
+A quote with *bold*.
+
+Two paragraphs.
+#+end_quote
+
+#+begin_center
+Centered
+#+end_center
+
+#+begin_mycustom
+Special block
+#+end_mycustom
+
+#+ATTR_LATEX: :options [Title]
+#+begin_theorem
+Thm body
+#+end_theorem
+
+#+begin_comment
+hidden
+#+end_comment
+
+#+begin_export latex
+\raw{latex}
+#+end_export
+
+#+begin_export html
+<b>no</b>
+#+end_export
+
+#+latex: \inlineraw
+#+html: <no>
+
+-----

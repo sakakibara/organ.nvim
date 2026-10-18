@@ -1,0 +1,2 @@
+#+OPTIONS: ^:{}
+H_2O and a_{bc} and a^{bc}.

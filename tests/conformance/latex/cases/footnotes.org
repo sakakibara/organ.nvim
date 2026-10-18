@@ -1,0 +1,12 @@
+Text with a footnote[fn:1] and another[fn:named] and inline[fn:: inline body] and named inline[fn:nm: named inline def].
+Reuse[fn:1].
+
+* Section
+In section[fn:2].
+
+[fn:1] First footnote with *bold*.
+
+[fn:named] Named footnote.
+Second para line.
+
+[fn:2] In section footnote.
