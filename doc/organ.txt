@@ -1695,9 +1695,9 @@ Agenda                                                      *organ-cmd-agenda*
 
 *:Org-agenda*
     `:Org agenda [view-name]`
-    Open the agenda buffer. With no argument: if `agenda.views` is
-    non-empty, shows a picker; otherwise opens the default view
-    directly. With a view name, opens that named view.
+    Open the agenda buffer. With no argument, shows the agenda
+    dispatcher: the standard views and every named view. With a view
+    name, opens that named view.
 
     See |organ-config-agenda-views| for defining named views.
     See |organ-keymaps-agenda| for buffer-local keys.
@@ -4129,10 +4129,10 @@ Customize via `organ.config.agenda`:
 AGENDA EXTRAS                                           *organ-cmd-agenda-ext*
 
 *:Org-agenda_custom*
-    `:Org agenda custom`
-    Open the custom agenda dispatcher even when only one named view
-    exists (default `:Org agenda` skips the dispatcher when there's
-    only one view).
+    `:Org agenda custom {expr}`
+    Open an ad-hoc view from a Lua expression that returns a view spec
+    of the shape `agenda.views` entries use, without defining it in
+    the configuration.
 
 *:Org-agenda_day* / *:Org-agenda_week*
     Shortcut commands for the today / this-week views without needing
