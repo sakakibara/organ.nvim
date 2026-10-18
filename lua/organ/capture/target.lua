@@ -4,6 +4,14 @@ local M = {}
 
 local DEFAULT_DATETREE = { "%Y", "%Y-%m %B", "%Y-%m-%d %A" }
 
+local FILE_KINDS = {
+  file = true,
+  file_regexp = true,
+  file_headline = true,
+  file_olp = true,
+  file_olp_datetree = true,
+}
+
 local function expand(p)
   return vim.fn.expand(p)
 end
@@ -346,6 +354,12 @@ function M.resolve(spec, ctx, prepend)
     return path, line, {}
   end
 
+  if not FILE_KINDS[kind] then
+    error("capture.target: unknown kind: " .. tostring(kind))
+  end
+  if type(spec.path) ~= "string" or spec.path == "" then
+    error("capture.target: " .. kind .. " target has no file path")
+  end
   local path = expand(spec.path)
   ensure_file(path)
   local lines = read_lines(path)
