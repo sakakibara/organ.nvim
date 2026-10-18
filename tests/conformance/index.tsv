@@ -10,3 +10,8 @@ DOC-1	tests/conformance_doc_test.lua	pass
 DOC-11	tests/conformance_doc_test.lua	pass
 DOC-13	tests/conformance_doc_test.lua	pass
 DOC-15	tests/conformance_doc_test.lua	pass
+DOC-2	unit	todo
+DOC-7	tests/conformance_doc_test.lua	todo
+DOC-8	unit	todo
+XT-8	doc	todo
+XT-13	unit	todo
