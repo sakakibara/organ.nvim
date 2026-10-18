@@ -24,7 +24,12 @@ local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp, "p")
 local org_dir = tmp .. "/org"
 vim.fn.mkdir(org_dir, "p")
-vim.fn.system({ "cp", root .. "/tests/fixtures/parity/tasks.org", org_dir .. "/tasks.org" })
+vim.fn.writefile({
+  "#+CATEGORY: Tasks",
+  "",
+  "* TODO Call dentist for cleaning appointment :gtd:@phone:",
+  "  SCHEDULED: " .. os.date("<%Y-%m-%d %a 09:00>"),
+}, org_dir .. "/tasks.org")
 
 require("organ").setup({
   db_path = tmp .. "/behavioral.db",

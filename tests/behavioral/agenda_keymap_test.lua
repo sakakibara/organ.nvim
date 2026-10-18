@@ -24,13 +24,18 @@ local function check(label, ok, detail)
   end
 end
 
--- Fixture: copy parity tasks.org into a temp org_dir so the indexer
--- has real headlines to render.
+-- Fixture: a headline scheduled today in a temp org_dir so the indexer
+-- has a real headline to render.
 local tmp = vim.fn.tempname()
 vim.fn.mkdir(tmp, "p")
 local org_dir = tmp .. "/org"
 vim.fn.mkdir(org_dir, "p")
-vim.fn.system({ "cp", root .. "/tests/fixtures/parity/tasks.org", org_dir .. "/tasks.org" })
+vim.fn.writefile({
+  "#+CATEGORY: Tasks",
+  "",
+  "* TODO Call dentist for cleaning appointment :gtd:@phone:",
+  "  SCHEDULED: " .. os.date("<%Y-%m-%d %a 09:00>"),
+}, org_dir .. "/tasks.org")
 
 vim.g.mapleader = " "
 
