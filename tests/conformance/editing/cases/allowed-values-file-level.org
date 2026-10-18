@@ -1,0 +1,3 @@
+# op: allowed-values X
+#+PROPERTY: X_ALL p q
+* A@@C@@

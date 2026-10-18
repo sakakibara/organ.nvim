@@ -348,6 +348,11 @@ ED-76	FIX	F.3	emacs
 ED-77	KEEP	-	emacs
 ED-78	FIX	8.6	emacs
 ED-79	FIX	8.6	emacs
+ED-80	FIX	8.6	emacs
+ED-81	KEEP	-	emacs
+ED-82	KEEP	-	emacs
+ED-83	FIX	F.3	emacs
+ED-84	KEEP	-	emacs
 HX-1	KEEP+OPT	6.1	emacs
 HX-2	FIX	6.1	emacs
 HX-3	FIX	6.1	emacs

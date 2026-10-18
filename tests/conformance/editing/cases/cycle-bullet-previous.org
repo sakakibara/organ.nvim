@@ -1,0 +1,2 @@
+# op: cycle-bullet previous
+- a@@C@@

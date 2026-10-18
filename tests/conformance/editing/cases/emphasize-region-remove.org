@@ -1,0 +1,2 @@
+# op: emphasize SPC
+some @@C@@*bold*@@M@@ text

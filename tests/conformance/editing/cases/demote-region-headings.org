@@ -1,0 +1,4 @@
+# op: demote-region
+@@C@@* A
+* B
+@@M@@* C

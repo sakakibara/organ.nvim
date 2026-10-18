@@ -1,0 +1,6 @@
+# op: format
+3. a
+5. b
+   + x
+   - y
+-  spaced bullet

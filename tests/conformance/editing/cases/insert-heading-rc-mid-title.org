@@ -1,0 +1,7 @@
+# op: insert-heading-rc
+* A
+** Be@@C@@ta
+body
+*** child
+child body
+** C

@@ -1,0 +1,3 @@
+# op: set-property FOO ""
+# options: planning-flush
+* A@@C@@

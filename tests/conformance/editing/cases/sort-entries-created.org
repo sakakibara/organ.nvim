@@ -1,0 +1,8 @@
+# op: sort-entries c
+* P@@C@@
+** none
+** late
+:PROPERTIES:
+:CREATED: [2026-06-01 Mon]
+:END:
+** early [2020-01-01 Wed]

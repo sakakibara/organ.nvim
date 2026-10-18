@@ -1,0 +1,7 @@
+# op: toggle-checkbox
+# setup: checkbox-flat
+* Head [/]
+- [ ] a
+  - [ ] a1@@C@@
+  - [ ] a2
+- [ ] b

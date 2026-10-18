@@ -1,0 +1,7 @@
+# op: format
+* A
+:PROPERTIES:
+:ID:    abc
+:VERYLONGKEYNAME:     v
+:empty:
+:END:

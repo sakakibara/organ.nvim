@@ -1,0 +1,6 @@
+# op: sort-entries A
+* P@@C@@
+** b
+** a
+** B
+** A

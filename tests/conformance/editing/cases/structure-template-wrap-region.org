@@ -1,0 +1,4 @@
+# op: structure-template quote
+@@C@@line one
+line two
+@@M@@

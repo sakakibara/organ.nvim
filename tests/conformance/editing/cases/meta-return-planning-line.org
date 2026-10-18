@@ -1,0 +1,5 @@
+# op: meta-return
+* A
+SCHEDULED: <2026-05-04 Mon>@@C@@
+body
+* B

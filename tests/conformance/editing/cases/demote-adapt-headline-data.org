@@ -1,0 +1,8 @@
+# op: demote
+# setup: adapt-hd
+* A@@C@@
+  SCHEDULED: <2026-05-04 Mon>
+  :PROPERTIES:
+  :X: 1
+  :END:
+body

@@ -1,0 +1,5 @@
+# op: set-property Foo baz
+* A@@C@@
+:PROPERTIES:
+:FOO:      bar
+:END:

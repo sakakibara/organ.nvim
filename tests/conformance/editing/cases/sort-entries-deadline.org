@@ -1,0 +1,7 @@
+# op: sort-entries d
+* P@@C@@
+** none
+** late
+DEADLINE: <2026-06-01 Mon>
+** early
+DEADLINE: <2026-01-01 Thu 10:00>

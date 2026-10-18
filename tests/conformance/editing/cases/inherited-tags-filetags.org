@@ -1,0 +1,5 @@
+# op: inherited-tags
+#+FILETAGS: :proj:
+* A :x:
+** B
+* C

@@ -1,0 +1,5 @@
+# op: set-property header-args+ ":var x=1"
+* A@@C@@
+:PROPERTIES:
+:header-args+: :results silent
+:END:

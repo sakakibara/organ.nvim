@@ -1,0 +1,4 @@
+# op: meta-return
+* A                                                                  :tag:@@C@@
+body
+* B

@@ -1,0 +1,5 @@
+# op: demote
+# setup: adapt-t
+* A@@C@@
+  - item
+    cont

@@ -1,0 +1,4 @@
+# op: set-property FOO bar
+# options: planning-flush
+* A
+body@@C@@

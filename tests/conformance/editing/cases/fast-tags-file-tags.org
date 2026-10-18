@@ -1,0 +1,3 @@
+# op: fast-tags w
+#+TAGS: work(w) home(h)
+* A@@C@@

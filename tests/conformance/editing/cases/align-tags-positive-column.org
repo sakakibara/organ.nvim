@@ -1,0 +1,4 @@
+# op: align-tags
+# setup: tags-column-40
+* A :x:
+** TODO B    :y:z:

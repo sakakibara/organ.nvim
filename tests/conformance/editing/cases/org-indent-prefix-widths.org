@@ -1,0 +1,10 @@
+# op: org-indent
+* L1
+body1
+** L2
+body2
+*** L3
+body3
+- item
+  cont
+* L1b

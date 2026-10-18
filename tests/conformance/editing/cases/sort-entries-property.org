@@ -1,0 +1,11 @@
+# op: sort-entries r ORD
+* P@@C@@
+** b
+:PROPERTIES:
+:ORD: 10
+:END:
+** a
+:PROPERTIES:
+:ORD: 9
+:END:
+** c

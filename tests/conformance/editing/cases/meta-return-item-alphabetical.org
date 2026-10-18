@@ -1,0 +1,4 @@
+# op: meta-return
+# setup: alpha-lists
+a. one@@C@@
+b. two

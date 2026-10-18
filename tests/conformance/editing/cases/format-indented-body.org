@@ -1,0 +1,5 @@
+# op: format
+* A
+    indented text
+  - item
+      cont

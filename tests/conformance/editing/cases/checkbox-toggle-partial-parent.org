@@ -1,0 +1,4 @@
+# op: toggle-checkbox
+- [-] parent@@C@@
+  - [X] a
+  - [ ] b

@@ -1,0 +1,4 @@
+# op: fill
+#+begin_quote
+@@C@@quoted text with many words that should be wrapped beyond the fill column of seventy characters ok
+#+end_quote

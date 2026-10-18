@@ -1,0 +1,10 @@
+# op: demote
+# setup: adapt-t
+* A@@C@@
+  body
+  SCHEDULED: <2026-05-04 Mon>
+** b
+   bb
+#+begin_src sh
+x
+#+end_src

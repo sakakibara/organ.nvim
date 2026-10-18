@@ -1,0 +1,7 @@
+# op: allowed-values X
+* P
+:PROPERTIES:
+:X_ALL: a
+:X_ALL+: b
+:END:
+** A@@C@@

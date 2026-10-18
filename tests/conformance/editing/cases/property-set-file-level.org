@@ -1,0 +1,4 @@
+# op: set-property FOO bar
+#+TITLE: t
+text@@C@@
+* A

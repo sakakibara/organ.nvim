@@ -1,0 +1,2 @@
+# op: demote
+* A :tag:@@C@@

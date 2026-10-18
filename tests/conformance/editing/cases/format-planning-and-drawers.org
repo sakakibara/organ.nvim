@@ -1,0 +1,10 @@
+# op: format
+* TODO A
+DEADLINE: <2026-05-05 Tue>   SCHEDULED: <2026-05-04 Mon>
+:LOGBOOK:
+- note
+:END:
+:PROPERTIES:
+:X: 1
+:END:
+body

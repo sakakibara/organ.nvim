@@ -1,0 +1,6 @@
+# op: meta-return
+* A
+#+begin_src sh
+echo@@C@@ hi
+#+end_src
+* B

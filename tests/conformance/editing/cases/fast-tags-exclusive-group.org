@@ -1,0 +1,3 @@
+# op: fast-tags wh
+#+TAGS: { work(w) home(h) } urgent(u)
+* A@@C@@

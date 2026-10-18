@@ -1,0 +1,8 @@
+# op: inherited-property-all CATEGORY
+#+CATEGORY: file-cat
+* Parent
+:PROPERTIES:
+:CATEGORY: parent-cat
+:END:
+** Child
+* SiblingOfParent

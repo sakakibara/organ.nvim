@@ -1,0 +1,9 @@
+# op: sort-entries t
+* P@@C@@
+** none
+** late <2026-06-01 Mon>
+** inactive [2025-01-01 Wed]
+** early
+SCHEDULED: <2026-01-01 Thu>
+** body ts
+text <2025-06-01 Sun>

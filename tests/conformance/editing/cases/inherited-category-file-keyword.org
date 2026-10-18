@@ -1,0 +1,4 @@
+# op: inherited-property-all CATEGORY
+#+CATEGORY: file-cat
+* Top
+* Sibling

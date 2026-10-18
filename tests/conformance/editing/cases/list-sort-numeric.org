@@ -1,0 +1,4 @@
+# op: list-sort n
+1. 10 x@@C@@
+2. 9 y
+3. z

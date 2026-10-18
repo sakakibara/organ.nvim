@@ -1,0 +1,8 @@
+# op: narrow
+* A@@C@@
+a
+*************** inline
+x
+*************** END
+more
+* B

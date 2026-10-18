@@ -1,0 +1,14 @@
+# op: indent-region
+# setup: adapt-t
+* A
+   text
+SCHEDULED: <2026-05-04 Mon>
+- item
+continuation
+   - sub
+  #+begin_src sh
+    code
+  #+end_src
+** B
+     deep
+| t |

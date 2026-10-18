@@ -1,0 +1,7 @@
+# op: sort-entries p
+* P@@C@@
+** [#C] c
+** none
+** [#A] a
+** [#B] b
+** TODO [#A] ta

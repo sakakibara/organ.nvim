@@ -1,0 +1,7 @@
+# op: meta-return
+* A
+:PROPERTIES:
+:X: 1@@C@@
+:END:
+body
+* B

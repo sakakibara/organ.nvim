@@ -1,0 +1,11 @@
+# op: sort-entries a
+* P@@C@@
+intro
+** banana
+** [[https://x][Apple]]
+** apple
+** *Cherry*
+** TODO date
+** [#A] egg
+** COMMENT fig
+** grape :tag:

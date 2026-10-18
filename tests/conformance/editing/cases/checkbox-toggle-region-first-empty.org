@@ -1,0 +1,4 @@
+# op: toggle-checkbox-region
+@@C@@- [ ] a
+- [X] b
+- c@@M@@

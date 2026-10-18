@@ -1,0 +1,2 @@
+# op: timestamp-shiftdown
+x <2026-05-04 Mon 10:0@@C@@3>

@@ -1,0 +1,7 @@
+# op: sort-entries s
+* P@@C@@
+** none
+** late
+SCHEDULED: <2026-06-01 Mon>
+** early
+SCHEDULED: <2026-01-01 Thu>

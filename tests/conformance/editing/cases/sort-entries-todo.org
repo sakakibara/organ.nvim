@@ -1,0 +1,8 @@
+# op: sort-entries o
+#+TODO: TODO NEXT | DONE CANCELLED
+* P@@C@@
+** DONE d
+** none
+** NEXT n
+** CANCELLED c
+** TODO t

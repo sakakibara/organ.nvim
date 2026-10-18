@@ -1,0 +1,4 @@
+# op: inherited-tags
+* Top :context:
+** Mid
+*** Leaf

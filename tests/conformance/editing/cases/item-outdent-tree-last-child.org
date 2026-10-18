@@ -1,0 +1,6 @@
+# op: item-outdent-tree
+- a
+  - a1
+  - a2@@C@@
+    - deep
+- b

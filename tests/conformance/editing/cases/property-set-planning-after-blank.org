@@ -1,0 +1,5 @@
+# op: set-property FOO bar
+# options: planning-flush
+* A@@C@@
+
+SCHEDULED: <2026-05-04 Mon>

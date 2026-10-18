@@ -1,0 +1,2 @@
+# op: format
+Text with *bold*  and   [[https://x][link]] and \alpha.

@@ -1,0 +1,6 @@
+# op: list-sort a
+- b@@C@@
+- A
+- a
+  - sub
+- [ ] C

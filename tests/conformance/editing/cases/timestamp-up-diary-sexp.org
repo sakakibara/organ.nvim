@@ -1,0 +1,2 @@
+# op: timestamp-shiftup
+x <%%(diary-float t 4 2)@@C@@>

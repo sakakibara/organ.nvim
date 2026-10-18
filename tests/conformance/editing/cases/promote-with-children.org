@@ -1,0 +1,6 @@
+# op: promote
+* P
+** A@@C@@
+*** c
+- item
+** B

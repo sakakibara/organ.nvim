@@ -1,0 +1,3 @@
+# op: delete-property FOO
+* A@@C@@
+body

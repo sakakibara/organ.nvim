@@ -1,0 +1,3 @@
+# op: cycle-bullet
+1) a@@C@@
+2) b

@@ -1,0 +1,3 @@
+# op: priority-shiftdown
+#+PRIORITIES: A E C
+* [#D@@C@@] T

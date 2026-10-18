@@ -1,0 +1,7 @@
+# op: delete-property FOO
+* A@@C@@
+:PROPERTIES:
+:FOO:      1
+:BAR:      2
+:FOO:      3
+:END:

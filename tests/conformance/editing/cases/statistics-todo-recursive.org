@@ -1,0 +1,10 @@
+# op: update-statistics
+#+TODO: TODO | DONE FINISHED
+* Head [/]
+:PROPERTIES:
+:COOKIE_DATA: todo recursive
+:END:
+** TODO a
+*** FINISHED a1
+** DONE b
+** plain

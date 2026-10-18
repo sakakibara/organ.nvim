@@ -1,0 +1,7 @@
+# op: cut-paste
+* A@@C@@
+a
+
+
+* B
+* CPP

@@ -1,0 +1,5 @@
+# op: list-to-subtree
+* P
+- a@@C@@
+  - a1
+- b

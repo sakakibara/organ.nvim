@@ -1,0 +1,5 @@
+# op: global-cycle
+* A
+a
+** a1
+* B

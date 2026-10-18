@@ -1,0 +1,9 @@
+# op: update-statistics
+* Head [3/9]
+- [X] a
+- [ ] b
+- [ ] c [9/9]
+  - [X] c1
+* T [10%]
+** TODO x
+** DONE y

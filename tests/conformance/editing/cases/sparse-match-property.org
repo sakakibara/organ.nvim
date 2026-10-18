@@ -1,0 +1,7 @@
+# op: sparse-match "FOO=\"x\""
+* A
+:PROPERTIES:
+:FOO: x
+:END:
+** child
+* B

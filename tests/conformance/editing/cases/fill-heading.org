@@ -1,0 +1,2 @@
+# op: fill
+* @@C@@A heading line with many words that should never be wrapped beyond the fill column of seventy characters

@@ -1,0 +1,8 @@
+# op: move-up
+* A
+a body
+
+* B@@C@@
+b body
+
+* C

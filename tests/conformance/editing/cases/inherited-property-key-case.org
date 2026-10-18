@@ -1,0 +1,6 @@
+# op: inherited-property x
+* A
+:PROPERTIES:
+:X: a
+:END:
+** B@@C@@

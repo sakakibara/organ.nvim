@@ -1,0 +1,2 @@
+# op: fill
+@@C@@First sentence ends here.  Second sentence is long enough to push wrapping past column seventy ok.

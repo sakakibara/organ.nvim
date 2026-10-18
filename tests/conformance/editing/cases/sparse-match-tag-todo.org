@@ -1,0 +1,16 @@
+# op: sparse-match "work-TODO=\"DONE\""
+* A
+a body
+** TODO a1
+a1 body
+*** a1x
+** a2 :work:
+a2 body
+*** a2x
+deep body
+* B :work:
+** b1
+b body has needle
+** DONE b2
+* C
+c needle body

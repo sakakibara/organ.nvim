@@ -1,0 +1,5 @@
+# op: format
+* A
+:properties:
+:x: 1
+:end:

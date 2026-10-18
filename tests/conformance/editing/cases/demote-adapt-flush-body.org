@@ -1,0 +1,4 @@
+# op: demote
+# setup: adapt-t
+* A@@C@@
+body at 0

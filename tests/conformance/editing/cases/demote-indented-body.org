@@ -1,0 +1,6 @@
+# op: demote
+* A@@C@@
+  body
+:PROPERTIES:
+:X: 1
+:END:

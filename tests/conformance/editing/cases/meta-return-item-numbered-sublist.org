@@ -1,0 +1,5 @@
+# op: meta-return
+1. a@@C@@
+   1. x
+   2. y
+2. b

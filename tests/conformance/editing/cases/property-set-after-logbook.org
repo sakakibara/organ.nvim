@@ -1,0 +1,6 @@
+# op: set-property FOO bar
+# options: planning-flush
+* A@@C@@
+:LOGBOOK:
+- note
+:END:

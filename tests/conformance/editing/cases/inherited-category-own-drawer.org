@@ -1,0 +1,6 @@
+# op: inherited-property-all CATEGORY
+#+CATEGORY: file-cat
+* Override
+:PROPERTIES:
+:CATEGORY: own-cat
+:END:

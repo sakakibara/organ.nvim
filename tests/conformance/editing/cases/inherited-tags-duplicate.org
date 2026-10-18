@@ -1,0 +1,3 @@
+# op: inherited-tags
+* Project :work:
+** Task :work:

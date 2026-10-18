@@ -1,0 +1,6 @@
+# op: set-property FOO new
+* A@@C@@
+:PROPERTIES:
+:FOO:      1
+:FOO+:     2
+:END:

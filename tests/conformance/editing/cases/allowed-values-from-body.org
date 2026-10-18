@@ -1,0 +1,6 @@
+# op: allowed-values X
+* A
+:PROPERTIES:
+:X_ALL: a b
+:END:
+body@@C@@

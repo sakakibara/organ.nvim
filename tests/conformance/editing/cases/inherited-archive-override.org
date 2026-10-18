@@ -1,0 +1,9 @@
+# op: inherited-property-all ARCHIVE
+* Parent
+:PROPERTIES:
+:ARCHIVE: alpha
+:END:
+** Child
+:PROPERTIES:
+:ARCHIVE: gamma
+:END:

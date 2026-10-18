@@ -1,0 +1,10 @@
+# op: inherited-property-all ARCHIVE
+* Top
+:PROPERTIES:
+:ARCHIVE: a
+:END:
+** Mid
+:PROPERTIES:
+:ARCHIVE+: b
+:END:
+*** Leaf

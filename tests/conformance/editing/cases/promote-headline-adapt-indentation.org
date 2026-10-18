@@ -1,0 +1,4 @@
+# op: promote-headline
+# setup: adapt-t
+** A@@C@@
+   body

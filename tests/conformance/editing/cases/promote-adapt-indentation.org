@@ -1,0 +1,7 @@
+# op: promote
+# setup: adapt-t
+** A@@C@@
+   body
+ under-indented
+     over
+*** b

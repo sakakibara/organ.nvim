@@ -1,0 +1,4 @@
+# op: fill
+#+begin_src sh
+echo @@C@@a long shell line with many words that should not be wrapped at all by fill paragraph ever ok
+#+end_src

@@ -1,0 +1,11 @@
+# op: sort-entries k
+* P@@C@@
+** a
+:LOGBOOK:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+:END:
+** b
+:LOGBOOK:
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 13:00] =>  3:00
+:END:
+** c

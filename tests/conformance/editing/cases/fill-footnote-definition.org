@@ -1,0 +1,2 @@
+# op: fill
+[fn:1] @@C@@a footnote definition with many words that should wrap beyond the fill column of seventy ok

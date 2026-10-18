@@ -1,0 +1,8 @@
+# op: inherited-property-all CATEGORY
+#+CATEGORY: file-cat
+* Top
+:PROPERTIES:
+:CATEGORY: top-cat
+:END:
+** Mid
+*** Leaf

@@ -1,0 +1,8 @@
+# op: sort-entries n
+* P@@C@@
+** 10 ten
+** 9 nine
+** x no number
+** -3 neg
+** 2.5 frac
+** 1e3 sci

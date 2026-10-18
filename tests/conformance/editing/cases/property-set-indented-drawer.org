@@ -1,0 +1,5 @@
+# op: set-property FOO bar
+* A@@C@@
+  :PROPERTIES:
+  :X:        1
+  :END:

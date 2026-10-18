@@ -1,0 +1,15 @@
+# op: startup
+#+STARTUP: showall
+* A
+:PROPERTIES:
+:VISIBILITY: folded
+:END:
+a body
+** a1
+* B
+:PROPERTIES:
+:VISIBILITY: children
+:END:
+** b1
+b1 body
+*** b1x

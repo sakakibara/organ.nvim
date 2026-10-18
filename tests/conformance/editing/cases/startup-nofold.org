@@ -1,0 +1,18 @@
+# op: startup
+#+STARTUP: nofold
+* A
+a body
+:PROPERTIES:
+:X: 1
+:END:
+** a1
+a1 body
+*** a1x
+x body
+** a2
+* B
+#+begin_src sh
+echo
+#+end_src
+** b1
+* C
