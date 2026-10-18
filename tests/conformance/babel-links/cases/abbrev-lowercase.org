@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: follow
+#+link: lc https://lc.example/%s
+Go [[lc:a<CURSOR>b]]

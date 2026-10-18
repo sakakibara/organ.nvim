@@ -1,0 +1,41 @@
+#+CONFORMANCE-OP: follow
+#+bibliography: refs.bib
+#+bibliography: more.bib
+#+cite_export: basic author-year
+* Cites
+L5 [cite:@knuth84] simple
+L6 [cite/t:see @knuth84 p. 3; <CURSOR>@doe:2020] multi
+L7 [cite:common pre; @knuth84; @doe:2020; common suf] global
+L8 [cite: @knuth84] leading space
+L9 [cite:@] empty key
+L10 [cite/style/variant:@extra1] variant
+L11 [cite:@knuth84 [nested] x] nested
+L12 [cite:@a.b-c_d:e/f] punct key
+L13 [cite:@trail.] trailing dot
+L14 [cite:no key here] nokey
+L15 [cite/:@x] empty style
+L16 [cite:@k1;@k2;] trailing semi
+L17 [CITE:@upper] uppercase
+L18 [cite:@ünï] unicode
+L19 =[cite:@verb]= in verbatim
+#+print_bibliography:
+#+CONFORMANCE-FILE: refs.bib
+@book{knuth84,
+  author = {Donald E. Knuth},
+  title = {The TeXbook},
+  year = {1984},
+  publisher = {Addison-Wesley}
+}
+
+@article{doe:2020,
+  author = {Doe, Jane and Roe, Richard},
+  title = {On Things},
+  journal = {J. Stuff},
+  year = {2020}
+}
+#+CONFORMANCE-FILE: more.bib
+@misc{extra1,
+  author = {Extra Person},
+  title = {Extra},
+  year = {2001}
+}

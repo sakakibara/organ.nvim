@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: execute-buffer
+#+NAME: dbl
+#+begin_src sh :var n=2
+echo $((n*2))
+#+end_src
+
+Value call_dbl(n=4) and src_sh{echo 7} and src_sh[:results raw]{echo *b*}.

@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :dir nosuch
+<CURSOR>pwd
+#+end_src

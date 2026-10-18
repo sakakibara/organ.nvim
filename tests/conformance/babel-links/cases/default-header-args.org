@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: execute
+#+CONFORMANCE-EMACS: (org-babel-default-header-args:sh '((:var . "x=\"langdef\"")))
+#+CONFORMANCE-EMACS: (org-babel-default-header-args (cons '(:wrap . "quote") org-babel-default-header-args))
+#+begin_src sh
+<CURSOR>echo $x
+#+end_src

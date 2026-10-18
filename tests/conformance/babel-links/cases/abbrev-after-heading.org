@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: follow
+* H
+#+LINK: late https://late.example/%s
+Go [[late:x<CURSOR>y]]

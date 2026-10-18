@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: fn-action
+* A
+Text[fn:a].
+
+* Footnotes
+[fn:a] See also[f<CURSOR>n:b].
+[fn:b] B def.

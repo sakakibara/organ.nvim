@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: follow
+Go [[fo<CURSOR>o]]
+* foo
+#+NAME: foo
+| a |

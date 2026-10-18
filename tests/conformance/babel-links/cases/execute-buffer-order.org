@@ -1,0 +1,15 @@
+#+CONFORMANCE-OP: execute-buffer
+#+begin_src sh :results silent
+echo first >> log.txt
+#+end_src
+#+begin_src sh :results silent
+echo second >> log.txt
+#+end_src
+* COMMENT skipped
+#+begin_src sh :results silent
+echo commented >> log.txt
+#+end_src
+* Arch :ARCHIVE:
+#+begin_src sh :results silent
+echo archived >> log.txt
+#+end_src

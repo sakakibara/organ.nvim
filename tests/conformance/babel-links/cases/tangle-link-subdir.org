@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: tangle
+* H
+#+begin_src sh :tangle sub/x.sh :comments link :mkdirp yes
+echo a
+#+end_src

@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :cache yes
+<CURSOR>echo hi
+#+end_src

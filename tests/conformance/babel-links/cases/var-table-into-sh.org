@@ -1,0 +1,16 @@
+#+CONFORMANCE-OP: execute
+#+NAME: tbl
+| a | 1 |
+| b | 2 |
+
+#+begin_src sh :var t=tbl :results output
+<CURSOR>echo "$t"
+#+end_src
+
+#+NAME: ls
+- p
+- q
+
+#+begin_src sh :var l=ls :results output
+echo "$l"
+#+end_src

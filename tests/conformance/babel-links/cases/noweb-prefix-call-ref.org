@@ -1,0 +1,25 @@
+#+CONFORMANCE-OP: tangle
+#+NAME: a
+#+begin_src sh
+echo A1
+echo A2
+#+end_src
+
+#+NAME: num
+#+begin_src sh
+echo 42
+#+end_src
+
+#+begin_src sh :noweb-ref grp
+echo G1
+#+end_src
+
+#+begin_src sh :noweb-ref grp
+echo G2
+#+end_src
+
+#+begin_src sh :noweb yes :tangle out.sh
+# pre <<a>>
+echo "num=<<num()>>"
+<<grp>>
+#+end_src

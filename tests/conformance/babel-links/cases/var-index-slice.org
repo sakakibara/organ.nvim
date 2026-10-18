@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: execute
+#+NAME: tbl
+| a | 1 |
+| b | 2 |
+| c | 3 |
+
+#+begin_src python :var x=tbl[1,1] y=tbl[0] z=tbl[1:2,0] n=(+ 1 2) :results output
+<CURSOR>print(repr(x)); print(repr(y)); print(repr(z)); print(repr(n))
+#+end_src

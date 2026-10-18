@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :results value
+<CURSOR>echo a b; echo c d; false
+#+end_src

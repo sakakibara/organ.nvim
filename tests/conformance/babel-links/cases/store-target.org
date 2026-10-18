@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: store
+* Head
+Here is <<my tar<CURSOR>get>> in text.

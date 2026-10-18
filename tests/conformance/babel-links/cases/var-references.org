@@ -1,0 +1,22 @@
+#+CONFORMANCE-OP: execute
+#+NAME: tbl
+| a | 1 |
+| b | 2 |
+
+#+NAME: lst
+- x
+- y
+
+#+NAME: blk
+#+begin_src sh
+echo fromblk
+#+end_src
+
+#+NAME: ex
+#+begin_example
+literal ex
+#+end_example
+
+#+begin_src python :var t=tbl :var l=lst :var b=blk :var e=ex :var i=tbl[1,1] :var n=(+ 1 2) :var q=7 :var f=1.5 :results output
+<CURSOR>for v in (t, l, b, e, i, n, q, f): print(repr(v))
+#+end_src

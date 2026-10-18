@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: fn-action
+* A
+Some text<CURSOR> here.
+* B
+More.

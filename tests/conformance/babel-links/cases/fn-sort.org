@@ -1,0 +1,17 @@
+#+CONFORMANCE-OP: fn-sort
+* Intro
+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].
+
+[fn:3] Three def.
+
+Second para of three.
+
+* Notes
+More text[fn:20].
+
+[fn:named] Named def.
+[fn:7] Seven def
+continues here.
+
+[fn:20] Twenty.
+[fn:99] Unreferenced.

@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: execute
+#+NAME: wrapper
+#+begin_src emacs-lisp :var x="d"
+(concat "<" x ">")
+#+end_src
+
+#+begin_src sh :post wrapper(x=*this*)
+<CURSOR>echo hi
+#+end_src

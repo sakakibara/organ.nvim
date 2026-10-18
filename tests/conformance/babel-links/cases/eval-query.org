@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: execute
+#+CONFORMANCE-PROMPTS: show
+#+CONFORMANCE-EMACS: (org-confirm-babel-evaluate nil)
+#+CONFORMANCE-ORGAN: set("babel.confirm_evaluate", false)
+#+begin_src sh :eval query
+<CURSOR>echo hi
+#+end_src

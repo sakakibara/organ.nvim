@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: follow
+Go [[id:abc-1<CURSOR>23]]
+* Other
+* Target
+:PROPERTIES:
+:ID: abc-123
+:END:

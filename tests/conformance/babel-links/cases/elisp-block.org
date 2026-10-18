@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src emacs-lisp
+<CURSOR>(+ 1 2)
+#+end_src

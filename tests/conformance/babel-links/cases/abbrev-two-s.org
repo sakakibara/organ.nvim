@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: follow
+#+LINK: two https://ex.com/%s/%s
+Go [[two:a<CURSOR>b]]

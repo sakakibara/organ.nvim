@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: follow
+Go [[*Target H<CURSOR>eading]]
+* Other
+* TODO [#A] Target Heading :tag:

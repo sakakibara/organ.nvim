@@ -1,0 +1,28 @@
+#+CONFORMANCE-OP: bib-files
+#+SETUPFILE: sub/setup.org
+#+bibliography: "my refs.bib"
+#+BIBLIOGRAPHY: a.bib b.bib
+* H
+[cite:@knuth84] [cite:@extra1]
+#+CONFORMANCE-FILE: my refs.bib
+@book{knuth84,
+  author = {Donald E. Knuth},
+  title = {The TeXbook},
+  year = {1984},
+  publisher = {Addison-Wesley}
+}
+
+@article{doe:2020,
+  author = {Doe, Jane and Roe, Richard},
+  title = {On Things},
+  journal = {J. Stuff},
+  year = {2020}
+}
+#+CONFORMANCE-FILE: sub/more.bib
+@misc{extra1,
+  author = {Extra Person},
+  title = {Extra},
+  year = {2001}
+}
+#+CONFORMANCE-FILE: sub/setup.org
+#+bibliography: more.bib

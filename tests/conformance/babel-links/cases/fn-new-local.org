@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: fn-new
+#+CONFORMANCE-EMACS: (org-footnote-section nil)
+* A
+Some text<CURSOR> here.
+* B
+More.

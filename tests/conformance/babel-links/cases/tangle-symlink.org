@@ -1,0 +1,12 @@
+#+CONFORMANCE-OP: tangle
+#+CONFORMANCE-SYMLINK: link.sh real.sh
+#+begin_src sh :tangle link.sh
+echo one
+#+end_src
+#+begin_src sh :tangle same.sh
+echo same
+#+end_src
+#+CONFORMANCE-FILE: real.sh
+old
+#+CONFORMANCE-FILE: same.sh
+echo same

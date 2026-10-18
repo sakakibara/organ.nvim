@@ -1,0 +1,40 @@
+#+CONFORMANCE-OP: tangle
+* Top heading
+Some prose here.
+#+begin_src sh :tangle a.sh :comments link
+echo one
+#+end_src
+
+#+NAME: named
+#+begin_src sh :tangle a.sh :comments link
+echo two
+#+end_src
+
+** Sub
+Prose for org comment.
+#+begin_src sh :tangle b.sh :comments org
+echo three
+#+end_src
+
+#+begin_src sh :tangle c.sh :comments both
+echo four
+#+end_src
+
+#+begin_src sh :tangle d.sh :comments yes :padline no
+echo five
+#+end_src
+#+begin_src sh :tangle d.sh :comments yes :padline no
+echo six
+#+end_src
+
+#+begin_src sh :tangle e.sh :shebang "#!/bin/sh"
+echo seven
+#+end_src
+
+#+begin_src sh :tangle f.sh :tangle-mode (identity #o600)
+echo eight
+#+end_src
+
+#+begin_src sh :tangle g/h/i.sh :mkdirp yes
+echo nine
+#+end_src

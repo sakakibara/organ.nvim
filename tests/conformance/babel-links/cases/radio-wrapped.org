@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: follow
+* Defs
+<<<my phrase>>>
+* Use
+we say my
+phr<CURSOR>ase here.

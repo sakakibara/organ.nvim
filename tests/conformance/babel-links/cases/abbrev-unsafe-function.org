@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: follow
+#+LINK: pct https://ex.com/%(identity)
+Go [[pct:a<CURSOR>b]]

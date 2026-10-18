@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: follow
+#+LINK: srch https://example.com/q?x=%h
+Go [[srch:a b&c/d?<CURSOR>e]]

@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: execute
+#+PROPERTY: header-args :results output
+#+PROPERTY: header-args+ :var a="plus"
+* H
+:PROPERTIES:
+:header-args+: :var b="dplus"
+:END:
+#+begin_src sh :results table
+<CURSOR>printf "a=$a b=$b\n1 2\n"
+#+end_src

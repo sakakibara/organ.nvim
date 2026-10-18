@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: execute
+#+CONFORMANCE-PROMPTS: show
+#+NAME: foo
+#+begin_src sh
+<CURSOR>echo hi
+#+end_src

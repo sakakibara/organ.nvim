@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: execute
+#+NAME: nm
+#+begin_src sh :results output file :file sub2/out.txt :mkdirp yes
+<CURSOR>echo hi
+#+end_src

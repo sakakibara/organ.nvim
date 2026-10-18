@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :wrap
+<CURSOR>echo hi
+#+end_src

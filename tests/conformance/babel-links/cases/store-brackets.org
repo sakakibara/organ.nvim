@@ -1,0 +1,2 @@
+#+CONFORMANCE-OP: store
+* Weird [x] na<CURSOR>me

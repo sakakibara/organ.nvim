@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: follow
+Go [[#my-i<CURSOR>d]]
+* Other
+* Target
+:PROPERTIES:
+:CUSTOM_ID: my-id
+:END:

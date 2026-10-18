@@ -162,6 +162,7 @@ BL-223	FIX	8.11	emacs
 BL-224	FIX	8.11	emacs
 BL-225	FIX	8.11	emacs
 BL-226	KEEP+FIX	8.11	organ-target
+BL-227	FIX	8.9	emacs
 CF-1	FIX	8.7	emacs
 CF-2	FIX	8.7	emacs
 CF-3	FIX	8.7	emacs

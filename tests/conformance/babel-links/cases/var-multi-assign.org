@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: execute
+#+PROPERTY: header-args :var a="prop" b="prop"
+* H
+#+begin_src sh :var b="line" a="line2"
+<CURSOR>echo "a=$a b=$b"
+#+end_src

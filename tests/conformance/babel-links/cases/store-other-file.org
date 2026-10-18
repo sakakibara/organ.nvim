@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: store sub/far.org
+Insert here:<CURSOR>
+#+CONFORMANCE-FILE: sub/far.org
+* Far Head
+body

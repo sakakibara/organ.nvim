@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :results output :dir newdir :mkdirp yes
+<CURSOR>pwd
+#+end_src

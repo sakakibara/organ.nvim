@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: fn-new
+#+CONFORMANCE-EMACS: (org-footnote-auto-label 'anonymous)
+* A
+Some text<CURSOR> here.
+* B
+More.

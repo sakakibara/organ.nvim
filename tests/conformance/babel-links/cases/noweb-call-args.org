@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: execute
+#+NAME: a
+#+begin_src sh :var x="v"
+echo "x=$x"
+#+end_src
+
+#+begin_src sh :noweb yes :results output
+<CURSOR>echo "r=<<a(x="w")>>"
+#+end_src

@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: execute
+#+begin_src python :results output :tangle t.py
+<CURSOR>print("hi" + """(ref:a)
+""".strip())
+#+end_src

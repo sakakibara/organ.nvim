@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: follow
+Go [[fo<CURSOR>o]]
+* foo
+Text <<foo>> here.
+#+NAME: foo
+| a |

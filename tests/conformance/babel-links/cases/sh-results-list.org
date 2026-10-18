@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh :results list
+<CURSOR>printf 'x\ny\n'
+#+end_src

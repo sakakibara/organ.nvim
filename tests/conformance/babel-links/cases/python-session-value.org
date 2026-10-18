@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: execute
+<CURSOR>#+begin_src python :session p1 :results value
+y = 3
+y * 2
+#+end_src
+
+#+begin_src python :results value
+y = 3
+y * 2
+#+end_src

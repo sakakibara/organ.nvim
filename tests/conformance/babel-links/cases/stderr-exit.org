@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh
+<CURSOR>echo out; echo err >&2; exit 3
+#+end_src

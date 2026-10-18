@@ -1,0 +1,33 @@
+#+CONFORMANCE-OP: tangle
+* H
+  #+begin_src sh :tangle a.sh
+    indented
+      more
+  #+end_src
+
+#+begin_src sh :tangle a.sh :noweb yes
+# x <<nm>>
+<<nm>>
+#+end_src
+
+#+NAME: nm
+#+begin_src sh
+line1
+line2
+#+end_src
+
+#+begin_src sh :tangle b.sh :noweb yes :comments noweb
+  <<nm>>
+#+end_src
+
+#+begin_src sh :tangle no
+skip
+#+end_src
+
+#+begin_src sh :tangle "q.sh" :padline yes
+quoted
+#+end_src
+
+#+begin_src sh :tangle c.sh :comments link :noweb-ref zz
+x
+#+end_src

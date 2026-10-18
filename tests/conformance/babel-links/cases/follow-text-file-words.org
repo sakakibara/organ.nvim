@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: follow
+See [[<CURSOR>file:t.txt::needle]]
+#+CONFORMANCE-FILE: t.txt
+line one
+second needle line
+* not heading

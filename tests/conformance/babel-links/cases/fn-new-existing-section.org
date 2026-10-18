@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: fn-new
+* A
+Text with[fn:3] and[fn:1] and[fn:named]<CURSOR>.
+
+* Footnotes
+[fn:1] one
+[fn:3] three
+[fn:named] named

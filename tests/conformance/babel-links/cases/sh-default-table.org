@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh
+<CURSOR>printf 'a b\nc d\n'
+#+end_src

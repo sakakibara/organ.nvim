@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: execute
+#+PROPERTY: header-args:sh :var x=filelang
+* H
+#+begin_src sh
+<CURSOR>echo $x
+#+end_src

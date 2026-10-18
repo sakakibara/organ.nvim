@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: execute
+#+NAME: dbl
+#+begin_src sh :var n=2
+echo $((n*2))
+#+end_src
+
+<CURSOR>#+CALL: dbl(n=5)

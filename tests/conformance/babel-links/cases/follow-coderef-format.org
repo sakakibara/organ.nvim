@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: follow
+#+begin_src emacs-lisp -l "<<%s>>"
+(setq x 1) <<lx>>
+(setq y 2) <<ly>>
+#+end_src
+In line [[(l<CURSOR>y)]] we set y.

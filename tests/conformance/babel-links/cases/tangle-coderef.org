@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: tangle
+#+begin_src python :results output :tangle t.py
+print("hi" + """(ref:a)
+""".strip())
+#+end_src

@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: follow
+#+CONFORMANCE-EMACS-EVAL: (save-excursion (goto-char (point-min)) (forward-line 1) (end-of-line) (insert " edited"))
+#+CONFORMANCE-ORGAN: require("organ").scan_blocking(DIR, 10000)
+#+CONFORMANCE-ORGAN: vim.api.nvim_buf_set_lines(B, 1, 2, false, { "* Other edited" })
+Go [[i<CURSOR>d:abc-123]]
+* Other
+* Target
+:PROPERTIES:
+:ID: abc-123
+:END:

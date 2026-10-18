@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src python :results value table
+<CURSOR>return 'a b\\nc d'
+#+end_src

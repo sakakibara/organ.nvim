@@ -1,0 +1,20 @@
+#+CONFORMANCE-OP: execute
+#+NAME: src
+#+begin_src sh
+echo fresh
+#+end_src
+
+#+RESULTS: src
+: stale
+
+#+NAME: onlyres
+: just a result
+
+#+begin_src sh :var a=src :var b=onlyres :var c="two words" :var d=other.org:ext :var e='(1 2)
+<CURSOR>echo "a=$a b=$b c=$c d=$d e=$e"
+#+end_src
+#+CONFORMANCE-FILE: other.org
+#+NAME: ext
+#+begin_src sh
+echo external
+#+end_src

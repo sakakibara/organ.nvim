@@ -1,0 +1,16 @@
+#+CONFORMANCE-OP: follow
+See [[<CURSOR>file+emacs:other.org::*First]]
+#+CONFORMANCE-FILE: other.org
+#+TITLE: Other
+Intro line with needle word.
+* First
+* TODO Second Heading [1/2] :x:
+:PROPERTIES:
+:CUSTOM_ID: sec2
+:END:
+body foo123bar
+<<tgt>> dedicated target
+#+NAME: tbl
+| 1 |
+* COMMENT Third
+line nine needle

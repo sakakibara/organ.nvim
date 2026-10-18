@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: fn-action
+* A
+First[fn:<CURSOR>a] and again[fn:a] here.
+Missing[fn:zz] ref.
+Anon[fn:: inline body] ref and named[fn:nm: named body] inline.
+Bare def below.
+
+* Footnotes
+[fn:a] Def of a.
+[fn:lone]

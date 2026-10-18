@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: fn-renumber
+* A
+Text[fn:5] and code =[fn:5]= and ~[fn:9]~.
+
+[fn:5] Five.

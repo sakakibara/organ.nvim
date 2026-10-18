@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: store
+Before any he<CURSOR>ading.
+* Head

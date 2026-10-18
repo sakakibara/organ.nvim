@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: execute-buffer
+#+CONFORMANCE-DIR: sub
+#+begin_src sh :dir sub
+pwd
+#+end_src
+#+begin_src sh
+pwd
+#+end_src

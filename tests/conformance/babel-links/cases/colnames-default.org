@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: execute
+#+NAME: tb
+| k | v |
+|---+---|
+| a | 1 |
+| b | 2 |
+
+#+begin_src python :var t=tb :results value 
+<CURSOR>return [r for r in t]
+#+end_src

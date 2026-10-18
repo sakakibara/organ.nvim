@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: execute
+#+CONFORMANCE-DIR: sub
+#+NAME: nm
+#+begin_src sh :results output file :file out.txt :output-dir sub
+<CURSOR>echo hi
+#+end_src

@@ -1,0 +1,2 @@
+#+CONFORMANCE-OP: insert-link https://b.example new desc
+X [[https://a.example][o<CURSOR>ld]] Y

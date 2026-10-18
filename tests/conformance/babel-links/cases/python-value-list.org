@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: execute
+#+begin_src python :results value 
+<CURSOR>return [1,2,3]
+#+end_src

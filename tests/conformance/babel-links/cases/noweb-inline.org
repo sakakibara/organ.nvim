@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: execute
+#+NAME: a
+#+begin_src sh
+echo A1
+echo A2
+#+end_src
+
+#+begin_src sh :noweb yes :results output
+<CURSOR>echo inline <<a>> end
+#+end_src

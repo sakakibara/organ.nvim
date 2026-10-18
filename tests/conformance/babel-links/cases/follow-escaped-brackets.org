@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: follow
+See [[<CURSOR>file:w.org::*Weird \[x\] name]]
+#+CONFORMANCE-FILE: w.org
+* Intro
+* Weird [x] name
+alpha
+beta needle

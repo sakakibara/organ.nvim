@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: execute
+* T
+  #+begin_src sh
+  <CURSOR>echo hi
+  #+end_src

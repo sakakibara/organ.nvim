@@ -1,0 +1,12 @@
+#+CONFORMANCE-OP: tangle
+#+NAME: a
+#+begin_src sh
+echo A1
+echo A2
+#+end_src
+
+#+begin_src sh :noweb yes :tangle out.sh
+echo start
+<<missing>>
+echo inline <<a>> end
+#+end_src

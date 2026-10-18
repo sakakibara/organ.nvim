@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: follow
+#+CONFORMANCE-EMACS-EVAL: (put 'upcase 'org-link-abbrev-safe t)
+#+LINK: up https://ex.com/%(upcase)
+Go [[up:a<CURSOR>b]]

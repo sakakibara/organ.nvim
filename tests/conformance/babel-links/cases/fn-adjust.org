@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: fn-new
+#+STARTUP: fnadjust
+* A
+Text[fn:2] more[fn:1] and here<CURSOR>.
+
+* Footnotes
+
+[fn:1] One.
+
+[fn:2] Two.

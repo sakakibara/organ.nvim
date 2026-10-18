@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: execute
+#+begin_src sh
+<CURSOR>echo new
+#+end_src
+
+#+RESULTS: other
+: theirs
