@@ -171,6 +171,27 @@ jobs:
       - name: section parity-check
         run: make parity-section-check
 
+      - name: fetch org-roam and its dependencies (pinned)
+        # The capture gate's roam cases compare against org-roam; pinned
+        # so the oracle cannot move under the gate.
+        run: |
+          set -eux
+          fetch() {
+            git init -q "/tmp/roam/$1"
+            git -C "/tmp/roam/$1" fetch -q --depth 1 "$2" "$3"
+            git -C "/tmp/roam/$1" checkout -q FETCH_HEAD
+          }
+          fetch compat https://github.com/emacs-compat/compat 9a234d0d28cccd33f64faea6074fa2865a17c164
+          fetch dash https://github.com/magnars/dash.el 1de9dcb83eacfb162b6d9a118a4770b1281bcd84
+          fetch emacsql https://github.com/magit/emacsql fb05d0f72729a4b4452a3b1168a9b7b35a851a53
+          fetch magit https://github.com/magit/magit 93e86ceca7bf5b0ff9023d7f138e5f06990fc276
+          fetch org-roam https://github.com/org-roam/org-roam 9fd7c87b5b9037ec0d450c58ca7f69e8d25eeb24
+
+      - name: conformance gates
+        env:
+          CONFORMANCE_ORG_ROAM_PATH: /tmp/roam/compat:/tmp/roam/dash:/tmp/roam/emacsql:/tmp/roam/magit/lisp:/tmp/roam/org-roam:/tmp/roam/org-roam/extensions
+        run: make conformance
+
   smoke-lazy:
     name: smoke (lazy.nvim install + load)
     runs-on: ubuntu-latest

@@ -16,6 +16,12 @@ builds:
     B=~/.config/emacs/elpaca/builds
     CONFORMANCE_ORG_ROAM_PATH=$B/compat:$B/dash:$B/emacsql:$B/magit-section:$B/org-roam
 
+From source checkouts (as CI fetches them, pinned in
+.github/workflows/test.yml) magit-section is `magit/lisp` and
+org-roam-dailies lives in `org-roam/extensions`, so both go on the path:
+
+    CONFORMANCE_ORG_ROAM_PATH=$R/compat:$R/dash:$R/emacsql:$R/magit/lisp:$R/org-roam:$R/org-roam/extensions
+
 Oracle versions: Emacs 31.1, org 9.8.7 (built in), org-roam
 v2.2.2-67-g9fd7c87 (the `org-roam-version` of the builds above).
 
