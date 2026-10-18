@@ -825,6 +825,18 @@ Runtime: `:Org conceal toggle` toggles all conceal at once;
 `:Org conceal toggle <element>` flips one element and re-applies
 marks across loaded org buffers.
 
+## Compatibility
+
+organ supports Neovim 0.11 and newer.  CI tests the oldest supported
+release (0.11), the current stable release, and nightly; nightly is
+tested but not supported.
+
+organ has no releases: `main` is the contract.  Commit subjects follow
+[Conventional Commits](https://www.conventionalcommits.org/), and a
+change that breaks a documented command, option, default, or file
+format is marked with `!` (for example `fix(capture)!:`); its commit
+message says how to migrate.
+
 ## Differences from Emacs
 
 The agenda render mirrors Emacs's defaults (category prefix, `[#A]`
