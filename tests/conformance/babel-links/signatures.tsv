@@ -193,3 +193,4 @@ wrap-bare-drawer.org	BL-17	TRANSITIONAL	1	-#+end_results\n+:end:
 wrap-bare.org	BL-17	TRANSITIONAL	1	-#+begin_results\n-hi\n-#+end_results\n+: hi
 tangle-unknown-language.org	BL-227	TRANSITIONAL	1	+=== files\n+--- w/u.txt (644)\n+// [[file:case.org::*H][H:1]]\n+raw\n+// H:1 ends here
 tangle-unknown-language.org	BL-227	TRANSITIONAL	1	-! error tangle
+follow-unknown-type-fuzzy.org	BL-228	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * ROAM_REFS:https://x.org/b\n+=== point case.org 1:16\n+=== line Go [[ROAM_REFS:https://x.org/b]]

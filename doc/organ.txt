@@ -3070,10 +3070,12 @@ Clock persist file ~
     organ.nvim: `<stdpath data>/organ/clock.json`.
     Why: Same idea, Neovim-native path.
 
-Property-value link match ~
-    Emacs: Pattern-based.
-    organ.nvim: Token-membership exact match.
-    Why: Clearer semantics, no false positives on ROAM_REFS.
+Property-value links ~
+    Emacs: No property-value links; `[[KEY:value]]` is a fuzzy link to
+    a heading or target named `KEY:value`.
+    organ.nvim: `[[KEY:value]]` jumps to the headline whose KEY property
+    holds `value` as one of its whitespace-separated tokens.
+    Why: Follow ROAM_REFS and similar multi-value properties exactly.
 
 Property key case ~
     Emacs: Lenient.
