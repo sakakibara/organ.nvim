@@ -461,7 +461,7 @@ function M.index_file_sync(path)
   -- DB write. We deliberately don't use the mtime fast-path here: a save
   -- triggered within the same second as the prior index would falsely
   -- match. Per-file cost is one sha256 + one indexed SELECT.
-  local hash = vim.fn.sha256(src)
+  local hash = require("organ.compat").sha256(src)
   if M.should_skip(h, path, nil, hash) == "hash" then
     return
   end

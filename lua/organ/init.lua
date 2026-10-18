@@ -390,7 +390,7 @@ local function index_body(op, tier)
     mtime = mtime or mt
   end
 
-  local hash = vim.fn.sha256(src)
+  local hash = require("organ.compat").sha256(src)
   if M.config.hash_skip and indexer.should_skip(h, path, nil, hash) == "hash" then
     if tier == "background" and M._scan.in_flight then
       M._scan.ok_count = M._scan.ok_count + 1

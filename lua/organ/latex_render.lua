@@ -98,7 +98,7 @@ end
 local function key_for(text, kind, fg, dpi, preamble)
   local raw =
     table.concat({ text, kind or "", fg or "", tostring(dpi or 150), preamble or "" }, "\1")
-  return vim.fn.sha256(raw):sub(1, 32)
+  return require("organ.compat").sha256(raw):sub(1, 32)
 end
 
 -- Run a command, return ok, stdout, stderr.

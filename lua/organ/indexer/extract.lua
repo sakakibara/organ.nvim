@@ -49,7 +49,7 @@ local function extractor_version()
   if info:sub(1, 1) == "@" then
     local f = io.open(info:sub(2), "r")
     if f then
-      parts[#parts + 1] = "i:" .. vim.fn.sha256(f:read("*a"))
+      parts[#parts + 1] = "i:" .. require("organ.compat").sha256(f:read("*a"))
       f:close()
     end
   end
@@ -58,11 +58,11 @@ local function extractor_version()
   if sp then
     local f = io.open(sp, "r")
     if f then
-      parts[#parts + 1] = "s:" .. vim.fn.sha256(f:read("*a"))
+      parts[#parts + 1] = "s:" .. require("organ.compat").sha256(f:read("*a"))
       f:close()
     end
   end
-  _extractor_version = vim.fn.sha256(table.concat(parts, "|"))
+  _extractor_version = require("organ.compat").sha256(table.concat(parts, "|"))
   return _extractor_version
 end
 M._extractor_version = extractor_version -- exposed for tests
