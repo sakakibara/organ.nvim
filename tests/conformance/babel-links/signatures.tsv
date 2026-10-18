@@ -5,7 +5,7 @@ abbrev-hex.org	BL-113	TRANSITIONAL	1	-=== open https://example.com/q?x=a%20b%26c
 abbrev-lowercase.org	BL-115	TRANSITIONAL	1	-=== open https://lc.example/ab
 abbrev-two-s.org	BL-116	TRANSITIONAL	1	-=== open https://ex.com/ab/%s\n+=== open https://ex.com/ab/ab
 abbrev-unsafe-function.org	BL-117	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * pct:ab\n+=== point case.org 2:10\n+=== line Go [[pct:ab]]\n+=== open https://ex.com/%(identity)ab
-cache-hash.org	BL-18	TRANSITIONAL	1	-#+RESULTS[f08260b217ba0bc40c3526427381055117b81645]:\n+#+RESULTS[944da39c45bd1622c268bfa966d0a3d8e8f02df6]:
+cache-hash.org	BL-18	TRANSITIONAL	1	-#+RESULTS[f08260b217ba0bc40c3526427381055117b81645]:\n+#+RESULTS[b3cdfe479e17b4440ce227f448fd34aa462b9487]:
 call-line.org	BL-41	TRANSITIONAL	1	+! error execute
 call-line.org	BL-41	TRANSITIONAL	1	-\n-#+RESULTS:\n-: 10
 cite-bib-files.org	BL-223,BL-224	TRANSITIONAL	1	-doe:2020\n-extra1\n-knuth84
