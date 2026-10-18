@@ -1,0 +1,69 @@
+- a
+  #+begin_example
+  x
+  #+end_example
+=====
+- a
+  #+begin_quote
+  x
+  #+end_quote
+=====
+- a
+  #+NAME: k
+  #+begin_src sh
+  x
+  #+end_src
+=====
+- a
+  # comment
+=====
+- a
+  -----
+=====
+- a
+  CLOCK: [2026-01-01 Thu 10:00]
+=====
+- a
+
+  #+begin_src sh
+  x
+  #+end_src
+=====
+- a
+  b
+  #+begin_src sh
+  x
+  #+end_src
+=====
+1. a
+   #+begin_src sh
+   x
+   #+end_src
+=====
+- #+begin_src sh
+  x
+  #+end_src
+=====
+* h
+  #+begin_src sh
+  x
+  #+end_src
+=====
+* h
+  | t |
+=====
+* h
+  :DRAWER:
+  x
+  :END:
+=====
+  | t |
+  | u |
+=====
+  :DRAWER:
+  x
+  :END:
+=====
+  \begin{x}
+  y
+  \end{x}

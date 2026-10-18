@@ -1,0 +1,7 @@
+#+TITLE: t *bold* x
+=====
+#+CAPTION: c *bold* x
+plain *bold* x
+=====
+#+CAPTION[s *b*]: long /i/
+| a |

@@ -1,0 +1,132 @@
+# Expected element/object differences against org-element (format: tests/conformance/_signatures.lua).
+blocks.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-2:1\n-subscript 1:7-1:11\n+src-block 1:0-2:1 language=python
+blocks.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-2:1\n+drawer 1:0-2:1 name=DRAWER\n+paragraph 2:0-2:1
+blocks.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-2:1\n+dynamic-block 1:0-2:1 name=clocktable\n+paragraph 2:0-2:1
+blocks.org	PR-11	TRANSITIONAL	1	-paragraph 1:0-3:13\n-subscript 1:7-1:13\n-subscript 3:5-3:13\n+quote-block 1:0-3:13\n+paragraph 2:0-2:1
+blocks.org	PR-11	TRANSITIONAL	1	-paragraph 1:0-3:14\n-latex-fragment 1:0-1:13\n-latex-fragment 3:0-3:14\n+latex-environment 1:0-3:14
+blocks.org	PR-13	TRANSITIONAL	1	-paragraph 1:0-1:5\n+paragraph 1:0-1:2\n+fixed-width 1:2-1:5
+blocks.org	PR-14	TRANSITIONAL	2	-drawer 3:0-5:5 name=PROPERTIES\n-paragraph 4:0-4:5\n+property-drawer 3:0-5:5\n+node-property 4:0-4:5 key=A value=1
+blocks.org	PR-18	TRANSITIONAL	1	-diary-sexp 1:0-1:32 value=%%(diary-anniversary 1 1 2000) x\n+paragraph 1:0-1:32
+blocks.org	PR-19	TRANSITIONAL	1	-fixed-width 2:0-2:3 aff=RESULTS\n+paragraph 1:0-1:15\n+fixed-width 2:0-2:3
+blocks.org	PR-19	TRANSITIONAL	1	-paragraph 2:0-2:9 aff=CAPTION\n+paragraph 1:0-2:9
+blocks.org	PR-20	TRANSITIONAL	1	-keyword 1:0-1:14 key=CAPTION value=cap\n-table 3:0-3:5 type=org\n+table 3:0-3:5 type=org aff=CAPTION
+blocks.org	PR-21	TRANSITIONAL	1	-babel-call 1:0-1:13 key=CALL value=foo()\n+keyword 1:0-1:13 key=CALL value=foo()
+blocks.org	PR-21	TRANSITIONAL	1	-table 1:0-3:13 type=org tblfm=2\n+table 1:0-1:5 type=org tblfm=2
+blocks.org	PR-22	TRANSITIONAL	1	-table 1:0-3:5 type=table.el\n+paragraph 1:0-1:5\n+strike-through 1:0-1:5\n+table 2:0-2:5 type=org\n+table-row 2:0-2:5 type=standard\n+table-cell 2:2-2:5\n+paragraph 3:0-3:5\n+strike-through 3:0-3:5
+blocks.org	PR-23	TRANSITIONAL	1	-paragraph 2:0-2:1\n-keyword 3:0-3:6 key=END\n+paragraph 2:0-3:6
+blocks.org	PR-8	TRANSITIONAL	1	-bold 2:1-2:4\n-italic 2:5-2:8
+headlines.org	PR-3	TRANSITIONAL	1	-headline 1:0-1:8 level=1 priority=a title=x\n-entry level=1 priority=a title=x\n+headline 1:0-1:8 level=1 title=[#a] x\n+entry level=1 title=[#a] x
+headlines.org	PR-3	TRANSITIONAL	1	-headline 1:0-1:9 level=1 priority=10 title=x\n-entry level=1 priority=10 title=x\n+headline 1:0-1:9 level=1 title=[#10] x\n+entry level=1 title=[#10] x
+headlines.org	PR-4	TRANSITIONAL	1	-headline 1:0-1:8 level=1 title=TODO\\tx\n-entry level=1 title=TODO\\tx\n+headline 1:0-1:8 level=1 todo=TODO title=x\n+entry level=1 todo=TODO title=x
+headlines.org	PR-5	TRANSITIONAL	1	-entry level=1 title=x :a:b\n+entry level=1 tags=a,b title=x
+headlines.org	PR-6	TRANSITIONAL	1	-entry level=1 tags=a,b title=x\n+entry level=1 title=x :a:b: 
+headlines.org	PR-7	TRANSITIONAL	1	-headline 1:0-1:6 level=1 todo=DONE\n+headline 1:0-1:6 level=1 title=DONE
+headlines.org	PR-7	TRANSITIONAL	1	-headline 1:0-1:6 level=1 todo=TODO\n+headline 1:0-1:6 level=1 title=TODO
+inline-objects-more.org	PR-32	TRANSITIONAL	1	-export-snippet 1:0-2:3
+inline-objects-more.org	PR-32	TRANSITIONAL	1	-footnote-reference 1:0-2:5
+inline-objects-more.org	PR-32	TRANSITIONAL	1	-inline-src-block 1:0-2:2
+inline-objects-more.org	PR-32	TRANSITIONAL	1	-macro 1:0-2:5
+inline-objects-more.org	PR-32	TRANSITIONAL	1	-verbatim 1:2-2:2
+inline-objects-more.org	PR-33	TRANSITIONAL	1	+bold 1:0-1:5
+inline-objects-more.org	PR-33	TRANSITIONAL	1	+bold 1:1-1:4
+inline-objects-more.org	PR-33	TRANSITIONAL	2	+bold 1:2-1:5
+inline-objects-more.org	PR-36	TRANSITIONAL	1	-entity 1:0-1:2
+inline-objects-more.org	PR-37	TRANSITIONAL	1	-inline-src-block 1:0-1:13\n+inline-src-block 1:0-1:11
+inline-objects-more.org	PR-37	TRANSITIONAL	1	-subscript 1:1-1:3
+inline-objects-more.org	PR-37	TRANSITIONAL	1	-superscript 1:1-1:9\n+superscript 1:1-1:7
+inline-objects-more.org	PR-38	TRANSITIONAL	1	-link 1:0-1:14
+inline-objects-more.org	PR-39	TRANSITIONAL	1	-footnote-reference 1:0-1:7
+inline-objects.org	PR-32	TRANSITIONAL	1	-bold 1:0-4:2
+inline-objects.org	PR-32	TRANSITIONAL	2	-link 1:0-2:3
+inline-objects.org	PR-33	TRANSITIONAL	1	-bold 1:2-1:7\n-bold 1:3-1:6\n+bold 1:2-1:6
+inline-objects.org	PR-34	TRANSITIONAL	1	+latex-fragment 1:0-1:3
+inline-objects.org	PR-34	TRANSITIONAL	1	+latex-fragment 1:0-1:4
+inline-objects.org	PR-35	TRANSITIONAL	1	-latex-fragment 1:0-1:10\n+entity 1:0-1:4
+inline-objects.org	PR-35	TRANSITIONAL	1	-latex-fragment 1:0-1:7\n+entity 1:0-1:7
+inline-objects.org	PR-35	TRANSITIONAL	1	-latex-fragment 1:0-1:9\n+entity 1:0-1:5
+inline-objects.org	PR-36	TRANSITIONAL	1	-entity 1:0-1:2
+inline-objects.org	PR-40	TRANSITIONAL	1	+macro 1:0-1:8
+inline-objects.org	PR-40	TRANSITIONAL	2	+target 1:0-1:6
+inline-objects.org	PR-41	TRANSITIONAL	1	-link 1:0-1:15
+inline-objects.org	PR-41	TRANSITIONAL	1	-link 1:0-1:6
+inline-objects.org	PR-41	TRANSITIONAL	1	-link 1:0-1:8
+inline-objects.org	PR-41	TRANSITIONAL	1	+link 1:0-1:14
+inline-objects.org	PR-8	TRANSITIONAL	1	-bold 1:11-1:14
+inline-objects.org	PR-8	TRANSITIONAL	1	-bold 1:2-1:5
+inline-objects.org	PR-8	TRANSITIONAL	1	-bold 1:6-1:9
+inline-objects.org	PR-8	TRANSITIONAL	1	-link 1:4-1:12\n-bold 1:13-1:16\n-timestamp 1:17-1:33 type=active
+inline-objects.org	PR-8	TRANSITIONAL	1	-link 2:0-2:8
+inline-objects.org	PR-8	TRANSITIONAL	1	-timestamp 1:8-1:24 type=active
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-clock 2:2-2:31\n+paragraph 1:2-2:31\n+timestamp 2:9-2:31 type=inactive
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-comment 2:2-2:11\n+paragraph 1:2-2:11
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-example-block 2:2-4:15\n+paragraph 1:2-4:15\n+subscript 2:9-2:17\n+subscript 4:7-4:15
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-horizontal-rule 2:2-2:7\n+paragraph 1:2-2:7
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-quote-block 2:2-4:13\n-paragraph 3:2-3:3\n+paragraph 1:2-4:13\n+subscript 2:9-2:15\n+subscript 4:7-4:13
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-src-block 3:2-5:11 language=sh aff=NAME name=k\n+paragraph 1:2-5:11\n+subscript 3:9-3:13\n+subscript 5:7-5:11
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-2:3\n-src-block 3:2-5:11 language=sh\n+paragraph 1:2-5:11\n+subscript 3:9-3:13\n+subscript 5:7-5:11
+item-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:3-1:4\n-src-block 2:3-4:12 language=sh\n+paragraph 1:3-4:12\n+subscript 2:10-2:14\n+subscript 4:8-4:12
+item-elements.org	PR-9	TRANSITIONAL	1	-src-block 3:2-5:11 language=sh\n+paragraph 3:2-5:11\n+subscript 3:9-3:13\n+subscript 5:7-5:11
+lists.org	PR-12	TRANSITIONAL	1	-paragraph 1:0-3:10\n-subscript 1:7-1:11\n+src-block 1:0-3:2 language=sh\n+paragraph 3:2-3:10
+lists.org	PR-12	TRANSITIONAL	1	-paragraph 1:0-3:12\n-subscript 1:7-1:11\n+src-block 1:0-3:2 language=sh\n+paragraph 3:2-3:12
+lists.org	PR-18	TRANSITIONAL	1	-diary-sexp 2:0-2:32 value=%%(diary-anniversary 1 1 2000) x\n+paragraph 2:0-2:32
+lists.org	PR-24	KEEP	1	-item 4:0-4:7 bullet=-\n+item 4:0-4:7 bullet=- checkbox=on
+lists.org	PR-25	TRANSITIONAL	1	-item 1:0-1:13 bullet=- tag=a :: b\n-paragraph 1:12-1:13\n+item 1:0-1:13 bullet=- tag=a\n+paragraph 1:7-1:13
+lists.org	PR-26	TRANSITIONAL	1	-plain-list 1:0-1:1\n-item 1:0-1:1 bullet=-\n+paragraph 1:0-1:1
+lists.org	PR-27	TRANSITIONAL	1	-inlinetask 2:0-2:27 level=15 title=inline task\n+inlinetask 2:0-3:4 level=15 title=inline task
+lists.org	PR-28	TRANSITIONAL	1	-statistics-cookie 1:4-1:9
+lists.org	PR-7	TRANSITIONAL	1	-headline 1:0-1:6 level=1 todo=TODO\n+headline 1:0-1:6 level=1 title=TODO
+lists.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-src-block 2:2-4:11 language=sh\n+paragraph 1:2-4:11\n+subscript 2:9-2:13\n+subscript 4:7-4:11
+mixed-elements.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-1:14\n-subscript 1:7-1:11\n+src-block 1:0-1:14 language=sh
+mixed-elements.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-1:15\n-subscript 1:7-1:15\n+example-block 1:0-1:15
+mixed-elements.org	PR-10	TRANSITIONAL	1	-paragraph 1:0-1:8\n+drawer 1:0-1:8 name=DRAWER
+mixed-elements.org	PR-14	TRANSITIONAL	1	-drawer 2:0-4:5 name=PROPERTIES\n-paragraph 3:0-3:6\n+property-drawer 2:0-4:5\n+node-property 3:0-3:6 key=ID value=x\n+file-id x
+mixed-elements.org	PR-15	TRANSITIONAL	1	-planning 2:0-2:27 scheduled=<2026-01-01 Thu>\n-paragraph 3:0-3:26\n-timestamp 3:10-3:26 type=active\n+planning 2:0-3:26 deadline=<2026-01-02 Fri> scheduled=<2026-01-01 Thu>
+mixed-elements.org	PR-16	TRANSITIONAL	1	-drawer 1:0-4:5 name=A\n-paragraph 2:0-3:1\n-paragraph 5:0-5:5\n+drawer 1:0-5:5 name=A\n+drawer 2:0-4:5 name=B\n+paragraph 3:0-3:1
+mixed-elements.org	PR-17	TRANSITIONAL	1	-quote-block 1:0-4:11\n-paragraph 2:0-3:1\n-subscript 2:7-2:13\n-paragraph 5:0-5:11\n-subscript 5:5-5:11\n+quote-block 1:0-5:11\n+quote-block 2:0-4:11\n+paragraph 3:0-3:1
+mixed-elements.org	PR-20	TRANSITIONAL	1	-keyword 1:0-1:9 key=NAME value=n\n-src-block 3:0-5:9 language=sh\n+src-block 3:0-5:9 language=sh aff=NAME name=n
+mixed-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-drawer 2:2-4:7 name=DRAWER\n-paragraph 3:2-3:3\n+paragraph 1:2-4:7
+mixed-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-fixed-width 2:2-2:9\n+paragraph 1:2-2:9
+mixed-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-latex-environment 2:2-4:16\n+paragraph 1:2-4:16\n+entity 2:2-2:9\n+entity 4:2-4:7
+mixed-elements.org	PR-9	TRANSITIONAL	1	-paragraph 1:2-1:3\n-table 2:2-2:7 type=org\n-table-row 2:2-2:7 type=standard\n-table-cell 2:4-2:7\n+paragraph 1:2-2:7
+parsed-keywords.org	PR-19	TRANSITIONAL	1	-table 2:0-2:5 type=org aff=CAPTION\n+table 2:0-2:5 type=org
+parsed-keywords.org	PR-19	TRANSITIONAL	1	+paragraph 1:0-1:26
+parsed-keywords.org	PR-8	TRANSITIONAL	1	-bold 1:13-1:19
+plain-links.org	PR-41	TRANSITIONAL	1	-link 1:2-1:10
+plain-links.org	PR-41	TRANSITIONAL	1	-link 1:6-1:12
+planning-placement.org	PR-14	TRANSITIONAL	1	-drawer 2:0-4:5 name=PROPERTIES\n-paragraph 3:0-3:6\n+property-drawer 2:0-4:5\n+node-property 3:0-3:6 key=ID value=x
+planning-placement.org	PR-14	TRANSITIONAL	1	-drawer 2:0-4:5 name=PROPERTIES\n-paragraph 3:0-3:6\n+property-drawer 2:0-4:5\n+node-property 3:0-3:6 key=ID value=x\n+file-id x
+planning-placement.org	PR-14	TRANSITIONAL	1	-drawer 3:0-5:5 name=PROPERTIES\n-paragraph 4:0-4:6\n+property-drawer 3:0-5:5\n+node-property 4:0-4:6 key=ID value=y
+planning-placement.org	PR-14	TRANSITIONAL	1	-drawer 3:0-5:5 name=PROPERTIES\n-paragraph 4:0-4:6\n+property-drawer 3:0-5:5\n+node-property 4:0-4:6 key=ID value=z
+planning-placement.org	PR-14	TRANSITIONAL	1	+file-id x
+planning-placement.org	PR-15	TRANSITIONAL	1	-planning 2:0-2:27 scheduled=<2026-01-01 Thu>\n-paragraph 3:0-3:26\n-timestamp 3:10-3:26 type=active\n+planning 2:0-3:26 deadline=<2026-01-02 Fri> scheduled=<2026-01-01 Thu>
+smoke.org	PR-8	TRANSITIONAL	1	-bold 1:18-1:21
+table-cells.org	PR-8	TRANSITIONAL	1	-bold 1:4-1:7
+table-cells.org	PR-8	TRANSITIONAL	1	-timestamp 1:8-1:24 type=active
+table-cells.org	PR-8	TRANSITIONAL	2	-bold 1:1-1:4
+table-cells.org	PR-8	TRANSITIONAL	2	-bold 1:2-1:5
+timestamps-citations.org	PR-29	TRANSITIONAL	1	-timestamp 1:2-1:23 type=active
+timestamps-citations.org	PR-29	TRANSITIONAL	1	-timestamp 1:2-1:26 type=active
+timestamps-citations.org	PR-29	TRANSITIONAL	1	-timestamp 1:2-1:32 type=active
+timestamps-citations.org	PR-29	TRANSITIONAL	1	-timestamp 1:2-1:36 type=active-range
+timestamps-citations.org	PR-29	TRANSITIONAL	2	-timestamp 1:2-1:22 type=active
+timestamps-citations.org	PR-29	TRANSITIONAL	2	-timestamp 1:2-1:25 type=active
+timestamps-citations.org	PR-29	TRANSITIONAL	3	-timestamp 1:2-1:27 type=active
+timestamps-citations.org	PR-30	TRANSITIONAL	1	-timestamp 1:2-1:36 type=active-range\n+timestamp 1:2-1:18 type=active
+timestamps-citations.org	PR-31	TRANSITIONAL	1	-citation 1:2-1:20\n-citation-reference 1:8-1:19
+timestamps-citations.org	PR-31	TRANSITIONAL	1	+citation-reference 1:22-1:32
+timestamps-citations.org	PR-31	TRANSITIONAL	1	+citation-reference 1:8-1:18
+timestamps-citations.org	PR-31,PR-32	TRANSITIONAL	1	-citation 1:2-2:5\n-citation-reference 1:8-2:4
+inline-objects.org	PR-38,PR-41	TRANSITIONAL	2	-link 1:0-1:10
+blocks.org	PR-42	TRANSITIONAL	1	-planning 2:0-2:27\n+planning 2:0-2:27 scheduled=<2026-01-01 Thu>
+blocks.org	PR-43	TRANSITIONAL	1	-table-row 1:0-1:1 type=standard\n+table-row 1:0-1:1 type=rule
+headlines.org	PR-45	TRANSITIONAL	1	-headline 1:0-1:10 level=1 tags=a,,b title=x\n-entry level=1 tags=a,,b title=x\n+headline 1:0-1:10 level=1 title=x :a::b:\n+entry level=1 tags=a,b title=x
+headlines.org	PR-46	TRANSITIONAL	1	-headline 1:0-1:11 level=1 tags=ünï title=x\n+headline 1:0-1:11 level=1 title=x :ünï:
+headlines.org	PR-44	TRANSITIONAL	1	-headline 1:0-1:9 level=1 commented=t\n+headline 1:0-1:9 level=1 title=COMMENT
+inline-objects-more.org	PR-47	TRANSITIONAL	1	-link 1:12-1:13
+inline-objects.org	PR-52	TRANSITIONAL	1	+link 1:0-1:8
+inline-objects.org	PR-48	TRANSITIONAL	1	-bold 1:14-1:17
+inline-objects.org	PR-49	TRANSITIONAL	1	-bold 1:22-1:25
+inline-objects.org	PR-51	TRANSITIONAL	1	-link 1:0-1:14\n+link 1:1-1:13
+inline-objects.org	PR-50	TRANSITIONAL	1	-subscript 1:3-1:7
+inline-objects.org	PR-50	TRANSITIONAL	1	-subscript 1:4-1:6
+planning-malformed.org	PR-42	TRANSITIONAL	1	-planning 2:0-2:27\n+planning 2:0-2:27 scheduled=<2026-01-01 Thu>

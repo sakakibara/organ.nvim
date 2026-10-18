@@ -1,0 +1,283 @@
+#+begin_src python
+x
+#+end_src
+=====
+#+begin_src python
+x
+#+END_SRC
+=====
+#+begin_src
+x
+#+end_src
+=====
+#+BEGIN_SRC python
+x
+#+end_src   
+=====
+#+begin_src python
+x
+=====
+#+begin_quote
+a
+#+end_quote
+=====
+#+begin_quote
+a
+#+end_example
+=====
+#+begin_foo
+a
+#+end_foo
+=====
+#+begin_foo bar
+a
+#+end_foo
+=====
+  #+begin_example
+  a
+  #+end_example
+=====
+#+begin_example
+,* not head
+#+end_example
+=====
+#+begin_verse
+ *b* /i/
+#+end_verse
+=====
+#+begin_center
+*b*
+#+end_center
+=====
+#+begin_comment
+x
+#+end_comment
+=====
+#+begin_export html
+<b>
+#+end_export
+=====
+#+begin_export
+<b>
+#+end_export
+=====
+#+begin:
+x
+#+end:
+=====
+#+BEGIN: clocktable :scope file
+x
+#+END:
+=====
+#+BEGIN: clocktable :scope file
+x
+=====
+\begin{equation}
+x
+\end{equation}
+=====
+\begin{equation*}
+x
+\end{equation*}
+=====
+\begin{align}
+x
+\end{equation}
+=====
+  \begin{foo}
+x
+\end{foo}   
+=====
+\begin{foo} trailing
+x
+\end{foo}
+=====
+:DRAWER:
+x
+:END:
+=====
+:DRAWER:
+x
+=====
+:drawer-name_1:
+x
+:end:
+=====
+:PROPERTIES:
+:A: 1
+:END:
+* h
+=====
+* h
+:PROPERTIES:
+:A: 1
+:END:
+=====
+* h
+SCHEDULED: <2026-01-01 Thu>
+:PROPERTIES:
+:A: 1
+:END:
+=====
+* h
+
+:PROPERTIES:
+:A: 1
+:END:
+=====
+* h
+foo
+:PROPERTIES:
+:A: 1
+:END:
+=====
+* h
+:PROPERTIES:
+:A:
+:B+: x
+:END:
+=====
+* h
+:PROPERTIES:
+bad line
+:END:
+=====
+* h
+:PROPERTIES:
+:A: 1
+:END:
+:LOGBOOK:
+- note
+:END:
+=====
+* h
+  SCHEDULED: <2026-01-01 Thu>
+=====
+* h
+
+SCHEDULED: <2026-01-01 Thu>
+=====
+* h
+SCHEDULED: <2026-01-01 Thu> foo
+=====
+* h
+DEADLINE: <2026-01-01 Thu> SCHEDULED: <2026-01-02 Fri> CLOSED: [2026-01-01 Thu 10:00]
+=====
+* h
+SCHEDULED:<2026-01-01 Thu>
+=====
+* h
+scheduled: <2026-01-01 Thu>
+=====
+* h
+SCHEDULED: [2026-01-01 Thu]
+=====
+* h
+SCHEDULED: <%%(diary-float t 4 2)>
+=====
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+=====
+CLOCK: [2026-01-01 Thu 10:00]
+=====
+CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00]
+=====
+  CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] => 1:00 extra
+=====
+-----
+=====
+----
+=====
+  -----  
+=====
+------ x
+=====
+: fixed
+:  more
+:
+=====
+:fixed
+=====
+# comment
+#not comment
+=====
+#
+=====
+#+KEY: value
+=====
+#+KEY:
+=====
+#+KEY: value
+#+KEY2:val
+=====
+#+key value
+=====
+#+: x
+=====
+#+CAPTION: cap
+#+NAME: n
+| a |
+=====
+#+CAPTION: cap
+
+| a |
+=====
+#+NAME: n
+#+begin_src sh
+x
+#+end_src
+=====
+#+ATTR_HTML: :width 10
+[[file:a.png]]
+=====
+#+attr_foo: x
+paragraph
+=====
+#+CAPTION[short]: long
+paragraph
+=====
+#+RESULTS:
+: 1
+=====
+#+RESULTS[abc]:
+: 1
+=====
+#+TBLFM: $1=2
+=====
+#+CALL: foo()
+=====
+%%(diary-anniversary 1 1 2000) x
+=====
+[fn:1] def
+=====
+[fn:1] def
+
+
+next para
+=====
+[fn:1] def
+[fn:2] def2
+=====
+ [fn:1] not def
+=====
+[fn:a-b_c] x
+=====
+[fn:] x
+=====
+| a | b |
+|---+---|
+| 1 | 2 |
+=====
+|a
+|b
+=====
+| a |
+#+TBLFM: $1=1
+#+TBLFM: $2=2
+=====
++---+
+| a |
++---+
+=====
+  | a |
+=====
+|

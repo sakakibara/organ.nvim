@@ -1,0 +1,26 @@
+* TODO h
+SCHEDULED: <2026-01-01 Thu>
+DEADLINE: <2026-01-02 Fri>
+=====
+#+TITLE: t
+:PROPERTIES:
+:ID: x
+:END:
+* h
+=====
+#+TITLE: t
+:PROPERTIES:
+:ID: x
+:END:
+=====
+* h
+
+:PROPERTIES:
+:ID: y
+:END:
+=====
+* h
+foo
+:PROPERTIES:
+:ID: z
+:END:

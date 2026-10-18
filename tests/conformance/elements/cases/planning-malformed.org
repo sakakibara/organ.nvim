@@ -1,0 +1,29 @@
+* TODO x
+SCHEDULED: <2026-01-01 Mon 25:99>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu 9:5>
+=====
+* TODO x
+scheduled: <2026-01-01 Thu>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu10:00>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu 10:00-11>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu 10:00 +1>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu +1x>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu foo bar>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu 1:00am>
+=====
+* TODO x
+SCHEDULED: <2026-01-01 Thu>--[2026-01-02 Fri]

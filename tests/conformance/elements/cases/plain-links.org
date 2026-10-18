@@ -1,0 +1,15 @@
+/ file:a.org
+=====
+/ id:abc
+=====
+/ news:comp.emacs
+=====
+/ shell:ls
+=====
+/ elisp:foo
+=====
+/ attachment:x.png
+=====
+/ https://a.org
+=====
+plain id:abc here
