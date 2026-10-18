@@ -18,7 +18,7 @@
 ;;; side effects.  For cursor-position-dependent ops, place point via
 ;;; the `<CURSOR>' marker rather than hard-coding goto-char.
 ;;;
-;;; Determinism (mirrors emacs-agenda-snapshot.el): TZ=UTC,
+;;; Determinism: TZ=UTC,
 ;;; LC_TIME=C, `org-today' / `current-time' pinned via fixed-today.
 ;;; Most parity ops don't depend on the date, but pinning costs
 ;;; nothing and prevents flakes when an op DOES (e.g. timestamp-

@@ -6,7 +6,7 @@
 ;;;
 ;;; Applies the OPS.md matrix to a temp copy of each seed and prints, to
 ;;; stdout, each result file separated by a "==> name" banner. Determinism
-;;; is pinned exactly as emacs-agenda-snapshot.el does (TZ, locale, clock).
+;;; is pinned: TZ, locale and the clock.
 
 (require 'cl-lib)
 (require 'org)

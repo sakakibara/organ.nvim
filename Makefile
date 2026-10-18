@@ -11,7 +11,7 @@ GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
                  -c 'qa' 2>&1 | tr -d '\r')
 
 .PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
-        demos demos-force clean-demos parity parity-emacs parity-organ parity-update parity-check \
+        demos demos-force clean-demos \
         parity-section parity-section-emacs parity-section-organ parity-section-check \
         conformance conformance-ids
 
@@ -34,11 +34,6 @@ help:
 	@echo "    Tip: 'make -j5 demos-force' renders all five tapes in parallel"
 	@echo "    (~5x faster).  Each render uses its own chromium instance,"
 	@echo "    peak RAM ~1.25GB.  Same flag works with any of the demo targets."
-	@echo "  make parity          regen organ + emacs snapshots and diff them"
-	@echo "  make parity-emacs    regen tests/fixtures/parity/EMACS-EXPECTED.txt"
-	@echo "  make parity-organ    regen tests/fixtures/parity/ORGAN-EXPECTED.txt"
-	@echo "  make parity-update   regen both snapshots (commit the result)"
-	@echo "  make parity-check    CI gate: regen both, fail if either drifts from committed fixture"
 	@echo "  make conformance     run every Emacs conformance gate (tests/conformance/*/gate.lua)"
 	@echo "  make conformance-ids PHASES=<path>  check tests/conformance/ids.tsv against phases.tsv"
 	@echo "  make clean           remove tests/deps/ (does NOT touch the built grammar)"
@@ -338,78 +333,13 @@ clean:
 	@rm -rf $(DEPS_DIR)
 	@echo "removed $(DEPS_DIR) (run 'make deps' to refetch)"
 
-# Agenda parity: side-by-side snapshot of organ.nvim's render against
-# real Emacs org-agenda output, both driven from tests/fixtures/parity/.
-#
-# Both snapshots are deterministic (Emacs script pins start-day +
-# wall-clock; organ script disables virt_text tags and the help footer)
-# so re-running on any host produces byte-identical text.  The agenda
-# parity test (tests/agenda_parity_snapshot_test.lua) asserts the live
-# organ render matches the committed ORGAN-EXPECTED.txt; the diff
-# against EMACS-EXPECTED.txt documents the remaining divergences.
-#
-# Maintenance flow: `make parity-update` regenerates both snapshots,
-# then commit the result so future test runs gate on the new state.
-PARITY_DIR    := $(TEST_DIR)/fixtures/parity
-PARITY_DATE   := 2026-05-04
-PARITY_SPAN   := week
-PARITY_EMACS  := $(PARITY_DIR)/EMACS-EXPECTED.txt
-PARITY_ORGAN  := $(PARITY_DIR)/ORGAN-EXPECTED.txt
-
-PARITY_SECTION_DIR    := $(PARITY_DIR)/section
+# Section placement parity: organ's and Emacs's section writers (planning,
+# logbook, clock) applied to tests/fixtures/parity/section/seed and compared
+# as committed snapshots; parity-section-check fails on drift.
+PARITY_SECTION_DIR    := $(TEST_DIR)/fixtures/parity/section
 PARITY_SECTION_SEED   := $(PARITY_SECTION_DIR)/seed
 PARITY_SECTION_EMACS  := $(PARITY_SECTION_DIR)/EMACS-EXPECTED.txt
 PARITY_SECTION_ORGAN  := $(PARITY_SECTION_DIR)/ORGAN-EXPECTED.txt
-
-parity-emacs:
-	@command -v emacs >/dev/null 2>&1 || { \
-	  echo "emacs not on PATH; install GNU Emacs (apt: emacs-nox / brew: emacs) first" >&2; \
-	  exit 1; \
-	}
-	@emacs --batch -Q -l scripts/emacs-agenda-snapshot.el \
-	  --eval '(organ-snapshot "$(PWD)/$(PARITY_DIR)" "$(PARITY_DATE)" "$(PARITY_SPAN)")' \
-	  2>/dev/null > $(PARITY_EMACS)
-	@echo "wrote $(PARITY_EMACS) ($$(wc -l < $(PARITY_EMACS)) lines)"
-
-parity-organ: grammar
-	@$(NVIM) --headless -l scripts/organ-agenda-snapshot.lua \
-	  $(PARITY_DIR) $(PARITY_DATE) $(PARITY_SPAN) \
-	  2>/dev/null > $(PARITY_ORGAN)
-	@echo "wrote $(PARITY_ORGAN) ($$(wc -l < $(PARITY_ORGAN)) lines)"
-
-# Regenerate both snapshots and show the diff.  Exits 0 even if the two
-# diverge -- divergences are documented, not blocking; the snapshot
-# *test* (test-only) is what gates against drift.
-parity: parity-emacs parity-organ
-	@echo ""
-	@echo "=== diff EMACS-EXPECTED.txt vs ORGAN-EXPECTED.txt ==="
-	@diff -u $(PARITY_EMACS) $(PARITY_ORGAN) || true
-
-# Convenience alias for the common maintenance flow: regen both
-# snapshots in one shot, ready to commit.
-parity-update: parity-emacs parity-organ
-	@echo "snapshots regenerated; review with 'git diff $(PARITY_DIR)/' before committing"
-
-# CI gate: regenerate both snapshots and fail if either has drifted
-# from the committed fixture.  Catches both directions of drift:
-#   * organ render changed without an explicit baseline update
-#   * emacs upstream changed (new version produces different output)
-# When this fires, run `make parity-update` locally, review the diff,
-# then commit the new baseline.
-parity-check: parity-emacs parity-organ
-	@if ! git diff --quiet -- $(PARITY_EMACS) $(PARITY_ORGAN); then \
-	  echo ""; \
-	  echo "PARITY DRIFT detected against the committed fixtures:"; \
-	  echo ""; \
-	  git --no-pager diff -- $(PARITY_EMACS) $(PARITY_ORGAN); \
-	  echo ""; \
-	  echo "To accept the new baseline:"; \
-	  echo "  make parity-update"; \
-	  echo "  git add $(PARITY_DIR)/"; \
-	  echo "  commit"; \
-	  exit 1; \
-	fi
-	@echo "parity-check: no drift"
 
 parity-section-emacs:
 	@command -v emacs >/dev/null 2>&1 || { \

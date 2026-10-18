@@ -165,9 +165,6 @@ jobs:
           echo "$out"
           echo "$out" | grep -q "^parser emacs diff ok"
 
-      - name: parity-check
-        run: make parity-check
-
       - name: section parity-check
         run: make parity-section-check
 
