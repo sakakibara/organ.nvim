@@ -27,8 +27,8 @@
 ;;;     sides and `HOLD' is not a title word,
 ;;;   * `org-inlinetask' loaded, so a 15-star line is an inline task
 ;;;     rather than a very deep headline,
-;;;   * priority printed with `char-to-string' (org-element stores the
-;;;     character, organ stores the letter),
+;;;   * a letter priority printed as its character and a numeric one
+;;;     (org 9.8, 0-64) as its number, as organ prints them,
 ;;;   * `org-element-use-cache' nil, TZ=UTC, C locale, so repeated runs
 ;;;     on any host agree.
 
@@ -74,7 +74,9 @@
                   (organ-element-dump--escape
                    (org-element-property :todo-keyword headline))
                   (let ((priority (org-element-property :priority headline)))
-                    (if priority (char-to-string priority) ""))
+                    (cond ((null priority) "")
+                          ((< priority ?A) (number-to-string priority))
+                          (t (char-to-string priority))))
                   (organ-element-dump--escape
                    (mapconcat #'identity
                               (org-element-property :tags headline) ","))

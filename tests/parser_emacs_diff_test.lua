@@ -8,6 +8,11 @@
 --
 -- Run via: nvim --headless -l tests/parser_emacs_diff_test.lua
 --
+-- Each file's two dumps are diffed line by line.  A difference passes
+-- only when tests/conformance/parser/signatures.tsv records it, keyed to
+-- the divergence-inventory entry that rules on it (see
+-- tests/conformance/_signatures.lua).
+--
 -- A machine without Emacs skips.  Everything else -- a missing script, an
 -- empty fixture set, a dumper that will not run -- FAILS: a parity gate
 -- that cannot run is a failure to report, not a pass.
@@ -62,18 +67,71 @@ for i, text in ipairs(documents) do
   files[#files + 1] = path
 end
 
-local argv = { script }
+local signatures = dofile(root .. "/tests/conformance/_signatures.lua")
+local sig_path = root .. "/tests/conformance/parser/signatures.tsv"
+local ok_rows, rows = pcall(signatures.load, sig_path)
+if not ok_rows then
+  fail(tostring(rows))
+end
+
+local out_dir = vim.fn.tempname()
+local argv = { script, "--out", out_dir }
 vim.list_extend(argv, files)
 local out = vim.fn.system(argv)
 local status = vim.v.shell_error
 vim.fn.delete(corpus_dir, "rf")
+if status ~= 0 then
+  vim.fn.delete(out_dir, "rf")
+  fail("dump failed (exit " .. status .. "): " .. out)
+end
 
-if status == 0 then
+-- Split a dump into per-file record lists keyed by the file's basename.
+local function by_file(path)
+  local files_out, current = {}, nil
+  for line in io.lines(path) do
+    local f = line:match("^F\t(.*)$")
+    if f then
+      current = vim.fn.fnamemodify(f, ":t")
+      files_out[current] = files_out[current] or {}
+    elseif current then
+      table.insert(files_out[current], line)
+    end
+  end
+  return files_out
+end
+
+local emacs = by_file(out_dir .. "/emacs.txt")
+local organ = by_file(out_dir .. "/organ.txt")
+vim.fn.delete(out_dir, "rf")
+
+local observed = {}
+for name in pairs(vim.tbl_extend("keep", {}, emacs, organ)) do
+  local a, b = emacs[name] or {}, organ[name] or {}
+  local ta, tb = table.concat(a, "\n") .. "\n", table.concat(b, "\n") .. "\n"
+  local hunks = {}
+  for _, h in ipairs(vim.diff(ta, tb, { result_type = "indices" })) do
+    local parts = {}
+    for i = h[1], h[1] + h[2] - 1 do
+      parts[#parts + 1] = "-" .. a[i]
+    end
+    for i = h[3], h[3] + h[4] - 1 do
+      parts[#parts + 1] = "+" .. b[i]
+    end
+    hunks[#hunks + 1] = table.concat(parts, "\n")
+  end
+  if #hunks > 0 then
+    observed[name] = hunks
+  end
+end
+
+local problems = signatures.check(observed, rows)
+if #problems == 0 then
   io.write(
     string.format(
-      "parser emacs diff ok (%d fixtures + %d generated documents match Emacs)\n",
+      "parser emacs diff ok (%d fixtures + %d generated documents; %d expected difference(s))\n",
       #fixtures,
-      #documents
+      #documents,
+      #rows
     )
   )
   os.exit(0)
@@ -81,14 +139,13 @@ end
 
 io.write(
   string.format(
-    "parser emacs diff: FAIL (%d fixtures + %d generated documents, exit %d)\n",
+    "parser emacs diff: FAIL (%d fixtures + %d generated documents)\n",
     #fixtures,
-    #documents,
-    status
+    #documents
   )
 )
 io.write("  seed " .. CORPUS_SEED .. "; generated-NNNN.org is the NNNNth document from it\n")
-for line in out:gmatch("[^\r\n]+") do
-  io.write("  " .. line .. "\n")
+for _, p in ipairs(problems) do
+  io.write("  " .. p .. "\n")
 end
 os.exit(1)

@@ -3,6 +3,10 @@
 #
 # Usage:
 #   scripts/diff-against-emacs.sh FILE.org [FILE.org ...]
+#   scripts/diff-against-emacs.sh --out DIR FILE.org [FILE.org ...]
+#
+# With --out, the two dumps are written to DIR/emacs.txt and DIR/organ.txt
+# instead of being diffed, and the exit status is 0 once both exist.
 #
 # Both sides print the canonical structural dump described in
 # scripts/emacs-element-dump.el (headline level / TODO / priority / tags /
@@ -27,6 +31,13 @@ die() {
   echo "diff-against-emacs: $1" >&2
   exit 2
 }
+
+out_dir=""
+if [ "${1:-}" = "--out" ]; then
+  [ "$#" -ge 2 ] || die "--out needs a directory"
+  out_dir=$2
+  shift 2
+fi
 
 if [ "$#" -eq 0 ]; then
   echo "usage: $0 FILE.org [FILE.org ...]" >&2
@@ -69,7 +80,13 @@ fi
 [ -s "$tmpdir/emacs.txt" ] || die "emacs dump produced no output"
 [ -s "$tmpdir/organ.txt" ] || die "organ dump produced no output"
 
-if diff -u --label emacs "$tmpdir/emacs.txt" --label organ "$tmpdir/organ.txt"; then
+if [ -n "$out_dir" ]; then
+  mkdir -p "$out_dir" || die "cannot create $out_dir"
+  cp "$tmpdir/emacs.txt" "$tmpdir/organ.txt" "$out_dir/" || die "cannot write $out_dir"
+  exit 0
+fi
+
+if diff -a -u --label emacs "$tmpdir/emacs.txt" --label organ "$tmpdir/organ.txt"; then
   exit 0
 fi
 exit 1
