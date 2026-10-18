@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: cycle
+#+TYP_TODO: Fred Sara Lucy | OK
+* Fred <CURSOR>z
+* z

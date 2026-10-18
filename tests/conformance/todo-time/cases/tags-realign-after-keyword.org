@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: todo WAITING
+#+TODO: NEXT WAITING | DONE
+* NEXT <CURSOR>a                                                                  :tag:

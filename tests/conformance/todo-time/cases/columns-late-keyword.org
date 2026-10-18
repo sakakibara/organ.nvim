@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: columns-global
+* A
+:PROPERTIES:
+:X: 2
+:END:
+* B
+#+COLUMNS: %X

@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: schedule 2026-05-10
+#+CONFORMANCE-INPUT: why moved
+#+CONFORMANCE-EMACS: (org-log-reschedule 'note)
+#+CONFORMANCE-EMACS: (org-log-into-drawer t)
+#+CONFORMANCE-ORGAN: cfg.todo.log_reschedule = "note"
+* TODO timed<CURSOR>
+SCHEDULED: <2026-05-01 Fri 08:00>

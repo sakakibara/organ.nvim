@@ -1,0 +1,12 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-OP: note
+#+CONFORMANCE-INPUT: hello
+#+CONFORMANCE-PROFILE: defaults
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO(!)" "|" "DONE(!)")))
+#+CONFORMANCE-EMACS: (org-log-into-drawer t)
+#+CONFORMANCE-ORGAN: cfg.todo.sequence = { "TODO(!)", "|", "DONE(!)" }
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = false
+* H
+** TODO <CURSOR>a
+   SCHEDULED: <2026-05-05 Tue>
+   body

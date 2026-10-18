@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo OK
+#+TYP_TODO: Fred Sara | OK
+* Sara <CURSOR>a
+SCHEDULED: <2026-05-01 Fri +1w>

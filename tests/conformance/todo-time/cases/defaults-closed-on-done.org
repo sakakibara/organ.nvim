@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-PROFILE: defaults
+#+CONFORMANCE-OPTIONS: log-done-off
+* TODO <CURSOR>a
+  SCHEDULED: <2026-05-05 Tue>
+body

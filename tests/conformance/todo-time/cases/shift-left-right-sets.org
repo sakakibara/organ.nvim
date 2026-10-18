@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: right
+#+CONFORMANCE-OP: goto two
+#+CONFORMANCE-OP: left
+#+TODO: TODO NEXT | DONE
+#+TODO: BUG | FIXED
+* DONE <CURSOR>one
+* BUG two

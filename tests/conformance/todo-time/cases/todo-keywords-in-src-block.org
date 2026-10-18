@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: cycle
+#+begin_src org
+#+TODO: TODO WIP | DONE
+#+end_src
+* TODO <CURSOR>a

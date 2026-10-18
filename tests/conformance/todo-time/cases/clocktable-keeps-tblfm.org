@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: update-dblock
+<CURSOR>#+BEGIN: clocktable :maxlevel 1
+| old |
+#+TBLFM: @2$2=string("x")
+#+END:
+* A
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 08:00]--[2026-05-04 Mon 09:00] =>  1:00
+:END:

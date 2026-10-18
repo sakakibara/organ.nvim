@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-OP: clocking?
+* <CURSOR>a

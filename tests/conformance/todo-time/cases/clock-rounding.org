@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 1260
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-NOW: 2026-05-04 09:32
+#+CONFORMANCE-EMACS: (org-clock-rounding-minutes 5)
+* TODO <CURSOR>a
+body

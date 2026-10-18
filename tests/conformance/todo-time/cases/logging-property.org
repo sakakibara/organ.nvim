@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo DONE
+* TODO p
+:PROPERTIES:
+:LOGGING: DONE(!) logdrawer
+:END:
+** TODO <CURSOR>a

@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: deadline 2026-05-10
+#+CONFORMANCE-PROFILE: defaults
+#+CONFORMANCE-OPTIONS: planning-indent-flush
+* TODO plain<CURSOR>
+body

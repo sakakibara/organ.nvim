@@ -1,0 +1,14 @@
+#+CONFORMANCE-OP: update-dblock
+#+COLUMNS: %25ITEM %TODO %Effort{:}
+<CURSOR>#+BEGIN: columnview :id global
+#+END:
+* TODO A
+:PROPERTIES:
+:ID: aaa
+:Effort: 1:00
+:END:
+** B :t:
+:PROPERTIES:
+:Effort: 0:30
+:END:
+* C

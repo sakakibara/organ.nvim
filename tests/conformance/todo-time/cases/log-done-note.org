@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-INPUT: my note
+#+CONFORMANCE-EMACS: (org-log-done 'note)
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "note"
+* TODO <CURSOR>a
+body

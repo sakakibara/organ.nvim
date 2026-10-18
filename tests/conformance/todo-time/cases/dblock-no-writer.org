@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: update-all-dblocks
+* A
+#+BEGIN: nosuchblock :x 1
+keep
+#+END:

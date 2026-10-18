@@ -1,0 +1,5 @@
+#+CONFORMANCE-EMACS: (org-read-date-prefer-future nil)
+#+CONFORMANCE-OP: read-date 3
+#+CONFORMANCE-OP: read-date feb 29
+#+CONFORMANCE-OP: read-date 1/1
+* H

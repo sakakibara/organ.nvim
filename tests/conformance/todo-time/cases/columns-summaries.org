@@ -1,0 +1,24 @@
+#+CONFORMANCE-OP: columns-global
+#+COLUMNS: %TODO %TAGS %Effort{:} %N{+} %M{max} %Q{min} %R{mean}
+* TODO [#A] Parent  :work:
+** Child one  :x:
+:PROPERTIES:
+:Effort: 1:30
+:N: 3
+:M: 4
+:Q: 2
+:R: 1
+:END:
+** DONE Child two
+:PROPERTIES:
+:Effort: 45min
+:N: 2.5
+:M: 9
+:Q: 7
+:R: 2
+:END:
+*** Grand
+:PROPERTIES:
+:Effort: 1h
+:N: 1
+:END:

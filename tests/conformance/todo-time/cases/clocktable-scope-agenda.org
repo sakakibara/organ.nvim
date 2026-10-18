@@ -1,0 +1,21 @@
+#+CONFORMANCE-OP: update-all-dblocks
+#+BEGIN: clocktable :scope agenda
+#+END:
+
+#+BEGIN: clocktable :scope agenda :fileskip0 t
+#+END:
+
+#+BEGIN: clocktable :scope agenda :hidefiles t
+#+END:
+
+* Here
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 08:00]--[2026-05-04 Mon 08:30] =>  0:30
+:END:
+#+CONFORMANCE-FILE: b.org
+* Other file task
+:LOGBOOK:
+CLOCK: [2026-05-02 Sat 08:00]--[2026-05-02 Sat 10:00] =>  2:00
+:END:
+#+CONFORMANCE-FILE: c.org
+* No clocks here

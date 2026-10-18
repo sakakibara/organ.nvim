@@ -1,0 +1,35 @@
+#+CONFORMANCE-OP: columns-global
+#+COLUMNS: %A{X} %B{X/} %C{X%} %D{$} %E{:min} %F{:max} %G{:mean} %H{est+} %I{+;%.1f} %J{@min} %K{@max} %L{@mean} %M{:}
+* P
+** c1
+:PROPERTIES:
+:A: [X]
+:B: [X]
+:C: [ ]
+:D: 3.456
+:E: 1:30
+:F: 1:30
+:G: 1:30
+:H: 2-4
+:I: 1.25
+:J: <2026-05-01 Fri>
+:K: <2026-05-01 Fri>
+:L: <2026-05-01 Fri>
+:M: 1d 2h
+:END:
+** c2
+:PROPERTIES:
+:A: [ ]
+:B: [X]
+:C: [X]
+:D: 2
+:E: 0:20
+:F: 2h
+:G: 0:30
+:H: 1-1
+:I: 2
+:J: <2026-05-03 Sun>
+:K: <2026-05-03 Sun>
+:L: <2026-05-03 Sun>
+:M: 30min
+:END:

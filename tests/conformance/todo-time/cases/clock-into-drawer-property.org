@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-out
+* TODO <CURSOR>a
+:PROPERTIES:
+:CLOCK_INTO_DRAWER: nil
+:END:
+body

@@ -1,0 +1,13 @@
+#+CONFORMANCE-OP: update-all-dblocks
+#+COLUMNS: %ITEM %X{+}
+* A
+#+BEGIN: columnview
+#+END:
+** B
+:PROPERTIES:
+:X: 2
+:END:
+* C
+:PROPERTIES:
+:X: 5
+:END:

@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: eval-range
+#+CONFORMANCE-OP: goto <2026-05-04 Mon>--
+#+CONFORMANCE-OP: eval-range
+#+CONFORMANCE-OP: goto <2026-05-04 Mon 18:00>
+#+CONFORMANCE-OP: eval-range
+* H
+<CURSOR><2026-05-04 Mon 09:00>--<2026-05-05 Tue 11:30>
+<2026-05-04 Mon>--<2026-05-08 Fri>
+<2026-05-04 Mon 18:00>--<2026-05-04 Mon 09:15>

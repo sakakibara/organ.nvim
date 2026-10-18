@@ -752,7 +752,7 @@ TD-14	FIX	8.2	emacs
 TD-15	FIX	8.2	emacs
 TD-16	FIX	8.2	emacs
 TD-17	FIX	8.2	emacs
-TD-18	FIX	8.2	emacs
+TD-18	FIX	8.2	organ-target
 TD-19	FIX	8.2	emacs
 TD-20	FIX	8.2	emacs
 TD-21	FIX	8.2	emacs
@@ -852,6 +852,7 @@ TD-114	FIX+OPT	2.4	emacs
 TD-115	FIX	8.5	emacs
 TD-116	KEEP+FIX	8.5	emacs
 TD-117	KEEP+FIX	8.5	organ-target
+TD-118	FIX	8.5	emacs
 XT-1	FIX	3.6	emacs
 XT-2	FIX	3.6	emacs
 XT-3	FIX	3.6	emacs

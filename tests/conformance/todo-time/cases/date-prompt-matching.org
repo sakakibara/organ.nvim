@@ -1,0 +1,62 @@
+#+CONFORMANCE-OP: read-date <EMPTY>
+#+CONFORMANCE-OP: read-date .
+#+CONFORMANCE-OP: read-date +0
+#+CONFORMANCE-OP: read-date +2
+#+CONFORMANCE-OP: read-date +2d
+#+CONFORMANCE-OP: read-date +2w
+#+CONFORMANCE-OP: read-date +1m
+#+CONFORMANCE-OP: read-date +1y
+#+CONFORMANCE-OP: read-date -3d
+#+CONFORMANCE-OP: read-date -3
+#+CONFORMANCE-OP: read-date ++3
+#+CONFORMANCE-OP: read-date +
+#+CONFORMANCE-OP: read-date -
+#+CONFORMANCE-OP: read-date fri
+#+CONFORMANCE-OP: read-date +fri
+#+CONFORMANCE-OP: read-date -fri
+#+CONFORMANCE-OP: read-date friday
+#+CONFORMANCE-OP: read-date Fri
+#+CONFORMANCE-OP: read-date 3pm
+#+CONFORMANCE-OP: read-date 3am
+#+CONFORMANCE-OP: read-date 12am
+#+CONFORMANCE-OP: read-date 12pm
+#+CONFORMANCE-OP: read-date 15:00
+#+CONFORMANCE-OP: read-date 9h
+#+CONFORMANCE-OP: read-date 9h30
+#+CONFORMANCE-OP: read-date 12-15
+#+CONFORMANCE-OP: read-date 12:00-14:30
+#+CONFORMANCE-OP: read-date 12:00--14:30
+#+CONFORMANCE-OP: read-date 9:00+1:30
+#+CONFORMANCE-OP: read-date fri 3pm
+#+CONFORMANCE-OP: read-date 3pm fri
+#+CONFORMANCE-OP: read-date 2026-05-10
+#+CONFORMANCE-OP: read-date 2026-5-10
+#+CONFORMANCE-OP: read-date 26-05-10
+#+CONFORMANCE-OP: read-date 20260510
+#+CONFORMANCE-OP: read-date 5/10
+#+CONFORMANCE-OP: read-date 5/10/27
+#+CONFORMANCE-OP: read-date 10.5.
+#+CONFORMANCE-OP: read-date 10.5.2027
+#+CONFORMANCE-OP: read-date may 10
+#+CONFORMANCE-OP: read-date 10 may
+#+CONFORMANCE-OP: read-date May 10 2027
+#+CONFORMANCE-OP: read-date may
+#+CONFORMANCE-OP: read-date w18
+#+CONFORMANCE-OP: read-date w18-3
+#+CONFORMANCE-OP: read-date 2026-w18-3
+#+CONFORMANCE-OP: read-date w53
+#+CONFORMANCE-OP: read-date 24
+#+CONFORMANCE-OP: read-date 3
+#+CONFORMANCE-OP: read-date 31
+#+CONFORMANCE-OP: read-date feb 29
+#+CONFORMANCE-OP: read-date feb 31
+#+CONFORMANCE-OP: read-date 14
+#+CONFORMANCE-OP: read-date sat 10am
+#+CONFORMANCE-OP: read-date +3h
+#+CONFORMANCE-OP: read-date +2h 3pm
+#+CONFORMANCE-OP: read-date 2026-05-10 14:00
+#+CONFORMANCE-OP: read-date 2026-05-10 2pm
+#+CONFORMANCE-OP: read-date +1w 9am
+#+CONFORMANCE-OP: read-date 2025-12-31
+#+CONFORMANCE-OP: read-date 1/1
+* H

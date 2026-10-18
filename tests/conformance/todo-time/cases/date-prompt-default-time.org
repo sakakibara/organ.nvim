@@ -1,0 +1,6 @@
+#+CONFORMANCE-DEFAULT: 2026-06-10 10:00
+#+CONFORMANCE-OP: read-date ++3
+#+CONFORMANCE-OP: read-date <EMPTY>
+#+CONFORMANCE-OP: read-date ++fri
+#+CONFORMANCE-OP: read-date 3pm
+* H

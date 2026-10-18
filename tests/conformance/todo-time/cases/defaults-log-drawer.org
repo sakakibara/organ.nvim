@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO" "|" "DONE(!)")))
+#+CONFORMANCE-ORGAN: cfg.todo.sequence = { "TODO", "|", "DONE(!)" }
+#+CONFORMANCE-OPTIONS: log-into-drawer-off
+* TODO <CURSOR>a
+body

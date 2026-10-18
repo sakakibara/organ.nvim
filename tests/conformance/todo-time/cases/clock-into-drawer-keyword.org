@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-out
+#+STARTUP: logdrawer
+#+PROPERTY: CLOCK_INTO_DRAWER nil
+* TODO <CURSOR>a

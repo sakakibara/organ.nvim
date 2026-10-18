@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: columns
+#+COLUMNS: %TODO
+* Top
+** Parent
+*** Child <CURSOR>one
+*** Child two
+* Other

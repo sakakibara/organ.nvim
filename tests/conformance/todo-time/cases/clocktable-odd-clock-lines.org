@@ -1,0 +1,22 @@
+#+CONFORMANCE-OP: update-all-dblocks
+#+BEGIN: clocktable :maxlevel 2 :block today
+#+END:
+
+#+BEGIN: clocktable :maxlevel 2
+#+END:
+* Wrong arrow
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 08:00]--[2026-05-04 Mon 09:00] =>  5:00
+:END:
+* Arrow only
+CLOCK: => 2:00
+* Bare outside drawer
+CLOCK: [2026-05-03 Sun 08:00]--[2026-05-03 Sun 08:15] =>  0:15
+* Midnight
+:LOGBOOK:
+CLOCK: [2026-05-03 Sun 23:00]--[2026-05-04 Mon 01:00] =>  2:00
+:END:
+* In src block
+#+begin_src org
+CLOCK: [2026-05-03 Sun 08:00]--[2026-05-03 Sun 09:00] =>  1:00
+#+end_src

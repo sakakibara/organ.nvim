@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo DONE
+* TODO <CURSOR>a
+SCHEDULED: <2026-04-20 Mon +1w> DEADLINE: <2026-04-21 Tue 10:00 ++1w -2d>
+body <2026-04-01 Wed .+1d>

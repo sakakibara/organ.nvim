@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: columns-global
+#+COLUMNS: %ITEM
+* TODO [#A] Parent :work:
+** Child

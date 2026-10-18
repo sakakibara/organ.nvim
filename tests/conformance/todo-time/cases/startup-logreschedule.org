@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: schedule 2026-05-10
+#+STARTUP: logreschedule lognoteredeadline
+* TODO timed<CURSOR>
+SCHEDULED: <2026-05-01 Fri 08:00>

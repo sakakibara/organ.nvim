@@ -1,0 +1,21 @@
+#+CONFORMANCE-OP: update-all-dblocks
+#+BEGIN: clocktable :scope file-with-archives
+#+END:
+
+#+BEGIN: clocktable :scope (lambda () (list "b.org"))
+#+END:
+
+#+BEGIN: clocktable :scope ("b.org" "c.org")
+#+END:
+
+* Here
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 08:00]--[2026-05-04 Mon 08:30] =>  0:30
+:END:
+#+CONFORMANCE-FILE: b.org
+* Other file task
+:LOGBOOK:
+CLOCK: [2026-05-02 Sat 08:00]--[2026-05-02 Sat 10:00] =>  2:00
+:END:
+#+CONFORMANCE-FILE: c.org
+* No clocks here

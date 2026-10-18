@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-log-repeat nil)
+* TODO <CURSOR>a
+SCHEDULED: <2026-05-01 Fri> DEADLINE: <2026-05-01 Fri +1w>

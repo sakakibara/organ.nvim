@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo CANCELLED
+#+CONFORMANCE-EMACS: (org-enforce-todo-checkbox-dependencies t)
+#+CONFORMANCE-ORGAN: cfg.todo.enforce_checkbox_dependencies = true
+#+TODO: TODO | DONE CANCELLED
+* DONE <CURSOR>q
+- [ ] x

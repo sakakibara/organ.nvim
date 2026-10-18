@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-out
+* TODO a
+SCHEDULED: <2026-05-04 Mon>
+:PROPERTIES:
+:ID: x
+:END:
+body<CURSOR> text

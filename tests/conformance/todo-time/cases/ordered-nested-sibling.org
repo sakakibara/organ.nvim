@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-enforce-todo-dependencies t)
+* TODO op
+:PROPERTIES:
+:ORDERED: t
+:END:
+** TODO s1
+** TODO s2
+*** TODO <CURSOR>s2a

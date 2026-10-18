@@ -1,0 +1,13 @@
+#+CONFORMANCE-OP: schedule 2026-05-10
+#+CONFORMANCE-OP: goto body
+#+CONFORMANCE-OP: deadline 2026-05-12
+** TODO has planning<CURSOR>
+   DEADLINE: <2026-05-08 Fri> CLOSED: [2026-05-01 Fri 10:00]
+   :PROPERTIES:
+   :X: 1
+   :END:
+* TODO b
+:PROPERTIES:
+:X: 1
+:END:
+body line

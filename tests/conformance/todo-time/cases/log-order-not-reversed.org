@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO(!)" "|" "DONE(!)")))
+#+CONFORMANCE-ORGAN: cfg.todo.sequence = { "TODO(!)", "|", "DONE(!)" }
+#+STARTUP: nologstatesreversed logdrawer
+* TODO <CURSOR>a
+:LOGBOOK:
+- State "TODO"       from              [2026-05-01 Fri 09:00]
+:END:

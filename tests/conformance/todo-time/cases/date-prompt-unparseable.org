@@ -1,0 +1,10 @@
+#+CONFORMANCE-OP: read-date now
+#+CONFORMANCE-OP: read-date today
+#+CONFORMANCE-OP: read-date tomorrow
+#+CONFORMANCE-OP: read-date yesterday
+#+CONFORMANCE-OP: read-date foo
+#+CONFORMANCE-OP: read-date 32
+#+CONFORMANCE-OP: read-date 13/45
+#+CONFORMANCE-OP: read-date fri+1
+#+CONFORMANCE-OP: read-date 9:5
+* H

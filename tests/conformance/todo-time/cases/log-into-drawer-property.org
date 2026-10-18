@@ -1,0 +1,9 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO(!)" "|" "DONE(!)")))
+#+CONFORMANCE-ORGAN: cfg.todo.sequence = { "TODO(!)", "|", "DONE(!)" }
+#+CONFORMANCE-ORGAN: cfg.todo.log_into_drawer = false
+* P
+:PROPERTIES:
+:LOG_INTO_DRAWER: MYLOG
+:END:
+** TODO <CURSOR>a

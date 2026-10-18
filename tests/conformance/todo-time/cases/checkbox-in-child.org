@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-enforce-todo-checkbox-dependencies t)
+#+CONFORMANCE-ORGAN: cfg.todo.enforce_checkbox_dependencies = true
+* TODO <CURSOR>cb2
+** sub
+- [ ] deep

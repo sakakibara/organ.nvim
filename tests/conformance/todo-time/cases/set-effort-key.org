@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: set-effort
+#+CONFORMANCE-INPUT: 1:30
+* T<CURSOR>

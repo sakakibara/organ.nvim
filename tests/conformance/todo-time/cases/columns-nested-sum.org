@@ -1,0 +1,15 @@
+#+CONFORMANCE-OP: columns
+#+COLUMNS: %TODO
+* A
+:PROPERTIES:
+:COLUMNS: %X{+}
+:END:
+** B
+:PROPERTIES:
+:X: 2
+:END:
+*** C long title here<CURSOR>
+:PROPERTIES:
+:X: 3
+:END:
+* D

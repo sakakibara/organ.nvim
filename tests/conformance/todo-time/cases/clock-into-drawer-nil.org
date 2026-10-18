@@ -1,0 +1,7 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-EMACS: (org-clock-into-drawer nil)
+#+CONFORMANCE-ORGAN: cfg.clock.into_drawer = false
+* TODO <CURSOR>a
+body

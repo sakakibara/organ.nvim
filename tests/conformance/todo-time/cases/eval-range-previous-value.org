@@ -1,0 +1,2 @@
+#+CONFORMANCE-OP: eval-range
+<CURSOR><2026-05-04 Mon>--<2026-05-06 Wed> 2d old

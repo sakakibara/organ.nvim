@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: goto TODO b
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 1200
+#+CONFORMANCE-OP: clock-out
+* TODO <CURSOR>a
+* TODO b

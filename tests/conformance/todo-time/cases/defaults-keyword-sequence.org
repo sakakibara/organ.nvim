@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: cycle
+#+CONFORMANCE-PROFILE: defaults
+* TODO <CURSOR>a

@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: priority A
+#+TODO: WAIT | OK
+* WAIT <CURSOR>x

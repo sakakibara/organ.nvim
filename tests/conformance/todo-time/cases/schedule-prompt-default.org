@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: schedule-prompt
+#+CONFORMANCE-INPUT:
+* TODO timed<CURSOR>
+SCHEDULED: <2026-05-01 Fri 08:00>

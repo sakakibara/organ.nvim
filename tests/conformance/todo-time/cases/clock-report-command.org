@@ -1,0 +1,25 @@
+#+CONFORMANCE-OP: clock-report
+<CURSOR>
+* Project A :work:
+:PROPERTIES:
+:CAT: alpha
+:END:
+** TODO Task one
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 08:00]--[2026-05-04 Mon 09:00] =>  1:00
+CLOCK: [2026-05-01 Fri 10:00]--[2026-05-01 Fri 12:30] =>  2:30
+:END:
+*** Sub step
+:LOGBOOK:
+CLOCK: [2026-05-03 Sun 14:00]--[2026-05-03 Sun 14:45] =>  0:45
+:END:
+** DONE Task two with a rather long headline that goes on and on beyond forty characters
+:LOGBOOK:
+CLOCK: [2026-04-27 Mon 09:00]--[2026-04-27 Mon 10:00] =>  1:00
+:END:
+* Project B
+** Task three
+:LOGBOOK:
+CLOCK: [2026-05-04 Mon 07:00]--[2026-05-04 Mon 07:20] =>  0:20
+CLOCK: [2026-04-01 Wed 07:00]--[2026-04-01 Wed 10:00] =>  3:00
+:END:

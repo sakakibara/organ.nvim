@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo DONE
+#+STARTUP: nologrepeat
+* TODO <CURSOR>a
+SCHEDULED: <2026-05-01 Fri +1d>

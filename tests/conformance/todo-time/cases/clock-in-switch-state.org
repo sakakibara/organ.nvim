@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-EMACS: (org-clock-in-switch-to-state "NEXT")
+#+CONFORMANCE-EMACS: (org-todo-keywords '((sequence "TODO" "NEXT" "|" "DONE")))
+#+CONFORMANCE-ORGAN: cfg.todo.sequence = { "TODO", "NEXT", "|", "DONE" }
+* TODO <CURSOR>a
+body

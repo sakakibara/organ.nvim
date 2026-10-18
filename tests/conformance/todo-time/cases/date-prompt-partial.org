@@ -1,0 +1,3 @@
+#+CONFORMANCE-OP: read-date 10:00 +1d
+#+CONFORMANCE-OP: read-date 1 hour
+* H

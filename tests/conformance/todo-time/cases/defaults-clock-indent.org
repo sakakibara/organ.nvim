@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 5400
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-PROFILE: defaults
+#+CONFORMANCE-OPTIONS: planning-indent-flush
+* TODO <CURSOR>a

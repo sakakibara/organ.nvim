@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: todo CANCELLED
+#+CONFORMANCE-EMACS: (org-enforce-todo-dependencies t)
+#+TODO: TODO | DONE CANCELLED
+* DONE <CURSOR>p
+** TODO k

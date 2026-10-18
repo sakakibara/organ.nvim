@@ -1,0 +1,28 @@
+#+CONFORMANCE-OP: duration 30
+#+CONFORMANCE-OP: duration 1:30
+#+CONFORMANCE-OP: duration 0:45
+#+CONFORMANCE-OP: duration 1:30:15
+#+CONFORMANCE-OP: duration 30m
+#+CONFORMANCE-OP: duration 30min
+#+CONFORMANCE-OP: duration 90min
+#+CONFORMANCE-OP: duration 2h
+#+CONFORMANCE-OP: duration 2hr
+#+CONFORMANCE-OP: duration 1.5h
+#+CONFORMANCE-OP: duration 1d
+#+CONFORMANCE-OP: duration 1w
+#+CONFORMANCE-OP: duration 1d 2h
+#+CONFORMANCE-OP: duration 1h30
+#+CONFORMANCE-OP: duration 1h 30min
+#+CONFORMANCE-OP: duration 1h30min
+#+CONFORMANCE-OP: duration 2 h
+#+CONFORMANCE-OP: duration 1m
+#+CONFORMANCE-OP: duration 1y
+#+CONFORMANCE-OP: duration 3:5
+#+CONFORMANCE-OP: duration 1:3
+#+CONFORMANCE-OP: duration abc
+#+CONFORMANCE-OP: duration -30
+#+CONFORMANCE-OP: duration 0.5
+#+CONFORMANCE-OP: duration 1.5
+#+CONFORMANCE-OP: duration 1d2h
+#+CONFORMANCE-OP: duration 1h 30
+* H

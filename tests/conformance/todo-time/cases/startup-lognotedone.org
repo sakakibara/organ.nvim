@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-INPUT: n1
+#+STARTUP: lognotedone
+* TODO <CURSOR>a

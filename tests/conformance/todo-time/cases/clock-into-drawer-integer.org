@@ -1,0 +1,8 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-EMACS: (org-clock-into-drawer 2)
+#+CONFORMANCE-ORGAN: cfg.clock.into_drawer = 2
+* TODO <CURSOR>a
+CLOCK: [2026-05-01 Fri 09:00]--[2026-05-01 Fri 10:00] =>  1:00
+body

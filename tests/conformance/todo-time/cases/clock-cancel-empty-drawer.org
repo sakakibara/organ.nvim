@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 600
+#+CONFORMANCE-OP: clock-cancel
+* TODO <CURSOR>a
+body

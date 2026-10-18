@@ -1,0 +1,6 @@
+#+CONFORMANCE-OP: clock-in
+#+CONFORMANCE-OP: adv 30
+#+CONFORMANCE-OP: clock-out
+#+CONFORMANCE-EMACS: (org-clock-out-remove-zero-time-clocks t)
+* TODO <CURSOR>a
+body

@@ -1,0 +1,4 @@
+#+CONFORMANCE-OP: cycle
+#+CONFORMANCE-OP: cycle-repeat
+#+TYP_TODO: Fred Sara Lucy | OK
+* <CURSOR>z

@@ -1,0 +1,5 @@
+#+CONFORMANCE-OP: todo DONE
+#+CONFORMANCE-EMACS: (org-log-done 'time)
+#+CONFORMANCE-ORGAN: cfg.todo.log_done = "time"
+* TODO <CURSOR>a
+CLOSED: [2026-05-01 Fri 10:00] SCHEDULED: <2026-05-01 Fri +1w>

@@ -1,0 +1,42 @@
+#+CONFORMANCE-OP: update-all-dblocks
+#+COLUMNS: %25ITEM %TODO %Effort{:}
+#+BEGIN: columnview :id global :hlines 1
+#+END:
+
+#+BEGIN: columnview :id global :maxlevel 1
+#+END:
+
+#+BEGIN: columnview :id global :skip-empty-rows t
+#+END:
+
+#+BEGIN: columnview :id global :exclude-tags ("t")
+#+END:
+
+#+BEGIN: columnview :id global :format "%ITEM %Effort"
+#+END:
+
+#+BEGIN: columnview :id global :indent t
+#+END:
+
+#+BEGIN: columnview :id global :link t
+#+END:
+
+#+BEGIN: columnview :id global :match "t"
+#+END:
+
+#+BEGIN: columnview :id global :hlines t :vlines t
+#+END:
+
+#+BEGIN: columnview :id aaa
+#+END:
+
+* TODO A
+:PROPERTIES:
+:ID: aaa
+:Effort: 1:00
+:END:
+** B :t:
+:PROPERTIES:
+:Effort: 0:30
+:END:
+* C
