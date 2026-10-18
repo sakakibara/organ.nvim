@@ -49,7 +49,8 @@ vim.opt.runtimepath:prepend(vim.fn.stdpath("data") .. "/organ")
 -- `defaults.db_path` is read once at module load, so override it
 -- BEFORE the first `require("organ.defaults")` in any test.  Tests
 -- can still pass `db_path = ...` to `setup` to override per-test.
-local test_db = root .. "/tests/.tmp/organ-test.db"
+-- ORGAN_TEST_DB gives a process its own file, for runs that overlap.
+local test_db = os.getenv("ORGAN_TEST_DB") or (root .. "/tests/.tmp/organ-test.db")
 vim.fn.mkdir(vim.fn.fnamemodify(test_db, ":h"), "p")
 -- Fresh DB per test process so cross-test contamination can't sneak
 -- in either.  The .tmp/ dir is .gitignored.

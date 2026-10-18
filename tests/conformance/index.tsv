@@ -1,0 +1,12 @@
+# Coverage index for the conformance gates.
+# closed: 0.1
+# id <TAB> test <TAB> status
+#   test:   area:case (a G-diff case), parser:case, or a test file name
+#   status: pass         the test passes and the ID holds no TRANSITIONAL signature
+#           pending      the ID holds TRANSITIONAL signatures in that test
+#           todo         no test yet; allowed only while the ID's step is open
+PR-1	tests/parser_emacs_diff_test.lua	pass
+DOC-1	tests/conformance_doc_test.lua	pass
+DOC-11	tests/conformance_doc_test.lua	pass
+DOC-13	tests/conformance_doc_test.lua	pass
+DOC-15	tests/conformance_doc_test.lua	pass

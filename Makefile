@@ -12,7 +12,8 @@ GRAMMAR   := $(shell $(NVIM) --headless --noplugin -u NONE \
 
 .PHONY: help deps demo-deps grammar test test-only test-fold test-behavioral lint lint-md lint-doc clean \
         demos demos-force clean-demos parity parity-emacs parity-organ parity-update parity-check \
-        parity-section parity-section-emacs parity-section-organ parity-section-check
+        parity-section parity-section-emacs parity-section-organ parity-section-check \
+        conformance conformance-ids
 
 help:
 	@echo "organ.nvim - make targets"
@@ -38,6 +39,8 @@ help:
 	@echo "  make parity-organ    regen tests/fixtures/parity/ORGAN-EXPECTED.txt"
 	@echo "  make parity-update   regen both snapshots (commit the result)"
 	@echo "  make parity-check    CI gate: regen both, fail if either drifts from committed fixture"
+	@echo "  make conformance     run every Emacs conformance gate (tests/conformance/*/gate.lua)"
+	@echo "  make conformance-ids PHASES=<path>  check tests/conformance/ids.tsv against phases.tsv"
 	@echo "  make clean           remove tests/deps/ (does NOT touch the built grammar)"
 
 # Fetch test-time plugin dependencies (gitignored).  Idempotent.
@@ -140,6 +143,27 @@ lint-doc:
 	  -c 'edit doc/organ.txt' \
 	  -c 'verb VimhelpLintEcho' \
 	  -c qa
+
+# Emacs conformance gates: one per area under tests/conformance/.  Each
+# renders its whole corpus through Emacs in one batch run, so the budget
+# per gate is far above test-only's.
+conformance:
+	@fails=0; failed=""; \
+	for g in $(TEST_DIR)/conformance/*/gate.lua; do \
+	  [ -f "$$g" ] || continue; \
+	  printf '\033[2m--- %s\033[0m\n' "$$g"; \
+	  if ! TZ=UTC LC_ALL=C timeout -k 5 1800 $(NVIM) --headless -l "$$g" </dev/null; then \
+	    fails=$$((fails+1)); failed="$$failed $$g"; \
+	  fi; \
+	done; \
+	if [ $$fails -gt 0 ]; then echo "FAIL:$$failed"; exit 1; fi
+
+# ids.tsv is generated outside the repo (the project's phases.tsv, written
+# from the conformance inventory); this checks the committed copy is current.
+conformance-ids:
+	@test -n "$(PHASES)" || (echo "usage: make conformance-ids PHASES=<path to phases.tsv>" && exit 2)
+	@cmp -s "$(PHASES)" $(TEST_DIR)/conformance/ids.tsv || \
+	  (echo "tests/conformance/ids.tsv differs from $(PHASES); copy it in and review the diff" && exit 1)
 
 # Demos: render each `.tape` script in assets/tapes/ to an animated
 # GIF via `vhs`.  Tapes are the source of truth; the rendered GIFs
