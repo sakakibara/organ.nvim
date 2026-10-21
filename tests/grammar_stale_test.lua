@@ -81,10 +81,16 @@ gi.check_stale()
 assert(#notes == 0, "check_stale must warn at most once per session, got: " .. #notes)
 
 -- Case 4: a parser built from ORGAN_GRAMMAR_SRC is not checked against
--- the pin.
+-- the pin while that override is set; once it is unset the local build
+-- is off the pin and warns.
 write_manifest(rev1, "/src/tree-sitter-organ")
+vim.env.ORGAN_GRAMMAR_SRC = "/src"
 run()
 assert(#notes == 0, "local-source build must be silent, got: " .. vim.inspect(notes))
+vim.env.ORGAN_GRAMMAR_SRC = nil
+run()
+assert(#notes == 1, "local-source build without the override must warn, got: " .. #notes)
+assert(notes[1].msg:find("org.so not the grammar revision", 1, true), notes[1].msg)
 pin = rev1
 
 -- Case 5: the installed file is not the one the manifest records (a

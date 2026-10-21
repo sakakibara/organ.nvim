@@ -839,7 +839,11 @@ function M.check_stale()
         local installed = entry.sha256 and file_sha256(M.install_path(file))
         if installed and installed ~= entry.sha256 then
           replaced[#replaced + 1] = file
-        elseif not entry.local_src and pins[entry.repo] and entry.rev ~= pins[entry.repo] then
+        elseif
+          not (entry.local_src and override_root())
+          and pins[entry.repo]
+          and entry.rev ~= pins[entry.repo]
+        then
           unpinned[#unpinned + 1] = file
         end
       end
