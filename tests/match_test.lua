@@ -161,6 +161,14 @@ do
   assert(not tostring(err):find("budget", 1, true), "parser must not loop: " .. tostring(err))
 end
 
+-- 10b. A query error is shown to the user as it is, without the Lua
+-- source location of the parser.
+for _, q in ipairs({ "TODO={NEXT", 'X="a', "X=", "+a$b", "" }) do
+  local ok, err = pcall(m.parse, q)
+  assert(ok == false, "must error: " .. q)
+  assert(tostring(err):sub(1, 7) == "match: ", "no source location: " .. tostring(err))
+end
+
 -- 11. {regex} matches against the entry's tags, not the title.
 do
   local p = pred("{^@}")

@@ -138,7 +138,7 @@ end
 local function read_pattern(s, i)
   local close = s:find("}", i + 1, true)
   if not close then
-    error("match: unterminated {pattern} in " .. s)
+    error("match: unterminated {pattern} in " .. s, 0)
   end
   return s:sub(i + 1, close - 1), close + 1
 end
@@ -152,7 +152,7 @@ local function read_operand(s, i)
   if c == '"' then
     local close = s:find('"', i + 1, true)
     if not close then
-      error('match: unterminated "value" in ' .. s)
+      error('match: unterminated "value" in ' .. s, 0)
     end
     local value = s:sub(i + 1, close - 1)
     return { kind = is_time_operand(value) and "time" or "string", value = value }, close + 1
@@ -200,7 +200,8 @@ local function read_term(s, i, todo_part)
         local operand, k = read_operand(s, j)
         if not operand then
           error(
-            string.format("match: expected a value after %s%s at position %d in %s", name, op, j, s)
+            string.format("match: expected a value after %s%s at position %d in %s", name, op, j, s),
+            0
           )
         end
         return {
@@ -217,7 +218,7 @@ local function read_term(s, i, todo_part)
   end
   local word = s:match("^" .. TAG_CHAR .. "+", i)
   if not word then
-    error(string.format("match: unexpected character %q at position %d in %s", c, i, s))
+    error(string.format("match: unexpected character %q at position %d in %s", c, i, s), 0)
   end
   return { kind = todo_part and "todo" or "tag", negate = negate, value = word }, i + #word
 end
@@ -252,7 +253,7 @@ end
 -- Returns { tags = alternatives?, todo = alternatives?, todo_only = bool }.
 function M.parse(query)
   if not query or query == "" then
-    error("match: empty query")
+    error("match: empty query", 0)
   end
   local tags_str, todo_str = query, nil
   local last_s, last_e
