@@ -38,6 +38,10 @@ local function setup(lines)
   vim.wo.foldenable = true
   vim.cmd("normal! zR")
   pcall(vim.treesitter.start, b, "org")
+  -- An editor idles (SafeState) between building the buffer and the
+  -- user's fold commands; headless -l never does.
+  vim.wait(20)
+  require("organ.fold.marks").on_safe_state()
   return b
 end
 local function closed(l)

@@ -55,7 +55,7 @@ vim.api.nvim_buf_set_lines(b, 0, -1, false, {
 vim.b[b].organ_no_startup_fold = true
 vim.bo[b].filetype = "org"
 vim.wo.foldmethod = "expr"
-vim.wo.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+vim.wo.foldexpr = "v:lua.require'organ.fold'.foldexpr(v:lnum)"
 vim.wo.foldlevel = 99
 -- Force a parse so foldexpr returns sensible levels.
 local parser = vim.treesitter.get_parser(b, "org")

@@ -7,9 +7,6 @@
 
 local M = {}
 
--- Per-buffer per-line state cache: state ∈ "folded" | "children" | "subtree"
-M._state = {}
-
 -- `0` is vim's "current buffer" alias but truthy in Lua, so a plain
 -- `b = b or vim.api.nvim_get_current_buf()` doesn't expand it -- the
 -- bufnr-keyed state in this module (and in `fold/contents.lua`)
@@ -51,51 +48,65 @@ local function find_heading_at(bufnr, line)
   return target_node, sr + 1
 end
 
-local function apply_state(bufnr, heading, headline_line, state)
-  local end_row_0 = heading:end_()
-  local buf_lines = vim.api.nvim_buf_line_count(bufnr)
-  local end_line = math.min(end_row_0, buf_lines)
-  if end_line < headline_line then
-    end_line = headline_line
-  end
-
+-- Set a heading's visibility by its fold marks (organ.fold.marks):
+--   folded   the heading's own fold is closed
+--   children the heading is open and its direct child headings closed
+--   subtree  the heading and every heading below it open
+-- Drawer and block folds keep their state, as Emacs `org-cycle` leaves
+-- them.  A window whose folds are not organ's (a sparse tree) gets the
+-- same states from Vim's fold commands.
+local function apply_state_native(heading, headline_line, end_line, state)
   local saved = vim.api.nvim_win_get_cursor(0)
-
-  -- CLOSING is directional: a ranged `:{a},{b}foldclose` closes the fold
-  -- at the SHALLOWEST level the range touches, and `heading:end_()` reaches
-  -- the trailing separator blank that `cycle_separator_lines` demotes to
-  -- the PARENT's level -- so a range would collapse the parent (Tab on
-  -- `** L2` folding `* L1`).  Close by the single start line instead, which
-  -- hits only the innermost fold there: this heading's subtree.
-  --
-  -- OPENING needs the range: `:{a},{b}foldopen!` opens the fold at EVERY
-  -- line, so all nested child folds in the subtree open (single-line
-  -- foldopen! would leave them closed).  It's safe -- the shallowest fold
-  -- the range touches is the already-open parent, so re-opening it is a
-  -- no-op and siblings outside `[headline, end]` are never reached.
+  -- Close by the start line only: a ranged foldclose closes the
+  -- shallowest fold the range touches, and the range reaches the
+  -- separator blank that belongs to the parent.  Open by the range:
+  -- foldopen! there opens every nested fold of the subtree.
   if state == "folded" then
     pcall(vim.cmd, ("silent! %dfoldclose"):format(headline_line))
-  elseif state == "children" then
-    vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
-    pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldopen!")
-    for child in heading:iter_children() do
-      if child:type() == "headline" then
-        local cr = child:start() + 1
-        vim.api.nvim_win_set_cursor(0, { cr, 0 })
-        pcall(vim.cmd, "silent! foldclose")
+  else
+    pcall(vim.cmd, ("silent! %d,%dfoldopen!"):format(headline_line, end_line))
+    if state == "children" then
+      for child in heading:iter_children() do
+        if child:type() == "headline" then
+          pcall(vim.cmd, ("silent! %dfoldclose"):format(child:start() + 1))
+        end
       end
     end
-  elseif state == "subtree" then
-    vim.api.nvim_win_set_cursor(0, { headline_line, 0 })
-    pcall(vim.cmd, "silent! " .. headline_line .. "," .. end_line .. "foldopen!")
   end
-
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
-  require("organ.fold.marks").record(0)
-  -- Invalidate the visible-distance cache: foldclose / foldopen
-  -- changed which lines are inside closed folds, but `changedtick`
-  -- didn't bump so the cache otherwise holds stale entries until
-  -- the cursor moves and changes its key.
+end
+
+local function apply_state(bufnr, heading, headline_line, state)
+  local marks = require("organ.fold.marks")
+  local winid = vim.api.nvim_get_current_win()
+  local end_line =
+    math.max(headline_line, math.min(heading:end_(), vim.api.nvim_buf_line_count(bufnr)))
+  if not marks.in_scope(winid) then
+    apply_state_native(heading, headline_line, end_line, state)
+    pcall(function()
+      require("organ.fold.contents").invalidate_visible_cache(bufnr)
+    end)
+    return
+  end
+  marks.sync(winid)
+  local children = {}
+  for child in heading:iter_children() do
+    if child:type() == "headline" then
+      children[child:start() + 1] = true
+    end
+  end
+  for _, s in ipairs(marks.starts(bufnr)) do
+    if s.kind == "heading" and s.line >= headline_line and s.line <= end_line then
+      if s.line == headline_line then
+        marks.set_closed(winid, s.line, state == "folded")
+      elseif state == "children" then
+        marks.set_closed(winid, s.line, children[s.line] == true)
+      elseif state == "subtree" then
+        marks.set_closed(winid, s.line, false)
+      end
+    end
+  end
+  marks.reconcile_window(winid, {})
   pcall(function()
     require("organ.fold.contents").invalidate_visible_cache(bufnr)
   end)
@@ -111,12 +122,8 @@ local function next_state(s)
   return "folded"
 end
 
--- Read the heading's current visual state directly from vim's fold
--- state (vs. the M._state cache, which can lie when the user did a
--- manual `zc` / `zo` / `zR` / `zM` outside our cycle, or when the
--- buffer just opened with `foldlevel = 99` -- the cache is empty but
--- the heading is fully expanded).  Matches Emacs `org-cycle`: the
--- cycle starts from what the user actually SEES.
+-- Read the heading's current visual state from vim's fold state, so the
+-- cycle starts from what the user sees, as Emacs `org-cycle` does.
 --
 --   foldclosed(headline_line) > 0 -> entire heading collapsed: FOLDED
 --   any child heading folded      -> CHILDREN
@@ -158,14 +165,6 @@ local function find_drawer_at(bufnr, line)
   return nil
 end
 
--- Lazily create this buffer's fold-state table.  Teardown on wipeout is
--- registered by ftplugin/core's attach (organ.buf_state), so it covers
--- every org buffer regardless of whether this table was ever created.
-local function ensure_state(bufnr)
-  M._state[bufnr] = M._state[bufnr] or {}
-  return M._state[bufnr]
-end
-
 -- Set a heading's local visibility state directly: "folded",
 -- "children", or "subtree".  Used by external callers (e.g. CONTENTS
 -- view's `zc` / `zo` overrides) that want a specific outcome rather
@@ -178,15 +177,15 @@ function M.set_heading_state(bufnr, line, state)
     return
   end
   apply_state(bufnr, heading, headline_line, state)
-  ensure_state(bufnr)[headline_line] = state
 end
 
 local function cycle_heading(bufnr, heading, headline_line)
-  local state = ensure_state(bufnr)
-  local cur = detect_heading_state(heading, headline_line)
-  local nxt = next_state(cur)
-  apply_state(bufnr, heading, headline_line, nxt)
-  state[headline_line] = nxt
+  apply_state(
+    bufnr,
+    heading,
+    headline_line,
+    next_state(detect_heading_state(heading, headline_line))
+  )
 end
 
 -- <Tab>: 3-state cycle when on a headline, toggle when on a drawer line.
@@ -246,28 +245,20 @@ end
 
 -- Global fold states, in Emacs `org-cycle` terms:
 --
---   SHOW_ALL        every line visible; drawers stay folded
---                   (`org-cycle-hide-drawers`).
+--   SHOW_ALL        headings and blocks open; drawers keep their state.
 --   OVERVIEW        only top-level headings (foldlevel = 0).
 --   CONTENTS        every heading visible, body hidden via the
 --                   `conceal_lines` extmark layer
 --                   (organ.fold.contents).
---   SHOW_EVERYTHING every line visible; drawers open too.  Startup
---                   directive only (`#+STARTUP: showeverything`);
---                   not on the <S-Tab> cycle.
+--   SHOW_EVERYTHING every fold open, drawers too.  Startup directive
+--                   only (`#+STARTUP: showeverything`); not on the
+--                   <S-Tab> cycle.
 --
--- One applier per state, used by BOTH <S-Tab> (cycle_global, below)
--- and the `#+STARTUP:` path (ftplugin/core).  Routing both call sites
--- through the same helper is what keeps them from drifting:
--- previously the startup path inlined `foldlevel = 1` for overview,
--- which disagreed with cycle_global's `foldlevel = 0` and surfaced as
--- "the file opens showing more than overview is supposed to show".
---
--- Each applier takes explicit (winid, bufnr) so the caller doesn't
--- have to depend on whichever window happens to be current.
+-- One applier per state, used by both <S-Tab> (cycle_global, below) and
+-- startup (apply_startup), each taking explicit (winid, bufnr) so the
+-- caller doesn't depend on whichever window happens to be current.
 local function _set_local_foldlevel(winid, lvl)
   pcall(vim.api.nvim_set_option_value, "foldlevel", lvl, { win = winid, scope = "local" })
-  require("organ.fold.marks").record(winid)
 end
 
 local function _leave_contents_if_active(winid)
@@ -275,38 +266,6 @@ local function _leave_contents_if_active(winid)
   if ok and contents.is_active and contents.is_active(winid) then
     contents.leave(winid)
   end
-end
-
--- Drawers (PROPERTIES, LOGBOOK, etc.) are noise unless the user
--- explicitly opens them — Emacs's `org-cycle-hide-drawers` keeps
--- them folded across every global-cycle state.  After a foldlevel
--- change, re-close every drawer so a transition to "show all" still
--- hides drawer bodies.  Tab on a drawer line still opens it
--- (cycle()'s drawer-at-cursor branch handles that explicitly).
---
--- Debounce against rapid global-state changes (S-Tab spam): each
--- call would otherwise schedule a `close_all_drawers` walk that is
--- O(N tree nodes) and triggers a redraw per drawer.  Tagging each
--- call with a fresh token and short-circuiting earlier schedules
--- drops all but the final one.
-local function _schedule_drawer_close(winid, bufnr)
-  if (require("organ.buf_config").read(bufnr, "fold") or {}).close_drawers_on_open == false then
-    return
-  end
-  local tok = {}
-  M._drawer_close_tok[bufnr] = tok
-  require("organ.errors").schedule("organ.fold", function()
-    if M._drawer_close_tok[bufnr] ~= tok then
-      return
-    end
-    if
-      vim.api.nvim_buf_is_valid(bufnr)
-      and vim.api.nvim_win_is_valid(winid)
-      and vim.api.nvim_win_get_buf(winid) == bufnr
-    then
-      M.close_all_drawers(bufnr, winid)
-    end
-  end)
 end
 
 -- foldlevel / extmark state changed -- the visible-distance cache is
@@ -319,37 +278,74 @@ local function _invalidate_visible_cache(bufnr)
   end)
 end
 
+-- Close (true), open (false) or leave (nil) each fold start of the window
+-- as `want(start)` says, then make Vim's folds match.  Setting foldlevel
+-- first gives zm / zr the state's level to step from, as in Vim.
+local function apply_marks(winid, bufnr, foldlevel, want)
+  local marks = require("organ.fold.marks")
+  local own = marks.in_scope(winid)
+  if own then
+    marks.sync(winid)
+  end
+  _set_local_foldlevel(winid, foldlevel)
+  if not own then
+    _invalidate_visible_cache(bufnr)
+    return
+  end
+  for _, s in ipairs(marks.starts(bufnr)) do
+    local closed = want(s)
+    if closed ~= nil then
+      marks.set_closed(winid, s.line, closed)
+    end
+  end
+  marks.reconcile_window(winid, {})
+  _invalidate_visible_cache(bufnr)
+end
+
+local function deepest_level(bufnr)
+  local deepest = 0
+  for _, s in ipairs(require("organ.fold.marks").starts(bufnr)) do
+    deepest = math.max(deepest, s.level)
+  end
+  return deepest
+end
+
+-- OVERVIEW: top-level headings only.
 function M.apply_overview(winid, bufnr)
   _leave_contents_if_active(winid)
-  _set_local_foldlevel(winid, 0)
-  _schedule_drawer_close(winid, bufnr)
-  _invalidate_visible_cache(bufnr)
+  apply_marks(winid, bufnr, 0, function(s)
+    if s.kind == "heading" and s.level == 1 then
+      return true
+    end
+  end)
 end
 
+-- CONTENTS: every heading open, bodies concealed by organ.fold.contents.
 function M.apply_content(winid, bufnr)
-  _set_local_foldlevel(winid, 99)
+  apply_marks(winid, bufnr, 99, function(s)
+    if s.kind == "heading" then
+      return false
+    end
+  end)
   require("organ.fold.contents").enter(winid)
-  _schedule_drawer_close(winid, bufnr)
-  _invalidate_visible_cache(bufnr)
 end
 
+-- SHOW ALL: headings and blocks open; drawers keep their state.
 function M.apply_show_all(winid, bufnr)
   _leave_contents_if_active(winid)
-  _set_local_foldlevel(winid, 99)
-  _schedule_drawer_close(winid, bufnr)
-  _invalidate_visible_cache(bufnr)
+  apply_marks(winid, bufnr, deepest_level(bufnr), function(s)
+    if s.kind ~= "drawer" then
+      return false
+    end
+  end)
 end
 
+-- SHOW EVERYTHING: every fold open, drawers too.
 function M.apply_show_everything(winid, bufnr)
   _leave_contents_if_active(winid)
-  -- zR sets foldlevel to the highest fold level present AND opens
-  -- every closed fold, including drawer folds.  That matches the
-  -- `showeverything` semantic (drawers open, unlike `showall`).
-  vim.api.nvim_win_call(winid, function()
-    vim.cmd("silent! normal! zR")
+  apply_marks(winid, bufnr, deepest_level(bufnr), function()
+    return false
   end)
-  require("organ.fold.marks").record(winid)
-  _invalidate_visible_cache(bufnr)
 end
 
 -- Detect the current global state of a window so cycle_global can
@@ -396,6 +392,61 @@ local _APPLIERS = {
   end,
 }
 
+-- The buffer's startup visibility: `#+STARTUP:` in the first 50 lines
+-- (overview / content / showall / showeverything / fold / nofold, the
+-- last one winning), else `startup.folded`; as a global state name.
+function M.startup_state(bufnr)
+  local folded = (require("organ.buf_config").read(bufnr, "startup") or {}).folded
+  local lines =
+    vim.api.nvim_buf_get_lines(bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false)
+  for _, l in ipairs(lines) do
+    local val = l:match("^%s*#%+[Ss][Tt][Aa][Rr][Tt][Uu][Pp]:%s*(.*)$")
+    if val then
+      for tok in val:gmatch("%S+") do
+        local lt = tok:lower()
+        if
+          lt == "overview"
+          or lt == "content"
+          or lt == "showall"
+          or lt == "showeverything"
+          or lt == "fold"
+          or lt == "nofold"
+        then
+          folded = lt
+        end
+      end
+    end
+  end
+  if folded == "fold" or folded == true then
+    folded = "overview"
+  elseif folded == "nofold" or folded == false then
+    folded = "showall"
+  end
+  local STARTUP_TO_STATE = {
+    overview = "overview",
+    content = "content",
+    showall = "show_all",
+    showeverything = "show_everything",
+  }
+  return STARTUP_TO_STATE[folded]
+end
+
+-- Apply the startup visibility to a window (Emacs
+-- `org-set-startup-visibility`): the startup state, then drawers closed
+-- unless the state shows everything or `fold.close_drawers_on_open` is
+-- off (`org-cycle-hide-drawer-startup`).
+function M.apply_startup(winid, bufnr)
+  local state = M.startup_state(bufnr)
+  if not state then
+    return
+  end
+  M.apply_global_state(state, winid, bufnr)
+  local close = (require("organ.buf_config").read(bufnr, "fold") or {}).close_drawers_on_open
+  if state ~= "show_everything" and close ~= false then
+    M.close_all_drawers(bufnr, winid)
+  end
+end
+
 function M.apply_global_state(state, winid, bufnr)
   local fn = _APPLIERS[state]
   if fn then
@@ -403,40 +454,40 @@ function M.apply_global_state(state, winid, bufnr)
   end
 end
 
+-- Typed keys, counted so S-Tab can tell whether it repeats the previous
+-- command (Emacs `org-cycle-global` checks `last-command`).  Mouse moves,
+-- focus events and <Ignore> are not commands.
+local _keys_typed, _last_shifttab = 0, nil
+local IGNORED_KEYS = {}
+for _, k in ipairs({ "<MouseMove>", "<FocusGained>", "<FocusLost>", "<Ignore>" }) do
+  IGNORED_KEYS[vim.keycode(k)] = true
+end
+vim.on_key(function(_, typed)
+  if typed and typed ~= "" and not IGNORED_KEYS[typed] then
+    _keys_typed = _keys_typed + 1
+  end
+end, vim.api.nvim_create_namespace("organ_fold_shifttab"))
+
 function M.cycle_global(bufnr)
   bufnr = nbuf(bufnr)
   -- Per-window state: two splits showing the same buffer cycle
   -- independently (S-Tab in window A doesn't move window B).
   local winid = vim.api.nvim_get_current_win()
-  local next_state = M.next_global_state(M.detect_global_state(winid, bufnr))
+  -- S-Tab right after S-Tab advances the cycle (the counter moved by at
+  -- most this key); after any other key it starts again at OVERVIEW.
+  local repeated = _last_shifttab ~= nil and _keys_typed - _last_shifttab <= 1
+  _last_shifttab = _keys_typed
+  local next_state = repeated and M.next_global_state(M.detect_global_state(winid, bufnr))
+    or "overview"
   M.apply_global_state(next_state, winid, bufnr)
 end
 
--- Per-buffer "latest scheduled close_all_drawers" token; see the
--- coalescing comment in `cycle_global`.
-M._drawer_close_tok = {}
-
--- Close every drawer fold in the buffer. Called from BufReadPost on
--- org files so drawers start collapsed (matches Emacs default —
--- drawers are noise unless you opened them deliberately).
---
--- Uses cursor-position `zc` (close innermost open fold at cursor)
--- instead of `:N,M foldclose` because the latter walks up to a
--- parent fold when the range is already inside a closed fold —
--- which silently collapses the parent heading instead of the
--- drawer.  Skipping drawers whose start line is inside a closed
--- fold keeps the operation idempotent across foldlevel changes.
-function M.close_all_drawers(bufnr, winid)
-  bufnr = nbuf(bufnr)
-  if winid and winid ~= 0 and winid ~= vim.api.nvim_get_current_win() then
-    if not vim.api.nvim_win_is_valid(winid) then
-      return
-    end
-    vim.api.nvim_win_call(winid, function()
-      M.close_all_drawers(bufnr)
-    end)
-    return
-  end
+-- Close every drawer fold in the current window with Vim's fold commands,
+-- for a window whose folds are not organ's.  Cursor-position `zc` closes
+-- the innermost fold; `:N,Mfoldclose` would walk up to a parent when the
+-- range is already inside a closed fold.  Drawers whose start line is in
+-- a closed fold are skipped, so the pass is idempotent.
+local function close_drawers_native(bufnr)
   local ok, parser = pcall(vim.treesitter.get_parser, bufnr, "org")
   if not ok or not parser then
     return
@@ -451,9 +502,8 @@ function M.close_all_drawers(bufnr, winid)
     local t = node:type()
     if t == "drawer" or t == "property_drawer" then
       local sr = node:start() + 1
-      -- TS-tree row may point past the current buffer's last line
-      -- when the buffer was mutated (e.g. refile moved a subtree
-      -- out) before the parser could re-run.  Skip stale ranges.
+      -- A row past the last line comes from a tree the parser has not
+      -- re-run on since an edit.
       if sr >= 1 and sr <= last_line and vim.fn.foldclosed(sr) == -1 then
         pcall(vim.api.nvim_win_set_cursor, 0, { sr, 0 })
         pcall(vim.cmd, "silent! normal! zc")
@@ -465,10 +515,33 @@ function M.close_all_drawers(bufnr, winid)
   end
   walk(tree:root())
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
-  require("organ.fold.marks").record(0)
-  pcall(function()
-    require("organ.fold.contents").invalidate_visible_cache(bufnr)
-  end)
+end
+
+-- Close every drawer fold in the window (Emacs `org-fold-hide-drawer-all`).
+-- Startup runs it on org files when `fold.close_drawers_on_open` is on,
+-- as Emacs `org-cycle-hide-drawer-startup` does.
+function M.close_all_drawers(bufnr, winid)
+  bufnr = nbuf(bufnr)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+  local marks = require("organ.fold.marks")
+  if not marks.in_scope(winid) then
+    vim.api.nvim_win_call(winid, function()
+      close_drawers_native(bufnr)
+    end)
+    _invalidate_visible_cache(bufnr)
+    return
+  end
+  marks.sync(winid)
+  for _, s in ipairs(marks.starts(bufnr)) do
+    if s.kind == "drawer" then
+      marks.set_closed(winid, s.line, true)
+    end
+  end
+  marks.reconcile_window(winid, {})
+  _invalidate_visible_cache(bufnr)
 end
 
 -- Lua foldexpr for org buffers.  Two-pass:
@@ -1161,12 +1234,26 @@ end
 
 -- Cleanup on BufWipeout.
 function M.forget(bufnr)
-  M._state[bufnr] = nil
   _foldcache[bufnr] = nil
   _ts_seg_cache[bufnr] = nil
   pcall(function()
     require("organ.fold.contents").forget(bufnr)
   end)
 end
+
+M.commands = {
+  ["fold hide_drawers"] = {
+    fn = function()
+      M.close_all_drawers(0, 0)
+    end,
+    desc = "Close every drawer (Emacs org-fold-hide-drawer-all)",
+  },
+  ["fold startup"] = {
+    fn = function()
+      M.apply_startup(vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
+    end,
+    desc = "Apply the startup visibility again (Emacs org-set-startup-visibility)",
+  },
+}
 
 return M

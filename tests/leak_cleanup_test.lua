@@ -15,24 +15,24 @@ local function assert_eq(a, b, msg)
   end
 end
 
--- Open a buffer with .org filetype, populate fold._state and
+-- Open a buffer with .org filetype, populate fold._foldcache and
 -- complete._open_for entries for it, wipe it, verify cleanup.
 local b = vim.api.nvim_create_buf(true, false)
 vim.api.nvim_buf_set_name(b, "/tmp/leak_test.org")
 vim.bo[b].filetype = "org"
 vim.api.nvim_buf_set_lines(b, 0, -1, false, { "* H", "  body" })
 
-fold._state[b] = { [1] = "folded" }
+fold._foldcache[b] = { tick = 0, levels = { ">1" } }
 complete._open_for[b] = "1:0"
 
-assert(fold._state[b], "fold state set")
+assert(fold._foldcache[b], "fold state set")
 assert(complete._open_for[b], "complete state set")
 
 -- Wipe the buffer.
 vim.api.nvim_buf_delete(b, { force = true })
 
 -- BufWipeout fires synchronously inside nvim_buf_delete; cleanup should have run.
-assert_eq(fold._state[b], nil, "fold state cleared on BufWipeout")
+assert_eq(fold._foldcache[b], nil, "fold state cleared on BufWipeout")
 assert_eq(complete._open_for[b], nil, "complete state cleared on BufWipeout")
 
 io.write("leak cleanup ok\n")

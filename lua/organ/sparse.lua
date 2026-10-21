@@ -314,12 +314,18 @@ function M.apply(bufnr, predicate)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local visible = M._compute_visible(lines, predicate, bufnr)
 
-  -- Save current foldmethod so clear() can restore it.
+  -- Save the window's fold options so clear() can restore them.
   local winid = vim.fn.bufwinid(bufnr)
-  local saved = winid > 0 and vim.api.nvim_get_option_value("foldmethod", { win = winid })
-    or "manual"
-
-  vim.b[bufnr].organ_sparse = { visible = visible, _saved_foldmethod = saved }
+  local function get(name, default)
+    return winid > 0 and vim.api.nvim_get_option_value(name, { win = winid }) or default
+  end
+  local prev = vim.b[bufnr].organ_sparse
+  vim.b[bufnr].organ_sparse = {
+    visible = visible,
+    _saved_foldmethod = prev and prev._saved_foldmethod or get("foldmethod", "manual"),
+    _saved_foldexpr = prev and prev._saved_foldexpr or get("foldexpr", "0"),
+    _saved_foldlevel = prev and prev._saved_foldlevel or get("foldlevel", 99),
+  }
 
   -- foldexpr/foldmethod/foldlevel are window-local.
   if winid > 0 then
@@ -333,7 +339,8 @@ function M.apply(bufnr, predicate)
   end
 end
 
---- Clear a sparse tree view and restore the prior foldmethod.
+--- Clear a sparse tree view, restore the window's fold options and its
+--- organ fold state (organ.fold.marks).
 ---
 ---@param bufnr integer  buffer number
 function M.clear(bufnr)
@@ -346,14 +353,17 @@ function M.clear(bufnr)
   end
   local winid = vim.fn.bufwinid(bufnr)
   if winid > 0 then
-    vim.api.nvim_set_option_value(
-      "foldmethod",
-      s._saved_foldmethod or "manual",
-      { win = winid, scope = "local" }
-    )
-    vim.api.nvim_set_option_value("foldlevel", 99, { win = winid, scope = "local" }) -- open all
+    local function set(name, value)
+      vim.api.nvim_set_option_value(name, value, { win = winid, scope = "local" })
+    end
+    set("foldexpr", s._saved_foldexpr or "0")
+    set("foldmethod", s._saved_foldmethod or "manual")
+    set("foldlevel", s._saved_foldlevel or 99)
   end
   vim.b[bufnr].organ_sparse = nil
+  if winid > 0 then
+    require("organ.fold.marks").reconcile_window(winid, {})
+  end
 end
 
 -- Predicate factories

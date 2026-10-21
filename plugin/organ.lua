@@ -155,6 +155,7 @@ local DOMAIN_MODULES = {
   "organ.schedule",
   "organ.sort",
   "organ.sparse",
+  "organ.fold",
   "organ.statistics",
   "organ.structure",
   "organ.table",

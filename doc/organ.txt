@@ -1081,6 +1081,14 @@ Fold                                                       *organ-config-fold*
     Note: `<Tab>` is shared with table navigation. When the cursor is
     on a table row it navigates cells; on a headline it folds.
 
+    `<S-Tab>` follows Emacs `org-cycle-global`: pressed right after
+    itself it steps OVERVIEW -> CONTENTS -> SHOW ALL; after any other
+    key it goes to OVERVIEW.  `<Tab>` and `<S-Tab>` change headings
+    (SHOW ALL also blocks) and leave each drawer as you left it, as
+    Emacs does; `:Org fold hide_drawers` closes them all.  Every
+    fold keeps its open or closed state with its text through edits
+    (see |organ-config-fold-wrap_native_keys|).
+
                                          *organ-config-fold-cycle_emulate_tab*
     `fold.cycle_emulate_tab` (bool, default: `true`)
     Mirrors Emacs `org-cycle-emulate-tab`.  Governs `<Tab>` on a
@@ -2105,6 +2113,20 @@ up to date for organ to use it; see |organ-requires-tablature|.
 
     All table operations can also be invoked via the menu at
     `<LocalLeader>|`. See |organ-keymaps-org|.
+
+------------------------------------------------------------------------------
+Fold commands                                                 *organ-cmd-fold*
+
+*:Org-fold_hide_drawers*
+    `:Org fold hide_drawers`
+    Close every drawer in the window (Emacs `org-fold-hide-drawer-all`).
+
+*:Org-fold_startup*
+    `:Org fold startup`
+    Apply the buffer's startup visibility again: `#+STARTUP:` or
+    `startup.folded`, then drawers closed per
+    |organ-config-fold-close_drawers_on_open| (Emacs
+    `org-set-startup-visibility`, `C-u C-u TAB`).
 
 ------------------------------------------------------------------------------
 Sparse trees                                                *organ-cmd-sparse*

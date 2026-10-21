@@ -30,6 +30,9 @@ local scheduled = {}
 
 M._wins, M._pending = wins, pending
 
+-- Whether the window's folds are organ's (an org buffer with folding on
+-- and organ's foldexpr); a sparse tree, narrow.nvim's fold mode or diff
+-- mode puts a window out of scope, and it keeps Vim's own fold state.
 local function in_scope(winid)
   if not vim.api.nvim_win_is_valid(winid) then
     return false
@@ -54,11 +57,27 @@ local function win_state(winid, bufnr)
   return st
 end
 
--- Fold start lines of the buffer, each with its fold level, from the
--- foldexpr cache for the current changedtick.
+local function kind_of(line)
+  if line:match("^%*+%s") then
+    return "heading"
+  elseif line:match("^%s*:[%w_-]+:%s*$") then
+    return "drawer"
+  end
+  return "block"
+end
+
+-- Fold start lines of the buffer, each with its fold level and element
+-- kind ("heading", "drawer", "block"), from the foldexpr cache for the
+-- current changedtick.
+local starts_cache = {} -- bufnr -> { tick = N, starts = list }
+
 local function fold_starts(bufnr)
   local fold = require("organ.fold")
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
+  local hit = starts_cache[bufnr]
+  if hit and hit.tick == tick then
+    return hit.starts
+  end
   local cache = fold._foldcache[bufnr]
   if not cache or cache.tick ~= tick then
     vim.api.nvim_buf_call(bufnr, function()
@@ -70,11 +89,19 @@ local function fold_starts(bufnr)
   for lnum, v in pairs(cache and cache.levels or {}) do
     local n = v:match("^>(%d+)$")
     if n then
-      starts[#starts + 1] = { line = lnum, level = tonumber(n) }
+      local text = vim.api.nvim_buf_get_lines(bufnr, lnum - 1, lnum, false)[1] or ""
+      starts[#starts + 1] = { line = lnum, level = tonumber(n), kind = kind_of(text) }
     end
   end
+  table.sort(starts, function(a, b)
+    return a.line < b.line
+  end)
+  starts_cache[bufnr] = { tick = tick, starts = starts }
   return starts
 end
+
+M.starts = fold_starts
+M.in_scope = in_scope
 
 -- Width of the opening token a mark must sit in to count for its line.
 local function token_width(line)
@@ -92,12 +119,14 @@ end
 
 -- The window's counting marks by line: lnum -> list of mark ids.
 local function mark_lines(bufnr, st)
-  local by_line = {}
+  local by_line, width = {}, {}
   for _, m in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, NS, 0, -1, { details = true })) do
     local id, row, col, details = m[1], m[2], m[3], m[4]
     if st.marks[id] and not details.invalid then
-      local line = vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or ""
-      if col < token_width(line) then
+      if not width[row] then
+        width[row] = token_width(vim.api.nvim_buf_get_lines(bufnr, row, row + 1, false)[1] or "")
+      end
+      if col < width[row] then
         by_line[row + 1] = by_line[row + 1] or {}
         table.insert(by_line[row + 1], id)
       end
@@ -159,7 +188,7 @@ end
 -- Put one window's folds in line with its marks.
 local function reconcile_win(winid, bufnr, opts)
   local st = win_state(winid, bufnr)
-  local starts = fold_starts(bufnr)
+  local starts = vim.list_slice(fold_starts(bufnr))
   local by_line = mark_lines(bufnr, st)
   table.sort(starts, function(a, b)
     if a.level ~= b.level then
@@ -177,7 +206,7 @@ local function reconcile_win(winid, bufnr, opts)
     local to_close = {}
     for _, s in ipairs(starts) do
       local fc = vim.fn.foldclosed(s.line)
-      if fc == -1 or fc == s.line then
+      if (fc == -1 or fc == s.line) and (not opts.only or opts.only[s.line]) then
         if not by_line[s.line] then
           -- Two folds start on one line after a skipped heading level.
           for _ = 1, 8 do
@@ -198,7 +227,7 @@ local function reconcile_win(winid, bufnr, opts)
       end
     end
     -- An edit never hides the line the cursor was on.
-    if not st.cursor_hidden then
+    if opts.cursor_rule and not st.cursor_hidden then
       for _ = 1, 64 do
         local fc = vim.fn.foldclosed(cursor)
         if fc == -1 or fc == cursor then
@@ -211,6 +240,41 @@ local function reconcile_win(winid, bufnr, opts)
     vim.fn.winrestview(view)
     note_cursor(st)
   end)
+end
+
+-- Make one window match its marks.  `opts.only` limits the pass to a set
+-- of fold start lines (folds a fold key just revealed).
+function M.reconcile_window(winid, opts)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  if in_scope(winid) then
+    reconcile_win(winid, vim.api.nvim_win_get_buf(winid), opts or {})
+  end
+end
+
+-- Before an organ fold command changes a window's marks: run the
+-- reconcile an edit is waiting for, then record what the user did with
+-- folds since, so the command starts from what the user sees.
+function M.sync(winid)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+  M.flush(vim.api.nvim_win_get_buf(winid))
+  M.record(winid)
+end
+
+-- Mark the fold starting at `lnum` closed or open in one window; the
+-- next reconcile of that window applies it.
+function M.set_closed(winid, lnum, closed)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  local bufnr = vim.api.nvim_win_get_buf(winid)
+  local st = win_state(winid, bufnr)
+  local by_line = mark_lines(bufnr, st)
+  if closed and not by_line[lnum] then
+    add_mark(bufnr, st, by_line, lnum)
+  elseif not closed and by_line[lnum] then
+    drop_marks(bufnr, st, by_line, lnum)
+  end
 end
 
 -- Make every in-scope window showing `bufnr` match its marks.
@@ -227,13 +291,15 @@ function M.reconcile(bufnr, opts)
   end
   for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
     if in_scope(winid) then
-      reconcile_win(winid, bufnr, { reset_expr = reset_expr })
+      reconcile_win(winid, bufnr, { reset_expr = reset_expr, cursor_rule = true })
     end
   end
 end
 
+-- Insert and Replace mode (Vim opens the cursor's fold in both).
 local function insert_mode()
-  return vim.api.nvim_get_mode().mode:sub(1, 1) == "i"
+  local m = vim.api.nvim_get_mode().mode:sub(1, 1)
+  return m == "i" or m == "R"
 end
 
 -- Run the reconcile an edit is waiting for, unless Insert mode in this
@@ -269,13 +335,20 @@ function M.on_safe_state()
   local seen = {}
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
     local bufnr = vim.api.nvim_win_get_buf(winid)
-    if vim.bo[bufnr].filetype == "org" and not seen[bufnr] and pending[bufnr] then
+    if vim.bo[bufnr].filetype == "org" and not seen[bufnr] then
       seen[bufnr] = true
-      M.reconcile(bufnr)
+      -- An Insert-mode edit left without InsertLeave (<C-c>) still needs
+      -- the foldexpr re-set.
+      if insert_edit[bufnr] then
+        M.reconcile(bufnr, { insert_leave = true })
+      elseif pending[bufnr] then
+        M.reconcile(bufnr)
+      end
     end
   end
   for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-    if not pending[vim.api.nvim_win_get_buf(winid)] then
+    local bufnr = vim.api.nvim_win_get_buf(winid)
+    if vim.bo[bufnr].filetype == "org" and not pending[bufnr] then
       M.record(winid)
     end
   end
@@ -359,6 +432,7 @@ function M.forget_buffer(bufnr)
     per[bufnr] = nil
   end
   pending[bufnr], insert_edit[bufnr], scheduled[bufnr] = nil, nil, nil
+  starts_cache[bufnr] = nil
 end
 
 -- Clear the buffer's marks in every window (a reload starts over).
@@ -372,6 +446,7 @@ end
 -- Vim's fold keys, wrapped so a fold changed in a burst with an edit
 -- reaches the marks before the next edit's reconcile.
 local KEYS = { "zc", "zo", "za", "zC", "zO", "zA", "zv", "zx", "zX", "zM", "zR", "zm", "zr" }
+local REVEALS = { zo = true, za = true, zv = true, zr = true }
 
 local function global_mapping(key, mode)
   for _, m in ipairs(vim.api.nvim_get_keymap(mode)) do
@@ -392,13 +467,34 @@ function M.native(key, mode)
     else
       local rhs = vim.api.nvim_replace_termcodes(g.rhs or "", true, false, true)
       local remap = g.noremap == 0 and (g.rhs or ""):sub(1, #key) ~= key
-      vim.api.nvim_feedkeys(rhs, remap and "m" or "n", false)
+      local count = vim.v.count > 0 and tostring(vim.v.count) or ""
+      vim.api.nvim_feedkeys(count .. rhs, remap and "m" or "n", false)
     end
     return
   end
   M.flush(vim.api.nvim_get_current_buf())
   local count = vim.v.count > 0 and tostring(vim.v.count) or ""
-  vim.cmd("normal! " .. count .. key)
+  -- Folds a non-recursive open reveals keep their own marks, as Vim keeps
+  -- a nested fold's state (an opened heading's drawers stay closed).
+  local hidden
+  if REVEALS[key] and in_scope(vim.api.nvim_get_current_win()) then
+    hidden = {}
+    for _, st in ipairs(fold_starts(vim.api.nvim_get_current_buf())) do
+      local fc = vim.fn.foldclosed(st.line)
+      if fc ~= -1 and fc ~= st.line then
+        hidden[st.line] = true
+      end
+    end
+  end
+  local ok, err = pcall(vim.cmd, "normal! " .. count .. key)
+  if not ok then
+    -- Report as Vim does for the bare key (E490: No fold found).
+    local msg = tostring(err):match("(E%d+:.*)$") or tostring(err)
+    vim.api.nvim_echo({ { msg, "ErrorMsg" } }, true, {})
+  end
+  if hidden then
+    M.reconcile_window(0, { only = hidden })
+  end
   M.record(0)
 end
 

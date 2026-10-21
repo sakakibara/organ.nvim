@@ -1,5 +1,6 @@
 -- fold.cycle_global(bufnr) cycles SHOW_ALL -> OVERVIEW -> CONTENTS.
---   SHOW_ALL: foldlevel = 99, no conceal layer.
+--   SHOW_ALL: foldlevel = the deepest fold level present (as zR sets it,
+--             so zm / zr step from there), no conceal layer.
 --   OVERVIEW: foldlevel = 0.
 --   CONTENTS: foldlevel = 99 + conceal extmarks over body ranges.
 --
@@ -43,7 +44,8 @@ check("OVERVIEW -> CONTENTS (foldlevel back to 99)", vim.wo.foldlevel == 99)
 check("CONTENTS: contents extmark layer ACTIVE", contents.is_active(buf))
 
 fold.cycle_global(buf)
-check("CONTENTS -> SHOW_ALL (foldlevel=99)", vim.wo.foldlevel == 99)
+check("CONTENTS -> SHOW_ALL (foldlevel = deepest level, 3)", vim.wo.foldlevel == 3)
+check("SHOW_ALL: every heading open", vim.fn.foldclosed(1) == -1 and vim.fn.foldclosed(5) == -1)
 check("SHOW_ALL: contents extmark layer cleared", not contents.is_active(buf))
 
 if fails > 0 then

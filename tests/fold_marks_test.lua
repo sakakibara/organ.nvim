@@ -40,7 +40,8 @@ local function idle()
   marks.on_safe_state()
 end
 
-local BASE = { "* TODO A", "body a", "** B", "body b", "* C", "body c", "** D", "body d", "* E", "body e" }
+local BASE =
+  { "* TODO A", "body a", "** B", "body b", "* C", "body c", "** D", "body d", "* E", "body e" }
 local n = 0
 local function open(lines, startup)
   n = n + 1
@@ -199,6 +200,75 @@ vim.fn.setreg("q", "xzc")
 vim.api.nvim_win_set_cursor(0, { line_of("body c"), 0 })
 keys("@q")
 check("a macro's fold key is kept", closed("* C"))
+
+-- A fold key where there is no fold reports E490 as Vim does, no trace.
+open({ "plain text", "* A", "body a" })
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+vim.cmd("messages clear")
+keys("zc")
+local msgs = vim.fn.execute("messages")
+check("no fold reports E490", msgs:find("E490", 1, true) ~= nil, msgs)
+check("without a Lua traceback", not msgs:find("traceback", 1, true), msgs)
+
+-- A heading typed in Insert mode and left with <C-c> (no InsertLeave) is
+-- foldable after the next idle point.
+open()
+vim.api.nvim_win_set_cursor(0, { line_of("body e"), 0 })
+keys("o** N<C-c>")
+vim.api.nvim_win_set_cursor(0, { line_of("** N"), 0 })
+keys("o body n<Esc>")
+vim.api.nvim_win_set_cursor(0, { line_of("** N"), 0 })
+vim.cmd("silent! normal! zc")
+check("a heading typed and left with <C-c> is foldable", closed("** N"))
+check("its parent stays open", not closed("* E"))
+
+-- A heading typed over a body line in Replace mode is foldable.
+open()
+vim.api.nvim_win_set_cursor(0, { line_of("body d"), 0 })
+keys("R** X<Esc>")
+vim.api.nvim_win_set_cursor(0, { line_of("** X d"), 0 })
+vim.cmd("silent! normal! zc")
+check("a heading typed in Replace mode is foldable", closed("** X d"))
+
+-- Tab cycles a heading without opening its drawers; SHOW ALL keeps drawer
+-- state; S-Tab after another key starts again at OVERVIEW.
+local DRAWERS =
+  { "* A", ":PROPERTIES:", ":ID: a", ":END:", "body a", "** B", "body b", "* C", "body c" }
+local fold = require("organ.fold")
+open(DRAWERS, "showall")
+require("organ.fold").close_all_drawers(0, 0)
+idle()
+check("hide_drawers closes the drawer", closed(":PROPERTIES:"))
+vim.api.nvim_win_set_cursor(0, { 1, 0 })
+for _ = 1, 3 do
+  fold.cycle(0, 1)
+end
+check("Tab to SUBTREE leaves the drawer closed", closed(":PROPERTIES:"))
+fold.apply_global_state("show_all", vim.api.nvim_get_current_win(), vim.api.nvim_get_current_buf())
+check("SHOW ALL keeps the drawer closed", closed(":PROPERTIES:"))
+keys("<S-Tab>")
+check("S-Tab goes to OVERVIEW", closed("* A") and closed("* C"))
+keys("<S-Tab>")
+check("S-Tab again goes to CONTENTS", require("organ.fold.contents").is_active(0))
+keys("j<S-Tab>")
+check("S-Tab after another key starts at OVERVIEW", closed("* A"))
+keys("<S-Tab><S-Tab><S-Tab>")
+check("three S-Tabs from OVERVIEW come back to it", closed("* A"))
+
+-- Clearing a sparse tree restores organ's folds and their state.
+open()
+zc("* C")
+local sparse = require("organ.sparse")
+sparse.show_todo(0)
+idle()
+sparse.clear(0)
+idle()
+check(
+  "sparse.clear restores organ's foldexpr",
+  vim.wo.foldexpr == "v:lua.require'organ.fold'.foldexpr(v:lnum)",
+  vim.wo.foldexpr
+)
+check("and the closed fold from before", closed("* C"))
 
 vim.fn.delete(dir, "rf")
 if failures > 0 then

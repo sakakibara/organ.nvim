@@ -237,75 +237,28 @@ local function setup_fold_window_opts(bufnr, cfg)
   })
 end
 
--- Initial outline fold state (Emacs `org-startup-folded`).  Honor
--- a buffer-local `#+STARTUP:` override (overview/content/showall/
--- showeverything/fold/nofold) when present, else fall back to the
--- global `startup.folded` config.  The four resolved states map
--- 1:1 onto organ.fold's apply_* helpers, so this path and the
--- <S-Tab> cycle path stay in lock-step: previously the startup
--- path inlined its own foldlevel writes that disagreed with
--- cycle_global (overview here was foldlevel=1, cycle_global's
--- overview is foldlevel=0), and the file opened in a state S-Tab
--- could never return to.
---
--- Scratch-style org buffers (capture float, etc.) opt out via
--- `b:organ_no_startup_fold = true` so a 1-2 line entry isn't
--- folded into a single headline-only line.
-local function setup_startup_fold_state(bufnr, cfg)
-  if not vim.b[bufnr].organ_no_startup_fold then
-    local folded = (cfg.startup or {}).folded
-    -- Scan the first 50 lines for #+STARTUP: directives.
-    local lines =
-      vim.api.nvim_buf_get_lines(bufnr, 0, math.min(50, vim.api.nvim_buf_line_count(bufnr)), false)
-    for _, l in ipairs(lines) do
-      local val = l:match("^%s*#%+[Ss][Tt][Aa][Rr][Tt][Uu][Pp]:%s*(.*)$")
-      if val then
-        for tok in val:gmatch("%S+") do
-          local lt = tok:lower()
-          if
-            lt == "overview"
-            or lt == "content"
-            or lt == "showall"
-            or lt == "showeverything"
-            or lt == "fold"
-            or lt == "nofold"
-          then
-            folded = lt
-          end
-        end
-      end
+-- Initial outline fold state (Emacs `org-startup-folded`), applied by
+-- organ.fold.apply_startup.  Scratch-style org buffers (capture float,
+-- etc.) opt out via `b:organ_no_startup_fold = true` so a 1-2 line entry
+-- isn't folded into a single headline-only line.
+local function setup_startup_fold_state(bufnr)
+  if vim.b[bufnr].organ_no_startup_fold then
+    return
+  end
+  -- Defer one tick: the TS parser + foldexpr need to have populated
+  -- before the drawer close / contents.enter can find ranges to act on.
+  -- Resolve the winid at fire time so nvim_buf_call's "current window"
+  -- doesn't land on a capture float that happens to be focused.
+  require("organ.errors").schedule("organ.ftplugin.core", function()
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      return
     end
-    if folded == "fold" or folded == true then
-      folded = "overview"
+    local target_winid = vim.fn.bufwinid(bufnr)
+    if target_winid <= 0 then
+      return
     end
-    if folded == "nofold" or folded == false then
-      folded = "showall"
-    end
-    local STARTUP_TO_STATE = {
-      overview = "overview",
-      content = "content",
-      showall = "show_all",
-      showeverything = "show_everything",
-    }
-    local state = STARTUP_TO_STATE[folded]
-    if state then
-      -- Defer one tick: the TS parser + foldexpr need to have
-      -- populated before close_all_drawers / contents.enter can
-      -- find ranges to act on.  Resolve the winid at fire time so
-      -- nvim_buf_call's "current window" doesn't land on a capture
-      -- float that happens to be focused.
-      require("organ.errors").schedule("organ.ftplugin.core", function()
-        if not vim.api.nvim_buf_is_valid(bufnr) then
-          return
-        end
-        local target_winid = vim.fn.bufwinid(bufnr)
-        if target_winid <= 0 then
-          return
-        end
-        require("organ.fold").apply_global_state(state, target_winid, bufnr)
-      end)
-    end
-  end -- if not organ_no_startup_fold
+    require("organ.fold").apply_startup(target_winid, bufnr)
+  end)
 end
 
 -- Fold keymaps (opt-in via config.fold.keymaps).
@@ -477,7 +430,7 @@ function M.attach(bufnr)
   setup_buffer_todo_keywords(bufnr)
   setup_todo_keymaps(bufnr, cfg, map)
   setup_fold_window_opts(bufnr, cfg)
-  setup_startup_fold_state(bufnr, cfg)
+  setup_startup_fold_state(bufnr)
   setup_fold_keymaps(bufnr, cfg, map)
 
   -- Auto-attach indent if enabled.
