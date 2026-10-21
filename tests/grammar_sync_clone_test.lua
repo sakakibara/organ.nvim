@@ -74,6 +74,20 @@ check("a clone left locked by a killed git is started over", ok, err)
 check("and ends at the pin", git(dest, "rev-parse", "HEAD") == pin)
 check("without the lock", vim.fn.filereadable(dest .. "/.git/index.lock") == 0)
 
+-- A user's url.<base>.insteadOf rewrite of the grammar URL is not a
+-- different remote: the clone is kept, not deleted and fetched again.
+local alias = sandbox .. "/alias"
+vim.uv.fs_symlink(upstream, alias)
+local marker = dest .. "/.git/organ-keep-marker"
+vim.fn.writefile({}, marker)
+local f = assert(io.open(empty_cfg, "w"))
+f:write(('[url "file://%s"]\n\tinsteadOf = %s\n'):format(alias, url))
+f:close()
+ok, err = gi._fetch_pinned(url, dest, pin)
+io.open(empty_cfg, "w"):close()
+check("an insteadOf rewrite syncs", ok, err)
+check("an insteadOf rewrite keeps the clone", vim.fn.filereadable(marker) == 1)
+
 vim.fn.delete(sandbox, "rf")
 if failures > 0 then
   io.write(("FAILED %d checks\n"):format(failures))

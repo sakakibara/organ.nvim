@@ -364,7 +364,12 @@ local function sync_clone(url, dest, rev)
   if vim.fn.isdirectory(dest .. "/.git") == 1 then
     -- A clone of another URL (a fork configured earlier) is replaced, so
     -- the pinned revision is never looked up in the wrong repository.
-    local res = system({ "git", "-C", dest, "remote", "get-url", "origin" }, { text = true })
+    -- The stored URL is compared: `remote get-url` applies the user's
+    -- insteadOf rewrites, which would mismatch on every install.
+    local res = system(
+      { "git", "-C", dest, "config", "--get", "remote.origin.url" },
+      { text = true }
+    )
     local current_url = (res.stdout or ""):gsub("%s+$", "")
     if res.code ~= 0 or current_url ~= url then
       progress(
