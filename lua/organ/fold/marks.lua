@@ -16,6 +16,10 @@ local M = {}
 
 local NS = vim.api.nvim_create_namespace("organ_fold_marks")
 M.NS = NS
+-- Folds marked closed while no window showed the buffer (a drawer organ
+-- created from the agenda, a subtree refiled into an unshown file); the
+-- first window to show the buffer takes them.
+local QUEUED_NS = vim.api.nvim_create_namespace("organ_fold_marks_queued")
 
 local EXPR = "v:lua.require'organ.fold'.foldexpr(v:lnum)"
 
@@ -27,6 +31,8 @@ local pending = {}
 local insert_edit = {}
 -- bufnr -> true while a fallback reconcile is scheduled
 local scheduled = {}
+-- bufnr -> number of startup visibility applications still scheduled
+local startup_pending = {}
 
 M._wins, M._pending = wins, pending
 
@@ -395,14 +401,25 @@ end
 -- buffer, and close it there.
 function M.close(bufnr, lnum)
   bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
+  if lnum < 1 or lnum > vim.api.nvim_buf_line_count(bufnr) then
+    return
+  end
+  local shown = false
   for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
     if in_scope(winid) then
+      shown = true
       local st = win_state(winid, bufnr)
       local by_line = mark_lines(bufnr, st)
       if not by_line[lnum] then
         add_mark(bufnr, st, by_line, lnum)
       end
     end
+  end
+  if not shown then
+    vim.api.nvim_buf_set_extmark(bufnr, QUEUED_NS, lnum - 1, 0, {
+      invalidate = true,
+      undo_restore = true,
+    })
   end
   pending[bufnr] = true
 end
@@ -481,6 +498,40 @@ function M.seed(winid, from)
   else
     M.record(winid)
   end
+  if not startup_pending[bufnr] then
+    M.adopt_queued(winid)
+  end
+end
+
+-- Give the window the folds queued while no window showed its buffer.
+-- Startup visibility applies first: it decides headings, and what organ
+-- closed since the buffer loaded comes on top of it.
+function M.adopt_queued(winid)
+  local bufnr = vim.api.nvim_win_get_buf(winid)
+  local queued = vim.api.nvim_buf_get_extmarks(bufnr, QUEUED_NS, 0, -1, { details = true })
+  if #queued == 0 or not in_scope(winid) then
+    return
+  end
+  local st = win_state(winid, bufnr)
+  local by_line = mark_lines(bufnr, st)
+  for _, m in ipairs(queued) do
+    if not m[4].invalid and not by_line[m[2] + 1] then
+      add_mark(bufnr, st, by_line, m[2] + 1)
+    end
+  end
+  vim.api.nvim_buf_clear_namespace(bufnr, QUEUED_NS, 0, -1)
+  pending[bufnr] = true
+end
+
+-- A startup visibility application was scheduled (`on`) or has run.
+function M.startup_scheduled(bufnr, on)
+  local n = (startup_pending[bufnr] or 0) + (on and 1 or -1)
+  startup_pending[bufnr] = n > 0 and n or nil
+end
+
+-- Whether a startup visibility application is still to come.
+function M.startup_coming(bufnr)
+  return startup_pending[bufnr] ~= nil
 end
 
 function M.forget_window(winid)
@@ -509,6 +560,7 @@ function M.clear(bufnr)
     per[bufnr] = nil
   end
   pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, bufnr, QUEUED_NS, 0, -1)
 end
 
 -- Vim's fold keys, wrapped so a fold changed in a burst with an edit
@@ -586,12 +638,38 @@ end
 
 -- Attach the buffer's edit and Insert-mode hooks; idempotent.
 local attached = {}
+local listening = {} -- bufnr -> true while the reload listener is attached
 function M.attach(bufnr)
   if attached[bufnr] then
     return
   end
   attached[bufnr] = true
   M.map_keys(bufnr)
+  -- A reload (`:e!`, checktime) replaces every line: the marks start over
+  -- and the startup visibility applies again, as Emacs revert-buffer
+  -- re-runs startup.  One listener per buffer, whatever re-attaches.
+  if not listening[bufnr] then
+    listening[bufnr] = true
+    vim.api.nvim_buf_attach(bufnr, false, {
+      on_reload = function(_, b)
+        require("organ.errors").schedule("organ.fold.marks", function()
+          if not attached[b] or not vim.api.nvim_buf_is_valid(b) then
+            return
+          end
+          M.clear(b)
+          pending[b] = nil
+          for _, winid in ipairs(vim.fn.win_findbuf(b)) do
+            if in_scope(winid) then
+              require("organ.fold").apply_startup(winid, b)
+            end
+          end
+        end)
+      end,
+      on_detach = function(_, b)
+        listening[b] = nil
+      end,
+    })
+  end
   local group = vim.api.nvim_create_augroup("organ_fold_marks_" .. bufnr, { clear = true })
   local autocmd = require("organ.errors").autocmd
   autocmd("InsertEnter", { group = group, buffer = bufnr, callback = M.on_insert_enter })
@@ -607,6 +685,9 @@ function M.attach(bufnr)
     buffer = bufnr,
     callback = function()
       M.detach(bufnr)
+      -- A detach for a filetype re-run keeps the count of startups still
+      -- to come; only a wiped buffer drops it.
+      startup_pending[bufnr] = nil
     end,
   })
 end

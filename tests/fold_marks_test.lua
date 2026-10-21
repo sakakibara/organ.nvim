@@ -264,6 +264,74 @@ check("its sibling stays folded", closed("** Old"))
 check("an unrelated heading stays folded", closed("* Other"))
 check("the file on disk has the entry", vim.tbl_contains(vim.fn.readfile(inbox_file), "** New"))
 
+-- A drawer the user opened stays open through a whole S-Tab cycle.
+open({ "* A", ":PROPERTIES:", ":ID: a", ":END:", "body a", "* B", "body b" }, "showall")
+require("organ.fold").close_all_drawers(0, 0)
+idle()
+vim.api.nvim_win_set_cursor(0, { line_of(":PROPERTIES:"), 0 })
+keys("zo")
+check("the user opened the drawer", not closed(":PROPERTIES:"))
+keys("<S-Tab><S-Tab><S-Tab>")
+check("S-Tab through OVERVIEW, CONTENTS, SHOW ALL leaves it open", not closed(":PROPERTIES:"))
+
+-- A drawer organ creates in a buffer no window shows is folded when the
+-- buffer is shown.
+open({ "* Shown" })
+local hidden_file = dir .. "/hidden.org"
+vim.fn.writefile({ "* Far", "far body" }, hidden_file)
+local hb = vim.fn.bufadd(hidden_file)
+vim.fn.bufload(hb)
+require("organ.id").get_or_create(hb, 1)
+vim.cmd("buffer " .. hb)
+idle()
+local id_drawer
+for i, l in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+  if l:match("^%s*:PROPERTIES:%s*$") then
+    id_drawer = i
+  end
+end
+check(
+  "an ID drawer created while the buffer was hidden is folded when shown",
+  id_drawer and vim.fn.foldclosed(id_drawer) == id_drawer
+)
+
+-- Refiling a subtree carries its folds.
+open({ "* A", "body a", "** A1", "a1 body", "* T", "t body" })
+zc("** A1")
+require("organ.refile").move(
+  vim.api.nvim_get_current_buf(),
+  line_of("* A"),
+  vim.api.nvim_buf_get_name(0),
+  line_of("* T")
+)
+idle()
+check("a refiled subtree keeps its closed fold", closed("*** A1"))
+
+-- Archiving to the Archive sibling keeps the archived subtree's folds.
+open({ "* P", "** Done task", "done body", "*** Sub", "sub body", "** Keep" })
+zc("*** Sub")
+zc("** Done task")
+require("organ.archive").archive_to_sibling({ line = line_of("** Done task") })
+idle()
+local archived
+for i, l in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+  if l:match("^%*+ Done task") then
+    archived = i
+  end
+end
+check("the archived subtree stays folded", archived and vim.fn.foldclosed(archived) == archived)
+
+-- A reload after an outside change starts the marks over: a heading
+-- inserted above a closed fold on disk does not take its state.
+open({ "* A", "body a", "* C", "body c" })
+zc("* C")
+local f = vim.api.nvim_buf_get_name(0)
+vim.fn.writefile({ "* A", "body a", "* New", "new body", "* C", "body c" }, f)
+vim.cmd("edit!")
+pump()
+idle()
+check("after a reload the inserted heading is open", not closed("* New"))
+
 -- Fold keys typed in one burst with edits are kept: before an edit,
 -- after it, and between two edits, and inside a macro.
 open()

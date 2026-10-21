@@ -522,6 +522,67 @@ local function move_within_buffer(all, hl_line, subtree_end, arc_hl_line, releve
   return splice_subtree(kept, arc_hl_line, releveled)
 end
 
+-- Which headings of the subtree at [first, last] are folded in the
+-- window showing `bufnr`, by their order among the subtree's headings, so
+-- the folds survive a rewrite that adds lines inside the subtree.
+local function folded_headings(bufnr, first, last)
+  local win = vim.api.nvim_get_current_buf() == bufnr and vim.api.nvim_get_current_win()
+    or vim.fn.bufwinid(bufnr)
+  if win <= 0 then
+    return {}
+  end
+  local closed = {}
+  for _, lnum in ipairs(require("organ.fold.marks").closed_lines(win, first, last)) do
+    closed[lnum] = true
+  end
+  local out, k = {}, 0
+  for l, text in ipairs(vim.api.nvim_buf_get_lines(bufnr, first - 1, last, false)) do
+    if text:match("^%*+%s") then
+      k = k + 1
+      out[k] = closed[first + l - 1] == true
+    end
+  end
+  return out
+end
+
+-- After `out` replaced the buffer, fold the archived subtree (`moved`) as
+-- it was folded, and the property drawer archiving added to it, as Emacs
+-- keeps an archived subtree's visibility and folds a drawer it creates.
+local function refold_moved(bufnr, out, moved, folded)
+  local start
+  for i = 1, #out - #moved + 1 do
+    if out[i] == moved[1] then
+      local same = true
+      for j = 2, #moved do
+        if out[i + j - 1] ~= moved[j] then
+          same = false
+          break
+        end
+      end
+      if same then
+        start = i
+        break
+      end
+    end
+  end
+  if not start then
+    return
+  end
+  local marks = require("organ.fold.marks")
+  local k, drawer_done = 0, false
+  for j, text in ipairs(moved) do
+    if text:match("^%*+%s") then
+      k = k + 1
+      if folded[k] then
+        marks.close(bufnr, start + j - 1)
+      end
+    elseif not drawer_done and k == 1 and text:match("^%s*:PROPERTIES:%s*$") then
+      drawer_done = true
+      marks.close(bufnr, start + j - 1)
+    end
+  end
+end
+
 -- Public API
 
 --- Archive the subtree containing `line` in `bufnr` to the configured archive
@@ -653,6 +714,7 @@ function M.archive_subtree(opts)
   end
 
   if same_file then
+    local folded = folded_headings(bufnr, hl.line, subtree_end)
     local out = move_within_buffer(
       arc_lines,
       hl.line,
@@ -661,6 +723,7 @@ function M.archive_subtree(opts)
       releveled
     )
     obuf.set_lines(bufnr, 0, -1, out)
+    refold_moved(bufnr, out, releveled, folded)
   else
     -- 10. Insert the releveled subtree after the archive headline's section.
     local new_arc = splice_subtree(arc_lines, arc_hl_line, releveled)
@@ -789,8 +852,10 @@ function M.archive_to_sibling(opts)
     releveled = inject_properties(releveled, props, section_indent(bufnr, 2))
   end
 
+  local folded = folded_headings(bufnr, hl.line, subtree_end)
   local out = move_within_buffer(all, hl.line, subtree_end, arc_hl_line, releveled)
   obuf.set_lines(bufnr, 0, -1, out)
+  refold_moved(bufnr, out, releveled, folded)
 
   -- Tidy the cut site so leftover blank-line stragglers collapse to
   -- whatever pattern the surviving buffer uses.

@@ -70,7 +70,8 @@ m3 = mark(b, 2)
 obuf.set_lines(b, 0, 3, { "* A", "* New", "body", "* B", "* C" })
 check("insert above keeps a later heading's mark on it", where(b, m3) == 4)
 
--- A cursor on an edited line keeps its column, as with a whole-line write.
+-- A cursor on an edited line keeps its column, as with a whole-line
+-- write: where it lands is each command's own rule.
 b = buffer({ "* heading title" })
 vim.api.nvim_set_current_buf(b)
 vim.api.nvim_win_set_cursor(0, { 1, 10 })

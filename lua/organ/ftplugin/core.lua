@@ -249,15 +249,21 @@ local function setup_startup_fold_state(bufnr)
   -- before the drawer close / contents.enter can find ranges to act on.
   -- Resolve the winid at fire time so nvim_buf_call's "current window"
   -- doesn't land on a capture float that happens to be focused.
+  local marks = require("organ.fold.marks")
+  marks.startup_scheduled(bufnr, true)
   require("organ.errors").schedule("organ.ftplugin.core", function()
     if not vim.api.nvim_buf_is_valid(bufnr) then
       return
     end
+    marks.startup_scheduled(bufnr, false)
     local target_winid = vim.fn.bufwinid(bufnr)
     if target_winid <= 0 then
       return
     end
     require("organ.fold").apply_startup(target_winid, bufnr)
+    if not marks.startup_coming(bufnr) then
+      marks.adopt_queued(target_winid)
+    end
   end)
 end
 

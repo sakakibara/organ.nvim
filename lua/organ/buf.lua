@@ -43,8 +43,8 @@ end
 
 -- Rewrite one line in place by its changed span only, so extmarks on the
 -- unchanged prefix (a heading's fold and reveal marks at col 0) stay.  A
--- cursor on the line keeps its column, as a whole-line replace (and
--- Emacs, for organ's in-place commands) leaves it.
+-- cursor on the line keeps its column, as the whole-line replace did:
+-- where the cursor lands after a command is that command's own rule.
 local function set_line_text(bufnr, row, old, new)
   local cursors = {}
   for _, win in ipairs(vim.fn.win_findbuf(bufnr == 0 and vim.api.nvim_get_current_buf() or bufnr)) do

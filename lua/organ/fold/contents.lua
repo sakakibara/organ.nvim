@@ -1021,31 +1021,43 @@ vim.api.nvim_set_decoration_provider(DECO_NS, {
 -- on_lines_only path so a single nvim_buf_attach handles dispatch
 -- for every decoration participant.
 local _refresh_pending = {} -- bufnr -> true while a coalesced refresh is queued
+local _edited_rows = {} -- bufnr -> { first, last } rows the queued refresh covers
 require("organ.decoration").register({
   name = "fold_contents",
   ns = vim.api.nvim_create_namespace("organ_fold_contents_dispatch"),
   enabled = function(bufnr)
     return state[bufnr] ~= nil
   end,
-  on_lines_only = function(bufnr, _first, _last_old, _last_new)
+  on_lines_only = function(bufnr, first, _last_old, last_new)
+    -- Rows the pending edits touched (1-based, inclusive), so a reveal is
+    -- tied to an edit at the cursor.
+    local r = _edited_rows[bufnr]
+    _edited_rows[bufnr] = {
+      math.min(r and r[1] or math.huge, first + 1),
+      math.max(r and r[2] or 0, last_new),
+    }
     if _refresh_pending[bufnr] then
       return
     end
     _refresh_pending[bufnr] = true
     require("organ.errors").schedule("organ.fold.contents", function()
       _refresh_pending[bufnr] = nil
+      local rows = _edited_rows[bufnr]
+      _edited_rows[bufnr] = nil
       if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
-        -- The cursor rests on a concealed body line only right after an
-        -- edit put it there (CursorMoved moves it off otherwise): the
-        -- user is typing under that heading, so it is revealed.
-        for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
-          if win_in_contents(winid, bufnr) then
-            local c = vim.api.nvim_win_get_cursor(winid)[1]
-            local text = vim.api.nvim_buf_get_lines(bufnr, c - 1, c, false)[1] or ""
-            local h = not text:match("^%*+ ") and heading_above(bufnr, c)
-            if h and not under_revealed_subtree(bufnr, h, revealed_lines(bufnr, winid)) then
-              reveal_set(bufnr, h, winid)
-            end
+        -- An edit at the cursor's line under a concealed heading in the
+        -- current CONTENTS window is the user typing there: that heading
+        -- is revealed in that window.
+        local winid = vim.api.nvim_get_current_win()
+        if vim.api.nvim_win_get_buf(winid) == bufnr and win_in_contents(winid, bufnr) and rows then
+          local c = vim.api.nvim_win_get_cursor(winid)[1]
+          local text = vim.api.nvim_buf_get_lines(bufnr, c - 1, c, false)[1] or ""
+          local h = c >= rows[1]
+            and c <= rows[2]
+            and not text:match("^%*+ ")
+            and heading_above(bufnr, c)
+          if h and not under_revealed_subtree(bufnr, h, revealed_lines(bufnr, winid)) then
+            reveal_set(bufnr, h, winid)
           end
         end
         invalidate_buf_cache(bufnr)

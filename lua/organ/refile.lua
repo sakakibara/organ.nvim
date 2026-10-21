@@ -127,6 +127,7 @@ end
 -- subtree is left in place (Emacs org-refile-copy).  Returns nil on
 -- success or an error string.
 function M.move(src_bufnr, src_line, target_file, target_line, move_opts)
+  src_bufnr = src_bufnr == 0 and vim.api.nvim_get_current_buf() or src_bufnr
   local keep = (move_opts or {}).copy == true
   if not vim.api.nvim_buf_is_valid(src_bufnr) then
     return "source buffer no longer valid"

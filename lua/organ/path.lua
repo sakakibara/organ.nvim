@@ -15,6 +15,20 @@ function M.canonical(p)
   return resolved or abs
 end
 
+-- The loaded buffer holding the file at `path`, or nil.
+function M.loaded_buffer(path)
+  local canonical = M.canonical(path) or path
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(b) then
+      local name = vim.api.nvim_buf_get_name(b)
+      if name ~= "" and (M.canonical(name) or name) == canonical then
+        return b
+      end
+    end
+  end
+  return nil
+end
+
 -- Atomic write: write to `path .. ".tmp.<rand>"`, fsync, rename. Survives:
 --   * crash mid-write             — tmp file is orphaned, target untouched
 --   * crash between write+rename  — tmp file is fully on-disk (fsync), can
@@ -32,20 +46,6 @@ end
 -- clobber each other's tmp file mid-flight.
 --
 -- Returns true on success, false + error string on failure.
--- The loaded buffer holding the file at `path`, or nil.
-function M.loaded_buffer(path)
-  local canonical = M.canonical(path) or path
-  for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(b) then
-      local name = vim.api.nvim_buf_get_name(b)
-      if name ~= "" and (M.canonical(name) or name) == canonical then
-        return b
-      end
-    end
-  end
-  return nil
-end
-
 function M.write_atomic(path, contents, opts)
   if type(path) ~= "string" or path == "" then
     return false, "empty path"
