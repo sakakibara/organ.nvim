@@ -191,14 +191,19 @@ end
 -- underlying extmarks automatically, so this snapshot stays in
 -- sync with current line positions without explicit migration on
 -- TextChanged.
-local function revealed_lines(bufnr)
-  local marks = vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, 0, -1, {})
-  if #marks == 0 then
-    return nil
-  end
-  local set = {}
+-- Reveal marks belong to the window that made them: CONTENTS is a
+-- per-window state, so a reveal in one window does not show in another.
+local reveal_owner = {} -- extmark id -> winid
+
+local function revealed_lines(bufnr, winid)
+  winid = winid or vim.api.nvim_get_current_win()
+  local marks = vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, 0, -1, { details = true })
+  local set
   for _, m in ipairs(marks) do
-    set[m[2] + 1] = m[1] -- lnum -> extmark id
+    if reveal_owner[m[1]] == winid and not m[4].invalid then
+      set = set or {}
+      set[m[2] + 1] = m[1] -- lnum -> extmark id
+    end
   end
   return set
 end
@@ -295,9 +300,9 @@ local function resolve_tags_column_for(bufnr)
   return require("organ.format")._resolve_tags_column(val, bufnr, vim.api.nvim_get_current_win())
 end
 
-local function place_marks(bufnr)
+local function place_marks(bufnr, winid)
   vim.api.nvim_buf_clear_namespace(bufnr, NS, 0, -1)
-  local revealed = revealed_lines(bufnr)
+  local revealed = revealed_lines(bufnr, winid)
   for _, r in ipairs(each_body_range(bufnr)) do
     local hline = heading_above(bufnr, r[1])
     -- Skip the conceal + ellipsis when the user has revealed this
@@ -395,21 +400,38 @@ end
 -- extmark on the heading line; remove: deletes any existing
 -- extmark there; toggle: flips presence.  Returns true when the
 -- heading is revealed AFTER the operation.
-local function reveal_mark_at(bufnr, lnum)
-  return vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, { lnum - 1, 0 }, { lnum - 1, -1 }, {})[1]
+local function reveal_mark_at(bufnr, lnum, winid)
+  winid = winid or vim.api.nvim_get_current_win()
+  for _, m in
+    ipairs(vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, { lnum - 1, 0 }, { lnum - 1, -1 }, {
+      details = true,
+    }))
+  do
+    if reveal_owner[m[1]] == winid and not m[4].invalid then
+      return m
+    end
+  end
 end
-local function reveal_set(bufnr, lnum)
-  if reveal_mark_at(bufnr, lnum) then
+-- Same anchoring as organ.fold.marks: deleting the heading invalidates
+-- the reveal, undo brings it back.
+local function reveal_set(bufnr, lnum, winid)
+  winid = winid or vim.api.nvim_get_current_win()
+  if reveal_mark_at(bufnr, lnum, winid) then
     return false -- already set, no change
   end
-  vim.api.nvim_buf_set_extmark(bufnr, REVEAL_NS, lnum - 1, 0, {})
+  local id = vim.api.nvim_buf_set_extmark(bufnr, REVEAL_NS, lnum - 1, 0, {
+    invalidate = true,
+    undo_restore = true,
+  })
+  reveal_owner[id] = winid
   return true
 end
-local function reveal_clear(bufnr, lnum)
-  local m = reveal_mark_at(bufnr, lnum)
+local function reveal_clear(bufnr, lnum, winid)
+  local m = reveal_mark_at(bufnr, lnum, winid)
   if not m then
     return false
   end
+  reveal_owner[m[1]] = nil
   vim.api.nvim_buf_del_extmark(bufnr, REVEAL_NS, m[1])
   return true
 end
@@ -706,6 +728,14 @@ local function release_win(winid, bufnr, buf_leaving)
   if _win_active[winid] == bufnr then
     _win_active[winid] = nil
   end
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    for _, m in ipairs(vim.api.nvim_buf_get_extmarks(bufnr, REVEAL_NS, 0, -1, {})) do
+      if reveal_owner[m[1]] == winid then
+        reveal_owner[m[1]] = nil
+        pcall(vim.api.nvim_buf_del_extmark, bufnr, REVEAL_NS, m[1])
+      end
+    end
+  end
   if not s then
     return
   end
@@ -974,7 +1004,7 @@ vim.api.nvim_set_decoration_provider(DECO_NS, {
     end
     pcall(vim.api.nvim_buf_clear_namespace, bufnr, NS, 0, -1)
     if win_in_contents(winid, bufnr) then
-      place_marks(bufnr)
+      place_marks(bufnr, winid)
     end
     return true
   end,
@@ -1005,6 +1035,19 @@ require("organ.decoration").register({
     require("organ.errors").schedule("organ.fold.contents", function()
       _refresh_pending[bufnr] = nil
       if state[bufnr] and vim.api.nvim_buf_is_valid(bufnr) then
+        -- The cursor rests on a concealed body line only right after an
+        -- edit put it there (CursorMoved moves it off otherwise): the
+        -- user is typing under that heading, so it is revealed.
+        for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
+          if win_in_contents(winid, bufnr) then
+            local c = vim.api.nvim_win_get_cursor(winid)[1]
+            local text = vim.api.nvim_buf_get_lines(bufnr, c - 1, c, false)[1] or ""
+            local h = not text:match("^%*+ ") and heading_above(bufnr, c)
+            if h and not under_revealed_subtree(bufnr, h, revealed_lines(bufnr, winid)) then
+              reveal_set(bufnr, h, winid)
+            end
+          end
+        end
         invalidate_buf_cache(bufnr)
         place_marks(bufnr)
       end
