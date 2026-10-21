@@ -829,7 +829,7 @@ marks across loaded org buffers.
 ## Compatibility
 
 organ supports Neovim 0.11 and newer.  CI tests the oldest supported
-release (0.11), the current stable release, and nightly; nightly is
+release (0.11.0), the current stable release, and nightly; nightly is
 tested but not supported.
 
 organ has no releases: `main` is the contract.  Commit subjects follow
