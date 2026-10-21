@@ -282,7 +282,7 @@ local function headline_search_text(line, todo_keywords)
 end
 
 function M.dispatch_edit_file(action)
-  vim.cmd("edit " .. vim.fn.fnameescape(action.path))
+  require("organ.buf").visit(action.path)
   if not action.anchor then
     return
   end
@@ -404,7 +404,7 @@ function M.dispatch_property_value(action)
   end
 
   if #matches == 1 then
-    vim.cmd("edit " .. vim.fn.fnameescape(matches[1].file_path))
+    require("organ.buf").visit(matches[1].file_path)
     pcall(vim.api.nvim_win_set_cursor, 0, { matches[1].line_start + 1, 0 })
     return
   end
@@ -428,7 +428,7 @@ function M.dispatch(action)
   if action.kind == "edit_file" then
     M.dispatch_edit_file(action)
   elseif action.kind == "jump_headline" then
-    vim.cmd("edit " .. vim.fn.fnameescape(action.file_path))
+    require("organ.buf").visit(action.file_path)
     vim.api.nvim_win_set_cursor(0, { action.line, 0 })
   elseif action.kind == "url" then
     if vim.ui.open then

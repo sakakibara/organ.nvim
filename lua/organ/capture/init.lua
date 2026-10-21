@@ -576,7 +576,7 @@ function M.finalise(bufnr)
     jump = (get_config().jump_after_finalise == true)
   end
   if jump then
-    vim.cmd("edit " .. vim.fn.fnameescape(path))
+    require("organ.buf").visit(path)
     pcall(vim.api.nvim_win_set_cursor, 0, { entry_line, 0 })
   end
 end

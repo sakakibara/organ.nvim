@@ -24,7 +24,7 @@ end
 -- exist on disk; existing files are opened normally by the caller.
 function M.open_unsaved(path, lines)
   local dir = vim.fn.fnamemodify(path, ":h")
-  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  require("organ.buf").visit(path)
   local bufnr = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
   vim.api.nvim_create_autocmd("BufWritePre", {

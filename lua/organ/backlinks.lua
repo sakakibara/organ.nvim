@@ -240,7 +240,7 @@ local function install_keymaps(bufnr)
     if not r then
       return
     end
-    vim.cmd("edit " .. vim.fn.fnameescape(r.source_headline.file_path))
+    require("organ.buf").visit(r.source_headline.file_path)
     vim.api.nvim_win_set_cursor(0, { (r.source_headline.line_start or 0) + 1, 0 })
   end, "jump")
 

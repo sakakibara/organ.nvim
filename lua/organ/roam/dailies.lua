@@ -19,7 +19,7 @@ end
 local function _open_or_create(iso)
   local path = dailies_dir() .. "/" .. iso .. ".org"
   if vim.loop.fs_stat(path) then
-    vim.cmd("edit " .. vim.fn.fnameescape(path))
+    require("organ.buf").visit(path)
     local last = vim.api.nvim_buf_line_count(0)
     local last_text = vim.api.nvim_buf_get_lines(0, last - 1, last, false)[1] or ""
     vim.api.nvim_win_set_cursor(0, { last, #last_text })

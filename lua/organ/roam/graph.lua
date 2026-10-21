@@ -203,7 +203,7 @@ function M.show(node_id, depth)
         return
       end
       vim.api.nvim_buf_delete(buf, { force = true })
-      vim.cmd("edit " .. vim.fn.fnameescape(jump.file_path))
+      require("organ.buf").visit(jump.file_path)
       if jump.line_start then
         vim.api.nvim_win_set_cursor(0, { jump.line_start + 1, 0 })
       end

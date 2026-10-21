@@ -37,4 +37,18 @@ function M.set_text(bufnr, sr, sc, er, ec, new_text)
   vim.api.nvim_buf_set_text(bufnr, sr, sc, er, ec, new_text)
 end
 
+-- Show `path` in the current window.  A file already in the window is
+-- left as it is: `:edit` of it fails with E37 when it is modified and
+-- re-reads it, opening every fold, when it is not.
+function M.visit(path)
+  local function canonical(p)
+    return vim.fn.resolve(vim.fn.fnamemodify(p, ":p"))
+  end
+  local current = vim.api.nvim_buf_get_name(0)
+  if current ~= "" and canonical(current) == canonical(path) then
+    return
+  end
+  vim.cmd("edit " .. vim.fn.fnameescape(path))
+end
+
 return M

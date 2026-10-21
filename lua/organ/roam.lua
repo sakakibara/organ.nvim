@@ -38,7 +38,7 @@ function M.create_node(title)
 
   if existing then
     require("organ.notify").info("organ: file exists, opening: " .. existing)
-    vim.cmd("edit " .. vim.fn.fnameescape(existing))
+    require("organ.buf").visit(existing)
     return
   end
 

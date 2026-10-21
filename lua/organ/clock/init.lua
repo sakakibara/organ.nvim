@@ -133,7 +133,7 @@ end
 local function open_buf(s)
   local bufnr = vim.fn.bufnr(s.file_path)
   if bufnr <= 0 then
-    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
+    require("organ.buf").visit(s.file_path)
     bufnr = vim.api.nvim_get_current_buf()
   elseif not vim.api.nvim_buf_is_loaded(bufnr) then
     vim.fn.bufload(bufnr)
@@ -235,7 +235,7 @@ function M.jump()
   local path = require("organ.path")
   local here = vim.api.nvim_buf_get_name(0)
   if (path.canonical(here) or here) ~= (path.canonical(s.file_path) or s.file_path) then
-    vim.cmd("edit " .. vim.fn.fnameescape(s.file_path))
+    require("organ.buf").visit(s.file_path)
   end
   pcall(vim.api.nvim_win_set_cursor, 0, { active_line(vim.api.nvim_get_current_buf(), s), 0 })
 end

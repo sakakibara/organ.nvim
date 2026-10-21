@@ -294,10 +294,10 @@ local function standard_actions()
   return {
     jump = function(item)
       if item.kind == "file" then
-        vim.cmd("edit " .. vim.fn.fnameescape(item.file_path))
+        require("organ.buf").visit(item.file_path)
         return
       end
-      vim.cmd("edit " .. vim.fn.fnameescape(item.file_path))
+      require("organ.buf").visit(item.file_path)
       vim.api.nvim_win_set_cursor(0, { item.line_start + 1, 0 })
     end,
     split = function(item)
@@ -646,7 +646,7 @@ local function follow_link(item)
   if action_record.kind == "edit_file" then
     require("organ.link").dispatch_edit_file(action_record)
   elseif action_record.kind == "jump_headline" then
-    vim.cmd("edit " .. vim.fn.fnameescape(action_record.file_path))
+    require("organ.buf").visit(action_record.file_path)
     vim.api.nvim_win_set_cursor(0, { action_record.line, 0 })
   elseif action_record.kind == "url" then
     if vim.ui.open then
@@ -664,7 +664,7 @@ local function follow_link(item)
 end
 
 local function jump_to_source(item)
-  vim.cmd("edit " .. vim.fn.fnameescape(item.source.file_path))
+  require("organ.buf").visit(item.source.file_path)
   vim.api.nvim_win_set_cursor(0, { item.line, 0 })
 end
 

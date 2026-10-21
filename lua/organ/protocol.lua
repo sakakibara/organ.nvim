@@ -133,7 +133,7 @@ M.handlers["open-source"] = function(params)
   end
   -- Strip optional file:// prefix.
   local path = url:gsub("^file://", "")
-  vim.cmd("edit " .. vim.fn.fnameescape(path))
+  require("organ.buf").visit(path)
 end
 
 -- The capture template can call this to pull the org-protocol body.

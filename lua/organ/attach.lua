@@ -489,7 +489,7 @@ M.commands = {
         if not choice or not files[idx] then
           return
         end
-        vim.cmd("edit " .. vim.fn.fnameescape(files[idx]))
+        require("organ.buf").visit(files[idx])
       end)
     end,
     desc = "Open a file attached to the current headline",
@@ -502,7 +502,7 @@ M.commands = {
         require("organ.notify").error(err)
         return
       end
-      vim.cmd("edit " .. vim.fn.fnameescape(d))
+      require("organ.buf").visit(d)
     end,
     desc = "Open (reveal) the attachment directory of the current headline",
   },

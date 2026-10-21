@@ -17,7 +17,7 @@ local function install_navigation_maps(map, current_row)
       require("organ.notify").warn("agenda: this row has no source file")
       return
     end
-    vim.cmd("edit " .. vim.fn.fnameescape(r.file_path))
+    require("organ.buf").visit(r.file_path)
     if r.line_start then
       vim.api.nvim_win_set_cursor(0, { r.line_start + 1, 0 })
     end

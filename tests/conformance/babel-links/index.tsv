@@ -56,7 +56,7 @@ BL-107	babel-links:follow-file-custom-id.org	pending
 BL-108	babel-links:follow-file-regexp-alt.org	pending
 BL-109	babel-links:follow-escaped-brackets.org	pending
 BL-110	babel-links:follow-file-emacs.org	pending
-BL-111	babel-links:follow-modified-buffer-file.org	pending
+BL-111	babel-links:follow-modified-buffer-file.org	pass
 BL-112	babel-links:follow-id-unindexed.org	pending
 BL-113	babel-links:abbrev-hex.org	pending
 BL-114	babel-links:abbrev-after-heading.org	pending
