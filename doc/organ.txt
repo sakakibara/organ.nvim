@@ -3184,6 +3184,32 @@ File-level `:ID:` (org-roam) ~
     all work uniformly with file-level IDs. Pinned by
     `tests/roam_create_to_index_e2e_test.lua`.
 
+Fold state per window ~
+    Emacs: Visibility belongs to the buffer, shared by its windows.
+    organ.nvim: Each window keeps its own folds and CONTENTS reveals; a
+    split starts from the window it was split from.
+    Why: Vim folds are per window; a split is a second view.
+
+Editing under a folded heading ~
+    Emacs: The edited or inserted line shows; the parent's body stays
+    hidden.
+    organ.nvim: The fold opens, parent body included, when an edit (a
+    line typed with `o`, a demote into a folded sibling, a capture under
+    a folded parent) would hide the line the cursor is on; for a capture
+    the parent's other children stay folded.
+    Why: A Vim fold hides its range as a whole.
+
+Undo of a deleted fold ~
+    Emacs: The restored text is visible.
+    organ.nvim: A deleted subtree comes back folded as it was.
+    Why: Undo restores what the user had.
+
+`J` or Replace mode on a folded heading ~
+    Emacs: Visibility follows the text.
+    organ.nvim: Joining a line onto a heading, or overwriting its stars
+    from column 0, unfolds it.
+    Why: A heading's fold state is anchored to its stars.
+
 ==============================================================================
 NATIVE OS NOTIFICATIONS                                       *organ-notifier*
 
