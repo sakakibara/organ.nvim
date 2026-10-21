@@ -32,6 +32,18 @@ end
 refused("unsupported kind", { kind = "id", id = "abc" })
 refused("missing path", { kind = "file" })
 refused("empty path", { kind = "file_headline", path = "", headline = "Inbox" })
+refused("function without a path", {
+  kind = "file_function",
+  fn = function()
+    return nil
+  end,
+})
+refused("function with an empty path", {
+  kind = "file_function",
+  fn = function()
+    return "", 1
+  end,
+})
 
 vim.cmd.cd(root)
 vim.fn.delete(tmp, "rf")

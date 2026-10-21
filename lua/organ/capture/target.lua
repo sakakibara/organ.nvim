@@ -351,6 +351,9 @@ function M.resolve(spec, ctx, prepend)
 
   if kind == "file_function" then
     local path, line = spec.fn(ctx or {})
+    if type(path) ~= "string" or path == "" then
+      error("capture.target: file_function target returned no file path")
+    end
     return path, line, {}
   end
 
