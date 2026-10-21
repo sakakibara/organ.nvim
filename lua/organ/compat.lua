@@ -146,4 +146,8 @@ function M.sha256(s)
   return vim.fn.sha256(s)
 end
 
+-- nvim 0.11: delete when 0.11 leaves the range.  0.11 has no vim.text.diff;
+-- vim.diff gives the same hunks there.
+M.diff = vim.text and vim.text.diff or vim.diff
+
 return M

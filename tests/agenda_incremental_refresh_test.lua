@@ -8,7 +8,8 @@
 -- entirely (no undo step, no flicker). If a single line changed → only
 -- replace that line range. Only a row count change triggers a full replace.
 --
--- We assert by patching nvim_buf_set_lines to count its calls and ranges.
+-- We assert by patching nvim_buf_set_lines and nvim_buf_set_text to count
+-- line writes and their ranges.
 
 local root = vim.fn.getcwd()
 dofile(root .. "/tests/_bootstrap.lua")
@@ -85,6 +86,14 @@ vim.api.nvim_buf_set_lines = function(buf, start, stop, strict, lines)
     table.insert(set_lines_calls, { start = start, stop = stop, n_lines = #lines })
   end
   return original_set_lines(buf, start, stop, strict, lines)
+end
+-- An in-place line edit through nvim_buf_set_text is a line write too.
+local original_set_text = vim.api.nvim_buf_set_text
+vim.api.nvim_buf_set_text = function(buf, sr, sc, er, ec, text)
+  if buf == bufnr or buf == 0 then
+    table.insert(set_lines_calls, { start = sr, stop = er + 1, n_lines = #text })
+  end
+  return original_set_text(buf, sr, sc, er, ec, text)
 end
 vim.api.nvim_buf_clear_namespace = function(buf, ns, start, stop)
   if buf == bufnr or buf == 0 then
@@ -186,6 +195,7 @@ check(
 )
 
 vim.api.nvim_buf_set_lines = original_set_lines
+vim.api.nvim_buf_set_text = original_set_text
 
 if fails > 0 then
   print()

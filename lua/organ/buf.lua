@@ -14,16 +14,103 @@
 
 local M = {}
 
--- Write `new_lines` (a list of strings) to the range [start, end_).
--- `bufnr` defaults to the current buffer (0).  `strict_indexing` is
--- always false to match the most common call shape used across organ.
+-- What a line is for pairing an old line with a new one: a heading by its
+-- stars and title without keyword, priority, COMMENT, cookies and tags, a
+-- drawer or block by its name, anything else a plain line.
+local function element(line)
+  local stars, rest = line:match("^(%*+)%s+(.*)$")
+  if stars then
+    rest = rest:gsub("%s+:[%w_@#%%:]+:%s*$", "")
+    rest = rest:gsub("^%u+%s+", "", 1):gsub("^%[#%w%]%s*", "", 1):gsub("^COMMENT%s*", "", 1)
+    rest = rest:gsub("%[%d*/%d*%]", ""):gsub("%[%d*%%%]", "")
+    return "h" .. #stars .. " " .. vim.trim(rest)
+  end
+  local drawer = line:match("^%s*:([%w_-]+):%s*$")
+  if drawer then
+    return "d " .. drawer:upper()
+  end
+  local block = line:match("^%s*#%+[bB][eE][gG][iI][nN]_(%S+)")
+  if block then
+    return "b " .. block:lower()
+  end
+  return "plain"
+end
+
+-- Rewrite one line in place by its changed span only, so extmarks on the
+-- unchanged prefix (a heading's fold and reveal marks at col 0) stay.
+local function set_line_text(bufnr, row, old, new)
+  local p = 0
+  local max = math.min(#old, #new)
+  while p < max and old:byte(p + 1) == new:byte(p + 1) do
+    p = p + 1
+  end
+  local q = 0
+  while q < max - p and old:byte(#old - q) == new:byte(#new - q) do
+    q = q + 1
+  end
+  vim.api.nvim_buf_set_text(bufnr, row, p, row, #old - q, { new:sub(p + 1, #new - q) })
+end
+
+-- Write `new_lines` (a list of strings) to the range [start, end_), changing
+-- only the lines that differ (see `element` for how changed lines pair), so
+-- unchanged text keeps its extmarks and fold state.  `bufnr` defaults to
+-- the current buffer (0); indexing is not strict, as nvim_buf_set_lines
+-- with strict_indexing false.  One call is one undo step.
 function M.set_lines(bufnr, start, end_, new_lines)
   bufnr = bufnr or 0
-  local current = vim.api.nvim_buf_get_lines(bufnr, start, end_, false)
+  local count = vim.api.nvim_buf_line_count(bufnr)
+  local s = start < 0 and count + start + 1 or math.min(start, count)
+  local e = end_ < 0 and count + end_ + 1 or math.min(end_, count)
+  s, e = math.max(s, 0), math.max(e, s)
+  local current = vim.api.nvim_buf_get_lines(bufnr, s, e, false)
   if vim.deep_equal(current, new_lines) then
     return
   end
-  vim.api.nvim_buf_set_lines(bufnr, start, end_, false, new_lines)
+  if s == 0 and e == count and #new_lines == 0 then
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, {})
+    return
+  end
+  local function text(lines)
+    return #lines == 0 and "" or table.concat(lines, "\n") .. "\n"
+  end
+  local hunks =
+    require("organ.compat").diff(text(current), text(new_lines), { result_type = "indices" })
+  local first = true
+  for i = #hunks, 1, -1 do
+    local a_start, a_count, b_start, b_count = unpack(hunks[i])
+    local row = s + (a_count > 0 and a_start - 1 or a_start)
+    local replacement = {}
+    for k = b_start, b_start + b_count - 1 do
+      replacement[#replacement + 1] = new_lines[k]
+    end
+    if not first then
+      pcall(vim.api.nvim_buf_call, bufnr, function()
+        vim.cmd("silent! undojoin")
+      end)
+    end
+    first = false
+    local paired = a_count == b_count
+    if paired and a_count > 1 then
+      for k = 0, a_count - 1 do
+        if element(current[a_start + k]) ~= element(replacement[k + 1]) then
+          paired = false
+          break
+        end
+      end
+    end
+    if paired then
+      for k = a_count - 1, 0, -1 do
+        if k < a_count - 1 then
+          pcall(vim.api.nvim_buf_call, bufnr, function()
+            vim.cmd("silent! undojoin")
+          end)
+        end
+        set_line_text(bufnr, row + k, current[a_start + k], replacement[k + 1])
+      end
+    else
+      vim.api.nvim_buf_set_lines(bufnr, row, row + a_count, false, replacement)
+    end
+  end
 end
 
 -- Write `new_text` (a list of strings, one per line) to the byte range
