@@ -125,11 +125,13 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # Pinned like emacs: the gates' signatures record organ's output
+      # byte for byte, so a new Neovim release must not move them.
       - name: install neovim
         uses: rhysd/action-setup-vim@v1
         with:
           neovim: true
-          version: stable
+          version: v0.12.6
 
       - name: install system dependencies
         run: |

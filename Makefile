@@ -145,14 +145,16 @@ lint-doc:
 # renders its whole corpus through Emacs in one batch run, so the budget
 # per gate is far above test-only's.
 conformance:
-	@fails=0; failed=""; \
+	@fails=0; failed=""; ran=0; \
 	for g in $(TEST_DIR)/conformance/*/gate.lua; do \
 	  [ -f "$$g" ] || continue; \
+	  ran=$$((ran+1)); \
 	  printf '\033[2m--- %s\033[0m\n' "$$g"; \
 	  if ! TZ=UTC LC_ALL=C timeout -k 5 1800 $(NVIM) --headless -l "$$g" </dev/null; then \
 	    fails=$$((fails+1)); failed="$$failed $$g"; \
 	  fi; \
 	done; \
+	if [ $$ran -eq 0 ]; then echo "FAIL: no conformance gates found"; exit 1; fi; \
 	if [ $$fails -gt 0 ]; then echo "FAIL:$$failed"; exit 1; fi
 
 # ids.tsv is generated outside the repo (the project's phases.tsv, written

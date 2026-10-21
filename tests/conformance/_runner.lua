@@ -196,11 +196,17 @@ function M.main(area)
   vim.env.ORGAN_TEST_DB = vim.fn.tempname() .. "-" .. area .. ".db"
   dofile(root .. "/tests/_bootstrap.lua")
   if vim.fn.executable("emacs") ~= 1 then
+    if vim.env.CI and vim.env.CI ~= "" then
+      io.write("conformance " .. area .. ": FAIL (emacs not installed, and CI must run the gate)\n")
+      os.exit(1)
+    end
     io.write("conformance " .. area .. ": SKIP (emacs not installed)\n")
     os.exit(0)
   end
-  if os.getenv("TZ") ~= "UTC" then
-    io.write("conformance " .. area .. ": FAIL (run with TZ=UTC, as `make conformance` does)\n")
+  if os.getenv("TZ") ~= "UTC" or os.getenv("LC_ALL") ~= "C" then
+    io.write(
+      "conformance " .. area .. ": FAIL (run with TZ=UTC LC_ALL=C, as `make conformance` does)\n"
+    )
     os.exit(1)
   end
   local problems = {}
