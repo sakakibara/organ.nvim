@@ -65,5 +65,5 @@ XT-16	agenda:composite.org	pending
 XT-17	agenda:tags-matching.org	pending
 AG-54	option:footer	todo
 AG-55	option:effort.show_in_agenda	todo
-AG-56	agenda:deadline-warnings.org	pending
+AG-56	agenda:prewarning-if-scheduled.org	pending
 AG-57	agenda:inline-tag-column.org	pending

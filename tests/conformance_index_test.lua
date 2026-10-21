@@ -11,12 +11,58 @@ local function fail(msg)
   failures[#failures + 1] = msg
 end
 
+local RULINGS = {
+  FIX = true,
+  KEEP = true,
+  ["KEEP+FIX"] = true,
+  ["KEEP+OPT"] = true,
+  ["FIX+OPT"] = true,
+  ["FIX-INHERENT"] = true,
+  ["N/A"] = true,
+}
+
+-- The cases each area's manifest lists, keyed "area:case".
+local cases = {}
+for _, manifest in ipairs(vim.fn.glob(root .. "/tests/conformance/*/manifest.tsv", false, true)) do
+  local area = vim.fn.fnamemodify(manifest, ":h:t")
+  for line in io.lines(manifest) do
+    local case = line:match("^cases/([^\t]+)\t")
+    if case then
+      cases[area .. ":" .. case] = true
+    end
+  end
+end
+
+-- Option runs the gates declare (each area's options.lua).
+local option_runs = {}
+for _, path in ipairs(vim.fn.glob(root .. "/tests/conformance/*/options.lua", false, true)) do
+  for _, name in ipairs(dofile(path)) do
+    option_runs[name] = true
+  end
+end
+
+-- Whether an index row's test reference names something that exists.
+-- `option:NAME` may name a run not written yet only while it is todo.
+local function known_test(test, status)
+  local kind, name = test:match("^([%w-]+):(.+)$")
+  if kind == "option" then
+    return option_runs[name] or status == "todo"
+  elseif kind == "parser" then
+    return vim.fn.filereadable(root .. "/tests/fixtures/emacs_interop/parity/" .. name) == 1
+  elseif kind then
+    return cases[test] == true
+  end
+  return true
+end
+
 local ids = {}
 for line in io.lines(root .. "/tests/conformance/ids.tsv") do
   if line:sub(1, 1) ~= "#" then
     local id, ruling, step, oracle = line:match("^([^\t]+)\t([^\t]+)\t([^\t]+)\t([^\t]+)$")
     if not id then
       fail("ids.tsv: malformed row: " .. line)
+    elseif not RULINGS[ruling] then
+      fail("ids.tsv: " .. id .. " has unknown ruling " .. ruling)
     else
       ids[id] = { ruling = ruling, step = step, oracle = oracle }
     end
@@ -50,6 +96,8 @@ for _, index_file in ipairs(index_files) do
         local file = test:match("^(tests/.+%.lua)$")
         if file and vim.fn.filereadable(root .. "/" .. file) ~= 1 then
           fail("index.tsv: " .. id .. " names a missing test " .. file)
+        elseif not known_test(test, status) then
+          fail("index.tsv: " .. id .. " names " .. test .. ", which no gate defines")
         end
       end
     end
@@ -65,6 +113,8 @@ local function step_closed(step)
 end
 
 local transitional = {}
+-- id -> set of "area:case" holding a TRANSITIONAL row for it.
+local transitional_at = {}
 local sig_files = vim.fn.glob(root .. "/tests/conformance/*/signatures*.tsv", false, true)
 for _, path in ipairs(sig_files) do
   local ok, rows = pcall(signatures.load, path)
@@ -73,6 +123,7 @@ for _, path in ipairs(sig_files) do
     rows = {}
   end
   local rel = path:sub(#root + 2)
+  local area = vim.fn.fnamemodify(path, ":h:t")
   for _, r in ipairs(rows) do
     local set = {}
     for id in r.id:gmatch("[^,]+") do
@@ -132,6 +183,8 @@ for _, path in ipairs(sig_files) do
         -- only the IDs with an outstanding fix or option are pending.
         open_part = true
         transitional[id] = true
+        transitional_at[id] = transitional_at[id] or {}
+        transitional_at[id][area .. ":" .. r.case] = true
         if step_closed(entry.step) then
           fail(
             string.format(
@@ -170,6 +223,13 @@ for id, entry in pairs(ids) do
     if transitional[id] then
       if row and row.status == "pass" then
         fail(id .. " is marked pass but still holds a TRANSITIONAL signature")
+      elseif
+        row
+        and row.status == "pending"
+        and cases[row.test]
+        and not transitional_at[id][row.test]
+      then
+        fail(id .. " is pending in " .. row.test .. ", which holds no TRANSITIONAL row for it")
       end
     elseif not row then
       fail(

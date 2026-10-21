@@ -11,7 +11,9 @@ DOC-11	tests/conformance_doc_test.lua	pass
 DOC-13	tests/conformance_doc_test.lua	pass
 DOC-15	tests/conformance_doc_test.lua	pass
 DOC-2	unit	todo
+DOC-4	tests/conformance_doc_test.lua	pass
 DOC-7	tests/conformance_doc_test.lua	todo
 DOC-8	unit	todo
+DOC-19	doc	todo
 XT-8	doc	todo
 XT-13	unit	todo

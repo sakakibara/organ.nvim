@@ -19,6 +19,8 @@ local function present(id, text)
 end
 
 absent("DOC-1", "Emacs: Prompts keep / stop / cancel.")
+absent("DOC-4", "Emacs: Pattern-based.")
+present("DOC-4", "Emacs: No property-value links;")
 absent("DOC-11", "Emacs: `|` typing AND `<Tab>`.")
 absent("DOC-13", "Why: Practical 80%; full Calc rarely needed")
 absent("DOC-15", "Shows `vim.ui.select` only when `agenda.views` is")
