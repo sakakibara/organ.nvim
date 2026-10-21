@@ -1,6 +1,7 @@
 -- The grammar clone is brought to exactly the pinned revision with real
 -- git: a fresh clone, a reused one with local edits and build output, an
--- unreachable pin, and a clone a killed git left locked.
+-- unreachable pin that leaves the clone in place, and a clone a killed
+-- git left locked.
 -- Run via: nvim --headless -l tests/grammar_sync_clone_test.lua
 
 local root = vim.fn.getcwd()
@@ -63,6 +64,7 @@ check("build output is cleaned", vim.fn.isdirectory(dest .. "/build") == 0)
 ok, err = gi._fetch_pinned(url, dest, string.rep("0", 40))
 check("an unreachable pin fails", not ok)
 check("the failure names git's error", type(err) == "string" and err ~= "", err)
+check("a failed fetch keeps the clone it had", git(dest, "rev-parse", "HEAD") == pin)
 
 ok, err = gi._fetch_pinned(url, dest, pin)
 check("a clone recovers after a failed sync", ok, err)

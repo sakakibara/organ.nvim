@@ -415,11 +415,12 @@ local function sync_clone(url, dest, rev)
 end
 
 -- sync_clone, started over once from a fresh clone when it fails on an
--- existing one: a killed git can leave a lock file that fails every later
--- command, and organ owns the directory.
+-- existing one that a killed git left locked: the lock file fails every
+-- later command, and organ owns the directory.  Any other failure (no
+-- network, a timeout, an interrupt) keeps the clone.
 function M._fetch_pinned(url, dest, rev)
   local ok, err = sync_clone(url, dest, rev)
-  if not ok and vim.fn.isdirectory(dest) == 1 then
+  if not ok and #vim.fn.globpath(dest .. "/.git", "**/*.lock", true, true) > 0 then
     progress(
       "retrying " .. vim.fn.fnamemodify(dest, ":t") .. " from a fresh clone: " .. tostring(err)
     )
