@@ -95,6 +95,19 @@ vim.bo[b].modified = false
 obuf.set_lines(b, 0, 2, { "x", "y" })
 check("equal content leaves the buffer unmodified", not vim.bo[b].modified)
 
+-- start > end raises as nvim_buf_set_lines does.
+b = buffer({ "a", "b", "c", "d", "e" })
+local ok_raise = pcall(obuf.set_lines, b, 7, 1, { "x" })
+check("start past end raises", not ok_raise)
+check("and leaves the buffer as it was", #vim.api.nvim_buf_get_lines(b, 0, -1, false) == 5)
+
+-- Only the buffer's TODO keywords are stripped when pairing headings: two
+-- different titles starting with capitals never share a mark.
+b = buffer({ "* NASA x", "* ESA y" })
+m1, m2 = mark(b, 0), mark(b, 1)
+obuf.set_lines(b, 0, 2, { "* ESA x", "* NASA y" })
+check("capitalised titles are not taken for TODO keywords", where(b, m1) ~= 0 or where(b, m2) ~= 1)
+
 -- The result is always exactly the new lines (bounded random sweep).
 math.randomseed(7)
 local alphabet = { "* A", "* B", "** C", "body", "", "x y", "* A :t:", "- item" }
@@ -122,7 +135,11 @@ for i = 1, 400 do
     expected = { "" }
   end
   if not vim.deep_equal(got, expected) then
-    check("random write " .. i, false, vim.inspect({ before = base, s = s, e = e, after = after, got = got }))
+    check(
+      "random write " .. i,
+      false,
+      vim.inspect({ before = base, s = s, e = e, after = after, got = got })
+    )
     break
   end
   vim.api.nvim_buf_delete(b, { force = true })

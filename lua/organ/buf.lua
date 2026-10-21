@@ -15,13 +15,18 @@
 local M = {}
 
 -- What a line is for pairing an old line with a new one: a heading by its
--- stars and title without keyword, priority, COMMENT, cookies and tags, a
--- drawer or block by its name, anything else a plain line.
-local function element(line)
+-- stars and title without TODO keyword (one of `keywords`), priority,
+-- COMMENT, cookies and tags, a drawer or block by its name, anything else
+-- a plain line.
+local function element(line, keywords)
   local stars, rest = line:match("^(%*+)%s+(.*)$")
   if stars then
     rest = rest:gsub("%s+:[%w_@#%%:]+:%s*$", "")
-    rest = rest:gsub("^%u+%s+", "", 1):gsub("^%[#%w%]%s*", "", 1):gsub("^COMMENT%s*", "", 1)
+    local first, after = rest:match("^(%S+)%s+(.*)$")
+    if first and keywords[first] then
+      rest = after
+    end
+    rest = rest:gsub("^%[#%w%]%s*", "", 1):gsub("^COMMENT%s*", "", 1)
     rest = rest:gsub("%[%d*/%d*%]", ""):gsub("%[%d*%%%]", "")
     return "h" .. #stars .. " " .. vim.trim(rest)
   end
@@ -61,7 +66,12 @@ function M.set_lines(bufnr, start, end_, new_lines)
   local count = vim.api.nvim_buf_line_count(bufnr)
   local s = start < 0 and count + start + 1 or math.min(start, count)
   local e = end_ < 0 and count + end_ + 1 or math.min(end_, count)
-  s, e = math.max(s, 0), math.max(e, s)
+  s, e = math.max(s, 0), math.max(e, 0)
+  if e < s then
+    -- Raises "'start' is higher than 'end'", as a direct call does.
+    vim.api.nvim_buf_set_lines(bufnr, start, end_, false, new_lines)
+    return
+  end
   local current = vim.api.nvim_buf_get_lines(bufnr, s, e, false)
   if vim.deep_equal(current, new_lines) then
     return
@@ -75,6 +85,11 @@ function M.set_lines(bufnr, start, end_, new_lines)
   end
   local hunks =
     require("organ.compat").diff(text(current), text(new_lines), { result_type = "indices" })
+  local keywords = {}
+  local todo = require("organ.todo")
+  for _, k in ipairs(todo.all_keywords(todo.effective_sequences(bufnr))) do
+    keywords[k] = true
+  end
   local first = true
   for i = #hunks, 1, -1 do
     local a_start, a_count, b_start, b_count = unpack(hunks[i])
@@ -92,7 +107,7 @@ function M.set_lines(bufnr, start, end_, new_lines)
     local paired = a_count == b_count
     if paired and a_count > 1 then
       for k = 0, a_count - 1 do
-        if element(current[a_start + k]) ~= element(replacement[k + 1]) then
+        if element(current[a_start + k], keywords) ~= element(replacement[k + 1], keywords) then
           paired = false
           break
         end
