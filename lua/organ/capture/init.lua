@@ -305,6 +305,11 @@ function M.start(template, ctx)
   local template_mod = require("organ.capture.template")
   local placeholder_mod = require("organ.capture.placeholder")
 
+  local valid, problem = pcall(template_mod.validate, template)
+  if not valid then
+    require("organ.notify").error("organ: capture refused: " .. tostring(problem))
+    return
+  end
   local t = template_mod.normalise(template)
   ctx = ctx or {}
   ctx.now = ctx.now or os.time()

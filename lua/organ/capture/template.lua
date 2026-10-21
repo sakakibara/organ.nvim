@@ -51,6 +51,11 @@ local function validate_one(t, idx)
   end
 end
 
+-- Raises the first problem with one template, as validate_all does.
+function M.validate(t)
+  validate_one(t, 1)
+end
+
 function M.validate_all(templates)
   if type(templates) ~= "table" then
     error("capture.templates must be a list")
