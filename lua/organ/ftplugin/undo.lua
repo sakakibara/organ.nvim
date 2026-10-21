@@ -21,6 +21,7 @@ local DETACHABLE = {
   "organ.conceal",
   "organ.description_list",
   "organ.decoration",
+  "organ.fold.marks",
 }
 
 -- bufnr -> set of "mode\0lhs" present before the ftplugin ran.  Anything

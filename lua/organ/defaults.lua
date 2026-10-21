@@ -650,6 +650,12 @@ return {
     -- leading-whitespace indentation context, which has no normal-mode
     -- analog, so only the boolean is supported.
     cycle_emulate_tab = true,
+    -- Wrap Vim's fold keys (zc zo za zC zO zA zv zx zX zM zR zm zr) in
+    -- org buffers so a fold changed in the same burst as an edit (a
+    -- macro, a mapping, keys typed ahead) is kept through the edit.  A
+    -- key already mapped by you or another plugin is left alone.  No
+    -- Emacs counterpart: Emacs visibility needs no such tracking.
+    wrap_native_keys = true,
     -- Renderer that `organ.fold.foldtext()` returns when your
     -- 'foldtext' option calls into it.  By default organ does NOT
     -- set 'foldtext' itself -- you wire it via your config (see

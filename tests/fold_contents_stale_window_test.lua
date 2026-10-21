@@ -133,7 +133,13 @@ for _, m in ipairs(vim.api.nvim_buf_get_keymap(A, "n")) do
     za = m
   end
 end
-check("buffer-local za override removed", za == nil, za and ("desc: " .. tostring(za.desc)))
+-- The CONTENTS override is gone; what is left is the mapping it stacked
+-- on (organ's fold-key wrapper, organ.fold.marks), if any.
+check(
+  "buffer-local za override removed",
+  za == nil or za.desc == "Fold za (kept through edits)",
+  za and ("desc: " .. tostring(za.desc))
+)
 vim.api.nvim_set_current_win(W1)
 vim.api.nvim_win_set_cursor(W1, { 1, 0 })
 vim.cmd("normal za")

@@ -1097,6 +1097,20 @@ Fold                                                       *organ-config-fold*
     (`white` / `whitestart`) gate on leading-whitespace indentation
     context, which has no normal-mode analog.
 
+                                          *organ-config-fold-wrap_native_keys*
+    `fold.wrap_native_keys` (bool, default: `true`)
+    organ keeps each fold's open or closed state with its heading,
+    drawer or block, so edits never fold or unfold text you did not
+    fold or unfold.  It learns your fold changes when the editor is
+    idle, and, with this option on, also from Vim's fold keys (`zc`
+    `zo` `za` `zC` `zO` `zA` `zv` `zx` `zX` `zM` `zR` `zm` `zr`), which
+    it wraps in org buffers so a fold changed in the same burst as an
+    edit -- a macro, a mapping, keys typed ahead -- is kept.  A key you
+    or another plugin already map is not wrapped, and a global mapping
+    a plugin adds later is run instead of the wrapper.  `false` leaves
+    the keys native; a fold change made in one burst with an edit, with
+    no pause in between, is then lost.
+
                                      *organ-config-fold-cycle_separator_lines*
     `fold.cycle_separator_lines` (int | false, default: `2`)
     Mirrors Emacs `org-cycle-separator-lines`.  Number of trailing

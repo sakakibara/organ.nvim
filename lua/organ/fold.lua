@@ -91,6 +91,7 @@ local function apply_state(bufnr, heading, headline_line, state)
   end
 
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
+  require("organ.fold.marks").record(0)
   -- Invalidate the visible-distance cache: foldclose / foldopen
   -- changed which lines are inside closed folds, but `changedtick`
   -- didn't bump so the cache otherwise holds stale entries until
@@ -209,6 +210,7 @@ function M.cycle(bufnr, line)
     vim.api.nvim_win_set_cursor(0, { sr, 0 })
     pcall(vim.cmd, "silent! normal! za")
     pcall(vim.api.nvim_win_set_cursor, 0, saved)
+    require("organ.fold.marks").record(0)
     return true
   end
 
@@ -265,6 +267,7 @@ end
 -- have to depend on whichever window happens to be current.
 local function _set_local_foldlevel(winid, lvl)
   pcall(vim.api.nvim_set_option_value, "foldlevel", lvl, { win = winid, scope = "local" })
+  require("organ.fold.marks").record(winid)
 end
 
 local function _leave_contents_if_active(winid)
@@ -345,6 +348,7 @@ function M.apply_show_everything(winid, bufnr)
   vim.api.nvim_win_call(winid, function()
     vim.cmd("silent! normal! zR")
   end)
+  require("organ.fold.marks").record(winid)
   _invalidate_visible_cache(bufnr)
 end
 
@@ -461,6 +465,7 @@ function M.close_all_drawers(bufnr, winid)
   end
   walk(tree:root())
   pcall(vim.api.nvim_win_set_cursor, 0, saved)
+  require("organ.fold.marks").record(0)
   pcall(function()
     require("organ.fold.contents").invalidate_visible_cache(bufnr)
   end)

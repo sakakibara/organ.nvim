@@ -191,6 +191,7 @@ local function setup_fold_window_opts(bufnr, cfg)
     end)
   end
   apply_fold_window_opts()
+  require("organ.fold.marks").attach(bufnr)
   -- foldlevel only on the initial attach -- BufWinEnter shouldn't
   -- reset it back to 99 every time the user re-enters the window
   -- (would override <S-Tab> state).
@@ -199,7 +200,10 @@ local function setup_fold_window_opts(bufnr, cfg)
   require("organ.errors").autocmd("BufWinEnter", {
     group = fold_win_group,
     buffer = bufnr,
-    callback = apply_fold_window_opts,
+    callback = function()
+      apply_fold_window_opts()
+      require("organ.fold.marks").seed(vim.api.nvim_get_current_win())
+    end,
   })
   -- BufWinLeave: org buffer is leaving this window (user did :e foo.lua,
   -- :bnext, etc.).  Clear our win-local overrides so the next buffer in
