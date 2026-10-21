@@ -43,6 +43,8 @@ output, and likewise for `latex` cases in the `beamer` run.
 2. A run of blank lines becomes one blank line on both sides. TeX reads
    any run of blank lines as a single paragraph break. Single blank lines
    are kept, so a missing or extra paragraph break is a difference.
+   Inside `verbatim`, `Verbatim`, `lstlisting` and `minted`, where every
+   line prints, lines compare literally (this rule and rule 3).
 3. Spaces before a line-final `\\` are dropped on both sides, unless the
    character before them is a backslash (a control space). LaTeX's `\\`
    starts with `\unskip` in paragraphs and table cells, so `x \\` and

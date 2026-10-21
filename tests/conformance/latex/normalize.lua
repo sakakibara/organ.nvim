@@ -88,18 +88,35 @@ local function map_labels(text, case)
   end))
 end
 
+-- Environments whose lines print as they are.
+local VERBATIM = { verbatim = true, Verbatim = true, lstlisting = true, minted = true }
+
 local function squeeze(text)
-  local out, blank = {}, false
+  local out, blank, verbatim = {}, false, nil
   for _, raw in ipairs(vim.split(text, "\n", { plain = true })) do
-    local line = raw:gsub("([^\\]) +(\\\\)$", "%1%2")
-    if line == "" then
-      if not blank then
-        out[#out + 1] = line
+    local line = raw
+    if verbatim then
+      if raw:find("\\end{" .. verbatim .. "}") then
+        verbatim = nil
       end
-      blank = true
-    else
       out[#out + 1] = line
       blank = false
+    else
+      local env = raw:match("\\begin{(%a+)}")
+      if env and VERBATIM[env] and not raw:find("\\end{" .. env .. "}") then
+        verbatim = env
+      else
+        line = raw:gsub("([^\\]) +(\\\\)$", "%1%2")
+      end
+      if line == "" then
+        if not blank then
+          out[#out + 1] = line
+        end
+        blank = true
+      else
+        out[#out + 1] = line
+        blank = false
+      end
     end
   end
   return table.concat(out, "\n")

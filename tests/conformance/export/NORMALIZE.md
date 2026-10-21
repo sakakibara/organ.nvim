@@ -86,7 +86,9 @@ OPML entry.
 4. Texinfo:
    - a run of blank lines becomes one blank line on both sides; TeX and
      makeinfo read any run of blank lines as one paragraph break, and
-     single blank lines are kept;
+     single blank lines are kept; inside `@example`, `@verbatim`,
+     `@lisp`, `@display`, `@format` and their `small` forms, where blank
+     lines print, they compare literally;
    - the `@c` comment after `\input texinfo` on the first line is
      dropped (a comment: `@c -*- texinfo -*-` and `@c -*-texinfo-*-` are
      editor mode lines);
@@ -107,8 +109,10 @@ OPML entry.
      numeric forms), whose escaped and raw forms differ in Markdown.
      CommonMark decodes `&ndash;`, `&#x2013;` and a literal U+2013 to the
      same text; inventory R3 names character references (HX-59) among the
-     spellings that need not match byte for byte. No case puts a reference inside a code span, where
-     CommonMark would not decode it.
+     spellings that need not match byte for byte. References in fenced
+     code, in lines indented four spaces or a tab (code blocks, and list
+     continuations, which then compare literally), and in code spans
+     compare literally, as CommonMark shows them there.
 6. Bytes that are not valid UTF-8 read as `<0xHH>` on both sides, so a
    split multi-octet character (OX-77) shows in the diff while the
    signature file stays valid UTF-8. No valid text is changed.

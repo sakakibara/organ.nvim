@@ -92,8 +92,39 @@ local function unfold(text, case)
   return (text:gsub(vim.pesc(path), "<case>"))
 end
 
+-- Texinfo environments whose blank lines print as they are.
+local TEXINFO_VERBATIM = {
+  example = true,
+  smallexample = true,
+  lisp = true,
+  smalllisp = true,
+  display = true,
+  smalldisplay = true,
+  format = true,
+  smallformat = true,
+  verbatim = true,
+}
+
+-- A run of blank lines becomes one, except inside a verbatim environment.
+local function squeeze_texinfo(text)
+  local out, blank, verbatim = {}, false, nil
+  for _, line in ipairs(vim.split(text, "\n", { plain = true })) do
+    local env = line:match("^@(%a+)%s*$")
+    if not verbatim and env and TEXINFO_VERBATIM[env] then
+      verbatim = env
+    elseif verbatim and line:match("^@end " .. verbatim .. "%s*$") then
+      verbatim = nil
+    end
+    if line ~= "" or verbatim or not blank then
+      out[#out + 1] = line
+    end
+    blank = line == "" and not verbatim
+  end
+  return table.concat(out, "\n")
+end
+
 local function texinfo(text)
-  text = text:gsub("\n\n\n+", "\n\n"):gsub("^\\input texinfo%s+@c [^\n]*", "\\input texinfo")
+  text = squeeze_texinfo(text):gsub("^\\input texinfo%s+@c [^\n]*", "\\input texinfo")
   local lines = vim.split(text, "\n", { plain = true })
   local out, stack = {}, {}
   local i = 1
@@ -128,21 +159,73 @@ end
 local MARKUP = { amp = true, lt = true, gt = true, quot = true, apos = true }
 local MARKUP_CODES = { [38] = true, [60] = true, [62] = true, [34] = true, [39] = true }
 
-local function markdown(text)
+local function decode_references(text)
   local named = require("organ.ast.html5_entities")
   text = text:gsub("&(%a+%d*);", function(name)
     if not MARKUP[name] then
       return named[name]
     end
   end)
-  text = text:gsub("&#([xX]?)(%x+);", function(x, digits)
-    local code = tonumber(digits, x ~= "" and 16 or 10)
-    if code and not MARKUP_CODES[code] then
-      return vim.fn.nr2char(code, true)
+  return (
+    text:gsub("&#([xX]?)(%x+);", function(x, digits)
+      local code = tonumber(digits, x ~= "" and 16 or 10)
+      if code and not MARKUP_CODES[code] then
+        return vim.fn.nr2char(code, true)
+      end
+    end)
+  )
+end
+
+-- Decode references in a line outside its code spans, which CommonMark
+-- shows literally: a run of N backticks opens a span the next run of
+-- exactly N backticks closes.
+local function decode_outside_spans(line)
+  local out, pos = {}, 1
+  while true do
+    local s, e = line:find("`+", pos)
+    if not s then
+      break
     end
-  end)
+    local fence = line:sub(s, e)
+    local cs, ce = e + 1, nil
+    while true do
+      local a, b = line:find("`+", cs)
+      if not a then
+        break
+      end
+      if b - a + 1 == #fence then
+        ce = b
+        break
+      end
+      cs = b + 1
+    end
+    if not ce then
+      out[#out + 1] = decode_references(line:sub(pos, e))
+      pos = e + 1
+    else
+      out[#out + 1] = decode_references(line:sub(pos, s - 1))
+      out[#out + 1] = line:sub(s, ce)
+      pos = ce + 1
+    end
+  end
+  out[#out + 1] = decode_references(line:sub(pos))
+  return table.concat(out)
+end
+
+local function markdown(text)
   local lines = vim.split(text, "\n", { plain = true })
+  local fence
   for i, line in ipairs(lines) do
+    local marker = line:match("^ ? ? ?(```+)") or line:match("^ ? ? ?(~~~+)")
+    if fence then
+      if marker and marker:sub(1, 1) == fence:sub(1, 1) and #marker >= #fence then
+        fence = nil
+      end
+    elseif marker then
+      fence = marker
+    elseif not line:match("^    ") and not line:match("^\t") then
+      line = decode_outside_spans(line)
+    end
     lines[i] = line:gsub("^(>+) +$", "%1")
   end
   return (table.concat(lines, "\n"):gsub("\n+$", "\n"))
