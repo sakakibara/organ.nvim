@@ -287,7 +287,15 @@ local function run_op(spec)
   end
   ctx.refused = false
   local ok, err = pcall(fn, arg)
-  if not ok or type(err) == "string" then
+  if not ok then
+    log(
+      "! crash: "
+        .. tostring(err)
+          :gsub("%S*%.lua:%d+: ", "")
+          :gsub('%[string "[^"]*"%]:%d+: ', "")
+          :gsub("\n", " ")
+    )
+  elseif type(err) == "string" then
     ctx.refused = true
   end
   if ctx.refused then

@@ -192,7 +192,11 @@ function M.render(path, option)
   local ok, result = pcall(run_op, op, op_spec, cases_dir, bufnr)
   notify.error, notify.warn = saved.error, saved.warn
   if not ok then
-    status = "! crash: " .. tostring(result):gsub("^.-%.lua:%d+: ", ""):gsub("\n", " ")
+    status = "! crash: "
+      .. tostring(result)
+        :gsub("%S*%.lua:%d+: ", "")
+        :gsub('%[string "[^"]*"%]:%d+: ', "")
+        :gsub("\n", " ")
     result = nil
   end
   if option then

@@ -218,7 +218,7 @@
          (forward-line 1))
        (nreverse out)))
     ("speed" (conformance--speed (car args)) nil)
-    (_ (error "conformance: unknown op %s" op))))
+    (_ (message "conformance: unknown op %s" op) (kill-emacs 3))))
 
 (defun conformance--render (file option)
   (let* ((text (with-temp-buffer

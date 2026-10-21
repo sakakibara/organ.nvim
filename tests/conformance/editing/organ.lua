@@ -173,9 +173,10 @@ local function cursor_line()
   return vim.api.nvim_win_get_cursor(0)[1]
 end
 
+-- organ's returned error is a refusal, unlike an error organ raises.
 local function fail_on(err)
   if err then
-    error(err, 0)
+    error({ refusal = err })
   end
 end
 
@@ -636,8 +637,17 @@ function M.render(path, option)
   vim.wait(20)
   notify.error, notify.warn, notify.info = saved.error, saved.warn, saved.info
   vim.notify = saved.vim_notify
-  if not ok or status then
-    status = status or "! error"
+  if not ok and type(result) == "table" and result.refusal then
+    status = "! error"
+    result = nil
+  elseif not ok then
+    status = "! crash: "
+      .. tostring(result)
+        :gsub("%S*%.lua:%d+: ", "")
+        :gsub('%[string "[^"]*"%]:%d+: ', "")
+        :gsub("\n", " ")
+    result = nil
+  elseif status then
     result = nil
   elseif result == NO_COMMAND then
     status = NO_COMMAND

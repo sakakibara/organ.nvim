@@ -275,7 +275,7 @@ local function run_op(spec, bufnr, dir)
     end
     return out
   end
-  error("unknown op " .. tostring(op))
+  return { unknown = op }
 end
 
 local function replace_dirs(text, base, dir)
@@ -389,10 +389,18 @@ function M.render(path, option)
     end
     for _, spec in ipairs(ops) do
       local okop, lines = pcall(run_op, spec, bufnr, dir)
-      if okop and lines then
+      if okop and lines and lines.unknown then
+        error("conformance: unknown op " .. tostring(lines.unknown))
+      elseif okop and lines then
         vim.list_extend(out, lines)
-      else
+      elseif okop then
         out[#out + 1] = "! error " .. spec
+      else
+        out[#out + 1] = "! crash: "
+          .. tostring(lines)
+            :gsub("%S*%.lua:%d+: ", "")
+            :gsub('%[string "[^"]*"%]:%d+: ', "")
+            :gsub("\n", " ")
       end
     end
     if POINT_OPS[first_op] then

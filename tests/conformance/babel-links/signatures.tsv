@@ -50,7 +50,7 @@ fn-adjust.org	BL-215	TRANSITIONAL	1	-=== point case.org 11:7\n+=== point case.or
 fn-adjust.org	BL-215	TRANSITIONAL	1	-Text[fn:1] more[fn:2] and here[fn:3].\n+Text[fn:2] more[fn:1] and here[fn:3].
 fn-adjust.org	BL-215	TRANSITIONAL	1	-[fn:1] Two.\n+[fn:1] One.
 fn-adjust.org	BL-215	TRANSITIONAL	1	-[fn:2] One.\n+[fn:2] Two.
-fn-delete.org	BL-214	TRANSITIONAL	1	+! error fn-delete
+fn-delete.org	BL-214	TRANSITIONAL	1	+! crash: organ has no footnote delete
 fn-delete.org	BL-214	TRANSITIONAL	1	+[fn:7] Seven def\n+continues here.
 fn-delete.org	BL-214	TRANSITIONAL	1	-Alpha beta[fn:named] gamma[fn:3] delta eps[fn::anon body] zeta[fn:in: inline named].\n+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].
 fn-follow-ref.org	BL-218	TRANSITIONAL	1	-=== point case.org 8:6\n-=== line [fn:a] Def of a.\n+=== point case.org 2:9\n+=== line First[fn:a] and again[fn:a] here.
@@ -113,8 +113,8 @@ follow-fuzzy-name.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line #
 follow-fuzzy-nomatch.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * nonexistent\n+=== point case.org 1:11\n+=== line Go [[nonexistent]]
 follow-fuzzy-target.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:5\n-=== line Text <<foo>> here.\n+=== point case.org 1:7\n+=== line Go [[foo]]
 follow-id-unindexed.org	BL-112	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+=== point case.org 1:13\n+=== line Go [[id:abc-123]]
-follow-modified-buffer-file.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! error follow\n+=== point case.org 1:6\n+=== line Go [[file:case.org::*Target]]
-follow-modified-buffer-id.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! error follow\n+=== point case.org 1:6\n+=== line Go [[id:abc-123]]
+follow-modified-buffer-file.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[file:case.org::*Target]]
+follow-modified-buffer-id.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[id:abc-123]]
 follow-on-headline.org	BL-119	TRANSITIONAL	1	-=== open https://only.example
 follow-star-heading.org	BL-101	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * TODO [#A] Target Heading :tag:\n+=== point case.org 1:14\n+=== line Go [[*Target Heading]]
 follow-text-file-words.org	BL-106	TRANSITIONAL	1	-=== point t.txt 2:7\n+=== point t.txt 2:0

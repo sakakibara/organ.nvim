@@ -154,7 +154,7 @@
                                                              conformance-clock--now)))
                          "none"))
      (when org-timer-countdown-timer (org-timer-stop)))
-    (_ (error "conformance: unknown op %s" op))))
+    (_ (message "conformance: unknown op %s" op) (kill-emacs 3))))
 
 (defun conformance--run-op (spec buf)
   (let* ((op (car (split-string spec " ")))

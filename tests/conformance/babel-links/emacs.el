@@ -182,7 +182,7 @@
       ("bib-files"
        (append (list "=== bibliography") (org-cite-list-bibliography-files)
                (list "=== keys") (sort (org-cite-basic--all-keys) #'string<)))
-      (_ (error "conformance: unknown op %s" op)))))
+      (_ (message "conformance: unknown op %s" op) (kill-emacs 3)))))
 
 (defconst conformance--point-ops '("follow" "fn-action" "fn-new"))
 (defconst conformance--quiet-ops '("follow" "cite-parse" "bib-files"))

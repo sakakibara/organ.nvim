@@ -126,7 +126,7 @@ id-create.org	CF-59	KEEP	1	-:PROPERTIES:\n-:ID:       <ID of a.org::Planned head
 id-create.org	CF-60	KEEP	1	-hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 4\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 7
 id-create.org	CF-62	TRANSITIONAL	1	-hhhhhhkhkxkh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
 id-create.org	CF-62	TRANSITIONAL	1	-pfx:hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
-id-duplicate.org	CF-66	TRANSITIONAL	1	+ERROR
+id-duplicate.org	CF-66	TRANSITIONAL	1	+CRASH: index_file_sync failed for $WORK/d.org: ins_hl rc=19 path=$WORK/d.org id=same-id
 id-duplicate.org	CF-63	TRANSITIONAL	1	-=== data/fi/le-level-id/file.txt\n-payload\n-<<EOF>>
 id-duplicate.org	CF-63	TRANSITIONAL	1	-dir=data/fi/le-level-id\n+ERROR
 id-duplicate.org	CF-66	TRANSITIONAL	1	-same-id -> d.org:5 * First\n-file-level-id -> d.org:1 :PROPERTIES:\n+same-id -> nil\n+file-level-id -> nil

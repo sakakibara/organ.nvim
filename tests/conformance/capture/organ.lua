@@ -116,10 +116,17 @@ local function msg(fmt, ...)
   state.out[#state.out + 1] = string.format(fmt, ...) .. "\n"
 end
 
+-- An error organ raises is a crash; the normalizer keeps its text, while
+-- an ERROR (organ's or Emacs's refusal) is compared by its presence.
+local function crash(err)
+  local m = tostring(err):gsub("%S*%.lua:%d+: ", ""):gsub('%[string "[^"]*"%]:%d+: ', "")
+  msg("CRASH: %s", (m:gsub("\n", " ")))
+end
+
 local function try(fn, ...)
   local ok, err = pcall(fn, ...)
   if not ok then
-    msg("ERROR: %s", tostring(err):gsub("\n", " "))
+    crash(err)
   end
   return ok, err
 end
@@ -207,7 +214,7 @@ local function index()
   for _, f in ipairs(vim.fn.globpath(W, "**/*.org", false, true)) do
     local ok, err = pcall(indexer.index_file_sync, f)
     if not ok then
-      msg("ERROR: %s", tostring(err):gsub("\n", " "))
+      crash(err)
     end
   end
 end
@@ -236,7 +243,7 @@ local function watching_insert(fn)
   vim.cmd = real_cmd
   -- luacheck: pop
   if not ok then
-    msg("ERROR: %s", tostring(res):gsub("\n", " "))
+    crash(res)
   end
   return eol
 end
