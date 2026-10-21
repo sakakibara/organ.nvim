@@ -1,2 +1,2 @@
 # Expected editing differences against Emacs in the planning-flush option run.
-property-set-padded-value.org	ED-48	TRANSITIONAL	1	-:FOO:      spaced\n+:FOO:        spaced  
+property-set-padded-value.org	ED-48	TRANSITIONAL	1	 :PROPERTIES:\n-:FOO:      spaced\n+:FOO:        spaced  

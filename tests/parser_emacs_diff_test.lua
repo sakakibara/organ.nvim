@@ -107,19 +107,7 @@ vim.fn.delete(out_dir, "rf")
 
 local observed = {}
 for name in pairs(vim.tbl_extend("keep", {}, emacs, organ)) do
-  local a, b = emacs[name] or {}, organ[name] or {}
-  local ta, tb = table.concat(a, "\n") .. "\n", table.concat(b, "\n") .. "\n"
-  local hunks = {}
-  for _, h in ipairs(vim.diff(ta, tb, { result_type = "indices" })) do
-    local parts = {}
-    for i = h[1], h[1] + h[2] - 1 do
-      parts[#parts + 1] = "-" .. a[i]
-    end
-    for i = h[3], h[3] + h[4] - 1 do
-      parts[#parts + 1] = "+" .. b[i]
-    end
-    hunks[#hunks + 1] = table.concat(parts, "\n")
-  end
+  local hunks = signatures.hunks(emacs[name] or {}, organ[name] or {})
   if #hunks > 0 then
     observed[name] = hunks
   end

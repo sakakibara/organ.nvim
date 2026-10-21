@@ -7,8 +7,11 @@
 -- `case` names the corpus file, `id` the divergence-inventory entry that
 -- rules on the difference, `class` one of KEEP / TARGET / INHERENT /
 -- TRANSITIONAL, `count` how many times the hunk occurs in that case, and
--- `hunk` the exact difference with `\n`, `\t` and `\\` escaped.  Lines
--- starting with `#` and blank lines are ignored.
+-- `hunk` the exact difference with `\n`, `\t` and `\\` escaped.  A hunk's
+-- first line is its context: " " and the nearest non-blank line of the
+-- first text above the difference, or "^" when there is none, so the same
+-- change at another place is a different hunk.  Lines starting with `#`
+-- and blank lines are ignored.
 --
 -- check() fails on a hunk no row covers, on a row whose hunk occurs a
 -- different number of times than recorded (a stale row included), and on
@@ -58,6 +61,27 @@ function M.load(path)
     end
   end
   return rows
+end
+
+--- Hunks of a line diff from line list `a` to line list `b`.
+function M.hunks(a, b)
+  local out = {}
+  local ta, tb = table.concat(a, "\n") .. "\n", table.concat(b, "\n") .. "\n"
+  for _, h in ipairs(vim.diff(ta, tb, { result_type = "indices" })) do
+    local c = h[2] > 0 and h[1] - 1 or h[1]
+    while c >= 1 and a[c]:match("^%s*$") do
+      c = c - 1
+    end
+    local parts = { c >= 1 and (" " .. a[c]) or "^" }
+    for i = h[1], h[1] + h[2] - 1 do
+      parts[#parts + 1] = "-" .. a[i]
+    end
+    for i = h[3], h[3] + h[4] - 1 do
+      parts[#parts + 1] = "+" .. b[i]
+    end
+    out[#out + 1] = table.concat(parts, "\n")
+  end
+  return out
 end
 
 --- Format a hunk as a signature row, for triaging a new difference.

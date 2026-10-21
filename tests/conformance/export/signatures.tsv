@@ -1,281 +1,283 @@
 # Expected differences of the export gate (format: tests/conformance/_signatures.lua).
-ascii-babel-inline.org	OX-32	TRANSITIONAL	1	-Val and `(+ 2 2)' end.\n+Val src_emacs-lisp{(+ 1 1)} and src_emacs-lisp[:exports code]{(+ 2 2)} end.
-ascii-babel-inline.org	OX-32	TRANSITIONAL	1	-Inline here.\n+Inline call_f() here.
-ascii-blocks.org	OX-15	TRANSITIONAL	1	-      quote para one\n-\n-      quote para two\n+  > quote para one\n+  >\n+  > quote para two
-ascii-blocks.org	OX-19	TRANSITIONAL	1	-| 1  (+ 1 2)\n+| (+ 1 2)
-ascii-blocks.org	OX-20	TRANSITIONAL	1	+
-ascii-blocks.org	OX-16,OX-28	TRANSITIONAL	1	-in drawer\n-\n- x          y \n---------------\n- long cell  2 \n++-----------+---+\n+| x         | y |\n++-----------+---+\n+| long cell | 2 |\n++-----------+---+
-ascii-charset-entities.org	OX-1	TRANSITIONAL	1	-                                  ___\n-\n-                                   T\n-                                  ___\n-\n-
-ascii-charset-entities.org	OX-8	TRANSITIONAL	1	-
-ascii-charset-entities.org	OX-4,OX-8	TRANSITIONAL	1	-  - item\n-\n+- item
-ascii-charset-entities.org	OX-4,OX-7,OX-8,OX-16,OX-21,OX-26	TRANSITIONAL	1	-~~~~~~\n-\n-  ,----\n-  | x\n-  `----\n-   a  b \n-  ------\n-   1  2 \n-  Text with x and "quotes".\n-  ----------------------------------------------------------------------\n+------\n+\n+,----\n+| x\n+`----\n+\n++---+---+\n+| a | b |\n++---+---+\n+| 1 | 2 |\n++---+---+\n+\n+Text with  x and "quotes".\n+\n+------------------------------------------------------------
-ascii-clocks-drawers-options.org	OX-4,OX-8,OX-28,OX-30	TRANSITIONAL	1	-  FOO: 1\n-  CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00]  =>  1:00\n-  CLOCK: [2026-01-01 Thu 12:00]--[2026-01-01 Thu 13:00]  =>  1:00\n-\n+FOO: 1
-ascii-clocks-drawers-options.org	OX-8	TRANSITIONAL	1	-
-ascii-clocks-drawers-options.org	OX-4,OX-8,OX-88	TRANSITIONAL	1	-  arch body\n-\n-\n-\n-                                                        Emacs (Org mode)\n+arch body
-ascii-document.org	OX-1	TRANSITIONAL	1	-                               __________\n-\n-                                TEST DOC\n-\n-                                Jane Doe\n-                               __________\n-\n-\n-                               2026-01-02\n-\n-
-ascii-document.org	OX-9	TRANSITIONAL	1	-1. TODO First heading                                        :tag1:tag2:\n+1. First heading
-ascii-document.org	OX-9	TRANSITIONAL	1	-..... 1. Third level\n+.... 1. Third level
-ascii-document.org	OX-3,OX-5,OX-8	TRANSITIONAL	1	-\n-Intro paragraph with *bold*, /italic/, _under_, `verb', `code',\n-+strike+.  Second line of the paragraph.\n-\n+Intro paragraph with bold, italic, under, verb, code, strike.\n+Second line of the paragraph.
-ascii-document.org	OX-4,OX-8,OX-11,OX-12	TRANSITIONAL	1	-  Body text with a [link] and <https://bare.example>.\n-\n-\n-[link] <https://example.com>\n+Body text with a link (https://example.com) and https://bare.example.
-ascii-document.org	OX-7	TRANSITIONAL	1	-~~~~~~~~~~~~~~~\n+---------------
-ascii-document.org	OX-4,OX-23	TRANSITIONAL	1	-  - item one\n-  - item two\n-    - nested\n-  1. ordered\n-  2. second\n-  - [ ] unchecked\n-  - [X] checked\n-  - definition\n+- item one\n+- item two\n+  - nested
-ascii-document.org	OX-23	TRANSITIONAL	1	+- ordered\n+- second\n+- [ ] unchecked\n+- [X] checked\n+term\n+  definition
-ascii-document.org	OX-4,OX-7,OX-8	TRANSITIONAL	1	------------------\n-\n-  Text.\n-\n+~~~~~~~~~~~~~~~~~
-ascii-document.org	OX-4,OX-22	TRANSITIONAL	1	-* 1.1.1.1 Fourth level\n+Text.
-ascii-document.org	OX-22	TRANSITIONAL	1	+- 1.1.1.1 Fourth level
-ascii-document.org	OX-8	TRANSITIONAL	1	-
-ascii-document.org	OX-4	TRANSITIONAL	1	-  ,----\n-  | print("hi")\n-  `----\n-\n-  ,----\n-  | example text\n-  `----\n-\n-  ,----\n-  | fixed width\n-  `----\n-\n-        Quoted text.\n+,----\n+| print("hi")\n+`----
-ascii-document.org	OX-4,OX-16	TRANSITIONAL	1	-    a  b \n-  -------\n-    1  2 \n-   30  4 \n+,----\n+| example text\n+`----
-ascii-document.org	OX-4,OX-21	TRANSITIONAL	1	-  ----------------------------------------------------------------------\n+,----\n+| fixed width\n+`----
-ascii-document.org	OX-4,OX-14,OX-15	TRANSITIONAL	1	-  Footnote ref[1].\n+  > Quoted text.
-ascii-document.org	OX-16	TRANSITIONAL	1	++----+---+\n+| a  | b |\n++----+---+\n+| 1  | 2 |\n+| 30 | 4 |\n++----+---+
-ascii-document.org	OX-21	TRANSITIONAL	1	+------------------------------------------------------------
-ascii-document.org	OX-14	TRANSITIONAL	1	-Footnotes\n-_________\n+Footnote ref.
-ascii-drawers-dynamic.org	OX-4,OX-8,OX-28,OX-29	TRANSITIONAL	1	-\n-  in drawer\n-  dyn content
-ascii-fill-margin.org	OX-3,OX-8	TRANSITIONAL	1	-This is a long paragraph that should be filled at the fill column of\n-seventy-two characters by ox-ascii when exporting the text, and wrapped\n-accordingly.\n-\n+This is a long paragraph that should be filled at the fill column of seventy-two characters by ox-ascii when exporting the text, and wrapped accordingly.
-ascii-fill-margin.org	OX-3,OX-4	TRANSITIONAL	1	-  A long paragraph under a heading that should also be filled and\n-  indented by the inner margin when exported with org-ascii exporter to\n-  plain text.\n+A long paragraph under a heading that should also be filled and indented by the inner margin when exported with org-ascii exporter to plain text.
-ascii-fixed-width-toggle.org	OX-3,OX-4,OX-5,OX-6,OX-11,OX-14,OX-16,OX-21	TRANSITIONAL	1	-  SCHEDULED: <2026-01-02 Fri>\n-  Text x^{2} y_z alpha *b* <2026-01-03 Sat> [1/2] \\(m\\) line break[1]\n-  [L]\n-   t \n-  ----------------------------------------------------------------------\n+SCHEDULED: <2026-01-02 Fri>
-ascii-fixed-width-toggle.org	OX-3,OX-5,OX-6,OX-11,OX-14	TRANSITIONAL	1	+Text x^2 y_z alpha b <2026-01-03 Sat> [1/2] \\(m\\) line\n+break L (https://a.b)
-ascii-fixed-width-toggle.org	OX-11,OX-33	TRANSITIONAL	1	-[L] <https://a.b>\n+,----\n+| fixed\n+`----
-ascii-fixed-width-toggle.org	OX-16	TRANSITIONAL	1	++---+\n+| t |\n++---+
-ascii-fixed-width-toggle.org	OX-8,OX-14,OX-21	TRANSITIONAL	1	-\n-Footnotes\n-_________\n+------------------------------------------------------------
-ascii-footnotes-link-notes.org	OX-3,OX-4,OX-8,OX-11,OX-14	TRANSITIONAL	1	-  Ref[1] and inline[2] and named[3].  Link [desc] here.\n-\n-\n-[desc] <https://e.com>\n-\n+Ref and inline and named.\n+Link desc (https://e.com) here.
-ascii-footnotes-link-notes.org	OX-4,OX-8,OX-14	TRANSITIONAL	1	-  Again[1].\n-\n+Again.
-ascii-footnotes-link-notes.org	OX-5,OX-8,OX-14	TRANSITIONAL	1	-\n-Footnotes\n-_________\n-\n-[1] Def A with *bold*.\n+[a] Def A with bold.
-ascii-footnotes-link-notes.org	OX-14	TRANSITIONAL	1	-\n-[2] inline body\n-\n-[3] named body
-ascii-headline-options.org	OX-9	TRANSITIONAL	1	-1. DONE (#B) One                                                     :a:\n+1. One
-ascii-headline-options.org	OX-8,OX-9	TRANSITIONAL	1	-2. Archived                                                    :ARCHIVE:\n-\n+2. Archived
-ascii-headline-options.org	OX-4,OX-25	TRANSITIONAL	1	-  CLOSED: [2026-01-01 Thu]  SCHEDULED: <2026-01-02 Fri>\n-  FOO: bar\n+CLOSED: [2026-01-01 Thu] SCHEDULED: <2026-01-02 Fri>
-ascii-headline-options.org	OX-25	TRANSITIONAL	1	+FOO: bar
-ascii-headline-options.org	OX-7,OX-8,OX-22	TRANSITIONAL	1	-~~~~~~~\n-\n-* 1.1.1 Three\n+-------
-ascii-headline-options.org	OX-22	TRANSITIONAL	1	+- 1.1.1 Three
-ascii-headline-options.org	OX-8,OX-22	TRANSITIONAL	1	-\n-\n-  + 1.1.1.1 Four\n+  - 1.1.1.1 Four
-ascii-inline-objects.org	OX-3,OX-5,OX-11,OX-12,OX-13,OX-31,OX-32,OX-92	TRANSITIONAL	1	-Emph *bold* /it/ _un_ `verb' `code' +strike+ x^2 a_b alpha alpha -- ---\n-... [2/3] [50%] <2026-01-02 Fri> [2026-01-02 Fri 10:00]\n-next line RAW radio radio \\(x+y\\) $z$ [Foo] <file:img.png>\n-<mailto:a@b.c>\n-\n-\n-[Foo] <file:foo.org>\n+Emph bold it un verb code strike x^2 a_b alpha alpha -- --- ... [2/3] [50%] <2026-01-02 Fri> [2026-01-02 Fri 10:00] \n+next line src_python{1+1} @@ascii:RAW@@ @@html:H@@  radio radio \\(x+y\\) $z$ Foo (file:foo.org) file:img.png *Heading #cid mailto:a@b.c
-ascii-inlinetask.org	OX-8	TRANSITIONAL	1	-
-ascii-inlinetask.org	OX-4,OX-27	TRANSITIONAL	1	-  Before.\n-                                          ______________________________\n-                              \n-                                          TODO Inline task           :x:\n-                                          ------------------------------\n-                                          Task body.\n-                                          ______________________________\n-  After.\n+Before.\n+\n+After.
-ascii-justify-table-groups.org	OX-18	TRANSITIONAL	1	- a very long centered paragraph that exceeds the text width of seventy\n-                        two characters for sure\n+a very long centered paragraph that exceeds the text width of seventy two characters for sure
-ascii-justify-table-groups.org	OX-16	TRANSITIONAL	1	- a | b  c |\n----+------+\n- 1 | 2  3 |\n++---+---+---+\n+| a | b | c |\n++---+---+---+\n+| 1 | 2 | 3 |\n++---+---+---+
-ascii-justify-table-groups.org	OX-16,OX-17	TRANSITIONAL	1	- xx  yy \n++----+----+\n+| xx | yy |\n++----+----+
-ascii-links.org	OX-4,OX-16	TRANSITIONAL	1	-  Text.\n-   1 \n+Text.
-ascii-links.org	OX-16	TRANSITIONAL	1	++---+\n+| 1 |\n++---+
-ascii-links.org	OX-3,OX-4,OX-5,OX-11,OX-12,OX-13	TRANSITIONAL	1	-  1 / [desc] / 1 / 1 / 1 / ??? / <file:other.org> / [o] /\n-  <https://plain.example> / <https://angle.example> / [*bold* desc] /\n-  <./img.png> / [PDF] / [e]\n-\n-\n-[desc] See section 1\n-\n-[o] <file:other.org::*H>\n-\n-[*bold* desc] <https://x.y>\n-\n-[PDF] <file:a.pdf>\n-\n-[e] <elisp:(foo)>\n+*Target heading / desc (*Target heading) / #cid / id:1234-abcd / tgt / tbl / file:other.org / o (file:other.org::*H) / https://plain.example / https://angle.example / bold desc (https://x.y) / ./img.png / PDF (file:a.pdf) / e (elisp:(foo))
-ascii-lists-descriptive.org	OX-3,OX-23,OX-24	TRANSITIONAL	1	-      desc\n-[X] t2[X] \n-      desc2 more\n+  desc\n+t2\n+  desc2\n+more
-ascii-lists-mixed.org	OX-23	TRANSITIONAL	1	-3. counter\n-- desc\n-- desc2 long paragraph\n-+ plus bullet\n+\n+- counter\n+term\n+  desc\n+tag2\n+  desc2 long paragraph\n+- plus bullet
-ascii-lists-ordered.org	OX-23	TRANSITIONAL	1	-5. five\n-6. six\n-   - inner\n-     + innermost\n-7) paren\n-8) paren2\n+2. five\n+3. six\n+  - inner\n+    - innermost\n+\n+\n+4. paren\n+5. paren2
-ascii-scripts-refill.org	OX-8,OX-9	TRANSITIONAL	1	-1. TODO H                                                            :t:\n-\n+1. H
-ascii-scripts-refill.org	OX-3,OX-4,OX-5,OX-6,OX-11,OX-14,OX-16,OX-21	TRANSITIONAL	1	-  Text x^{2} y_z alpha *b* <2026-01-03 Sat> [1/2] \\(m\\) line break[1]\n-  [L]\n-  ,----\n-  | fixed\n-  `----\n-   t \n-  ----------------------------------------------------------------------\n-\n-\n-[L] <https://a.b>\n+Text x^2 y_z alpha b <2026-01-03 Sat> [1/2] \\(m\\) line\n+break L (https://a.b)
-ascii-scripts-refill.org	OX-4	TRANSITIONAL	1	+,----\n+| fixed\n+`----
-ascii-scripts-refill.org	OX-16	TRANSITIONAL	1	++---+\n+| t |\n++---+
-ascii-scripts-refill.org	OX-14,OX-21	TRANSITIONAL	1	-Footnotes\n-_________\n+------------------------------------------------------------
-ascii-table-rules.org	OX-16,OX-36	TRANSITIONAL	1	- Name    Value  <5>            \n--------------------------------\n- alpha     1.5  long text here \n- β wide     20  x              \n--------------------------------\n- total    21.5                 \n++--------+-------+----------------+\n+| Name   | Value | <5>            |\n++--------+-------+----------------+\n+| alpha  | 1.5   | long text here |\n++--------+-------+----------------+\n+| β wide | 20    | x              |\n++--------+-------+----------------+\n+| total  | 21.5  |                |\n++--------+-------+----------------+
-ascii-tables-blank-separated.org	OX-16,OX-35	TRANSITIONAL	1	- a  b \n-\n- c  d \n++---+---+\n+| a | b |\n++---+---+\n+| c | d |\n++---+---+
-ascii-title-block.org	OX-1	TRANSITIONAL	1	-                               __________\n-\n-                                TEST DOC\n-                                  Sub\n-\n-                                Jane Doe\n-                                j@x.org\n-                               __________\n-\n-\n-                               2026-01-02\n-\n-
-ascii-toc-empty.org	OX-10,OX-16	TRANSITIONAL	1	-Table of Contents\n-_________________\n-\n-\n-\n-\n- a  b \n- c  d \n-------\n- e  f \n++---+---+\n+| a | b |\n+| c | d |\n++---+---+\n+| e | f |\n++---+---+
-icalendar-combine.org	OX-72,~OX-91	TRANSITIONAL	1	-X-WR-CALNAME:OrgMode\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
-icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	+UID:<case>#L12
-icalendar-combine.org	OX-67,OX-70,OX-75,OX-78	TRANSITIONAL	1	-UID:TS1-<uuid-1>\n-DTSTART;VALUE=DATE:20260102\n-DTEND;VALUE=DATE:20260103\n-SUMMARY:Noexport\n-DESCRIPTION:<2026-01-02 Fri>\n-CATEGORIES:noexport,icalendar-combine\n+DTSTART:20260101T080000\n+SUMMARY:Finished
-icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	+UID:abc-123-scheduled
-icalendar-combine.org	OX-67,OX-70,OX-71,OX-73,OX-74,OX-78	TRANSITIONAL	1	-UID:TS1-<uuid-2>\n-DTSTART:20260109T120000\n-DTEND:20260109T140000\n-SUMMARY:Alarm\n-DESCRIPTION:<2026-01-09 Fri 12:00>\n-CATEGORIES:icalendar-combine\n-BEGIN:VALARM\n-ACTION:DISPLAY\n-DESCRIPTION:Alarm\n-TRIGGER:-P0DT0H15M0S\n-END:VALARM\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106\n+SUMMARY:Task
-icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	+UID:abc-123-deadline
-icalendar-combine.org	OX-67,OX-69,OX-70,OX-71,OX-73,OX-78	TRANSITIONAL	1	-UID:TS1-<uuid-3>\n-DTSTART:20260202T100000\n-DTEND:20260202T120000\n-SUMMARY:Meet\n-DESCRIPTION:<2026-02-02 Mon 10:00> body\n-CATEGORIES:w,icalendar-combine\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:<case>#L14\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260108\n+DTEND;VALUE=DATE:20260109\n+SUMMARY:Plain scheduled\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:<case>#L26\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260203\n+DTEND;VALUE=DATE:20260204\n+SUMMARY:Plain
-icalendar-entries.org	OX-72,~OX-91	TRANSITIONAL	1	-X-WR-CALNAME:icalendar-entries\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:Cal\n+PRODID:-//organ.nvim//ICS export//EN
-icalendar-entries.org	OX-70	TRANSITIONAL	1	+UID:organ-1-timestamp
-icalendar-entries.org	OX-70	TRANSITIONAL	1	-UID:TS1-<uuid-1>
-icalendar-entries.org	OX-73,OX-76	TRANSITIONAL	1	-DESCRIPTION:<2026-01-02 Fri 10:00-11:00> Body *text*\\, with\\; specials.\n-CATEGORIES:work,icalendar-entries\n+DESCRIPTION:<2026-01-02 Fri 10:00-11:00>\\nBody text\\, with\\; specials.\n+CATEGORIES:work
-icalendar-entries.org	OX-70	TRANSITIONAL	1	+UID:abc-123-scheduled
-icalendar-entries.org	OX-67,OX-70,OX-71,OX-76	TRANSITIONAL	1	-UID:TS1-<uuid-2>\n-DTSTART:20260107T170000\n-DTEND:20260107T190000\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106
-icalendar-entries.org	OX-67,OX-73,OX-76	TRANSITIONAL	1	-DESCRIPTION:DEADLINE: <2026-01-07 Wed 17:00>\\n:ID: abc-123 :CATEGORY: chore\n- s :LOCATION: Office\\nTask body.\n-CATEGORIES:home,icalendar-entries\n+DESCRIPTION:Task body.\n+CATEGORIES:home\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:abc-123-deadline\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home
-icalendar-entries.org	OX-67,OX-70	TRANSITIONAL	1	+UID:organ-3-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260101\n+DTEND;VALUE=DATE:20260102\n+SUMMARY:Finished\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-4-deadline
-icalendar-entries.org	OX-70	TRANSITIONAL	1	-UID:DL-<uuid-3>
-icalendar-entries.org	OX-69,OX-73	TRANSITIONAL	1	-SUMMARY:DL: Not todo deadline\n-CATEGORIES:icalendar-entries\n+SUMMARY:(Deadline) Not todo deadline
-icalendar-entries.org	OX-70	TRANSITIONAL	1	+UID:organ-5-timestamp
-icalendar-entries.org	OX-70	TRANSITIONAL	1	-UID:TS1-<uuid-4>
-icalendar-entries.org	OX-71	TRANSITIONAL	1	-DTEND:20260103T110000
-icalendar-entries.org	OX-73	TRANSITIONAL	1	-CATEGORIES:icalendar-entries
-icalendar-entries.org	OX-70	TRANSITIONAL	1	+UID:organ-6-timestamp
-icalendar-entries.org	OX-70	TRANSITIONAL	1	-UID:TS1-<uuid-5>
-icalendar-entries.org	OX-73,OX-76	TRANSITIONAL	1	-DESCRIPTION:<2026-01-04 Sun>–<2026-01-06 Tue>\n-CATEGORIES:icalendar-entries\n-END:VEVENT\n-BEGIN:VEVENT\n-UID:<uuid-6>\n-DTSTAMP:20260504T093000Z\n-SUMMARY:Diary\n-DESCRIPTION:Diary\n-RRULE:FREQ=MONTHLY;BYDAY=2TH\n-DTSTART;VALUE=DATE:20250109\n+DESCRIPTION:<2026-01-04 Sun>--<2026-01-06 Tue>
-icalendar-timezone-exclude.org	OX-72,~OX-91	TRANSITIONAL	1	-X-WR-CALNAME:icalendar-timezone-exclude\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
-icalendar-timezone-exclude.org	OX-70	TRANSITIONAL	1	+UID:organ-1-timestamp
-icalendar-timezone-exclude.org	OX-70,OX-71,OX-73	TRANSITIONAL	1	-UID:TS1-<uuid-1>\n-DTSTART;TZID=Asia/Tokyo:20260102T100000\n-DTEND;TZID=Asia/Tokyo:20260102T120000\n+DTSTART:20260102T100000
-icalendar-timezone-exclude.org	OX-73,OX-75	TRANSITIONAL	1	-CATEGORIES:icalendar-timezone-exclude\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-2-timestamp\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260103\n+DTEND;VALUE=DATE:20260104\n+SUMMARY:Priv\n+DESCRIPTION:<2026-01-03 Sat>\n+CATEGORIES:private
-icalendar-todo-states.org	OX-72,~OX-91	TRANSITIONAL	1	-X-WR-CALNAME:icalendar-todo-states\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:Cal\n+PRODID:-//organ.nvim//ICS export//EN
-icalendar-todo-states.org	OX-70	TRANSITIONAL	1	+UID:abc-123-scheduled
-icalendar-todo-states.org	OX-67,OX-70,OX-73,OX-75	TRANSITIONAL	1	-UID:TS1-<uuid-1>\n-DTSTART;VALUE=DATE:20260102\n-DTEND;VALUE=DATE:20260103\n-SUMMARY:Noexport\n-DESCRIPTION:<2026-01-02 Fri>\n-CATEGORIES:noexport,icalendar-todo-states\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106\n+SUMMARY:Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home
-icalendar-todo-states.org	OX-67,OX-69,OX-70,OX-73	TRANSITIONAL	1	+UID:abc-123-deadline\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-2-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260101T080000\n+SUMMARY:Finished\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-3-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260108\n+DTEND;VALUE=DATE:20260109\n+SUMMARY:Plain scheduled\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-4-timestamp
-icalendar-todo-states.org	OX-70	TRANSITIONAL	1	-UID:TS1-<uuid-2>
-icalendar-todo-states.org	OX-71	TRANSITIONAL	1	-DTEND:20260109T140000
-icalendar-todo-states.org	OX-73,OX-74	TRANSITIONAL	1	-CATEGORIES:icalendar-todo-states\n-BEGIN:VALARM\n-ACTION:DISPLAY\n-DESCRIPTION:Alarm\n-TRIGGER:-P0DT0H15M0S\n-END:VALARM
-icalendar-utf8-fold.org	OX-72,~OX-91	TRANSITIONAL	1	-X-WR-CALNAME:icalendar-utf8-fold\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
-icalendar-utf8-fold.org	OX-70	TRANSITIONAL	1	+UID:organ-1-timestamp
-icalendar-utf8-fold.org	OX-70	TRANSITIONAL	1	-UID:TS1-<uuid-1>
-icalendar-utf8-fold.org	OX-77	TRANSITIONAL	1	-SUMMARY:会議の予定についての長いタイトルです会議の予定についての長いタイトルです会議の予定\n+SUMMARY:会議の予定についての長いタイトルです会議の予<0xE5>\n+ <0xAE><0x9A>についての長いタイトルです会議の予定
-icalendar-utf8-fold.org	OX-73	TRANSITIONAL	1	-CATEGORIES:icalendar-utf8-fold
-md-babel-inline.org	OX-32	TRANSITIONAL	1	-Val and `(+ 2 2)` end.\n+Val src_emacs-lisp{(+ 1 1)} and src_emacs-lisp[:exports code]{(+ 2 2)} end.
-md-babel-inline.org	OX-32	TRANSITIONAL	1	-Inline here.\n+Inline call_f() here.
-md-blocks.org	OX-44	TRANSITIONAL	1	-Roses are red<br />\n- Violets<br />\n+  Roses are red<br />\n+   Violets<br />
-md-blocks.org	OX-45	TRANSITIONAL	1	-<p>\n+
-md-blocks.org	OX-45	TRANSITIONAL	1	-</p>\n+
-md-blocks.org	OX-45	TRANSITIONAL	1	-<div class="foo" id="org69157ad">\n-<p>\n+<div class="foo">\n+
-md-blocks.org	OX-45	TRANSITIONAL	1	-</p>
-md-blocks.org	OX-19,OX-47,~OX-87	TRANSITIONAL	1	-    1  (+ 1 2)\n+*A src*\n+\n+```elisp\n+(+ 1 2)\n+```
-md-blocks.org	OX-47	KEEP	1	-    echo hi\n+```sh\n+echo hi\n+```
-md-blocks.org	OX-28,OX-47,~OX-87	TRANSITIONAL	1	-in drawer\n-\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-<caption class="t-above"><span class="table-number">Table 1:</span> Tab cap</caption>\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-right" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-left">x</th>\n-<th scope="col" class="org-right">y</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-left">long cell</td>\n-<td class="org-right">2</td>\n-</tr>\n-</tbody>\n-</table>\n+*Tab cap*\n+\n+| x | y |\n+| --- | ---: |\n+| long cell | 2 |
-md-clocks-drawers-options.org	OX-49	TRANSITIONAL	1	-\n-
-md-clocks-drawers-options.org	OX-30,OX-38,OX-49	TRANSITIONAL	1	-    FOO: 1\n-\n-<p>\n-<span class="timestamp-wrapper">\n-<span class="timestamp-kwd">CLOCK:</span> <span class="timestamp">[2026-01-01 Thu 10:00]–[2026-01-01 Thu 11:00] </span> <span class="timestamp">(1:00)</span>\n-</span>\n-</p>\n-\n-<p>\n-<span class="timestamp-wrapper">\n-<span class="timestamp-kwd">CLOCK:</span> <span class="timestamp">[2026-01-01 Thu 12:00]–[2026-01-01 Thu 13:00] </span> <span class="timestamp">(1:00)</span>\n-</span>\n-</p>\n-\n-
-md-clocks-drawers-options.org	OX-49	TRANSITIONAL	1	-
-md-document.org	OX-49	TRANSITIONAL	1	-
-md-document.org	OX-39,OX-48	TRANSITIONAL	1	-1.  [First heading](#first):tag1:tag2:\n-    1.  [Sub heading](#org8dbb339)\n-        1.  [Third level](#orgdeca805)\n-2.  [Second heading](#org4e04c67)\n+1.  [TODO First heading](#first):tag1:tag2:\n+    1.  [Sub heading](#sub-heading)\n+        1.  [Third level](#third-level)\n+2.  [Second heading](#second-heading)
-md-document.org	OX-43	TRANSITIONAL	1	-Intro paragraph with **bold**, *italic*, <span class="underline">under</span>, `verb`, `code`, <del>strike</del>.\n+Intro paragraph with **bold**, *italic*, <u>under</u>, `verb`, `code`, ~~strike~~.
-md-document.org	OX-48,OX-49	TRANSITIONAL	1	-\n-<a id="first"></a>\n-
-md-document.org	OX-42,OX-48,OX-49	TRANSITIONAL	1	-Body text with a [link](https://example.com) and <https://bare.example>.\n-\n-\n-<a id="org8dbb339"></a>\n+Body text with a [link](https://example.com) and [https://bare.example](https://bare.example).
-md-document.org	OX-47,OX-48,OX-49	TRANSITIONAL	1	--   item one\n--   item two\n-    -   nested\n--   ordered\n--   second\n--   [ ] unchecked\n--   [X] checked\n--   **term:** definition\n-\n-\n-<a id="orgdeca805"></a>\n+- item one\n+- item two\n+  - nested\n+- ordered\n+- second\n+- [ ] unchecked\n+- [x] checked\n+- **term:** definition
-md-document.org	OX-49	TRANSITIONAL	1	-1.  Fourth level\n-\n-    Deep text.\n-\n+1. Fourth level
-md-document.org	OX-48,OX-49	TRANSITIONAL	1	-<a id="org4e04c67"></a>\n+   Deep text.
-md-document.org	OX-47	KEEP	1	-    print("hi")\n+```python\n+print("hi")\n+```
-md-document.org	OX-47	KEEP	1	-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-right" />\n-\n-<col  class="org-right" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-right">a</th>\n-<th scope="col" class="org-right">b</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-<td class="org-right">2</td>\n-</tr>\n-\n-<tr>\n-<td class="org-right">30</td>\n-<td class="org-right">4</td>\n-</tr>\n-</tbody>\n-</table>\n+| a | b |\n+| ---: | ---: |\n+| 1 | 2 |\n+| 30 | 4 |
-md-document.org	OX-46	KEEP	1	-Footnote ref<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>.\n-\n-\n-# Footnotes\n+Footnote ref[^1].
-md-document.org	OX-46	KEEP	1	-<sup><a id="fn.1" href="#fnr.1">1</a></sup> The footnote.\n+[^1]: The footnote.
-md-drawers-dynamic.org	OX-49	TRANSITIONAL	1	-\n-
-md-drawers-dynamic.org	OX-28,OX-29	TRANSITIONAL	1	-\n-in drawer\n-\n-dyn content
-md-escaping.org	OX-49,OX-89	TRANSITIONAL	1	--   list\n-\n--   A great year\n+- list\n+- A great year
-md-fixed-width-toggle.org	OX-49	TRANSITIONAL	1	-\n-
-md-fixed-width-toggle.org	OX-38	TRANSITIONAL	1	-<p><span class="timestamp-wrapper"><span class="timestamp-kwd">SCHEDULED:</span> <span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span></p>\n-
-md-fixed-width-toggle.org	OX-46	KEEP	1	-break<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup> [L](https://a.b)\n+break[^1] [L](https://a.b)
-md-fixed-width-toggle.org	OX-33,OX-47	TRANSITIONAL	1	-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n+    fixed
-md-fixed-width-toggle.org	OX-47	KEEP	1	-\n-<colgroup>\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">t</td>\n-</tr>\n-</tbody>\n-</table>\n+| t |\n+| --- |
-md-fixed-width-toggle.org	OX-46	KEEP	1	-\n-# Footnotes\n-\n-<sup><a id="fn.1" href="#fnr.1">1</a></sup> fn\n+[^1]: fn
-md-footnotes.org	OX-49	TRANSITIONAL	1	-\n-
-md-footnotes.org	OX-46	KEEP	1	-Ref<sup><a id="fnr.a" class="footref" href="#fn.a" role="doc-backlink">1</a></sup> and inline<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></sup> and named<sup><a id="fnr.n" class="footref" href="#fn.n" role="doc-backlink">3</a></sup>.\n+Ref[^1] and inline[^2] and named[^3].
-md-footnotes.org	OX-49	TRANSITIONAL	1	-
-md-footnotes.org	OX-46	KEEP	1	-Again<sup><a id="fnr.a.1" class="footref" href="#fn.a" role="doc-backlink">1</a></sup>.\n-\n-\n-# Footnotes\n+Again[^1].
-md-footnotes.org	OX-46	KEEP	1	-<sup><a id="fn.1" href="#fnr.1">1</a></sup> Def A with **bold**.\n+[^1]: Def A with **bold**.
-md-footnotes.org	OX-46	KEEP	1	-<sup><a id="fn.2" href="#fnr.2">2</a></sup> inline body\n+[^2]: inline body
-md-footnotes.org	OX-46	KEEP	1	-<sup><a id="fn.3" href="#fnr.3">3</a></sup> named body\n+[^3]: named body
-md-headline-options.org	OX-49	TRANSITIONAL	1	-
-md-headline-options.org	OX-39,OX-48,OX-49	TRANSITIONAL	1	-1.  [One](#org8560f43):a:\n-    1.  [Two](#orgac5dca7)\n-2.  [Archived](#org5314615):ARCHIVE:\n-\n-\n-\n-<a id="org8560f43"></a>\n+1.  [DONE [#B] One](#one):a:\n+    1.  [Two](#two)\n+2.  [Archived](#archived):ARCHIVE:
-md-headline-options.org	OX-38,OX-48,OX-49	TRANSITIONAL	1	-<p><span class="timestamp-wrapper"><span class="timestamp-kwd">CLOSED:</span> <span class="timestamp">[2026-01-01 Thu] </span> <span class="timestamp-kwd">SCHEDULED:</span> <span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span></p>\n-\n-    FOO: bar\n-\n-\n-<a id="orgac5dca7"></a>\n-
-md-headline-options.org	OX-49	TRANSITIONAL	1	-1.  Three\n-\n-    text3\n-    \n-    1.  Four\n-\n+1. Three
-md-headline-options.org	OX-48,OX-49	TRANSITIONAL	1	-<a id="org5314615"></a>\n+   text3\n+   1. Four
-md-images.org	OX-41	TRANSITIONAL	1	-![img](img.png)\n+![file:img.png](file:img.png)
-md-images.org	OX-41	TRANSITIONAL	1	-![img](./b.jpg "Cap")\n+![./b.jpg](./b.jpg "Cap")
-md-images.org	OX-41	TRANSITIONAL	1	-x ![img](https://e.com/i.png) y\n+x [https://e.com/i.png](https://e.com/i.png) y
-md-inline-objects.org	OX-31,OX-32,OX-41,OX-42,OX-43,OX-49,OX-92	TRANSITIONAL	1	-Emph **bold** *it* <span class="underline">un</span> `verb` `code` <del>strike</del> x<sup>2</sup> a<sub>b</sub> α α – — … <code>[2/3]</code> <code>[50%]</code> <span class="timestamp-wrapper"><span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span> <span class="timestamp-wrapper"><span class="timestamp">[2026-01-02 Fri 10:00]</span></span>   \n-next line H <a id="orgeef6cf4"></a> <a id="orgf0baa4a">radio</a> <a href="#orgf0baa4a">radio</a> $x+y$ $z$ [Foo](foo.md) ![img](img.png) <mailto:a@b.c>\n+Emph **bold** *it* <u>un</u> `verb` `code` ~~strike~~ x<sup>2</sup> a<sub>b</sub> α α – — … <code>[2/3]</code> <code>[50%]</code> <span class="timestamp-wrapper"><span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span> <span class="timestamp-wrapper"><span class="timestamp">[2026-01-02 Fri 10:00]</span></span>   \n+next line src_python{1+1} @@ascii:RAW@@ @@html:H@@ <a id="target"></a> radio radio $x+y$ $z$ [Foo](foo.md) [img.png](img.png) \\*Heading #cid [mailto:a@b.c](mailto:a@b.c)
-md-inlinetask.org	OX-49	TRANSITIONAL	1	-
-md-inlinetask.org	OX-48,OX-49	TRANSITIONAL	1	-1.  [H](#org9e913f6)\n-\n-\n-<a id="org9e913f6"></a>\n+1.  [H](#h)
-md-inlinetask.org	OX-27	TRANSITIONAL	1	-<div class="inlinetask">\n-<b><span class="todo TODO">TODO</span> Inline task  &nbsp<span class="tag"><span class="x">x</span></span></b><br />\n-<p>\n-Task body.\n-</p>\n-</div>\n-
-md-links.org	OX-49	TRANSITIONAL	1	-\n-
-md-links.org	OX-47	KEEP	1	+| 1 |\n+| ---: |
-md-links.org	OX-40,OX-41,OX-42,OX-49	TRANSITIONAL	1	-[1](#cid) / [desc](#cid) / [1](#cid) / [1](#cid) / [1](#org8616fc8) / [1](#org26ab51b) / <other.md> / [o](other.md) / <https://plain.example> / <https://angle.example> / [**bold** desc](https://x.y) / ![img](./img.png) / [PDF](a.pdf) / [e](elisp:(foo))\n+[Target heading](#cid) / [desc](#cid) / [Target heading](#cid) / [Target heading](#cid) / [tgt](#tgt) / tbl / [other.md](other.md) / [o](other.md#h) / [https://plain.example](https://plain.example) / [https://angle.example](https://angle.example) / [**bold** desc](https://x.y) / [./img.png](./img.png) / [PDF](a.pdf) / [e](elisp:(foo))
-md-lists-mixed.org	OX-49,OX-84	TRANSITIONAL	1	--   a\n--   b\n-    \n-    continued para in b\n--   [-] partial\n-    1.  x\n-    2.  y\n--   counter\n--   **term:** desc\n--   **tag2:** desc2 long paragraph\n--   plus bullet\n+- a\n+- b\n+\n+  continued para in b\n+- [-] partial\n+  1. x\n+  2. y\n+- counter\n+- **term:** desc\n+- **tag2:** desc2 long paragraph\n+- plus bullet
-md-table-rules.org	OX-47	KEEP	1	-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-right" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-left">Name</th>\n-<th scope="col" class="org-right">Value</th>\n-<th scope="col" class="org-left">&lt;5&gt;</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-left">alpha</td>\n-<td class="org-right">1.5</td>\n-<td class="org-left">long text here</td>\n-</tr>\n-\n-<tr>\n-<td class="org-left">β wide</td>\n-<td class="org-right">20</td>\n-<td class="org-left">x</td>\n-</tr>\n-</tbody>\n-<tbody>\n-<tr>\n-<td class="org-left">total</td>\n-<td class="org-right">21.5</td>\n-<td class="org-left"> </td>\n-</tr>\n-</tbody>\n-</table>\n+| Name | Value | <5> |\n+| --- | ---: | --- |\n+| alpha | 1.5 | long text here |\n+| β wide | 20 | x |\n+| total | 21.5 |  |
-md-tables-blank-separated.org	OX-35,OX-47	TRANSITIONAL	1	-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">a</td>\n-<td class="org-left">b</td>\n-</tr>\n-</tbody>\n-</table>\n-\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">c</td>\n-<td class="org-left">d</td>\n-</tr>\n-</tbody>\n-</table>\n+| a | b |\n+| --- | --- |\n+| c | d |
-md-toc-keywords.org	OX-49	TRANSITIONAL	1	-
-md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	-1.  [A](#org1b17d22)\n-2.  [B](#orgbabe81d)\n-\n-\n-<a id="org1b17d22"></a>\n+1.  [A](#a)\n+2.  [B](#b)
-md-toc-keywords.org	OX-47	KEEP	1	+| 1 |\n+| ---: |
-md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	-\n-<a id="orgbabe81d"></a>\n-
-md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	-1.  [B1](#org50c001b)\n-\n-\n-<a id="org50c001b"></a>\n+1.  [B1](#b1)
-opml-head-note.org	OX-79	TRANSITIONAL	1	-    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>\n-    <ownerName>A</ownerName>\n+    <title>My *Doc* &amp; co</title>
-opml-head-note.org	OX-79	TRANSITIONAL	1	-    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">\n+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one">
-opml-title-markup.org	OX-79	TRANSITIONAL	1	-    <title>My Doc &amp; co</title>\n-    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>\n-    <ownerName>A</ownerName>\n-    <ownerEmail>a@b.c</ownerEmail>\n+    <title>My *Doc* &amp; co</title>
-opml-title-markup.org	OX-79	TRANSITIONAL	1	-    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">\n+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one">
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-#+title: RT\n-#+options: toc:nil
-org-roundtrip.org	OX-81	TRANSITIONAL	1	+#+TITLE: RT\n+#+OPTIONS: toc:nil
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-:ID:       x\n+:ID: x
-org-roundtrip.org	OX-80	TRANSITIONAL	1	-CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-- [@3] c\n+1. [@3] c
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-#+name: s\n+#+NAME: s
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-  print(1)\n+print(1)
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-#+results: s\n+#+RESULTS: s
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-  ex\n+ex
-org-roundtrip.org	OX-81	KEEP	1	-v\n+  v
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-#+begin_export HTML\n+#+begin_export html
-org-roundtrip.org	OX-81	TRANSITIONAL	1	+
-org-roundtrip.org	OX-81	TRANSITIONAL	1	-|---+---|\n+|----+----|
-org-roundtrip.org	OX-80	TRANSITIONAL	1	-#+begin: clocktable :scope file\n-dyn\n-#+end:\n-\n-*************** inline task
-texinfo-blocks.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-blocks.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-blocks.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-blocks.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n+@contents
-texinfo-blocks.org	OX-44	TRANSITIONAL	1	-Roses are red\n- Violets\n+  Roses are red\n+   Violets
-texinfo-blocks.org	OX-58	TRANSITIONAL	1	-@foo
-texinfo-blocks.org	OX-58	TRANSITIONAL	1	-@end foo
-texinfo-blocks.org	OX-57	TRANSITIONAL	1	-@float Listing,s1\n-@lisp\n-1  (+ 1 2)\n-@end lisp\n-@caption{A src}\n-@end float\n+@example\n+(+ 1 2)\n+@end example
-texinfo-blocks.org	OX-28,OX-56	TRANSITIONAL	1	-in drawer\n-\n-@float Table\n-@multitable {aaaaaaaaa} {a}\n-@headitem x\n-@tab y\n-@item long cell\n-@tab 2\n+@multitable @columnfractions .50 .50\n+@item x @tab y\n+@item long cell @tab 2
-texinfo-blocks.org	OX-51,OX-56	TRANSITIONAL	1	-@caption{Tab cap}\n-@end float\n-@end ifnottex
-texinfo-document.org	OX-60	TRANSITIONAL	1	+@setfilename Test_Doc.info
-texinfo-document.org	OX-59	TRANSITIONAL	1	-@documentencoding UTF-8\n-@documentlanguage en
-texinfo-document.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                Test Doc.\n-@end direntry\n-\n-@finalout
-texinfo-document.org	OX-50,OX-51	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top Test Doc\n-\n-Intro paragraph with @strong{bold}@comma{} @emph{italic}@comma{} under@comma{} @samp{verb}@comma{} @code{code}@comma{} strike.\n+Intro paragraph with @strong{bold}, @emph{italic}, @sansserif{under}, @code{verb}, @code{code}, @strikethrough{strike}.
-texinfo-document.org	OX-51	TRANSITIONAL	1	-@end ifnottex\n-\n-@menu\n-* First heading::\n-* Second heading::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-First heading\n-\n-* Sub heading::\n-\n-Sub heading\n-\n-* Third level::\n-\n-@end detailmenu\n-@end menu\n-
-texinfo-document.org	OX-51	TRANSITIONAL	1	-@menu\n-* Sub heading::\n-@end menu\n-
-texinfo-document.org	OX-23	TRANSITIONAL	1	+
-texinfo-document.org	OX-23,OX-66,~OX-90	TRANSITIONAL	1	-@item unchecked\n-@item checked\n-@item term\n-definition\n+@item [ ] unchecked\n+@item [X] checked\n+@item definition
-texinfo-document.org	OX-51	TRANSITIONAL	1	-@menu\n-* Third level::\n-@end menu\n-
-texinfo-document.org	OX-56	TRANSITIONAL	1	-@multitable {aa} {a}\n-@headitem a\n-@tab b\n-@item 1\n-@tab 2\n-@item 30\n-@tab 4\n+@multitable @columnfractions .50 .50\n+@item a @tab b\n+@item 1 @tab 2\n+@item 30 @tab 4
-texinfo-document.org	OX-53,OX-55	TRANSITIONAL	1	-Footnote ref@footnote{The footnote.}.\n+@page\n+\n+Footnote ref[1].\n+\n+[1] The footnote.
-texinfo-drawers-dynamic.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-drawers-dynamic.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-drawers-dynamic.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-drawers-dynamic.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* H::\n-@end menu\n+@contents
-texinfo-drawers-dynamic.org	OX-28,OX-29	TRANSITIONAL	1	-in drawer\n-dyn content\n-
-texinfo-footnotes.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-footnotes.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-footnotes.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-footnotes.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* One::\n-* Two::\n-@end menu\n+@contents
-texinfo-footnotes.org	OX-53	TRANSITIONAL	1	-Ref@footnote{Def A with @strong{bold}.\n-Second para of A@.} and inline@footnote{inline body} and named@footnote{named body}.\n+Ref[a] and inline[] and named[n].
-texinfo-footnotes.org	OX-53	TRANSITIONAL	1	-Again@footnote{Def A with @strong{bold}.\n-Second para of A@.}.\n+Again[a].\n+\n+[a] Def A with @strong{bold}.\n+\n+Second para of A.
-texinfo-headline-options.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-headline-options.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-headline-options.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-headline-options.org	OX-51	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* One::\n-* Archived::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-One\n-\n-* Two::\n-\n-@end detailmenu\n-@end menu\n-
-texinfo-headline-options.org	OX-51,OX-65	TRANSITIONAL	1	-@noindent@strong{CLOSED:} @emph{[2026-01-01 Thu] } @strong{SCHEDULED:} @emph{<2026-01-02 Fri>}@*\n-@verbatim\n-FOO: bar\n-@end verbatim\n-\n-@menu\n-* Two::\n-@end menu\n-
-texinfo-inline-objects.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-inline-objects.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-inline-objects.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-inline-objects.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n+@contents
-texinfo-inline-objects.org	OX-31,OX-32,OX-50,OX-51,OX-54,OX-66,OX-92	TRANSITIONAL	1	-Emph @strong{bold} @emph{it} un @samp{verb} @code{code} strike x@math{^2} a@math{_b} α α -- --- @dots{} [2/3] [50%] @emph{<2026-01-02 Fri> } @emph{[2026-01-02 Fri 10:00] } @*\n-next line @anchor{target} @anchor{radio}radio @ref{radio, , radio} @math{x+y} @math{z} @uref{foo.org, Foo} @image{img,,,,png} @email{mailto:a@@b.c}\n-@end ifnottex\n+Emph @strong{bold} @emph{it} @sansserif{un} @code{verb} @code{code} @strikethrough{strike} x@math{^2} a@math{_b} α α -- --- ... [2/3] [50%] @emph{<2026-01-02 Fri>} @emph{[2026-01-02 Fri 10:00]} @*next line src_python{1+1} @@ascii:RAW@@ @@html:H@@ @anchor{target} radio radio @math{x+y} @math{z} @uref{file:foo.org, Foo} @uref{file:img.png} @uref{*Heading} @uref{#cid} @uref{mailto:a@b.c}
-texinfo-inlinetask.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-inlinetask.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-inlinetask.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-inlinetask.org	OX-51	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* H::\n-@end menu\n-
-texinfo-inlinetask.org	OX-27	TRANSITIONAL	1	-@center @strong{TODO} Inline task:x:
-texinfo-inlinetask.org	OX-27	TRANSITIONAL	1	-Task body.
-texinfo-keywords-properties.org	OX-59,OX-60	TRANSITIONAL	1	-@setfilename man.info\n+@setfilename Manual.info
-texinfo-keywords-properties.org	OX-59	TRANSITIONAL	1	-@documentencoding UTF-8\n-@documentlanguage fr\n-@syncodeindex pg cp
-texinfo-keywords-properties.org	OX-59,OX-61	TRANSITIONAL	1	-@copying\n-Copyright text.\n-@end copying\n-\n-@dircategory Emacs\n-@direntry\n-* Man: (man).           A manual.\n-@end direntry\n-\n-@finalout
-texinfo-keywords-properties.org	OX-59	TRANSITIONAL	1	-@subtitle for v1
-texinfo-keywords-properties.org	OX-59,OX-61	TRANSITIONAL	1	-@author B\n-@page\n-@vskip 0pt plus 1filll\n-@insertcopying
-texinfo-keywords-properties.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top Manual\n-@end ifnottex\n+@contents
-texinfo-keywords-properties.org	OX-51,OX-61,OX-62	TRANSITIONAL	1	-@menu\n-* Chap::                         chapter desc\n-* Appendix::\n-* Index::\n-@end menu\n+@node Copying\n+@chapter Copying
-texinfo-keywords-properties.org	OX-61,OX-62	TRANSITIONAL	1	-@node Chap\n+Copyright text.\n+\n+@node Chapter
-texinfo-keywords-properties.org	OX-63	TRANSITIONAL	1	-@cindex concept\n-@findex func
-texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	-@vtable @asis\n+@table @asis
-texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	-@end vtable\n+@end table
-texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	-@enumerate A\n+@enumerate
-texinfo-keywords-properties.org	OX-58	TRANSITIONAL	1	-@defun
-texinfo-keywords-properties.org	OX-58	TRANSITIONAL	1	-@end defun
-texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	-@multitable @columnfractions .3 .7\n-@item a\n-@tab b\n+@multitable @columnfractions .50 .50\n+@item a @tab b
-texinfo-keywords-properties.org	OX-31	TRANSITIONAL	1	-@inline\n+@@texinfo:@inline@@
-texinfo-keywords-properties.org	OX-62	TRANSITIONAL	1	-@appendix Appendix\n+@chapter Appendix
-texinfo-keywords-properties.org	OX-62	TRANSITIONAL	1	-@printindex cp\n-
-texinfo-links.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-links.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-links.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-links.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* Target heading::\n-* Links::\n-@end menu\n+@contents
-texinfo-links.org	OX-54,OX-56	TRANSITIONAL	1	-@anchor{tbl}\n-@multitable {a}\n+\n+@multitable @columnfractions .100
-texinfo-links.org	OX-54	TRANSITIONAL	1	-@ref{Target heading} / @ref{Target heading, , desc} / @ref{Target heading} / @ref{Target heading} / @ref{tgt} / @ref{tbl} / @uref{other.org} / @uref{other.org, o} / @uref{https://plain.example} / @uref{https://angle.example} / @uref{https://x.y, @strong{bold} desc} / @image{img,,,,png} / @uref{a.pdf, PDF} / @uref{elisp:(foo), e}\n+@uref{*Target heading} / @uref{*Target heading, desc} / @uref{#cid} / @uref{id:1234-abcd} / @uref{tgt} / @uref{tbl} / @uref{file:other.org} / @uref{file:other.org::*H, o} / @uref{https://plain.example} / @uref{https://angle.example} / @uref{https://x.y, @strong{bold} desc} / @uref{./img.png} / @uref{file:a.pdf, PDF} / @uref{elisp:(foo), e}
-texinfo-toc-keywords.org	OX-59,OX-60	TRANSITIONAL	1	-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
-texinfo-toc-keywords.org	OX-59	TRANSITIONAL	1	-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
-texinfo-toc-keywords.org	OX-60	TRANSITIONAL	1	-@title \n+@title Untitled
-texinfo-toc-keywords.org	OX-51,OX-52	TRANSITIONAL	1	-@ifnottex\n-@node Top\n-@top \n+@contents
-texinfo-toc-keywords.org	OX-51	TRANSITIONAL	1	-@end ifnottex\n-\n-@menu\n-* A::\n-* B::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-A\n-\n-* A2::\n-\n-B\n-\n-* B1::\n-\n-@end detailmenu\n-@end menu
-texinfo-toc-keywords.org	OX-56	TRANSITIONAL	1	-@float Table\n-@multitable {a}\n+@multitable @columnfractions .100
-texinfo-toc-keywords.org	OX-51,OX-56	TRANSITIONAL	1	-@caption{T one}\n-@end float\n-\n-@menu\n-* A2::\n-@end menu
-texinfo-toc-keywords.org	OX-51	TRANSITIONAL	1	-@menu\n-* B1::\n-@end menu\n-
-ascii-lists-mixed.org	OX-84	TRANSITIONAL	1	-
-md-links.org	OX-86,~OX-47,~OX-48	TRANSITIONAL	1	-<a id="org8616fc8"></a>Text.\n-\n-<table id="org26ab51b" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-right" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-</tr>\n-</tbody>\n-</table>\n+<a id="tgt"></a>Text.
-md-toc-keywords.org	OX-47,OX-87	KEEP	1	-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-<caption class="t-above"><span class="table-number">Table 1:</span> T one</caption>\n-\n-<colgroup>\n-<col  class="org-right" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-</tr>\n-</tbody>\n-</table>\n+*T one*
-texinfo-document.org	OX-85	TRANSITIONAL	1	-
-texinfo-headline-options.org	OX-85	TRANSITIONAL	1	+
-texinfo-headline-options.org	OX-85	TRANSITIONAL	3	-
+ascii-babel-inline.org	OX-32	TRANSITIONAL	1	^\n-Val and `(+ 2 2)' end.\n+Val src_emacs-lisp{(+ 1 1)} and src_emacs-lisp[:exports code]{(+ 2 2)} end.
+ascii-babel-inline.org	OX-32	TRANSITIONAL	1	 Val and `(+ 2 2)' end.\n-Inline here.\n+Inline call_f() here.
+ascii-blocks.org	OX-15	TRANSITIONAL	1	                              centered text\n-      quote para one\n-\n-      quote para two\n+  > quote para one\n+  >\n+  > quote para two
+ascii-blocks.org	OX-19	TRANSITIONAL	1	 ,----\n-| 1  (+ 1 2)\n+| (+ 1 2)
+ascii-blocks.org	OX-20	TRANSITIONAL	1	 `----\n+
+ascii-blocks.org	OX-16,OX-28	TRANSITIONAL	1	 \\end{equation}\n-in drawer\n-\n- x          y \n---------------\n- long cell  2 \n++-----------+---+\n+| x         | y |\n++-----------+---+\n+| long cell | 2 |\n++-----------+---+
+ascii-charset-entities.org	OX-1	TRANSITIONAL	1	^\n-                                  ___\n-\n-                                   T\n-                                  ___\n-\n-
+ascii-charset-entities.org	OX-8	TRANSITIONAL	1	 .. 1. H2\n-
+ascii-charset-entities.org	OX-4,OX-8	TRANSITIONAL	1	 ========================\n-  - item\n-\n+- item
+ascii-charset-entities.org	OX-4,OX-7,OX-8,OX-16,OX-21,OX-26	TRANSITIONAL	1	 1.1 H2\n-~~~~~~\n-\n-  ,----\n-  | x\n-  `----\n-   a  b \n-  ------\n-   1  2 \n-  Text with x and "quotes".\n-  ----------------------------------------------------------------------\n+------\n+\n+,----\n+| x\n+`----\n+\n++---+---+\n+| a | b |\n++---+---+\n+| 1 | 2 |\n++---+---+\n+\n+Text with  x and "quotes".\n+\n+------------------------------------------------------------
+ascii-clocks-drawers-options.org	OX-4,OX-8,OX-28,OX-30	TRANSITIONAL	1	 ===========\n-  FOO: 1\n-  CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00]  =>  1:00\n-  CLOCK: [2026-01-01 Thu 12:00]--[2026-01-01 Thu 13:00]  =>  1:00\n-\n+FOO: 1
+ascii-clocks-drawers-options.org	OX-8	TRANSITIONAL	1	 ===============\n-
+ascii-clocks-drawers-options.org	OX-4,OX-8,OX-88	TRANSITIONAL	1	 ======\n-  arch body\n-\n-\n-\n-                                                        Emacs (Org mode)\n+arch body
+ascii-document.org	OX-1	TRANSITIONAL	1	^\n-                               __________\n-\n-                                TEST DOC\n-\n-                                Jane Doe\n-                               __________\n-\n-\n-                               2026-01-02\n-\n-
+ascii-document.org	OX-9	TRANSITIONAL	1	 _________________\n-1. TODO First heading                                        :tag1:tag2:\n+1. First heading
+ascii-document.org	OX-9	TRANSITIONAL	1	 .. 1. Sub heading\n-..... 1. Third level\n+.... 1. Third level
+ascii-document.org	OX-3,OX-5,OX-8	TRANSITIONAL	1	 2. Second heading\n-\n-Intro paragraph with *bold*, /italic/, _under_, `verb', `code',\n-+strike+.  Second line of the paragraph.\n-\n+Intro paragraph with bold, italic, under, verb, code, strike.\n+Second line of the paragraph.
+ascii-document.org	OX-4,OX-8,OX-11,OX-12	TRANSITIONAL	1	 ====================\n-  Body text with a [link] and <https://bare.example>.\n-\n-\n-[link] <https://example.com>\n+Body text with a link (https://example.com) and https://bare.example.
+ascii-document.org	OX-7	TRANSITIONAL	1	 1.1 Sub heading\n-~~~~~~~~~~~~~~~\n+---------------
+ascii-document.org	OX-4,OX-23	TRANSITIONAL	1	 ~~~~~~~~~~~~~~~\n-  - item one\n-  - item two\n-    - nested\n-  1. ordered\n-  2. second\n-  - [ ] unchecked\n-  - [X] checked\n-  - definition\n+- item one\n+- item two\n+  - nested
+ascii-document.org	OX-23	TRANSITIONAL	1	   - definition\n+- ordered\n+- second\n+- [ ] unchecked\n+- [X] checked\n+term\n+  definition
+ascii-document.org	OX-4,OX-7,OX-8	TRANSITIONAL	1	 1.1.1 Third level\n------------------\n-\n-  Text.\n-\n+~~~~~~~~~~~~~~~~~
+ascii-document.org	OX-4,OX-22	TRANSITIONAL	1	   Text.\n-* 1.1.1.1 Fourth level\n+Text.
+ascii-document.org	OX-22	TRANSITIONAL	1	 * 1.1.1.1 Fourth level\n+- 1.1.1.1 Fourth level
+ascii-document.org	OX-8	TRANSITIONAL	1	   Deep text.\n-
+ascii-document.org	OX-4	TRANSITIONAL	1	 ================\n-  ,----\n-  | print("hi")\n-  `----\n-\n-  ,----\n-  | example text\n-  `----\n-\n-  ,----\n-  | fixed width\n-  `----\n-\n-        Quoted text.\n+,----\n+| print("hi")\n+`----
+ascii-document.org	OX-4,OX-16	TRANSITIONAL	1	         Quoted text.\n-    a  b \n-  -------\n-    1  2 \n-   30  4 \n+,----\n+| example text\n+`----
+ascii-document.org	OX-4,OX-21	TRANSITIONAL	1	    30  4 \n-  ----------------------------------------------------------------------\n+,----\n+| fixed width\n+`----
+ascii-document.org	OX-4,OX-14,OX-15	TRANSITIONAL	1	   ----------------------------------------------------------------------\n-  Footnote ref[1].\n+  > Quoted text.
+ascii-document.org	OX-16	TRANSITIONAL	1	   Footnote ref[1].\n++----+---+\n+| a  | b |\n++----+---+\n+| 1  | 2 |\n+| 30 | 4 |\n++----+---+
+ascii-document.org	OX-21	TRANSITIONAL	1	   Footnote ref[1].\n+------------------------------------------------------------
+ascii-document.org	OX-14	TRANSITIONAL	1	   Footnote ref[1].\n-Footnotes\n-_________\n+Footnote ref.
+ascii-drawers-dynamic.org	OX-4,OX-8,OX-28,OX-29	TRANSITIONAL	1	 ===\n-\n-  in drawer\n-  dyn content
+ascii-fill-margin.org	OX-3,OX-8	TRANSITIONAL	1	^\n-This is a long paragraph that should be filled at the fill column of\n-seventy-two characters by ox-ascii when exporting the text, and wrapped\n-accordingly.\n-\n+This is a long paragraph that should be filled at the fill column of seventy-two characters by ox-ascii when exporting the text, and wrapped accordingly.
+ascii-fill-margin.org	OX-3,OX-4	TRANSITIONAL	1	 ===\n-  A long paragraph under a heading that should also be filled and\n-  indented by the inner margin when exported with org-ascii exporter to\n-  plain text.\n+A long paragraph under a heading that should also be filled and indented by the inner margin when exported with org-ascii exporter to plain text.
+ascii-fixed-width-toggle.org	OX-3,OX-4,OX-5,OX-6,OX-11,OX-14,OX-16,OX-21	TRANSITIONAL	1	 =============\n-  SCHEDULED: <2026-01-02 Fri>\n-  Text x^{2} y_z alpha *b* <2026-01-03 Sat> [1/2] \\(m\\) line break[1]\n-  [L]\n-   t \n-  ----------------------------------------------------------------------\n+SCHEDULED: <2026-01-02 Fri>
+ascii-fixed-width-toggle.org	OX-3,OX-5,OX-6,OX-11,OX-14	TRANSITIONAL	1	   ----------------------------------------------------------------------\n+Text x^2 y_z alpha b <2026-01-03 Sat> [1/2] \\(m\\) line\n+break L (https://a.b)
+ascii-fixed-width-toggle.org	OX-11,OX-33	TRANSITIONAL	1	   ----------------------------------------------------------------------\n-[L] <https://a.b>\n+,----\n+| fixed\n+`----
+ascii-fixed-width-toggle.org	OX-16	TRANSITIONAL	1	 [L] <https://a.b>\n++---+\n+| t |\n++---+
+ascii-fixed-width-toggle.org	OX-8,OX-14,OX-21	TRANSITIONAL	1	 [L] <https://a.b>\n-\n-Footnotes\n-_________\n+------------------------------------------------------------
+ascii-footnotes-link-notes.org	OX-3,OX-4,OX-8,OX-11,OX-14	TRANSITIONAL	1	 =====\n-  Ref[1] and inline[2] and named[3].  Link [desc] here.\n-\n-\n-[desc] <https://e.com>\n-\n+Ref and inline and named.\n+Link desc (https://e.com) here.
+ascii-footnotes-link-notes.org	OX-4,OX-8,OX-14	TRANSITIONAL	1	 =====\n-  Again[1].\n-\n+Again.
+ascii-footnotes-link-notes.org	OX-5,OX-8,OX-14	TRANSITIONAL	1	   Again[1].\n-\n-Footnotes\n-_________\n-\n-[1] Def A with *bold*.\n+[a] Def A with bold.
+ascii-footnotes-link-notes.org	OX-14	TRANSITIONAL	1	 Second para of A.\n-\n-[2] inline body\n-\n-[3] named body
+ascii-headline-options.org	OX-9	TRANSITIONAL	1	 _________________\n-1. DONE (#B) One                                                     :a:\n+1. One
+ascii-headline-options.org	OX-8,OX-9	TRANSITIONAL	1	 .. 1. Two\n-2. Archived                                                    :ARCHIVE:\n-\n+2. Archived
+ascii-headline-options.org	OX-4,OX-25	TRANSITIONAL	1	 ===============\n-  CLOSED: [2026-01-01 Thu]  SCHEDULED: <2026-01-02 Fri>\n-  FOO: bar\n+CLOSED: [2026-01-01 Thu] SCHEDULED: <2026-01-02 Fri>
+ascii-headline-options.org	OX-25	TRANSITIONAL	1	   FOO: bar\n+FOO: bar
+ascii-headline-options.org	OX-7,OX-8,OX-22	TRANSITIONAL	1	 1.1 Two\n-~~~~~~~\n-\n-* 1.1.1 Three\n+-------
+ascii-headline-options.org	OX-22	TRANSITIONAL	1	 * 1.1.1 Three\n+- 1.1.1 Three
+ascii-headline-options.org	OX-8,OX-22	TRANSITIONAL	1	   text3\n-\n-\n-  + 1.1.1.1 Four\n+  - 1.1.1.1 Four
+ascii-inline-objects.org	OX-3,OX-5,OX-11,OX-12,OX-13,OX-31,OX-32,OX-92	TRANSITIONAL	1	^\n-Emph *bold* /it/ _un_ `verb' `code' +strike+ x^2 a_b alpha alpha -- ---\n-... [2/3] [50%] <2026-01-02 Fri> [2026-01-02 Fri 10:00]\n-next line RAW radio radio \\(x+y\\) $z$ [Foo] <file:img.png>\n-<mailto:a@b.c>\n-\n-\n-[Foo] <file:foo.org>\n+Emph bold it un verb code strike x^2 a_b alpha alpha -- --- ... [2/3] [50%] <2026-01-02 Fri> [2026-01-02 Fri 10:00] \n+next line src_python{1+1} @@ascii:RAW@@ @@html:H@@  radio radio \\(x+y\\) $z$ Foo (file:foo.org) file:img.png *Heading #cid mailto:a@b.c
+ascii-inlinetask.org	OX-8	TRANSITIONAL	1	 1. H\n-
+ascii-inlinetask.org	OX-4,OX-27	TRANSITIONAL	1	 ===\n-  Before.\n-                                          ______________________________\n-                              \n-                                          TODO Inline task           :x:\n-                                          ------------------------------\n-                                          Task body.\n-                                          ______________________________\n-  After.\n+Before.\n+\n+After.
+ascii-justify-table-groups.org	OX-18	TRANSITIONAL	1	 left text\n- a very long centered paragraph that exceeds the text width of seventy\n-                        two characters for sure\n+a very long centered paragraph that exceeds the text width of seventy two characters for sure
+ascii-justify-table-groups.org	OX-16	TRANSITIONAL	1	                         two characters for sure\n- a | b  c |\n----+------+\n- 1 | 2  3 |\n++---+---+---+\n+| a | b | c |\n++---+---+---+\n+| 1 | 2 | 3 |\n++---+---+---+
+ascii-justify-table-groups.org	OX-16,OX-17	TRANSITIONAL	1	  1 | 2  3 |\n- xx  yy \n++----+----+\n+| xx | yy |\n++----+----+
+ascii-links.org	OX-4,OX-16	TRANSITIONAL	1	 ================\n-  Text.\n-   1 \n+Text.
+ascii-links.org	OX-16	TRANSITIONAL	1	    1 \n++---+\n+| 1 |\n++---+
+ascii-links.org	OX-3,OX-4,OX-5,OX-11,OX-12,OX-13	TRANSITIONAL	1	 =======\n-  1 / [desc] / 1 / 1 / 1 / ??? / <file:other.org> / [o] /\n-  <https://plain.example> / <https://angle.example> / [*bold* desc] /\n-  <./img.png> / [PDF] / [e]\n-\n-\n-[desc] See section 1\n-\n-[o] <file:other.org::*H>\n-\n-[*bold* desc] <https://x.y>\n-\n-[PDF] <file:a.pdf>\n-\n-[e] <elisp:(foo)>\n+*Target heading / desc (*Target heading) / #cid / id:1234-abcd / tgt / tbl / file:other.org / o (file:other.org::*H) / https://plain.example / https://angle.example / bold desc (https://x.y) / ./img.png / PDF (file:a.pdf) / e (elisp:(foo))
+ascii-lists-descriptive.org	OX-3,OX-23,OX-24	TRANSITIONAL	1	 term\n-      desc\n-[X] t2[X] \n-      desc2 more\n+  desc\n+t2\n+  desc2\n+more
+ascii-lists-mixed.org	OX-23	TRANSITIONAL	1	   2. y\n-3. counter\n-- desc\n-- desc2 long paragraph\n-+ plus bullet\n+\n+- counter\n+term\n+  desc\n+tag2\n+  desc2 long paragraph\n+- plus bullet
+ascii-lists-ordered.org	OX-23	TRANSITIONAL	1	 1. one\n-5. five\n-6. six\n-   - inner\n-     + innermost\n-7) paren\n-8) paren2\n+2. five\n+3. six\n+  - inner\n+    - innermost\n+\n+\n+4. paren\n+5. paren2
+ascii-scripts-refill.org	OX-8,OX-9	TRANSITIONAL	1	 _________________\n-1. TODO H                                                            :t:\n-\n+1. H
+ascii-scripts-refill.org	OX-3,OX-4,OX-5,OX-6,OX-11,OX-14,OX-16,OX-21	TRANSITIONAL	1	 ========\n-  Text x^{2} y_z alpha *b* <2026-01-03 Sat> [1/2] \\(m\\) line break[1]\n-  [L]\n-  ,----\n-  | fixed\n-  `----\n-   t \n-  ----------------------------------------------------------------------\n-\n-\n-[L] <https://a.b>\n+Text x^2 y_z alpha b <2026-01-03 Sat> [1/2] \\(m\\) line\n+break L (https://a.b)
+ascii-scripts-refill.org	OX-4	TRANSITIONAL	1	 [L] <https://a.b>\n+,----\n+| fixed\n+`----
+ascii-scripts-refill.org	OX-16	TRANSITIONAL	1	 [L] <https://a.b>\n++---+\n+| t |\n++---+
+ascii-scripts-refill.org	OX-14,OX-21	TRANSITIONAL	1	 [L] <https://a.b>\n-Footnotes\n-_________\n+------------------------------------------------------------
+ascii-table-rules.org	OX-16,OX-36	TRANSITIONAL	1	^\n- Name    Value  <5>            \n--------------------------------\n- alpha     1.5  long text here \n- β wide     20  x              \n--------------------------------\n- total    21.5                 \n++--------+-------+----------------+\n+| Name   | Value | <5>            |\n++--------+-------+----------------+\n+| alpha  | 1.5   | long text here |\n++--------+-------+----------------+\n+| β wide | 20    | x              |\n++--------+-------+----------------+\n+| total  | 21.5  |                |\n++--------+-------+----------------+
+ascii-tables-blank-separated.org	OX-16,OX-35	TRANSITIONAL	1	^\n- a  b \n-\n- c  d \n++---+---+\n+| a | b |\n++---+---+\n+| c | d |\n++---+---+
+ascii-title-block.org	OX-1	TRANSITIONAL	1	^\n-                               __________\n-\n-                                TEST DOC\n-                                  Sub\n-\n-                                Jane Doe\n-                                j@x.org\n-                               __________\n-\n-\n-                               2026-01-02\n-\n-
+ascii-toc-empty.org	OX-10,OX-16	TRANSITIONAL	1	^\n-Table of Contents\n-_________________\n-\n-\n-\n-\n- a  b \n- c  d \n-------\n- e  f \n++---+---+\n+| a | b |\n+| c | d |\n++---+---+\n+| e | f |\n++---+---+
+icalendar-combine.org	OX-72,~OX-91	TRANSITIONAL	1	 VERSION:2.0\n-X-WR-CALNAME:OrgMode\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
+icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:<case>#L12
+icalendar-combine.org	OX-67,OX-70,OX-75,OX-78	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-1>\n-DTSTART;VALUE=DATE:20260102\n-DTEND;VALUE=DATE:20260103\n-SUMMARY:Noexport\n-DESCRIPTION:<2026-01-02 Fri>\n-CATEGORIES:noexport,icalendar-combine\n+DTSTART:20260101T080000\n+SUMMARY:Finished
+icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:abc-123-scheduled
+icalendar-combine.org	OX-67,OX-70,OX-71,OX-73,OX-74,OX-78	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-2>\n-DTSTART:20260109T120000\n-DTEND:20260109T140000\n-SUMMARY:Alarm\n-DESCRIPTION:<2026-01-09 Fri 12:00>\n-CATEGORIES:icalendar-combine\n-BEGIN:VALARM\n-ACTION:DISPLAY\n-DESCRIPTION:Alarm\n-TRIGGER:-P0DT0H15M0S\n-END:VALARM\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106\n+SUMMARY:Task
+icalendar-combine.org	OX-70,OX-78	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:abc-123-deadline
+icalendar-combine.org	OX-67,OX-69,OX-70,OX-71,OX-73,OX-78	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-3>\n-DTSTART:20260202T100000\n-DTEND:20260202T120000\n-SUMMARY:Meet\n-DESCRIPTION:<2026-02-02 Mon 10:00> body\n-CATEGORIES:w,icalendar-combine\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:<case>#L14\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260108\n+DTEND;VALUE=DATE:20260109\n+SUMMARY:Plain scheduled\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:<case>#L26\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260203\n+DTEND;VALUE=DATE:20260204\n+SUMMARY:Plain
+icalendar-entries.org	OX-72,~OX-91	TRANSITIONAL	1	 VERSION:2.0\n-X-WR-CALNAME:icalendar-entries\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:Cal\n+PRODID:-//organ.nvim//ICS export//EN
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-1-timestamp
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-1>
+icalendar-entries.org	OX-73,OX-76	TRANSITIONAL	1	 SUMMARY:Meeting\n-DESCRIPTION:<2026-01-02 Fri 10:00-11:00> Body *text*\\, with\\; specials.\n-CATEGORIES:work,icalendar-entries\n+DESCRIPTION:<2026-01-02 Fri 10:00-11:00>\\nBody text\\, with\\; specials.\n+CATEGORIES:work
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:abc-123-scheduled
+icalendar-entries.org	OX-67,OX-70,OX-71,OX-76	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-2>\n-DTSTART:20260107T170000\n-DTEND:20260107T190000\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106
+icalendar-entries.org	OX-67,OX-73,OX-76	TRANSITIONAL	1	 SUMMARY:Task\n-DESCRIPTION:DEADLINE: <2026-01-07 Wed 17:00>\\n:ID: abc-123 :CATEGORY: chore\n- s :LOCATION: Office\\nTask body.\n-CATEGORIES:home,icalendar-entries\n+DESCRIPTION:Task body.\n+CATEGORIES:home\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:abc-123-deadline\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home
+icalendar-entries.org	OX-67,OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-3-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260101\n+DTEND;VALUE=DATE:20260102\n+SUMMARY:Finished\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-4-deadline
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:DL-<uuid-3>
+icalendar-entries.org	OX-69,OX-73	TRANSITIONAL	1	 DTEND;VALUE=DATE:20260111\n-SUMMARY:DL: Not todo deadline\n-CATEGORIES:icalendar-entries\n+SUMMARY:(Deadline) Not todo deadline
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-5-timestamp
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-4>
+icalendar-entries.org	OX-71	TRANSITIONAL	1	 DTSTART:20260103T090000\n-DTEND:20260103T110000
+icalendar-entries.org	OX-73	TRANSITIONAL	1	 DESCRIPTION:<2026-01-03 Sat 09:00 +1w>\n-CATEGORIES:icalendar-entries
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-6-timestamp
+icalendar-entries.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-5>
+icalendar-entries.org	OX-73,OX-76	TRANSITIONAL	1	 SUMMARY:Range\n-DESCRIPTION:<2026-01-04 Sun>–<2026-01-06 Tue>\n-CATEGORIES:icalendar-entries\n-END:VEVENT\n-BEGIN:VEVENT\n-UID:<uuid-6>\n-DTSTAMP:20260504T093000Z\n-SUMMARY:Diary\n-DESCRIPTION:Diary\n-RRULE:FREQ=MONTHLY;BYDAY=2TH\n-DTSTART;VALUE=DATE:20250109\n+DESCRIPTION:<2026-01-04 Sun>--<2026-01-06 Tue>
+icalendar-timezone-exclude.org	OX-72,~OX-91	TRANSITIONAL	1	 VERSION:2.0\n-X-WR-CALNAME:icalendar-timezone-exclude\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
+icalendar-timezone-exclude.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-1-timestamp
+icalendar-timezone-exclude.org	OX-70,OX-71,OX-73	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-1>\n-DTSTART;TZID=Asia/Tokyo:20260102T100000\n-DTEND;TZID=Asia/Tokyo:20260102T120000\n+DTSTART:20260102T100000
+icalendar-timezone-exclude.org	OX-73,OX-75	TRANSITIONAL	1	 DESCRIPTION:<2026-01-02 Fri 10:00>\n-CATEGORIES:icalendar-timezone-exclude\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-2-timestamp\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260103\n+DTEND;VALUE=DATE:20260104\n+SUMMARY:Priv\n+DESCRIPTION:<2026-01-03 Sat>\n+CATEGORIES:private
+icalendar-todo-states.org	OX-72,~OX-91	TRANSITIONAL	1	 VERSION:2.0\n-X-WR-CALNAME:icalendar-todo-states\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:Cal\n+PRODID:-//organ.nvim//ICS export//EN
+icalendar-todo-states.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:abc-123-scheduled
+icalendar-todo-states.org	OX-67,OX-70,OX-73,OX-75	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-1>\n-DTSTART;VALUE=DATE:20260102\n-DTEND;VALUE=DATE:20260103\n-SUMMARY:Noexport\n-DESCRIPTION:<2026-01-02 Fri>\n-CATEGORIES:noexport,icalendar-todo-states\n+DTSTART;VALUE=DATE:20260105\n+DTEND;VALUE=DATE:20260106\n+SUMMARY:Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home
+icalendar-todo-states.org	OX-67,OX-69,OX-70,OX-73	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:abc-123-deadline\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260107T170000\n+SUMMARY:(Deadline) Task\n+DESCRIPTION:Task body.\n+CATEGORIES:home\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-2-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART:20260101T080000\n+SUMMARY:Finished\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-3-scheduled\n+DTSTAMP:20260504T093000Z\n+DTSTART;VALUE=DATE:20260108\n+DTEND;VALUE=DATE:20260109\n+SUMMARY:Plain scheduled\n+END:VEVENT\n+BEGIN:VEVENT\n+UID:organ-4-timestamp
+icalendar-todo-states.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-2>
+icalendar-todo-states.org	OX-71	TRANSITIONAL	1	 DTSTART:20260109T120000\n-DTEND:20260109T140000
+icalendar-todo-states.org	OX-73,OX-74	TRANSITIONAL	1	 DESCRIPTION:<2026-01-09 Fri 12:00>\n-CATEGORIES:icalendar-todo-states\n-BEGIN:VALARM\n-ACTION:DISPLAY\n-DESCRIPTION:Alarm\n-TRIGGER:-P0DT0H15M0S\n-END:VALARM
+icalendar-utf8-fold.org	OX-72,~OX-91	TRANSITIONAL	1	 VERSION:2.0\n-X-WR-CALNAME:icalendar-utf8-fold\n-PRODID:-////Emacs with Org mode//EN\n-X-WR-TIMEZONE:UTC\n-X-WR-CALDESC:\n+PRODID:-//organ.nvim//ICS export//EN
+icalendar-utf8-fold.org	OX-70	TRANSITIONAL	1	 BEGIN:VEVENT\n+UID:organ-1-timestamp
+icalendar-utf8-fold.org	OX-70	TRANSITIONAL	1	 DTSTAMP:20260504T093000Z\n-UID:TS1-<uuid-1>
+icalendar-utf8-fold.org	OX-77	TRANSITIONAL	1	 DTEND;VALUE=DATE:20260103\n-SUMMARY:会議の予定についての長いタイトルです会議の予定についての長いタイトルです会議の予定\n+SUMMARY:会議の予定についての長いタイトルです会議の予<0xE5>\n+ <0xAE><0x9A>についての長いタイトルです会議の予定
+icalendar-utf8-fold.org	OX-73	TRANSITIONAL	1	 DESCRIPTION:<2026-01-02 Fri>\n-CATEGORIES:icalendar-utf8-fold
+md-babel-inline.org	OX-32	TRANSITIONAL	1	^\n-Val and `(+ 2 2)` end.\n+Val src_emacs-lisp{(+ 1 1)} and src_emacs-lisp[:exports code]{(+ 2 2)} end.
+md-babel-inline.org	OX-32	TRANSITIONAL	1	 Val and `(+ 2 2)` end.\n-Inline here.\n+Inline call_f() here.
+md-blocks.org	OX-44	TRANSITIONAL	1	 <p class="verse">\n-Roses are red<br />\n- Violets<br />\n+  Roses are red<br />\n+   Violets<br />
+md-blocks.org	OX-45	TRANSITIONAL	1	 <div class="org-center">\n-<p>\n+
+md-blocks.org	OX-45	TRANSITIONAL	1	 centered text\n-</p>\n+
+md-blocks.org	OX-45	TRANSITIONAL	1	 <b>no</b>\n-<div class="foo" id="org69157ad">\n-<p>\n+<div class="foo">\n+
+md-blocks.org	OX-45	TRANSITIONAL	1	 special block\n-</p>
+md-blocks.org	OX-19,OX-47,~OX-87	TRANSITIONAL	1	 </div>\n-    1  (+ 1 2)\n+*A src*\n+\n+```elisp\n+(+ 1 2)\n+```
+md-blocks.org	OX-47	KEEP	1	     1  (+ 1 2)\n-    echo hi\n+```sh\n+echo hi\n+```
+md-blocks.org	OX-28,OX-47,~OX-87	TRANSITIONAL	1	 \\end{equation}\n-in drawer\n-\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-<caption class="t-above"><span class="table-number">Table 1:</span> Tab cap</caption>\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-right" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-left">x</th>\n-<th scope="col" class="org-right">y</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-left">long cell</td>\n-<td class="org-right">2</td>\n-</tr>\n-</tbody>\n-</table>\n+*Tab cap*\n+\n+| x | y |\n+| --- | ---: |\n+| long cell | 2 |
+md-clocks-drawers-options.org	OX-49	TRANSITIONAL	1	^\n-\n-
+md-clocks-drawers-options.org	OX-30,OX-38,OX-49	TRANSITIONAL	1	 # TODO keep\n-    FOO: 1\n-\n-<p>\n-<span class="timestamp-wrapper">\n-<span class="timestamp-kwd">CLOCK:</span> <span class="timestamp">[2026-01-01 Thu 10:00]–[2026-01-01 Thu 11:00] </span> <span class="timestamp">(1:00)</span>\n-</span>\n-</p>\n-\n-<p>\n-<span class="timestamp-wrapper">\n-<span class="timestamp-kwd">CLOCK:</span> <span class="timestamp">[2026-01-01 Thu 12:00]–[2026-01-01 Thu 13:00] </span> <span class="timestamp">(1:00)</span>\n-</span>\n-</p>\n-\n-
+md-clocks-drawers-options.org	OX-49	TRANSITIONAL	1	 # plain heading\n-
+md-document.org	OX-49	TRANSITIONAL	1	^\n-
+md-document.org	OX-39,OX-48	TRANSITIONAL	1	 # Table of Contents\n-1.  [First heading](#first):tag1:tag2:\n-    1.  [Sub heading](#org8dbb339)\n-        1.  [Third level](#orgdeca805)\n-2.  [Second heading](#org4e04c67)\n+1.  [TODO First heading](#first):tag1:tag2:\n+    1.  [Sub heading](#sub-heading)\n+        1.  [Third level](#third-level)\n+2.  [Second heading](#second-heading)
+md-document.org	OX-43	TRANSITIONAL	1	 2.  [Second heading](#org4e04c67)\n-Intro paragraph with **bold**, *italic*, <span class="underline">under</span>, `verb`, `code`, <del>strike</del>.\n+Intro paragraph with **bold**, *italic*, <u>under</u>, `verb`, `code`, ~~strike~~.
+md-document.org	OX-48,OX-49	TRANSITIONAL	1	 Second line of the paragraph.\n-\n-<a id="first"></a>\n-
+md-document.org	OX-42,OX-48,OX-49	TRANSITIONAL	1	 # TODO First heading     :tag1:tag2:\n-Body text with a [link](https://example.com) and <https://bare.example>.\n-\n-\n-<a id="org8dbb339"></a>\n+Body text with a [link](https://example.com) and [https://bare.example](https://bare.example).
+md-document.org	OX-47,OX-48,OX-49	TRANSITIONAL	1	 ## Sub heading\n--   item one\n--   item two\n-    -   nested\n--   ordered\n--   second\n--   [ ] unchecked\n--   [X] checked\n--   **term:** definition\n-\n-\n-<a id="orgdeca805"></a>\n+- item one\n+- item two\n+  - nested\n+- ordered\n+- second\n+- [ ] unchecked\n+- [x] checked\n+- **term:** definition
+md-document.org	OX-49	TRANSITIONAL	1	 Text.\n-1.  Fourth level\n-\n-    Deep text.\n-\n+1. Fourth level
+md-document.org	OX-48,OX-49	TRANSITIONAL	1	     Deep text.\n-<a id="org4e04c67"></a>\n+   Deep text.
+md-document.org	OX-47	KEEP	1	 # Second heading\n-    print("hi")\n+```python\n+print("hi")\n+```
+md-document.org	OX-47	KEEP	1	 > Quoted text.\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-right" />\n-\n-<col  class="org-right" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-right">a</th>\n-<th scope="col" class="org-right">b</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-<td class="org-right">2</td>\n-</tr>\n-\n-<tr>\n-<td class="org-right">30</td>\n-<td class="org-right">4</td>\n-</tr>\n-</tbody>\n-</table>\n+| a | b |\n+| ---: | ---: |\n+| 1 | 2 |\n+| 30 | 4 |
+md-document.org	OX-46	KEEP	1	 ---\n-Footnote ref<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup>.\n-\n-\n-# Footnotes\n+Footnote ref[^1].
+md-document.org	OX-46	KEEP	1	 # Footnotes\n-<sup><a id="fn.1" href="#fnr.1">1</a></sup> The footnote.\n+[^1]: The footnote.
+md-drawers-dynamic.org	OX-49	TRANSITIONAL	1	^\n-\n-
+md-drawers-dynamic.org	OX-28,OX-29	TRANSITIONAL	1	 # H\n-\n-in drawer\n-\n-dyn content
+md-escaping.org	OX-49,OX-89	TRANSITIONAL	1	 \\#hash start\n--   list\n-\n--   A great year\n+- list\n+- A great year
+md-fixed-width-toggle.org	OX-49	TRANSITIONAL	1	^\n-\n-
+md-fixed-width-toggle.org	OX-38	TRANSITIONAL	1	 # TODO [#A] H     :t:\n-<p><span class="timestamp-wrapper"><span class="timestamp-kwd">SCHEDULED:</span> <span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span></p>\n-
+md-fixed-width-toggle.org	OX-46	KEEP	1	 Text x<sup>2</sup> y<sub>z</sub> α **b** <span class="timestamp-wrapper"><span class="timestamp">&lt;2026-01-03 Sat&gt;</span></span> <code>[1/2]</code> $m$ line\n-break<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup> [L](https://a.b)\n+break[^1] [L](https://a.b)
+md-fixed-width-toggle.org	OX-33,OX-47	TRANSITIONAL	1	 break<sup><a id="fnr.1" class="footref" href="#fn.1" role="doc-backlink">1</a></sup> [L](https://a.b)\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n+    fixed
+md-fixed-width-toggle.org	OX-47	KEEP	1	 <table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-<colgroup>\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">t</td>\n-</tr>\n-</tbody>\n-</table>\n+| t |\n+| --- |
+md-fixed-width-toggle.org	OX-46	KEEP	1	 ---\n-\n-# Footnotes\n-\n-<sup><a id="fn.1" href="#fnr.1">1</a></sup> fn\n+[^1]: fn
+md-footnotes.org	OX-49	TRANSITIONAL	1	^\n-\n-
+md-footnotes.org	OX-46	KEEP	1	 # One\n-Ref<sup><a id="fnr.a" class="footref" href="#fn.a" role="doc-backlink">1</a></sup> and inline<sup><a id="fnr.2" class="footref" href="#fn.2" role="doc-backlink">2</a></sup> and named<sup><a id="fnr.n" class="footref" href="#fn.n" role="doc-backlink">3</a></sup>.\n+Ref[^1] and inline[^2] and named[^3].
+md-footnotes.org	OX-49	TRANSITIONAL	1	 Link [desc](https://e.com) here.\n-
+md-footnotes.org	OX-46	KEEP	1	 # Two\n-Again<sup><a id="fnr.a.1" class="footref" href="#fn.a" role="doc-backlink">1</a></sup>.\n-\n-\n-# Footnotes\n+Again[^1].
+md-footnotes.org	OX-46	KEEP	1	 # Footnotes\n-<sup><a id="fn.1" href="#fnr.1">1</a></sup> Def A with **bold**.\n+[^1]: Def A with **bold**.
+md-footnotes.org	OX-46	KEEP	1	 Second para of A.\n-<sup><a id="fn.2" href="#fnr.2">2</a></sup> inline body\n+[^2]: inline body
+md-footnotes.org	OX-46	KEEP	1	 <sup><a id="fn.2" href="#fnr.2">2</a></sup> inline body\n-<sup><a id="fn.3" href="#fnr.3">3</a></sup> named body\n+[^3]: named body
+md-headline-options.org	OX-49	TRANSITIONAL	1	^\n-
+md-headline-options.org	OX-39,OX-48,OX-49	TRANSITIONAL	1	 # Table of Contents\n-1.  [One](#org8560f43):a:\n-    1.  [Two](#orgac5dca7)\n-2.  [Archived](#org5314615):ARCHIVE:\n-\n-\n-\n-<a id="org8560f43"></a>\n+1.  [DONE [#B] One](#one):a:\n+    1.  [Two](#two)\n+2.  [Archived](#archived):ARCHIVE:
+md-headline-options.org	OX-38,OX-48,OX-49	TRANSITIONAL	1	 # DONE [#B] One     :a:\n-<p><span class="timestamp-wrapper"><span class="timestamp-kwd">CLOSED:</span> <span class="timestamp">[2026-01-01 Thu] </span> <span class="timestamp-kwd">SCHEDULED:</span> <span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span></p>\n-\n-    FOO: bar\n-\n-\n-<a id="orgac5dca7"></a>\n-
+md-headline-options.org	OX-49	TRANSITIONAL	1	 ## Two\n-1.  Three\n-\n-    text3\n-    \n-    1.  Four\n-\n+1. Three
+md-headline-options.org	OX-48,OX-49	TRANSITIONAL	1	     1.  Four\n-<a id="org5314615"></a>\n+   text3\n+   1. Four
+md-images.org	OX-41	TRANSITIONAL	1	^\n-![img](img.png)\n+![file:img.png](file:img.png)
+md-images.org	OX-41	TRANSITIONAL	1	 ![img](img.png)\n-![img](./b.jpg "Cap")\n+![./b.jpg](./b.jpg "Cap")
+md-images.org	OX-41	TRANSITIONAL	1	 ![img](./b.jpg "Cap")\n-x ![img](https://e.com/i.png) y\n+x [https://e.com/i.png](https://e.com/i.png) y
+md-inline-objects.org	OX-31,OX-32,OX-41,OX-42,OX-43,OX-49,OX-92	TRANSITIONAL	1	^\n-Emph **bold** *it* <span class="underline">un</span> `verb` `code` <del>strike</del> x<sup>2</sup> a<sub>b</sub> α α – — … <code>[2/3]</code> <code>[50%]</code> <span class="timestamp-wrapper"><span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span> <span class="timestamp-wrapper"><span class="timestamp">[2026-01-02 Fri 10:00]</span></span>   \n-next line H <a id="orgeef6cf4"></a> <a id="orgf0baa4a">radio</a> <a href="#orgf0baa4a">radio</a> $x+y$ $z$ [Foo](foo.md) ![img](img.png) <mailto:a@b.c>\n+Emph **bold** *it* <u>un</u> `verb` `code` ~~strike~~ x<sup>2</sup> a<sub>b</sub> α α – — … <code>[2/3]</code> <code>[50%]</code> <span class="timestamp-wrapper"><span class="timestamp">&lt;2026-01-02 Fri&gt;</span></span> <span class="timestamp-wrapper"><span class="timestamp">[2026-01-02 Fri 10:00]</span></span>   \n+next line src_python{1+1} @@ascii:RAW@@ @@html:H@@ <a id="target"></a> radio radio $x+y$ $z$ [Foo](foo.md) [img.png](img.png) \\*Heading #cid [mailto:a@b.c](mailto:a@b.c)
+md-inlinetask.org	OX-49	TRANSITIONAL	1	^\n-
+md-inlinetask.org	OX-48,OX-49	TRANSITIONAL	1	 # Table of Contents\n-1.  [H](#org9e913f6)\n-\n-\n-<a id="org9e913f6"></a>\n+1.  [H](#h)
+md-inlinetask.org	OX-27	TRANSITIONAL	1	 Before.\n-<div class="inlinetask">\n-<b><span class="todo TODO">TODO</span> Inline task  &nbsp<span class="tag"><span class="x">x</span></span></b><br />\n-<p>\n-Task body.\n-</p>\n-</div>\n-
+md-links.org	OX-49	TRANSITIONAL	1	^\n-\n-
+md-links.org	OX-47	KEEP	1	 </table>\n+| 1 |\n+| ---: |
+md-links.org	OX-40,OX-41,OX-42,OX-49	TRANSITIONAL	1	 # Links\n-[1](#cid) / [desc](#cid) / [1](#cid) / [1](#cid) / [1](#org8616fc8) / [1](#org26ab51b) / <other.md> / [o](other.md) / <https://plain.example> / <https://angle.example> / [**bold** desc](https://x.y) / ![img](./img.png) / [PDF](a.pdf) / [e](elisp:(foo))\n+[Target heading](#cid) / [desc](#cid) / [Target heading](#cid) / [Target heading](#cid) / [tgt](#tgt) / tbl / [other.md](other.md) / [o](other.md#h) / [https://plain.example](https://plain.example) / [https://angle.example](https://angle.example) / [**bold** desc](https://x.y) / [./img.png](./img.png) / [PDF](a.pdf) / [e](elisp:(foo))
+md-lists-mixed.org	OX-49,OX-84	TRANSITIONAL	1	^\n--   a\n--   b\n-    \n-    continued para in b\n--   [-] partial\n-    1.  x\n-    2.  y\n--   counter\n--   **term:** desc\n--   **tag2:** desc2 long paragraph\n--   plus bullet\n+- a\n+- b\n+\n+  continued para in b\n+- [-] partial\n+  1. x\n+  2. y\n+- counter\n+- **term:** desc\n+- **tag2:** desc2 long paragraph\n+- plus bullet
+md-table-rules.org	OX-47	KEEP	1	^\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-right" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<thead>\n-<tr>\n-<th scope="col" class="org-left">Name</th>\n-<th scope="col" class="org-right">Value</th>\n-<th scope="col" class="org-left">&lt;5&gt;</th>\n-</tr>\n-</thead>\n-<tbody>\n-<tr>\n-<td class="org-left">alpha</td>\n-<td class="org-right">1.5</td>\n-<td class="org-left">long text here</td>\n-</tr>\n-\n-<tr>\n-<td class="org-left">β wide</td>\n-<td class="org-right">20</td>\n-<td class="org-left">x</td>\n-</tr>\n-</tbody>\n-<tbody>\n-<tr>\n-<td class="org-left">total</td>\n-<td class="org-right">21.5</td>\n-<td class="org-left"> </td>\n-</tr>\n-</tbody>\n-</table>\n+| Name | Value | <5> |\n+| --- | ---: | --- |\n+| alpha | 1.5 | long text here |\n+| β wide | 20 | x |\n+| total | 21.5 |  |
+md-tables-blank-separated.org	OX-35,OX-47	TRANSITIONAL	1	^\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">a</td>\n-<td class="org-left">b</td>\n-</tr>\n-</tbody>\n-</table>\n-\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-left" />\n-\n-<col  class="org-left" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-left">c</td>\n-<td class="org-left">d</td>\n-</tr>\n-</tbody>\n-</table>\n+| a | b |\n+| --- | --- |\n+| c | d |
+md-toc-keywords.org	OX-49	TRANSITIONAL	1	^\n-
+md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	 # Table of Contents\n-1.  [A](#org1b17d22)\n-2.  [B](#orgbabe81d)\n-\n-\n-<a id="org1b17d22"></a>\n+1.  [A](#a)\n+2.  [B](#b)
+md-toc-keywords.org	OX-47	KEEP	1	 </table>\n+| 1 |\n+| ---: |
+md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	 ## A2\n-\n-<a id="orgbabe81d"></a>\n-
+md-toc-keywords.org	OX-48,OX-49	TRANSITIONAL	1	 # B\n-1.  [B1](#org50c001b)\n-\n-\n-<a id="org50c001b"></a>\n+1.  [B1](#b1)
+opml-head-note.org	OX-79	TRANSITIONAL	1	   <head>\n-    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>\n-    <ownerName>A</ownerName>\n+    <title>My *Doc* &amp; co</title>
+opml-head-note.org	OX-79	TRANSITIONAL	1	   <body>\n-    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">\n+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one">
+opml-title-markup.org	OX-79	TRANSITIONAL	1	   <head>\n-    <title>My Doc &amp; co</title>\n-    <dateCreated>Fri, 02 Jan 2026 00:00:00 GMT</dateCreated>\n-    <ownerName>A</ownerName>\n-    <ownerEmail>a@b.c</ownerEmail>\n+    <title>My *Doc* &amp; co</title>
+opml-title-markup.org	OX-79	TRANSITIONAL	1	   <body>\n-    <outline text="H1 &amp; &lt;x&gt;" _note="note line one line two">\n+    <outline text="H1 &amp; &lt;x&gt;" _note="note line one">
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 # conformance: org full\n-#+title: RT\n-#+options: toc:nil
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 #+options: toc:nil\n+#+TITLE: RT\n+#+OPTIONS: toc:nil
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 :PROPERTIES:\n-:ID:       x\n+:ID: x
+org-roundtrip.org	OX-80	TRANSITIONAL	1	 :END:\n-CLOCK: [2026-01-01 Thu 10:00]--[2026-01-01 Thu 11:00] =>  1:00
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 - t :: d\n-- [@3] c\n+1. [@3] c
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 - [@3] c\n-#+name: s\n+#+NAME: s
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 #+begin_src python :results output\n-  print(1)\n+print(1)
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 #+end_src\n-#+results: s\n+#+RESULTS: s
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 #+begin_example\n-  ex\n+ex
+org-roundtrip.org	OX-81	KEEP	1	 #+begin_verse\n-v\n+  v
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 #+end_foo\n-#+begin_export HTML\n+#+begin_export html
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 # comment line\n+
+org-roundtrip.org	OX-81	TRANSITIONAL	1	 | a | b |\n-|---+---|\n+|----+----|
+org-roundtrip.org	OX-80	TRANSITIONAL	1	 \\end{equation}\n-#+begin: clocktable :scope file\n-dyn\n-#+end:\n-\n-*************** inline task
+texinfo-blocks.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-blocks.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-blocks.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-blocks.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n+@contents
+texinfo-blocks.org	OX-44	TRANSITIONAL	1	 @display\n-Roses are red\n- Violets\n+  Roses are red\n+   Violets
+texinfo-blocks.org	OX-58	TRANSITIONAL	1	 @end quotation\n-@foo
+texinfo-blocks.org	OX-58	TRANSITIONAL	1	 special block\n-@end foo
+texinfo-blocks.org	OX-57	TRANSITIONAL	1	 @end foo\n-@float Listing,s1\n-@lisp\n-1  (+ 1 2)\n-@end lisp\n-@caption{A src}\n-@end float\n+@example\n+(+ 1 2)\n+@end example
+texinfo-blocks.org	OX-28,OX-56	TRANSITIONAL	1	 @end displaymath\n-in drawer\n-\n-@float Table\n-@multitable {aaaaaaaaa} {a}\n-@headitem x\n-@tab y\n-@item long cell\n-@tab 2\n+@multitable @columnfractions .50 .50\n+@item x @tab y\n+@item long cell @tab 2
+texinfo-blocks.org	OX-51,OX-56	TRANSITIONAL	1	 @end multitable\n-@caption{Tab cap}\n-@end float\n-@end ifnottex
+texinfo-document.org	OX-60	TRANSITIONAL	1	 @c %**start of header\n+@setfilename Test_Doc.info
+texinfo-document.org	OX-59	TRANSITIONAL	1	 @settitle Test Doc\n-@documentencoding UTF-8\n-@documentlanguage en
+texinfo-document.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                Test Doc.\n-@end direntry\n-\n-@finalout
+texinfo-document.org	OX-50,OX-51	TRANSITIONAL	1	 @contents\n-@ifnottex\n-@node Top\n-@top Test Doc\n-\n-Intro paragraph with @strong{bold}@comma{} @emph{italic}@comma{} under@comma{} @samp{verb}@comma{} @code{code}@comma{} strike.\n+Intro paragraph with @strong{bold}, @emph{italic}, @sansserif{under}, @code{verb}, @code{code}, @strikethrough{strike}.
+texinfo-document.org	OX-51	TRANSITIONAL	1	 Second line of the paragraph.\n-@end ifnottex\n-\n-@menu\n-* First heading::\n-* Second heading::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-First heading\n-\n-* Sub heading::\n-\n-Sub heading\n-\n-* Third level::\n-\n-@end detailmenu\n-@end menu\n-
+texinfo-document.org	OX-51	TRANSITIONAL	1	 Body text with a @uref{https://example.com, link} and @uref{https://bare.example}.\n-@menu\n-* Sub heading::\n-@end menu\n-
+texinfo-document.org	OX-23	TRANSITIONAL	1	 @end itemize\n+
+texinfo-document.org	OX-23,OX-66,~OX-90	TRANSITIONAL	1	 @item second\n-@item unchecked\n-@item checked\n-@item term\n-definition\n+@item [ ] unchecked\n+@item [X] checked\n+@item definition
+texinfo-document.org	OX-51	TRANSITIONAL	1	 @end itemize\n-@menu\n-* Third level::\n-@end menu\n-
+texinfo-document.org	OX-56	TRANSITIONAL	1	 @end quotation\n-@multitable {aa} {a}\n-@headitem a\n-@tab b\n-@item 1\n-@tab 2\n-@item 30\n-@tab 4\n+@multitable @columnfractions .50 .50\n+@item a @tab b\n+@item 1 @tab 2\n+@item 30 @tab 4
+texinfo-document.org	OX-53,OX-55	TRANSITIONAL	1	 @end multitable\n-Footnote ref@footnote{The footnote.}.\n+@page\n+\n+Footnote ref[1].\n+\n+[1] The footnote.
+texinfo-drawers-dynamic.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-drawers-dynamic.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-drawers-dynamic.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-drawers-dynamic.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* H::\n-@end menu\n+@contents
+texinfo-drawers-dynamic.org	OX-28,OX-29	TRANSITIONAL	1	 @chapter H\n-in drawer\n-dyn content\n-
+texinfo-footnotes.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-footnotes.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-footnotes.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-footnotes.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* One::\n-* Two::\n-@end menu\n+@contents
+texinfo-footnotes.org	OX-53	TRANSITIONAL	1	 @chapter One\n-Ref@footnote{Def A with @strong{bold}.\n-Second para of A@.} and inline@footnote{inline body} and named@footnote{named body}.\n+Ref[a] and inline[] and named[n].
+texinfo-footnotes.org	OX-53	TRANSITIONAL	1	 @chapter Two\n-Again@footnote{Def A with @strong{bold}.\n-Second para of A@.}.\n+Again[a].\n+\n+[a] Def A with @strong{bold}.\n+\n+Second para of A.
+texinfo-headline-options.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-headline-options.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-headline-options.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-headline-options.org	OX-51	TRANSITIONAL	1	 @contents\n-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* One::\n-* Archived::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-One\n-\n-* Two::\n-\n-@end detailmenu\n-@end menu\n-
+texinfo-headline-options.org	OX-51,OX-65	TRANSITIONAL	1	 @chapter @strong{DONE} @emph{#B} One :a:\n-@noindent@strong{CLOSED:} @emph{[2026-01-01 Thu] } @strong{SCHEDULED:} @emph{<2026-01-02 Fri>}@*\n-@verbatim\n-FOO: bar\n-@end verbatim\n-\n-@menu\n-* Two::\n-@end menu\n-
+texinfo-inline-objects.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-inline-objects.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-inline-objects.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-inline-objects.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n+@contents
+texinfo-inline-objects.org	OX-31,OX-32,OX-50,OX-51,OX-54,OX-66,OX-92	TRANSITIONAL	1	 @top \n-Emph @strong{bold} @emph{it} un @samp{verb} @code{code} strike x@math{^2} a@math{_b} α α -- --- @dots{} [2/3] [50%] @emph{<2026-01-02 Fri> } @emph{[2026-01-02 Fri 10:00] } @*\n-next line @anchor{target} @anchor{radio}radio @ref{radio, , radio} @math{x+y} @math{z} @uref{foo.org, Foo} @image{img,,,,png} @email{mailto:a@@b.c}\n-@end ifnottex\n+Emph @strong{bold} @emph{it} @sansserif{un} @code{verb} @code{code} @strikethrough{strike} x@math{^2} a@math{_b} α α -- --- ... [2/3] [50%] @emph{<2026-01-02 Fri>} @emph{[2026-01-02 Fri 10:00]} @*next line src_python{1+1} @@ascii:RAW@@ @@html:H@@ @anchor{target} radio radio @math{x+y} @math{z} @uref{file:foo.org, Foo} @uref{file:img.png} @uref{*Heading} @uref{#cid} @uref{mailto:a@b.c}
+texinfo-inlinetask.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-inlinetask.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-inlinetask.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-inlinetask.org	OX-51	TRANSITIONAL	1	 @contents\n-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* H::\n-@end menu\n-
+texinfo-inlinetask.org	OX-27	TRANSITIONAL	1	 Before.\n-@center @strong{TODO} Inline task:x:
+texinfo-inlinetask.org	OX-27	TRANSITIONAL	1	 @center @strong{TODO} Inline task:x:\n-Task body.
+texinfo-keywords-properties.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@setfilename man.info\n+@setfilename Manual.info
+texinfo-keywords-properties.org	OX-59	TRANSITIONAL	1	 @settitle Manual\n-@documentencoding UTF-8\n-@documentlanguage fr\n-@syncodeindex pg cp
+texinfo-keywords-properties.org	OX-59,OX-61	TRANSITIONAL	1	 @c %**end of header\n-@copying\n-Copyright text.\n-@end copying\n-\n-@dircategory Emacs\n-@direntry\n-* Man: (man).           A manual.\n-@end direntry\n-\n-@finalout
+texinfo-keywords-properties.org	OX-59	TRANSITIONAL	1	 @title Manual\n-@subtitle for v1
+texinfo-keywords-properties.org	OX-59,OX-61	TRANSITIONAL	1	 @author A\n-@author B\n-@page\n-@vskip 0pt plus 1filll\n-@insertcopying
+texinfo-keywords-properties.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top Manual\n-@end ifnottex\n+@contents
+texinfo-keywords-properties.org	OX-51,OX-61,OX-62	TRANSITIONAL	1	 @end ifnottex\n-@menu\n-* Chap::                         chapter desc\n-* Appendix::\n-* Index::\n-@end menu\n+@node Copying\n+@chapter Copying
+texinfo-keywords-properties.org	OX-61,OX-62	TRANSITIONAL	1	 @end menu\n-@node Chap\n+Copyright text.\n+\n+@node Chapter
+texinfo-keywords-properties.org	OX-63	TRANSITIONAL	1	 @chapter Chapter\n-@cindex concept\n-@findex func
+texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	 Text @@ @{ @} with specials.\n-@vtable @asis\n+@table @asis
+texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	 qux\n-@end vtable\n+@end table
+texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	 @end vtable\n-@enumerate A\n+@enumerate
+texinfo-keywords-properties.org	OX-58	TRANSITIONAL	1	 @end enumerate\n-@defun
+texinfo-keywords-properties.org	OX-58	TRANSITIONAL	1	 A function.\n-@end defun
+texinfo-keywords-properties.org	OX-64	TRANSITIONAL	1	 @end defun\n-@multitable @columnfractions .3 .7\n-@item a\n-@tab b\n+@multitable @columnfractions .50 .50\n+@item a @tab b
+texinfo-keywords-properties.org	OX-31	TRANSITIONAL	1	 @raw\n-@inline\n+@@texinfo:@inline@@
+texinfo-keywords-properties.org	OX-62	TRANSITIONAL	1	 @node Appendix\n-@appendix Appendix\n+@chapter Appendix
+texinfo-keywords-properties.org	OX-62	TRANSITIONAL	1	 @chapter Index\n-@printindex cp\n-
+texinfo-links.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-links.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-links.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-links.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n-@end ifnottex\n-\n-@menu\n-* Target heading::\n-* Links::\n-@end menu\n+@contents
+texinfo-links.org	OX-54,OX-56	TRANSITIONAL	1	 @anchor{tgt}Text.\n-@anchor{tbl}\n-@multitable {a}\n+\n+@multitable @columnfractions .100
+texinfo-links.org	OX-54	TRANSITIONAL	1	 @chapter Links\n-@ref{Target heading} / @ref{Target heading, , desc} / @ref{Target heading} / @ref{Target heading} / @ref{tgt} / @ref{tbl} / @uref{other.org} / @uref{other.org, o} / @uref{https://plain.example} / @uref{https://angle.example} / @uref{https://x.y, @strong{bold} desc} / @image{img,,,,png} / @uref{a.pdf, PDF} / @uref{elisp:(foo), e}\n+@uref{*Target heading} / @uref{*Target heading, desc} / @uref{#cid} / @uref{id:1234-abcd} / @uref{tgt} / @uref{tbl} / @uref{file:other.org} / @uref{file:other.org::*H, o} / @uref{https://plain.example} / @uref{https://angle.example} / @uref{https://x.y, @strong{bold} desc} / @uref{./img.png} / @uref{file:a.pdf, PDF} / @uref{elisp:(foo), e}
+texinfo-toc-keywords.org	OX-59,OX-60	TRANSITIONAL	1	 @c %**start of header\n-@settitle \n-@documentencoding UTF-8\n-@documentlanguage en\n+@setfilename Untitled.info\n+@settitle Untitled
+texinfo-toc-keywords.org	OX-59	TRANSITIONAL	1	 @c %**end of header\n-@dircategory Misc\n-@direntry\n-* (nil).                .\n-@end direntry\n-\n-@finalout
+texinfo-toc-keywords.org	OX-60	TRANSITIONAL	1	 @titlepage\n-@title \n+@title Untitled
+texinfo-toc-keywords.org	OX-51,OX-52	TRANSITIONAL	1	 @end titlepage\n-@ifnottex\n-@node Top\n-@top \n+@contents
+texinfo-toc-keywords.org	OX-51	TRANSITIONAL	1	 @listoffloats Table\n-@end ifnottex\n-\n-@menu\n-* A::\n-* B::\n-\n-@detailmenu\n---- The Detailed Node Listing ---\n-\n-A\n-\n-* A2::\n-\n-B\n-\n-* B1::\n-\n-@end detailmenu\n-@end menu
+texinfo-toc-keywords.org	OX-56	TRANSITIONAL	1	 @chapter A\n-@float Table\n-@multitable {a}\n+@multitable @columnfractions .100
+texinfo-toc-keywords.org	OX-51,OX-56	TRANSITIONAL	1	 @end multitable\n-@caption{T one}\n-@end float\n-\n-@menu\n-* A2::\n-@end menu
+texinfo-toc-keywords.org	OX-51	TRANSITIONAL	1	 @chapter B\n-@menu\n-* B1::\n-@end menu\n-
+ascii-lists-mixed.org	OX-84	TRANSITIONAL	1	 - b\n-
+md-links.org	OX-86,~OX-47,~OX-48	TRANSITIONAL	1	 # Target heading\n-<a id="org8616fc8"></a>Text.\n-\n-<table id="org26ab51b" border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-\n-\n-<colgroup>\n-<col  class="org-right" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-</tr>\n-</tbody>\n-</table>\n+<a id="tgt"></a>Text.
+md-toc-keywords.org	OX-47,OX-87	KEEP	1	 # A\n-<table border="2" cellspacing="0" cellpadding="6" rules="groups" frame="hsides">\n-<caption class="t-above"><span class="table-number">Table 1:</span> T one</caption>\n-\n-<colgroup>\n-<col  class="org-right" />\n-</colgroup>\n-<tbody>\n-<tr>\n-<td class="org-right">1</td>\n-</tr>\n-</tbody>\n-</table>\n+*T one*
+texinfo-document.org	OX-85	TRANSITIONAL	1	 @item @anchor{Fourth level}Fourth level\n-
+texinfo-headline-options.org	OX-85	TRANSITIONAL	1	 @end enumerate\n+
+texinfo-headline-options.org	OX-85	TRANSITIONAL	1	 @item @anchor{Three}Three\n-
+texinfo-headline-options.org	OX-85	TRANSITIONAL	1	 text3\n-
+texinfo-headline-options.org	OX-85	TRANSITIONAL	1	 @item @anchor{Four}Four\n-

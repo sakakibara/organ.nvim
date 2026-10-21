@@ -1,31 +1,33 @@
 # Expected capture differences against Emacs, option run "flush-left-drawers" (format: tests/conformance/_signatures.lua).
-archive-default.org	CF-46	TRANSITIONAL	2	-
-archive-default.org	CF-58	TRANSITIONAL	1	-* TODO [#A] Child task                                                   :ct:\n+* TODO [#A] Child task :ct:
-archive-default.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat
-archive-default.org	CF-42	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat\n+:ARCHIVE_CATEGORY: src
-archive-default.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_CATEGORY: Cat\n-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
-archive-default.org	CF-42,CF-43	TRANSITIONAL	1	-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
-archive-default.org	CF-45	TRANSITIONAL	1	-Archived entries from file $WORK/src.org\n+Archived entries from file ~$WORK/src.org
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	+:ID:       <ID of a.org::Dir heading>
-attach-id-layouts.org	CF-70	KEEP	2	+[[attachment:file.txt]]
-attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* Dir heading                                                        :ATTACH:\n+[[attachment:file.txt]]\n+* Dir heading
-attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* Short heading                                                      :ATTACH:\n+[[attachment:file.txt]]\n+* Short heading
-attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	-* TS heading                                                         :ATTACH:\n+[[attachment:file.txt]]\n+* TS heading
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* UUID heading                                                       :ATTACH:\n+* UUID heading
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-** Child no id                                                       :ATTACH:\n+** Child no id
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== data/ab/c/file.txt\n+=== data/<ID of a.org::Dir heading> as dir/file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== file.txt\n+=== data/ab/c/file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== mydir/file.txt\n+=== file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-Dir heading: dir=mydir\n+Dir heading: dir=data/<ID of a.org::Dir heading> as dir
-capture-escapes-clock-file-sexp.org	CF-26	TRANSITIONAL	1	-k=Clocked task\n-K=[[file:~$WORK/src.org:::END:\n-** Other]]\n-inc=included text\n-\n-sexp=3\n+k=%k\n+K=%K\n+inc=%[$WORK/inc.txt]\n+sexp=%(number-to-string (+ 1 2))
-capture-targets.org	CF-14	TRANSITIONAL	1	+* F x
-capture-targets.org	CF-13	TRANSITIONAL	2	+ERROR
-capture-targets.org	CF-14	TRANSITIONAL	1	-** F x
-capture-targets.org	CF-13	TRANSITIONAL	1	-** I x
-capture-targets.org	CF-13	TRANSITIONAL	1	-** K x
-id-create.org	CF-61	TRANSITIONAL	1	-20260504T093000.dddddd\n+20260504T093000-ddd
-id-create.org	CF-63	TRANSITIONAL	1	-:PROPERTIES:\n-:ID:       <ID of a.org::>\n-:END:
-id-create.org	CF-60	KEEP	1	-hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 4\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 7
-id-create.org	CF-62	TRANSITIONAL	1	-hhhhhhkhkxkh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
-id-create.org	CF-62	TRANSITIONAL	1	-pfx:hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
-refile-log.org	CF-41,CF-58	TRANSITIONAL	1	-\n-** TODO Move me                                                           :t:\n+** TODO Move me :t:
+archive-default.org	CF-46	TRANSITIONAL	1	 ** grand\n-
+archive-default.org	CF-46	TRANSITIONAL	1	 :END:\n-
+archive-default.org	CF-58	TRANSITIONAL	1	 Archived entries from file $WORK/src.org\n-* TODO [#A] Child task                                                   :ct:\n+* TODO [#A] Child task :ct:
+archive-default.org	CF-42,CF-43	TRANSITIONAL	1	 :ARCHIVE_OLPATH: Parent\n-:ARCHIVE_CATEGORY: Cat
+archive-default.org	CF-42	TRANSITIONAL	1	 :ARCHIVE_FILE: ~$WORK/src.org\n-:ARCHIVE_CATEGORY: Cat\n+:ARCHIVE_CATEGORY: src
+archive-default.org	CF-42,CF-43	TRANSITIONAL	1	 :ARCHIVE_OLPATH: Parent\n-:ARCHIVE_CATEGORY: Cat\n-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-default.org	CF-42,CF-43	TRANSITIONAL	1	 :ARCHIVE_TODO: TODO\n-:ARCHIVE_ITAGS: ft pt\n+:ARCHIVE_CATEGORY: src\n+:ARCHIVE_ITAGS: pt ft
+archive-default.org	CF-45	TRANSITIONAL	1	 #    -*- mode: org -*-\n-Archived entries from file $WORK/src.org\n+Archived entries from file ~$WORK/src.org
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 :DIR: mydir\n+:ID:       <ID of a.org::Dir heading>
+attach-id-layouts.org	CF-70	KEEP	2	 :END:\n+[[attachment:file.txt]]
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	 :END:\n-* Dir heading                                                        :ATTACH:\n+[[attachment:file.txt]]\n+* Dir heading
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	 :END:\n-* Short heading                                                      :ATTACH:\n+[[attachment:file.txt]]\n+* Short heading
+attach-id-layouts.org	CF-67,~CF-70	TRANSITIONAL	1	 :END:\n-* TS heading                                                         :ATTACH:\n+[[attachment:file.txt]]\n+* TS heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 === a.org\n-* UUID heading                                                       :ATTACH:\n+* UUID heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 :END:\n-** Child no id                                                       :ATTACH:\n+** Child no id
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== data/ab/c/file.txt\n+=== data/<ID of a.org::Dir heading> as dir/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== file.txt\n+=== data/ab/c/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== mydir/file.txt\n+=== file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 Short heading: dir=data/ab/c\n-Dir heading: dir=mydir\n+Dir heading: dir=data/<ID of a.org::Dir heading> as dir
+capture-escapes-clock-file-sexp.org	CF-26	TRANSITIONAL	1	 ** M x\n-k=Clocked task\n-K=[[file:~$WORK/src.org:::END:\n-** Other]]\n-inc=included text\n-\n-sexp=3\n+k=%k\n+K=%K\n+inc=%[$WORK/inc.txt]\n+sexp=%(number-to-string (+ 1 2))
+capture-targets.org	CF-14	TRANSITIONAL	1	 * A\n+* F x
+capture-targets.org	CF-13	TRANSITIONAL	1	 -- id target\n+ERROR
+capture-targets.org	CF-13	TRANSITIONAL	1	 -- clock target\n+ERROR
+capture-targets.org	CF-14	TRANSITIONAL	1	 * B\n-** F x
+capture-targets.org	CF-13	TRANSITIONAL	1	 ** kid\n-** I x
+capture-targets.org	CF-13	TRANSITIONAL	1	 :END:\n-** K x
+id-create.org	CF-61	TRANSITIONAL	1	 -- ts method\n-20260504T093000.dddddd\n+20260504T093000-ddd
+id-create.org	CF-63	TRANSITIONAL	1	 === a.org\n-:PROPERTIES:\n-:ID:       <ID of a.org::>\n-:END:
+id-create.org	CF-60	KEEP	1	 -- uuid\n-hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 4\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh version 7
+id-create.org	CF-62	TRANSITIONAL	1	 -- org method\n-hhhhhhkhkxkh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
+id-create.org	CF-62	TRANSITIONAL	1	 -- prefix\n-pfx:hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh\n+hhhhhhhh-hhhh-hhhh-hhhh-hhhhhhhhhhhh
+refile-log.org	CF-41,CF-58	TRANSITIONAL	1	 ** Existing child\n-\n-** TODO Move me                                                           :t:\n+** TODO Move me :t:

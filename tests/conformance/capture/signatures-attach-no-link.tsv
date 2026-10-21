@@ -1,11 +1,11 @@
 # Expected capture differences against Emacs, option run "attach-no-link" (format: tests/conformance/_signatures.lua).
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	+:ID:       <ID of a.org::Dir heading>
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* Dir heading                                                        :ATTACH:\n+* Dir heading
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* Short heading                                                      :ATTACH:\n+* Short heading
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* TS heading                                                         :ATTACH:\n+* TS heading
-attach-id-layouts.org	CF-67	TRANSITIONAL	1	-* UUID heading                                                       :ATTACH:\n+* UUID heading
-attach-id-layouts.org	CF-67,~CF-59	TRANSITIONAL	1	-** Child no id                                                       :ATTACH:\n-:PROPERTIES:\n-:ID:       <ID of a.org::Child no id>\n-:END:\n+** Child no id\n+   :PROPERTIES:\n+   :ID:       <ID of a.org::Child no id>\n+   :END:
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== data/ab/c/file.txt\n+=== data/<ID of a.org::Dir heading> as dir/file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== file.txt\n+=== data/ab/c/file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-=== mydir/file.txt\n+=== file.txt
-attach-id-layouts.org	CF-68	TRANSITIONAL	1	-Dir heading: dir=mydir\n+Dir heading: dir=data/<ID of a.org::Dir heading> as dir
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 :DIR: mydir\n+:ID:       <ID of a.org::Dir heading>
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 :END:\n-* Dir heading                                                        :ATTACH:\n+* Dir heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 :END:\n-* Short heading                                                      :ATTACH:\n+* Short heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 :END:\n-* TS heading                                                         :ATTACH:\n+* TS heading
+attach-id-layouts.org	CF-67	TRANSITIONAL	1	 === a.org\n-* UUID heading                                                       :ATTACH:\n+* UUID heading
+attach-id-layouts.org	CF-67,~CF-59	TRANSITIONAL	1	 :END:\n-** Child no id                                                       :ATTACH:\n-:PROPERTIES:\n-:ID:       <ID of a.org::Child no id>\n-:END:\n+** Child no id\n+   :PROPERTIES:\n+   :ID:       <ID of a.org::Child no id>\n+   :END:
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== data/ab/c/file.txt\n+=== data/<ID of a.org::Dir heading> as dir/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== file.txt\n+=== data/ab/c/file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 <<EOF>>\n-=== mydir/file.txt\n+=== file.txt
+attach-id-layouts.org	CF-68	TRANSITIONAL	1	 Short heading: dir=data/ab/c\n-Dir heading: dir=mydir\n+Dir heading: dir=data/<ID of a.org::Dir heading> as dir

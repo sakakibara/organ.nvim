@@ -1,16 +1,16 @@
 # Expected parser differences against Emacs (format: tests/conformance/_signatures.lua).
-generated-0008.org	PR-2	KEEP	1	-H\t2\t\t1\tx#y,ARCHIVE\tTODOish\n+H\t2\t\t\tx#y,ARCHIVE\tPROJ [#1] TODOish
-generated-0038.org	PR-2	KEEP	1	-H\t6\t\tB\tARCHIVE,日本語\ta b  c\n+H\t6\t\t\tARCHIVE,日本語\tPROJ [#B] a b  c
-generated-0044.org	PR-2	KEEP	1	-H\t3\t\t1\t@office,@office\t会議の準備をする\n-X\tCOMMENT\n+H\t3\t\t\t@office,@office\tPROJ [#1] COMMENT 会議の準備をする
-generated-0074.org	PR-2	KEEP	1	-H\t2\t\t1\t\tעברית כותרת\n-X\tCOMMENT\n+H\t2\t\t\t\tHOLD [#1] COMMENT עברית כותרת
-generated-0091.org	PR-2	KEEP	1	-H\t1\t\t1\tARCHIVE,ARCHIVE,urgent\tColon: in title\n+H\t1\t\t\tARCHIVE,ARCHIVE,urgent\tWAITING [#1] Colon: in title
-generated-0091.org	PR-2	KEEP	1	-H\t1\t\tC\t\tcafe\n+H\t1\t\t\t\tWAITING [#C] cafe
-generated-0129.org	PR-2	KEEP	1	-H\t1\t\t0\t@office,work\tcafe\n+H\t1\t\t\t@office,work\tPROJ [#0] cafe
-generated-0146.org	PR-2	KEEP	1	-H\t1\t\t0\t\tcafe\n+H\t1\t\t\t\tWAITING [#0] cafe
-generated-0150.org	PR-2	KEEP	1	-H\t1\t\t9\twork,urgent\tTabs\\there\n+H\t1\t\t\twork,urgent\tPROJ [#9] Tabs\\there
-generated-0163.org	PR-2	KEEP	1	-H\t1\t\tA\t\tEmphasis *bold* and /italic/\n+H\t1\t\t\t\tWAITING [#A] Emphasis *bold* and /italic/
-generated-0163.org	PR-2	KEEP	1	-H\t2\t\tB\t\tEmphasis *bold* and /italic/\n-X\tCOMMENT\n+H\t2\t\t\t\tHOLD [#B] COMMENT Emphasis *bold* and /italic/
-generated-0201.org	PR-2	KEEP	1	-H\t1\t\tC\tnoexport\ta b  c\n-X\tCOMMENT\n+H\t1\t\t\tnoexport\tWAITING [#C] COMMENT a b  c
-generated-0211.org	PR-2	KEEP	1	-H\t1\t\tB\t日本語,проект\tcafe\n+H\t1\t\t\t日本語,проект\tPROJ [#B] cafe
-generated-0272.org	PR-2	KEEP	1	-H\t4\t\t9\tnoexport,ＴＡＧ\t1. numbered-looking\n+H\t4\t\t\tnoexport,ＴＡＧ\tHOLD [#9] 1. numbered-looking
-generated-0283.org	PR-2	KEEP	1	-H\t4\t\t1\t\ta b  c\n+H\t4\t\t\t\tHOLD [#1] a b  c
+generated-0008.org	PR-2	KEEP	1	 H\t1\tDONE\tB\t\tTrailing star *\n-H\t2\t\t1\tx#y,ARCHIVE\tTODOish\n+H\t2\t\t\tx#y,ARCHIVE\tPROJ [#1] TODOish
+generated-0038.org	PR-2	KEEP	1	 D\t<2026-01-02 Fri 23:59 +1w>\n-H\t6\t\tB\tARCHIVE,日本語\ta b  c\n+H\t6\t\t\tARCHIVE,日本語\tPROJ [#B] a b  c
+generated-0044.org	PR-2	KEEP	1	 P\theader-args:python\tspaced\n-H\t3\t\t1\t@office,@office\t会議の準備をする\n-X\tCOMMENT\n+H\t3\t\t\t@office,@office\tPROJ [#1] COMMENT 会議の準備をする
+generated-0074.org	PR-2	KEEP	1	 P\tARCHIVE\tspaced\n-H\t2\t\t1\t\tעברית כותרת\n-X\tCOMMENT\n+H\t2\t\t\t\tHOLD [#1] COMMENT עברית כותרת
+generated-0091.org	PR-2	KEEP	1	 C\t[2026-05-04 Mon 23:59 ++1m --1w]\n-H\t1\t\t1\tARCHIVE,ARCHIVE,urgent\tColon: in title\n+H\t1\t\t\tARCHIVE,ARCHIVE,urgent\tWAITING [#1] Colon: in title
+generated-0091.org	PR-2	KEEP	1	 X\tARCHIVE\n-H\t1\t\tC\t\tcafe\n+H\t1\t\t\t\tWAITING [#C] cafe
+generated-0129.org	PR-2	KEEP	1	^\n-H\t1\t\t0\t@office,work\tcafe\n+H\t1\t\t\t@office,work\tPROJ [#0] cafe
+generated-0146.org	PR-2	KEEP	1	^\n-H\t1\t\t0\t\tcafe\n+H\t1\t\t\t\tWAITING [#0] cafe
+generated-0150.org	PR-2	KEEP	1	 H\t3\t\t\t\tnot a headline because indented\n-H\t1\t\t9\twork,urgent\tTabs\\there\n+H\t1\t\t\twork,urgent\tPROJ [#9] Tabs\\there
+generated-0163.org	PR-2	KEEP	1	 H\t1\t\t\t\tcafe\n-H\t1\t\tA\t\tEmphasis *bold* and /italic/\n+H\t1\t\t\t\tWAITING [#A] Emphasis *bold* and /italic/
+generated-0163.org	PR-2	KEEP	1	 D\t<2026-02-28 Sat 09:30-11:45 .+2d --1w>\n-H\t2\t\tB\t\tEmphasis *bold* and /italic/\n-X\tCOMMENT\n+H\t2\t\t\t\tHOLD [#B] COMMENT Emphasis *bold* and /italic/
+generated-0201.org	PR-2	KEEP	1	 P\tX+\tmulti word value\n-H\t1\t\tC\tnoexport\ta b  c\n-X\tCOMMENT\n+H\t1\t\t\tnoexport\tWAITING [#C] COMMENT a b  c
+generated-0211.org	PR-2	KEEP	1	^\n-H\t1\t\tB\t日本語,проект\tcafe\n+H\t1\t\t\t日本語,проект\tPROJ [#B] cafe
+generated-0272.org	PR-2	KEEP	1	 H\t1\t\t\t\tlooks like headline\n-H\t4\t\t9\tnoexport,ＴＡＧ\t1. numbered-looking\n+H\t4\t\t\tnoexport,ＴＡＧ\tHOLD [#9] 1. numbered-looking
+generated-0283.org	PR-2	KEEP	1	 P\tCATEGORY\t2:30\n-H\t4\t\t1\t\ta b  c\n+H\t4\t\t\t\tHOLD [#1] a b  c

@@ -1,429 +1,521 @@
 # Expected import differences (format: tests/conformance/_signatures.lua).
 # "-" lines: the reference HTML; "+" lines: Emacs export of organ's import.
-autolinks-in-text.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://x.com">https://x.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-autolinks-in-text.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="mailto:a@b.com">a@b.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-autolinks-in-text.md	IM-1	TRANSITIONAL	1	-<p>\n-See <a href="https://example.com">https://example.com</a> and <a href="http://www.example.org">www.example.org</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-autolinks-in-text.md	IM-1	TRANSITIONAL	1	-<p>\n-see <a href="https://x.com/a_b">https://x.com/a_b</a> and <a href="http://www.y.com">www.y.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-code-blocks.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">
-code-blocks.md	IM-5,IM-6	TRANSITIONAL	1	-<pre>\n-    indented\n-      more\n+<pre lang="nil">\n+indented\n+  more
-code-blocks.md	IM-4	TRANSITIONAL	1	-<pre>\n-* not a heading\n-#+end_src\n-#+begin_quote\n-,* comma\n-</pre>\n+<p>\n+#+begin<sub>src</sub>\n+</p>\n+<h1>\n+not a heading\n+</h1>\n+<p>\n+#+end<sub>src</sub> #+begin<sub>quote</sub> ,* comma #+end<sub>src</sub>\n+</p>
-commonmark-atx-headings.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">
-commonmark-atx-headings.md	IM-10	TRANSITIONAL	1	-foo # bar\n+foo
-commonmark-atx-headings.md	IM-7	TRANSITIONAL	1	-foo <em>bar</em> *baz*\n+foo <em>bar</em> <strong>baz</strong>
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-&lt; https://foo.bar &gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-&lt;foo+@bar.example.com&gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-&lt;https://foo.bar/baz bim&gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="MAILTO:FOO@BAR.BAZ">MAILTO:FOO@BAR.BAZ</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="a+b+c:d">a+b+c:d</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://foo.bar.baz">http://foo.bar.baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://../">https://../</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://example.com/%5C%5B%5C">https://example.com/\\[\\</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://foo.bar.baz/test?q=hello&amp;id=22&amp;boolean">https://foo.bar.baz/test?q=hello&amp;id=22&amp;boolean</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="irc://foo.bar:2233/baz">irc://foo.bar:2233/baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="localhost:5001/foo">localhost:5001/foo</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="made-up-scheme://foo,bar">made-up-scheme://foo,bar</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="mailto:foo+special@Bar.baz-bar0.com">foo+special@Bar.baz-bar0.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="mailto:foo@bar.example.com">foo@bar.example.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-foo@bar.example.com\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-https://example.com\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-backslash-escapes.md	IM-7,IM-10	TRANSITIONAL	1	-*not emphasized* &lt;br/&gt; not a tag [not a link](/foo) `not code` 1. not a list * not a list # not a heading [foo]: /url "not a reference" &amp;ouml; not a character entity\n+<strong>not emphasized</strong> &lt;br/&gt; not a tag [not a link](/foo) `not code`\n+</p>\n+<ol>\n+<li n="1">\n+not a list\n+</li>\n+</ol>\n+<h1>\n+not a list\n+</h1>\n+<p>\n+[foo]: /url "not a reference" &amp;ouml; not a character entity
-commonmark-backslash-escapes.md	IM-21,IM-25	INHERENT	2	-<a href="/bar*" title="ti*tle">foo</a>\n+<a href="file:///bar*">foo</a>
-commonmark-backslash-escapes.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://example.com?find=%5C*">https://example.com?find=\\*</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-backslash-escapes.md	IM-6	TRANSITIONAL	2	-<pre>\n+<pre lang="nil">
-commonmark-backslash-escapes.md	IM-8	TRANSITIONAL	1	-\\<em>emphasis</em>\n+\\/emphasis/
-commonmark-block-quotes.md	IM-10	TRANSITIONAL	1	+<ul>\n+<li>\n+bar\n+</li>\n+</ul>
-commonmark-block-quotes.md	IM-30	TRANSITIONAL	4	-</blockquote>
-commonmark-block-quotes.md	IM-29	TRANSITIONAL	2	-</blockquote>\n-</blockquote>\n+<p>\n+#+end<sub>quote</sub> #+end<sub>quote</sub>\n+</p>
-commonmark-block-quotes.md	IM-30	TRANSITIONAL	4	-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
-commonmark-block-quotes.md	IM-29	TRANSITIONAL	2	-<blockquote>\n-<blockquote>
-commonmark-block-quotes.md	IM-6	TRANSITIONAL	6	-<pre>\n+<pre lang="nil">
-commonmark-block-quotes.md	IM-30	TRANSITIONAL	4	-bar baz\n+bar baz #+end<sub>quote</sub>
-commonmark-block-quotes.md	IM-10	TRANSITIONAL	1	-foo - bar\n+foo
-commonmark-block-quotes.md	IM-29	TRANSITIONAL	1	-foo bar\n+#+begin<sub>quote</sub> #+begin<sub>quote</sub> foo bar
-commonmark-block-quotes.md	IM-29	TRANSITIONAL	1	-foo bar baz\n+#+begin<sub>quote</sub> #+begin<sub>quote</sub> foo bar baz
-commonmark-code-spans.md	IM-8	TRANSITIONAL	1	-*foo<code>*</code>\n+*foo~*~
-commonmark-code-spans.md	IM-18	TRANSITIONAL	1	-<a href="`">`</a>\n+&lt;a href="`"&gt;`
-commonmark-code-spans.md	IM-31	TRANSITIONAL	1	-<code>&#xa0;</code> <code></code>\n+~&#xa0;~ ~ ~
-commonmark-code-spans.md	IM-31	TRANSITIONAL	1	-<code>&#xa0;b&#xa0;</code>\n+~&#xa0;b&#xa0;~
-commonmark-code-spans.md	IM-8,IM-14	TRANSITIONAL	1	-<code>&lt;https://foo.bar.</code>baz&gt;`\n+~<a href="https://foo.bar.~baz">https://foo.bar.~baz</a>`
-commonmark-code-spans.md	IM-31	TRANSITIONAL	1	-<code>`` </code>\n+~ `` ~
-commonmark-code-spans.md	IM-31	TRANSITIONAL	1	-<code>a</code>\n+~ a~
-commonmark-code-spans.md	IM-31	TRANSITIONAL	1	-<code>foo </code>\n+~foo ~
-commonmark-code-spans.md	IM-8	TRANSITIONAL	1	-<code>foo\\</code>bar`\n+~foo\\~bar`
-commonmark-code-spans.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="https://foo.bar.%60baz">https://foo.bar.`baz</a>`\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-code-spans.md	IM-8	TRANSITIONAL	1	-`foo<code>bar</code>\n+`foo~bar~
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-***<em>foo</em>\n+***/foo/
-commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	-**<a href="**"></a>\n+<strong><strong>&lt;a href="</strong></strong>"&gt;
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-**foo <strong>bar baz</strong>\n+<strong>*foo *bar baz</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-**foo bar **\n+<strong>*foo bar *</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-*<a href="/url">bar*</a>\n+*<a href="file:///url">bar*</a>
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-*<em>foo</em>\n+*/foo/
-commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	-*<img src="foo" title="*" />\n+<strong>&lt;img src="foo" title="</strong>"/&gt;
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-*<strong>foo</strong>\n+<strong>*foo</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	-*foo bar *\n+*foo bar\n+</p>\n+<p>\n+*
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-5<em>6</em>78\n+5/6/78
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-5_6_78\n+5<sub>6</sub><sub>78</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-5__6__78\n+5_<sub>6</sub>_<sub>78</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	2	-<em>(<em>foo</em>)</em>\n+<em>(/foo</em>)/
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<em><em>foo</em> bar</em>\n+<em>/foo</em> bar/
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-<em>foo <a href="/url"><em>bar</em></a></em>\n+<em>foo <a href="file:///url"><em>bar</em></a></em>
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-<em>foo <a href="/url">bar</a></em>\n+<em>foo <a href="file:///url">bar</a></em>
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<em>foo <em>bar</em> baz</em>\n+<em>foo /bar</em> baz/
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<em>foo <strong>bar <em>baz</em> bim</strong> bop</em>\n+<em>foo *bar /baz</em> bim* bop/
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo</em>*\n+/foo/*
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo</em>***\n+/foo/***
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo</em>_\n+/foo/_
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo</em>___\n+/foo/___
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo</em>bar\n+/foo/bar
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo<strong>bar</strong></em>\n+<em>foo*bar*</em>
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<em>foo<strong>bar</strong>baz</em>\n+<em>foo*bar*baz</em>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-<em>foo_bar_baz</em>\n+<em>foo<sub>bar</sub><sub>baz</sub></em>
-commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	-<p>\n-** foo bar**\n-</p>\n+<h1>\n+foo bar**\n+</h1>
-commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	-<p>\n-** is not an empty emphasis\n-</p>\n+<h1>\n+is not an empty emphasis\n+</h1>
-commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	-<p>\n-**** is not an empty strong emphasis\n-</p>\n+<h1>\n+is not an empty strong emphasis\n+</h1>
-commonmark-emphasis-and-strong-emphasis.md	IM-1	TRANSITIONAL	1	-<p>\n-**a<a href="https://foo.bar/?q=**">https://foo.bar/?q=**</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-emphasis-and-strong-emphasis.md	IM-1	TRANSITIONAL	1	-<p>\n-__a<a href="https://foo.bar/?q=__">https://foo.bar/?q=__</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<strong><strong>foo</strong> bar</strong>\n+<strong>*foo</strong> bar*
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-<strong>foo <a href="/url"><em>bar</em></a></strong>\n+<strong>foo <a href="file:///url"><em>bar</em></a></strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-<strong>foo <a href="/url">bar</a></strong>\n+<strong>foo <a href="file:///url">bar</a></strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<strong>foo <em>bar <strong>baz</strong> bim</em> bop</strong>\n+<strong>foo /bar *baz</strong> bim/ bop*
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<strong>foo <strong>bar</strong> baz</strong>\n+<strong>foo *bar</strong> baz*
-commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	-<strong>foo, <strong>bar</strong>, baz</strong>\n+<strong>foo, *bar</strong>, baz*
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-<strong>foo</strong>*\n+<strong>foo*</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<strong>foo</strong>_\n+*foo*_
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<strong>foo</strong>bar\n+*foo*bar
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-<strong>foo<em>bar</em>baz</strong>\n+<strong>foo/bar/baz</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-<strong>foo__bar__baz</strong>\n+<strong>foo_<sub>bar</sub>_<sub>baz</sub></strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-_(_foo)\n+_(<sub>foo</sub>)
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-_<em>foo</em>\n+_/foo/
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-_<strong>foo</strong>\n+_*foo*
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	2	-__ foo bar__\n+<span class="underline">_ foo bar_</span>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-__(__foo)\n+_<sub>(_<sub>foo</sub>)</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	-__<a href="__"></a>\n+<span class="underline"><span class="underline">&lt;a href="</span></span>"&gt;
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-___<em>foo</em>\n+___/foo/
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-____ is not an empty strong emphasis\n+<span class="underline">__</span> is not an empty strong emphasis
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-__foo bar __\n+<span class="underline">_foo bar _</span>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-__foo__bar\n+_<sub>foo</sub>_<sub>bar</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-__пристаням__стремятся\n+_<sub>пристаням</sub>_<sub>стремятся</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	-_foo <a href="/url">bar_</a>\n+_foo <a href="file:///url">bar_</a>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-_foo_bar\n+_foo<sub>bar</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-_пристаням_стремятся\n+_пристаням<sub>стремятся</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-aa_"bb"_cc\n+aa_"bb"<sub>cc</sub>
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-foo ***\n+foo <strong>*</strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-foo *****\n+foo <strong><strong>*</strong></strong>
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-foo ___\n+foo <span class="underline">_</span>
-commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	-foo _____\n+foo <span class="underline"><span class="underline">_</span></span>
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-foo<em><strong>bar</strong></em>baz\n+foo/*bar*/baz
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-foo<em>bar</em>\n+foo/bar/
-commonmark-emphasis-and-strong-emphasis.md	IM-8,IM-9	TRANSITIONAL	1	-foo<strong><strong><strong>bar</strong></strong></strong>***baz\n+foo***bar******baz
-commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	-foo<strong>bar</strong>\n+foo*bar*
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-foo__bar__\n+foo_<sub>bar</sub>__
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-foo_bar_\n+foo<sub>bar</sub>_
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-пристаням__стремятся__\n+пристаням_<sub>стремятся</sub>__
-commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	-пристаням_стремятся_\n+пристаням<sub>стремятся</sub>_
-commonmark-entity-and-numeric-character-references.md	IM-7	TRANSITIONAL	1	-*foo* <em>foo</em>\n+<strong>foo</strong> <em>foo</em>
-commonmark-entity-and-numeric-character-references.md	IM-2,IM-10	TRANSITIONAL	1	-</li>\n-</ul>\n+</h1>\n+<h1>\n+foo\n+</h1>
-commonmark-entity-and-numeric-character-references.md	IM-21,IM-25	INHERENT	2	-<a href="/föö" title="föö">foo</a>\n+<a href="file:///föö">foo</a>
-commonmark-entity-and-numeric-character-references.md	IM-10	TRANSITIONAL	1	-<p>\n-# Ӓ Ϡ �\n-</p>
-commonmark-entity-and-numeric-character-references.md	IM-2,IM-10	TRANSITIONAL	1	-<p>\n-* foo\n-</p>\n-<ul>\n-<li>\n+<h1>
-commonmark-entity-and-numeric-character-references.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">
-commonmark-entity-and-numeric-character-references.md	IM-11	TRANSITIONAL	1	-foo bar\n+foo\n+</p>\n+<p>\n+bar
-commonmark-fenced-code-blocks.md	IM-5,IM-6	TRANSITIONAL	1	-  
-commonmark-fenced-code-blocks.md	IM-31	TRANSITIONAL	1	-<code></code>aaa\n+~ ~ aaa
-commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	21	-<pre>\n+<pre lang="nil">
-commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">\n+
-commonmark-hard-line-breaks.md	IM-18	TRANSITIONAL	1	-<a href="foo  \n-bar"></a>\n+&lt;a href="foo bar"&gt;
-commonmark-hard-line-breaks.md	IM-18	TRANSITIONAL	1	-<a href="foo\\\n-bar"></a>\n+&lt;a href="foo\\ bar"&gt;
-commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	+
-commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	-</p>
-commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	-<del><em>foo</em></del>\n+&lt;del&gt;/foo/&lt;/del&gt;
-commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	-<p><em>world</em>.\n+\n+<p>\n+<em>world</em>.\n+&lt;/pre&gt;
-commonmark-html-blocks.md	IM-6	TRANSITIONAL	3	-<pre>\n+<pre lang="nil">
-commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	-Foo <a href="bar">baz</a>\n+Foo &lt;a href="bar"&gt; baz
-commonmark-images.md	IM-21,IM-25	INHERENT	1	-!<a href="/url" title="title">foo</a>\n+!<a href="file:///url">foo</a>
-commonmark-images.md	IM-21,IM-22	TRANSITIONAL	1	-<img alt="" src="/url" />\n+<a href="file:///url">file:///url</a>
-commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	2	-<img alt="Foo" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
-commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	2	-<img alt="foo bar" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
-commonmark-images.md	IM-21,IM-22	TRANSITIONAL	2	-<img alt="foo bar" src="/url2" />\n+<a href="file:///url2">file:///url2</a>
-commonmark-images.md	IM-21,IM-22	TRANSITIONAL	2	-<img alt="foo" src="/url" />\n+<a href="file:///url">file:///url</a>
-commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	3	-<img alt="foo" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
-commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	1	-<img alt="foo" src="/url" title="title" />[]\n+<a href="file:///url">file:///url</a> []
-commonmark-images.md	IM-14	TRANSITIONAL	1	-<p>\n-![[foo]]\n-</p>\n-<p>\n-[[foo]]: /url "title"\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
-commonmark-images.md	IM-19	TRANSITIONAL	3	-<p>\n-<img alt="foo bar" src="train.jpg" title="train &amp; tracks" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
-commonmark-images.md	IM-19	TRANSITIONAL	1	-<p>\n-<img alt="foo" src="train.jpg" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
-commonmark-images.md	IM-19	TRANSITIONAL	1	-<p>\n-<img alt="foo" src="url" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "url" See `org-export-with-broken-links'
-commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	1	-My <img alt="foo bar" src="/path/to/train.jpg" title="title" />\n+My <img alt="train.jpg" src="file:///path/to/train.jpg" />
-commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	10	-<pre>\n+<pre lang="nil">
-commonmark-inlines.md	IM-8	TRANSITIONAL	1	-<code>hi</code>lo`\n+~hi~lo`
-commonmark-link-reference-definitions.md	IM-23	TRANSITIONAL	1	-<a href="">foo</a>\n+[[][foo]]
-commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	-<a href="/foo-url" title="foo">foo</a>, <a href="/bar-url" title="bar">bar</a>, <a href="/baz-url">baz</a>\n+<a href="file:///foo-url">foo</a>, <a href="file:///bar-url">bar</a>, <a href="file:///baz-url">baz</a>
-commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="\n-title\n-line1\n-line2\n-">foo</a>\n+<a href="file:///url">foo</a>
-commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="the title">foo</a>\n+<a href="file:///url">foo</a>
-commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="title">foo</a>\n+<a href="file:///url">foo</a>
-commonmark-link-reference-definitions.md	IM-21	INHERENT	2	-<a href="/url">Foo</a>\n+<a href="file:///url">Foo</a>
-commonmark-link-reference-definitions.md	IM-21	INHERENT	3	-<a href="/url">foo</a>\n+<a href="file:///url">foo</a>
-commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	-<a href="/url%5Cbar*baz" title="foo&quot;bar\\baz">foo</a>\n+<a href="file:///url%5Cbar*baz">foo</a>
-commonmark-link-reference-definitions.md	IM-21	INHERENT	1	-<a href="/φου">αγω</a>\n+<a href="file:///φου">αγω</a>
-commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="first">foo</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "first" See `org-export-with-broken-links'
-commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="my url" title="title">Foo bar</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my%20url" See `org-export-with-broken-links'
-commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="my_(url)" title="title (with parens)">Foo*bar]</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my_(url)" See `org-export-with-broken-links'
-commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="url">foo</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "url" See `org-export-with-broken-links'
-commonmark-link-reference-definitions.md	IM-6	TRANSITIONAL	2	-<pre>\n+<pre lang="nil">
-commonmark-link-reference-definitions.md	IM-7	TRANSITIONAL	1	-=== <a href="/url">foo</a>\n+<code>=</code> <a href="file:///url">foo</a>
-commonmark-link-reference-definitions.md	IM-18	TRANSITIONAL	1	-[foo]: <bar>(baz)</bar>\n+[foo]: &lt;bar&gt;(baz)
-commonmark-links.md	IM-21	INHERENT	2	-*<a href="/uri">foo*</a>\n+*<a href="file:///uri">foo*</a>
-commonmark-links.md	IM-21	INHERENT	1	-*<a href="/url">foo*</a>\n+*<a href="file:///url">foo*</a>
-commonmark-links.md	IM-23	TRANSITIONAL	1	-<a href=""></a>\n+[[]]
-commonmark-links.md	IM-23	TRANSITIONAL	1	-<a href="">foo</a>\n+[[][foo]]
-commonmark-links.md	IM-23	TRANSITIONAL	2	-<a href="">link</a>\n+[[][link]]
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/my uri">link</a>\n+<a href="file:///my uri">link</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	2	-<a href="/uri" title="title">link</a>\n+<a href="file:///uri">link</a>
-commonmark-links.md	IM-21,IM-22	TRANSITIONAL	2	-<a href="/uri"><img alt="moon" src="moon.jpg" /></a>\n+<a href="file:///uri">[[moon.jpg</a>]]
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/uri">bar\\</a>\n+<a href="file:///uri">bar\\</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/uri">foo *bar</a>*\n+<a href="file:///uri">foo *bar</a>*
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/uri">foo</a>\n+<a href="file:///uri">foo</a>
-commonmark-links.md	IM-21	INHERENT	2	-<a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a>\n+<a href="file:///uri">link <em>foo <strong>bar</strong> <code>#</code></em></a>
-commonmark-links.md	IM-21	INHERENT	2	-<a href="/uri">link [bar</a>\n+<a href="file:///uri">link [bar</a>
-commonmark-links.md	IM-21,IM-24	TRANSITIONAL	2	-<a href="/uri">link [foo [bar]]</a>\n+<a href="file:///uri">link [foo [bar</a>]]
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/uri">link</a>\n+<a href="file:///uri">link</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="title &quot;&quot;">link</a>\n+<a href="file:///url">link</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="title &quot;and&quot; title">link</a>\n+<a href="file:///url">link</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	2	-<a href="/url" title="title"><em>foo</em> bar</a>\n+<a href="file:///url"><em>foo</em> bar</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	2	-<a href="/url" title="title">Foo</a>\n+<a href="file:///url">Foo</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	4	-<a href="/url" title="title">foo</a>\n+<a href="file:///url">foo</a>
-commonmark-links.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="title">foo</a> []\n+<a href="file:///url">foo</a> []
-commonmark-links.md	IM-21,IM-25	INHERENT	1	-<a href="/url" title="title">link</a> <a href="/url" title="title">link</a> <a href="/url" title="title">link</a>\n+<a href="file:///url">link</a> <a href="file:///url">link</a> <a href="file:///url">link</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url">Baz</a>\n+<a href="file:///url">Baz</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url">foo</a> bar\n+<a href="file:///url">foo</a> bar
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url">ẞ</a>\n+<a href="file:///url">ẞ</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url1">bar</a>\n+<a href="file:///url1">bar</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url1">foo</a>\n+<a href="file:///url1">foo</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url1">foo</a>(not a link)\n+<a href="file:///url1">foo</a>(not a link)
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url2">foo</a>\n+<a href="file:///url2">foo</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url2">foo</a><a href="/url1">baz</a>\n+<a href="file:///url2">foo</a><a href="file:///url1">baz</a>
-commonmark-links.md	IM-21	INHERENT	1	-<a href="/url %22title%22">link</a>\n+<a href="file:///url %22title%22">link</a>
-commonmark-links.md	IM-20	TRANSITIONAL	1	-<p>\n-<a href="#fragment">link</a>\n-</p>\n-<p>\n-<a href="https://example.com#fragment">link</a>\n-</p>\n-<p>\n-<a href="https://example.com?foo=3#frag">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "fragment" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="%22title%22">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "%22title%22" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="(foo)">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="b)c">a</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "b)c" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="baz*">foo *bar</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "baz*" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="foo bä">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo%20b%C3%A4" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="foo%5Cbar">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo%5Cbar" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	2	-<p>\n-<a href="foo(and(bar)">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo(and(bar)" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="foo(and(bar))">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo(and(bar))" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="foo):">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo):" See `org-export-with-broken-links'
-commonmark-links.md	IM-19	TRANSITIONAL	1	-<p>\n-<img alt="[foo](uri2)" src="uri3" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "uri3" See `org-export-with-broken-links'
-commonmark-links.md	IM-14	TRANSITIONAL	1	-<p>\n-[[[foo]]]\n-</p>\n-<p>\n-[[[foo]]]: /url\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
-commonmark-links.md	IM-1	TRANSITIONAL	1	-<p>\n-[foo<a href="https://example.com/?search=%5D%5Bref%5D">https://example.com/?search=][ref]</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-links.md	IM-1	TRANSITIONAL	1	-<p>\n-[foo<a href="https://example.com/?search=%5D(uri)">https://example.com/?search=](uri)</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-commonmark-links.md	IM-21,IM-25	INHERENT	1	-[<a href="/url" title="title"><em>foo</em> bar</a>]\n+[<a href="file:///url"><em>foo</em> bar</a>]
-commonmark-links.md	IM-21	INHERENT	1	-[[bar <a href="/url">foo</a>\n+[[bar <a href="file:///url">foo</a>
-commonmark-links.md	IM-18	TRANSITIONAL	1	-[a](&lt;b)c [a](&lt;b)c&gt; [a](<strong>c)</strong>\n+[a](&lt;b)c [a](&lt;b)c&gt; [a](&lt;b&gt;c)
-commonmark-links.md	IM-21	INHERENT	1	-[foo <a href="/uri">bar</a>](/uri)\n+[foo <a href="file:///uri">bar</a>](/uri)
-commonmark-links.md	IM-21	INHERENT	1	-[foo <a href="/uri">bar</a>]<a href="/uri">ref</a>\n+[foo <a href="file:///uri">bar</a>]<a href="file:///uri">ref</a>
-commonmark-links.md	IM-18	TRANSITIONAL	1	-[foo <bar attr="](baz)"></bar>\n+[foo &lt;bar attr="](baz)"&gt;
-commonmark-links.md	IM-18	TRANSITIONAL	1	-[foo <bar attr="][ref]"></bar>\n+[foo &lt;bar attr="][ref]"&gt;
-commonmark-links.md	IM-8,IM-21	TRANSITIONAL	1	-[foo <em>[bar <a href="/uri">baz</a>](/uri)</em>](/uri)\n+[foo /[bar <a href="file:///uri">baz</a>](/uri)/](/uri)
-commonmark-links.md	IM-8,IM-21	TRANSITIONAL	1	-[foo <em>bar <a href="/uri">baz</a></em>]<a href="/uri">ref</a>\n+[foo /bar <a href="file:///uri">baz</a>/]<a href="file:///uri">ref</a>
-commonmark-links.md	IM-8	TRANSITIONAL	1	-[foo<code>](/uri)</code>\n+[foo~](/uri)~
-commonmark-links.md	IM-8	TRANSITIONAL	1	-[foo<code>][ref]</code>\n+[foo~][ref]~
-commonmark-links.md	IM-21,IM-25	INHERENT	2	-[foo] <a href="/url" title="title">bar</a>\n+[foo] <a href="file:///url">bar</a>
-commonmark-links.md	IM-21	INHERENT	1	-[foo]<a href="/url">bar</a>\n+[foo]<a href="file:///url">bar</a>
-commonmark-links.md	IM-21	INHERENT	1	-[foo]<a href="/url1">bar</a>\n+[foo]<a href="file:///url1">bar</a>
-commonmark-links.md	IM-21	INHERENT	1	-[link <a href="/uri">bar</a>\n+[link <a href="file:///uri">bar</a>
-commonmark-links.md	IM-18	TRANSITIONAL	1	-[link](<foo bar="">)</foo>\n+[link](&lt;foo bar&gt;)
-commonmark-list-items.md	IM-30	TRANSITIONAL	1	+</p>
-commonmark-list-items.md	IM-10	TRANSITIONAL	1	+<ol>\n+<li n="1">\n+</li>\n+</ol>
-commonmark-list-items.md	IM-29	TRANSITIONAL	2	+<p>\n+#+end<sub>quote</sub>\n+</p>
-commonmark-list-items.md	IM-29	TRANSITIONAL	2	-</blockquote>\n+<p>\n+#+end<sub>quote</sub>\n+</p>
-commonmark-list-items.md	IM-30	TRANSITIONAL	1	-</h1>\n+</li>\n+</ul>
-commonmark-list-items.md	IM-3	TRANSITIONAL	1	-</ol>\n-<ul>\n-<li>\n+<li n="11">
-commonmark-list-items.md	IM-3	TRANSITIONAL	1	-</ul>\n+</ol>
-commonmark-list-items.md	IM-29	TRANSITIONAL	2	-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
-commonmark-list-items.md	IM-29	TRANSITIONAL	2	-<blockquote>\n-<p>\n-Blockquote continued here.\n-</p>\n-</blockquote>\n+#+begin<sub>quote</sub> Blockquote continued here.
-commonmark-list-items.md	IM-30	TRANSITIONAL	1	-<h1>\n+<ul>\n+<li>
-commonmark-list-items.md	IM-30	TRANSITIONAL	1	-<h2>\n-Bar\n-</h2>\n+<p>\n+** Bar\n+</p>\n+<p>
-commonmark-list-items.md	IM-10	TRANSITIONAL	1	-<p>\n-1234567890. not ok\n-</p>\n+<ol>\n+<li n="1">\n+not ok\n+</li>\n+</ol>
-commonmark-list-items.md	IM-6	TRANSITIONAL	18	-<pre>\n+<pre lang="nil">
-commonmark-list-items.md	IM-5,IM-6	TRANSITIONAL	1	-<pre>\n- indented code\n+<pre lang="nil">\n+indented code
-commonmark-list-items.md	IM-5,IM-6	TRANSITIONAL	1	-<pre>\n- two\n+<pre lang="nil">\n+two
-commonmark-list-items.md	IM-2	TRANSITIONAL	1	-<ul>\n-<li>\n-</li>\n-</ul>\n+<p>\n+*\n+</p>
-commonmark-list-items.md	IM-10	TRANSITIONAL	1	-foo *\n+foo
-commonmark-list-items.md	IM-10	TRANSITIONAL	1	-foo 1.\n+*\n+</p>\n+<p>\n+foo
-commonmark-lists.md	IM-2	TRANSITIONAL	1	+</h1>
-commonmark-lists.md	IM-10	TRANSITIONAL	1	+<ol>\n+<li n="1">\n+The number of doors is 6.\n+</li>\n+</ol>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</li>\n-</ul>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</li>\n-</ul>\n+</h1>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</li>\n-</ul>\n+<h1>\n+c\n+</h1>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</li>\n-<li>\n+<h1>
-commonmark-lists.md	IM-3	TRANSITIONAL	1	-</ol>\n-<ol>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</p>\n+</h1>
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-</p>\n-</li>\n-<li>\n-</li>\n-<li>\n+</h1>
-commonmark-lists.md	IM-3	TRANSITIONAL	1	-</ul>\n-<ul>
-commonmark-lists.md	IM-6	TRANSITIONAL	5	-<pre>\n+<pre lang="nil">
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-<ul>\n-<li>\n+<h1>
-commonmark-lists.md	IM-2	TRANSITIONAL	2	-<ul>\n-<li>\n-<p>\n+<h1>
-commonmark-lists.md	IM-10	TRANSITIONAL	1	-The number of windows in my house is 14. The number of doors is 6.\n+The number of windows in my house is
-commonmark-lists.md	IM-2	TRANSITIONAL	1	-c\n+*
-commonmark-lists.md	IM-10	TRANSITIONAL	1	-d - e\n+d\n+<ul>\n+<li>\n+e\n+</li>\n+</ul>
-commonmark-paragraphs.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-</a></foo>\n+&lt;/a&gt;&lt;/foo &gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-<a _boolean="" bam="baz <em>&quot;</em>" foo="bar" zoop:33="zoop:33"></a>\n+&lt;a foo="bar" bam = 'baz &lt;em&gt;"&lt;/em&gt;' _boolean zoop:33=zoop:33 /&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-<a><b2 data="foo"></b2></a>\n+&lt;a /&gt;&lt;b2 data="foo" &gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-<a><b2></b2></a>\n+&lt;a/&gt;&lt;b2/&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-<a><bab><c2c></c2c></bab></a>\n+&lt;a&gt;&lt;bab&gt;&lt;c2c&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-Foo <responsive-image src="foo.jpg"></responsive-image>\n+Foo &lt;responsive-image src="foo.jpg" /&gt;
-commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	-foo <!-- this is a --\n-comment - with hyphens -->\n+foo &lt;!– this is a – comment - with hyphens –&gt;
-commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	-foo <!--->foo --&gt;\n+foo &lt;!—&gt; foo –&gt;
-commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	-foo <!-->foo --&gt;\n+foo &lt;!–&gt; foo –&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-foo <!ELEMENT br EMPTY>\n+foo &lt;!ELEMENT br EMPTY&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-foo <![CDATA[>&<]]>\n+foo &lt;![CDATA[&gt;&amp;&lt;]]&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-foo <?php echo $a; ?>\n+foo &lt;?php echo $a; ?&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-foo <a href="\\*"></a>\n+foo &lt;a href="\\*"&gt;
-commonmark-raw-html.md	IM-18	TRANSITIONAL	1	-foo <a href="ö"></a>\n+foo &lt;a href="&amp;ouml;"&gt;
-commonmark-setext-headings.md	IM-12	TRANSITIONAL	2	+<p>\n+baz/\n+</p>
-commonmark-setext-headings.md	IM-6	TRANSITIONAL	2	-<pre>\n+<pre lang="nil">
-commonmark-setext-headings.md	IM-7	TRANSITIONAL	1	-====\n+<code>==</code>
-commonmark-setext-headings.md	IM-16	TRANSITIONAL	1	-Foo ---\n+Foo —
-commonmark-setext-headings.md	IM-12	TRANSITIONAL	2	-Foo <em>bar baz</em>\n+Foo /bar
-commonmark-setext-headings.md	IM-16	TRANSITIONAL	1	-Foo bar --- baz\n+Foo bar — baz
-commonmark-setext-headings.md	IM-7	TRANSITIONAL	1	-foo bar ===\n+foo bar <code>=</code>
-commonmark-tabs.md	IM-6	TRANSITIONAL	4	-<pre>\n+<pre lang="nil">
-commonmark-tabs.md	IM-5,IM-6	TRANSITIONAL	1	-<pre>\n-  bar\n+<pre lang="nil">\n+bar
-commonmark-tabs.md	IM-5,IM-6	TRANSITIONAL	2	-<pre>\n-  foo\n+<pre lang="nil">\n+foo
-commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	-+++\n+<del>+</del>
-commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	--- ** __\n+– ** __
-commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	----a---\n+—a—
-commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	2	-</li>\n-</ul>\n+</h1>
-commonmark-thematic-breaks.md	IM-6	TRANSITIONAL	1	-<pre>\n+<pre lang="nil">
-commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	2	-<ul>\n-<li>\n+<h1>
-commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	-===\n+<code>=</code>
-commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	-Foo ***\n+Foo <strong>*</strong>
-commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	-a------\n+a-–—
-footnotes.md	IM-33	TRANSITIONAL	1	+```
-footnotes.md	IM-33	TRANSITIONAL	1	-</fn>\n-</footnotes>
-footnotes.md	IM-33	TRANSITIONAL	1	-</fn>\n-<fn n="2">\n-<p>\n-Second <em>note</em>.\n-</p>\n-</fn>\n-</footnotes>
-footnotes.md	IM-33	TRANSITIONAL	1	-</p>\n-<pre>\n+\n+```
-footnotes.md	IM-33	TRANSITIONAL	2	-<footnotes>\n-<fn n="1">
-footnotes.md	IM-6,IM-33	TRANSITIONAL	1	-<p>\n+<pre lang="nil">
-footnotes.md	IM-15,IM-33	TRANSITIONAL	1	-A<fnref n="1"></fnref>.\n+A[<sup>a</sup>].
-footnotes.md	IM-15,IM-33	TRANSITIONAL	1	-First note.\n+[<sup>1</sup>]: First note. [<sup>note</sup>]: Second <em>note</em>.
-footnotes.md	IM-15,IM-33	TRANSITIONAL	1	-Para one.\n+[<sup>a</sup>]: Para one.
-footnotes.md	IM-15,IM-33	TRANSITIONAL	1	-Text<fnref n="1"></fnref> and more<fnref n="2"></fnref>.\n+Text[<sup>1</sup>] and more[<sup>note</sup>].
-front-matter.md	IM-32	TRANSITIONAL	1	+<del>+</del> title = "T" <del>+</del>\n+</p>\n+<p>
-front-matter.md	IM-32	TRANSITIONAL	1	+<hr />\n+<h2>\n+title: My Doc\n+</h2>\n+<p>\n+author: Jane date: 2024-01-02 tags: [a, b]\n+</p>
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://commonmark.org">http://commonmark.org</a>\n-</p>\n-<p>\n-(Visit <a href="https://encrypted.google.com/search?q=Markup+(business)">https://encrypted.google.com/search?q=Markup+(business)</a>)\n-</p>\n-<p>\n-Anonymous FTP is available at <a href="ftp://foo.bar.baz">ftp://foo.bar.baz</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://www.commonmark.org">www.commonmark.org</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://www.commonmark.org/he">www.commonmark.org/he</a>&lt;lp\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://www.google.com/search?q=(business))+ok">www.google.com/search?q=(business))+ok</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>\n-</p>\n-<p>\n-<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>))\n-</p>\n-<p>\n-(<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>)\n-</p>\n-<p>\n-(<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="http://www.google.com/search?q=commonmark&amp;hl=en">www.google.com/search?q=commonmark&amp;hl=en</a>\n-</p>\n-<p>\n-<a href="http://www.google.com/search?q=commonmark">www.google.com/search?q=commonmark</a>&amp;hl;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="mailto:a.b-c_d@a.b">a.b-c_d@a.b</a>\n-</p>\n-<p>\n-<a href="mailto:a.b-c_d@a.b">a.b-c_d@a.b</a>.\n-</p>\n-<p>\n-a.b-c_d@a.b-\n-</p>\n-<p>\n-a.b-c_d@a.b_\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-<a href="mailto:foo@bar.baz">foo@bar.baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-Visit <a href="http://www.commonmark.org">www.commonmark.org</a>.\n-</p>\n-<p>\n-Visit <a href="http://www.commonmark.org/a.b">www.commonmark.org/a.b</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-Visit <a href="http://www.commonmark.org/help">www.commonmark.org/help</a> for more information.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-autolinks.md	IM-1	TRANSITIONAL	1	-<p>\n-hello@mail+xyz.example isn't valid, but <a href="mailto:hello+xyz@mail.example">hello+xyz@mail.example</a> is.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
-gfm-disallowed-raw-html.md	IM-18	TRANSITIONAL	1	-&lt;xmp&gt; is disallowed. &lt;XMP&gt; is also disallowed.\n+<xmp>is disallowed. <xmp>is also disallowed. </xmp></xmp>
-gfm-disallowed-raw-html.md	IM-18	TRANSITIONAL	1	-<strong>&lt;title&gt; &lt;style&gt; <em></em></strong>\n+&lt;strong&gt; &lt;title&gt; &lt;style&gt; &lt;em&gt;
-gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	-</th>\n+</td>
-gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	-</th>\n-<th>\n+</td>\n+<td align="left">
-gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	-</thead>\n+</tbody>
-gfm-tables.md	IM-10	TRANSITIONAL	1	-<p>\n-| abc | def | | --- | | bar |\n-</p>\n+<table>\n+<tbody>\n+<tr>\n+<td align="left">\n+abc\n+</td>\n+<td align="left">\n+def\n+</td>\n+</tr>\n+<tr>\n+<td align="left">\n+---\n+</td>\n+</tr>\n+<tr>\n+<td align="left">\n+bar\n+</td>\n+</tr>\n+</tbody>\n+</table>
-gfm-tables.md	IM-27	TRANSITIONAL	1	-<td align="center">\n+<td align="left">
-gfm-tables.md	IM-27	TRANSITIONAL	1	-<td align="right">\n+<td align="left">
-gfm-tables.md	IM-27	TRANSITIONAL	12	-<td>\n+<td align="left">
-gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	-<td>\n-b <code>|</code> az\n+<td align="left">\n+b ~\n+</td>\n+<td align="left">\n+~ az
-gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	-<td>\n-b <strong>|</strong> im\n+<td align="left">\n+b *\n+</td>\n+<td align="left">\n+* im
-gfm-tables.md	IM-27	TRANSITIONAL	1	-<th align="center">\n+<th align="left">
-gfm-tables.md	IM-27	TRANSITIONAL	1	-<th align="right">\n+<th align="left">
-gfm-tables.md	IM-27	TRANSITIONAL	1	-<th>\n+<td align="left">
-gfm-tables.md	IM-27	TRANSITIONAL	8	-<th>\n+<th align="left">
-gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	-<th>\n-f|oo\n+<th align="left">\n+f\n+</th>\n+<th align="left">\n+oo
-gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	-<thead>\n+<tbody>
-headings-org-bait.md	IM-30	TRANSITIONAL	1	-</h1>\n+</li>\n+</ul>
-headings-org-bait.md	IM-30	TRANSITIONAL	1	-<h1>\n+<ul>\n+<li>
-headings-org-bait.md	IM-13	TRANSITIONAL	1	-COMMENT hidden\n+prio
-headings-org-bait.md	IM-13	TRANSITIONAL	1	-DONE x\n+<span class="done DONE">DONE</span> x
-headings-org-bait.md	IM-13	TRANSITIONAL	1	-TODO buy milk\n+<span class="todo TODO">TODO</span> buy milk
-headings-org-bait.md	IM-13	TRANSITIONAL	1	-Title :tag:x:\n-</h1>\n-<h1>\n-Stats [1/2]\n+Stats <code>[1/2]</code>
-headings-org-bait.md	IM-13	TRANSITIONAL	1	-[#A] prio\n+Title&#xa0;&#xa0;&amp;nbsp<span class="tag"><span class="tag">tag</span>&#xa0;<span class="x">x</span></span>
-images-alt-title-in-link.md	IM-22	TRANSITIONAL	1	-<a href="http://ci"><img alt="b" src="badge.svg" /></a>\n+<a href="http://ci">[[badge.svg</a>]]
-images-alt-title-in-link.md	IM-19,IM-25	TRANSITIONAL	1	-<p>\n-<img alt="a" src="p.png" title="T" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "p.png" See `org-export-with-broken-links'
-images-alt-title-in-link.md	IM-19,IM-22	TRANSITIONAL	1	-<p>\n-<img alt="alt text" src="pic.png" />\n-</p>\n-<p>\n-Inline <img alt="i" src="a.jpg" />image.\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "pic.png" See `org-export-with-broken-links'
-link-targets.md	IM-25	INHERENT	1	-<a href="http://x.com" title="T">a</a>\n+<a href="http://x.com">a</a>
-link-targets.md	IM-20	TRANSITIONAL	1	-<p>\n-<a href="#my-id">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my-id" See `org-export-with-broken-links'
-link-targets.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="*foo">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "*foo" See `org-export-with-broken-links'
-link-targets.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="a b.html">s</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "a%20b.html" See `org-export-with-broken-links'
-link-targets.md	IM-19	TRANSITIONAL	1	-<p>\n-<a href="a(b)">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "a(b)" See `org-export-with-broken-links'
-link-targets.md	IM-19,IM-20	TRANSITIONAL	1	-<p>\n-<a href="docs/file.md">r</a> <a href="#sec">h</a> <a href="mailto:a@b.c">m</a> <a href="./x.org">d</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "docs/file.md" See `org-export-with-broken-links'
-lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	+</h1>
-lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	-</li>\n-</ul>
-lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	-</li>\n-<li>\n+</h1>\n+<h1>
-lists-markers-and-starts.md	IM-3	TRANSITIONAL	1	-</ul>\n-<ul>
-lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	-<ul>\n-<li>\n+<h1>
-org-syntax-at-line-start.md	IM-2	TRANSITIONAL	1	-</li>\n-</ul>\n+</h1>
-org-syntax-at-line-start.md	IM-10,IM-12	TRANSITIONAL	1	-<h2>\n-para : fixed | t | #+TITLE: x #+begin_src\n-</h2>\n-<ul>\n-<li>\n-item\n-</li>\n-</ul>\n-<ul>\n-<li>\n-plus\n-</li>\n-</ul>\n-<ol>\n-<li n="1">\n-one CLOCK: [2024-01-01 Mon 10:00] DEADLINE: &lt;2024-01-01&gt; :PROPERTIES: :END: \\begin{equation} [fn:x] def\n-</li>\n-</ol>\n+EMACS-ERROR: Definition not found for footnote x
-org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	-<p>\n-# not heading\n-</p>\n-<p>\n-#+TITLE: no\n-</p>
-org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	-<p>\n------\n-</p>\n+<hr />
-org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	-<p>\n-: colon start\n-</p>\n+<pre>\n+colon start\n+</pre>
-org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	-<p>\n-| pipe start |\n-</p>\n+<table>\n+<tbody>\n+<tr>\n+<td align="left">\n+pipe start\n+</td>\n+</tr>\n+</tbody>\n+</table>
-org-syntax-at-line-start.md	IM-2	TRANSITIONAL	1	-<ul>\n-<li>\n+<h1>
-org-syntax-in-text.md	IM-14	TRANSITIONAL	1	-$x$ and $$y$$ and (z) and [w]\n+\\(x\\) and \\[y\\] and (z) and [w]
-org-syntax-in-text.md	IM-7	TRANSITIONAL	1	-*a* _b_ ~c~ =d= +e+ /f/ =g= <del>h</del>\n+<strong>a</strong> <span class="underline">b</span> <code>c</code> <code>d</code> <del>e</del> <em>f</em> <code>g</code> <del>h</del>
-org-syntax-in-text.md	IM-14	TRANSITIONAL	1	-<p>\n-[fn:1] &lt;<target>&gt; &lt;&lt;<radio>&gt;&gt; {{{macro}}} @@html:<strong>@@ [[link]] [[a][b]] &lt;2024-01-01 Mon&gt; [2024-01-01 Mon] [1/2] [50%] &lt;%%(diary)&gt;</strong></radio></target>\n-</p>\n+EMACS-ERROR: Undefined Org macro: macro; aborting
-org-syntax-in-text.md	IM-14	TRANSITIONAL	1	-<p>\n-[not a link] and [[double]]\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "double" See `org-export-with-broken-links'
-org-syntax-in-text.md	IM-14	TRANSITIONAL	1	-[cite:@key] and src_python{1+1} and call_f()\n+(??, ????) and <code>1+1</code> and
-org-syntax-in-text.md	IM-14	TRANSITIONAL	1	-\\alpha \\beta \\to \\nbsp \\ foo\n+α β → &#xa0; \\ foo
-org-syntax-in-text.md	IM-16	TRANSITIONAL	1	-a -- b --- c ... d - e\n+a – b — c … d - e
-org-syntax-in-text.md	IM-7	TRANSITIONAL	1	-a /b/ c +d+ e =f= g <del>h</del>\n+a <em>b</em> c <del>d</del> e <code>f</code> g <del>h</del>
-org-syntax-in-text.md	IM-15	TRANSITIONAL	1	-a_b x^2 H_2O file_name_here 10^3\n+a<sub>b</sub> x<sup>2</sup> H<sub>2O</sub> file<sub>name</sub><sub>here</sub> 10<sup>3</sup>
-quotes-nested.md	IM-29	TRANSITIONAL	1	+</ul>\n+</blockquote>\n+<ul>
-quotes-nested.md	IM-29	TRANSITIONAL	1	-</blockquote>
-quotes-nested.md	IM-29	TRANSITIONAL	1	-</blockquote>\n+<p>\n+#+end<sub>quote</sub>\n+</p>
-quotes-nested.md	IM-29	TRANSITIONAL	1	-<blockquote>
-quotes-nested.md	IM-29	TRANSITIONAL	1	-a\n-<blockquote>\n-<p>\n-q\n-</p>\n-</blockquote>\n+a #+begin<sub>quote</sub> q
-quotes-nested.md	IM-29	TRANSITIONAL	1	-b\n+#+begin<sub>quote</sub> b
-quotes-nested.md	IM-29	TRANSITIONAL	1	-c\n+c #+end<sub>quote</sub>
-raw-html.md	IM-18	TRANSITIONAL	1	-&lt;script&gt; var a = 1; &lt;/script&gt;\n+<script>\n+\n+var a = 1;\n+</script>
-raw-html.md	IM-18	TRANSITIONAL	1	-&lt;title&gt;x&lt;/title&gt;\n+<title>\n+x\n+</title>
-raw-html.md	IM-18	TRANSITIONAL	1	-a <kbd>Ctrl</kbd> b <br />c <span style="color:red">red</span>\n+a &lt;kbd&gt;Ctrl&lt;/kbd&gt; b &lt;br&gt; c &lt;span style="color:red"&gt;red&lt;/span&gt;
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	-<td align="center">\n+<td align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	-<td align="right">\n+<td align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	10	-<td>\n+<td align="left">
-tables-alignment-and-cells.md	IM-26,IM-27	TRANSITIONAL	1	-<td>\n+<td align="left">\n+y~\n+</td>\n+<td align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	6	-<td>\n+<td align="right">
-tables-alignment-and-cells.md	IM-26,IM-27	TRANSITIONAL	1	-<td>\n-<code>x|y</code>\n+<td align="left">\n+~x
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	1	-<th align="center">\n+<th align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	1	-<th align="right">\n+<th align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	5	-<th>\n+<th align="left">
-tables-alignment-and-cells.md	IM-27	TRANSITIONAL	3	-<th>\n+<th align="right">
-task-lists-and-strikethrough.md	IM-3	TRANSITIONAL	1	-</ol>\n+</ul>
-task-lists-and-strikethrough.md	IM-3	TRANSITIONAL	1	-</ul>\n-<ol>\n-<li n="1">\n+<li id="1">
-task-lists-and-strikethrough.md	IM-8	TRANSITIONAL	1	-<del>del</del> and <del>one</del> and a<del>b</del>c\n+<del>del</del> and <del>one</del> and a+b+c
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	-</h2>\n+</h1>
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	-</h2>\n-<h3>\n+</h1>\n+<h2>
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	-</h3>\n+</h2>
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	2	-</h3>\n+</h1>
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	2	-<h2>\n+<h1>
-commonmark-atx-headings.md	IM-39	TRANSITIONAL	2	-<h3>\n+<h1>
-commonmark-block-quotes.md	IM-41	TRANSITIONAL	2	+nil
-commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	2	-</h3>\n+</h1>
-commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	2	-<h3>\n+<h1>
-commonmark-indented-code-blocks.md	IM-40	TRANSITIONAL	1	-</p>
-commonmark-indented-code-blocks.md	IM-40	TRANSITIONAL	1	-<p>
-commonmark-link-reference-definitions.md	IM-41	TRANSITIONAL	1	+nil
-commonmark-links.md	IM-42	TRANSITIONAL	1	-<a href="./target.md"></a>\n+<a href="./target.md">./target.md</a>
-commonmark-lists.md	IM-40	TRANSITIONAL	1	+</p>
-commonmark-lists.md	IM-40	TRANSITIONAL	1	+<p>
-commonmark-lists.md	IM-40	TRANSITIONAL	19	-</p>
-commonmark-lists.md	IM-40	TRANSITIONAL	19	-<p>
-commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	-</h2>\n-<h2>\n+</h1>\n+<h1>
-commonmark-setext-headings.md	IM-39,IM-12	TRANSITIONAL	1	-<h2>\n-Foo Bar\n-</h2>\n+<h1>\n+Foo\n+</h1>\n+<p>\n+Bar\n+</p>
-commonmark-setext-headings.md	IM-39	TRANSITIONAL	8	-</h2>\n+</h1>
-commonmark-setext-headings.md	IM-39	TRANSITIONAL	8	-<h2>\n+<h1>
-commonmark-thematic-breaks.md	IM-39	TRANSITIONAL	1	-</h2>\n+</h1>
-commonmark-thematic-breaks.md	IM-39	TRANSITIONAL	1	-<h2>\n+<h1>
-input-bytes-crlf-nul.md	IM-43	TRANSITIONAL	1	-a�b\n+a b
-link-targets.md	IM-44	TRANSITIONAL	1	-<p>\n-<a href="id:123">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "123" See `org-export-with-broken-links'
-lists-markers-and-starts.md	IM-40	TRANSITIONAL	2	-</p>
-lists-markers-and-starts.md	IM-40	TRANSITIONAL	2	-<p>
+autolinks-in-text.md	IM-1	TRANSITIONAL	1	 === autolink_url ===\n-<p>\n-<a href="https://x.com">https://x.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+autolinks-in-text.md	IM-1	TRANSITIONAL	1	 === autolink_email ===\n-<p>\n-<a href="mailto:a@b.com">a@b.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+autolinks-in-text.md	IM-1	TRANSITIONAL	1	 === autolink_sentence ===\n-<p>\n-See <a href="https://example.com">https://example.com</a> and <a href="http://www.example.org">www.example.org</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+autolinks-in-text.md	IM-1	TRANSITIONAL	1	 === autolink_bare ===\n-<p>\n-see <a href="https://x.com/a_b">https://x.com/a_b</a> and <a href="http://www.y.com">www.y.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+code-blocks.md	IM-6	TRANSITIONAL	1	 </p>\n-<pre>\n+<pre lang="nil">
+code-blocks.md	IM-5,IM-6	TRANSITIONAL	1	 === code_indent_all ===\n-<pre>\n-    indented\n-      more\n+<pre lang="nil">\n+indented\n+  more
+code-blocks.md	IM-4	TRANSITIONAL	1	 === code_org_lines ===\n-<pre>\n-* not a heading\n-#+end_src\n-#+begin_quote\n-,* comma\n-</pre>\n+<p>\n+#+begin<sub>src</sub>\n+</p>\n+<h1>\n+not a heading\n+</h1>\n+<p>\n+#+end<sub>src</sub> #+begin<sub>quote</sub> ,* comma #+end<sub>src</sub>\n+</p>
+commonmark-atx-headings.md	IM-6	TRANSITIONAL	1	 === example 69 ===\n-<pre>\n+<pre lang="nil">
+commonmark-atx-headings.md	IM-10	TRANSITIONAL	1	 <p>\n-foo # bar\n+foo
+commonmark-atx-headings.md	IM-7	TRANSITIONAL	1	 <h1>\n-foo <em>bar</em> *baz*\n+foo <em>bar</em> <strong>baz</strong>
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 608 ===\n-<p>\n-&lt; https://foo.bar &gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 606 ===\n-<p>\n-&lt;foo+@bar.example.com&gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 602 ===\n-<p>\n-&lt;https://foo.bar/baz bim&gt;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 597 ===\n-<p>\n-<a href="MAILTO:FOO@BAR.BAZ">MAILTO:FOO@BAR.BAZ</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 598 ===\n-<p>\n-<a href="a+b+c:d">a+b+c:d</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 594 ===\n-<p>\n-<a href="http://foo.bar.baz">http://foo.bar.baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 600 ===\n-<p>\n-<a href="https://../">https://../</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 603 ===\n-<p>\n-<a href="https://example.com/%5C%5B%5C">https://example.com/\\[\\</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 595 ===\n-<p>\n-<a href="https://foo.bar.baz/test?q=hello&amp;id=22&amp;boolean">https://foo.bar.baz/test?q=hello&amp;id=22&amp;boolean</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 596 ===\n-<p>\n-<a href="irc://foo.bar:2233/baz">irc://foo.bar:2233/baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 601 ===\n-<p>\n-<a href="localhost:5001/foo">localhost:5001/foo</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 599 ===\n-<p>\n-<a href="made-up-scheme://foo,bar">made-up-scheme://foo,bar</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 605 ===\n-<p>\n-<a href="mailto:foo+special@Bar.baz-bar0.com">foo+special@Bar.baz-bar0.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 604 ===\n-<p>\n-<a href="mailto:foo@bar.example.com">foo@bar.example.com</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 612 ===\n-<p>\n-foo@bar.example.com\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-autolinks.md	IM-1	TRANSITIONAL	1	 === example 611 ===\n-<p>\n-https://example.com\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-backslash-escapes.md	IM-7,IM-10	TRANSITIONAL	1	 <p>\n-*not emphasized* &lt;br/&gt; not a tag [not a link](/foo) `not code` 1. not a list * not a list # not a heading [foo]: /url "not a reference" &amp;ouml; not a character entity\n+<strong>not emphasized</strong> &lt;br/&gt; not a tag [not a link](/foo) `not code`\n+</p>\n+<ol>\n+<li n="1">\n+not a list\n+</li>\n+</ol>\n+<h1>\n+not a list\n+</h1>\n+<p>\n+[foo]: /url "not a reference" &amp;ouml; not a character entity
+commonmark-backslash-escapes.md	IM-21,IM-25	INHERENT	2	 <p>\n-<a href="/bar*" title="ti*tle">foo</a>\n+<a href="file:///bar*">foo</a>
+commonmark-backslash-escapes.md	IM-1	TRANSITIONAL	1	 === example 20 ===\n-<p>\n-<a href="https://example.com?find=%5C*">https://example.com?find=\\*</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-backslash-escapes.md	IM-6	TRANSITIONAL	1	 === example 18 ===\n-<pre>\n+<pre lang="nil">
+commonmark-backslash-escapes.md	IM-6	TRANSITIONAL	1	 === example 19 ===\n-<pre>\n+<pre lang="nil">
+commonmark-backslash-escapes.md	IM-8	TRANSITIONAL	1	 <p>\n-\\<em>emphasis</em>\n+\\/emphasis/
+commonmark-block-quotes.md	IM-10	TRANSITIONAL	1	 </p>\n+<ul>\n+<li>\n+bar\n+</li>\n+</ul>
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	4	 </p>\n-</blockquote>
+commonmark-block-quotes.md	IM-29	TRANSITIONAL	2	 </blockquote>\n-</blockquote>\n-</blockquote>\n+<p>\n+#+end<sub>quote</sub> #+end<sub>quote</sub>\n+</p>
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	1	 === example 228 ===\n-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	1	 === example 229 ===\n-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	1	 === example 230 ===\n-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	1	 === example 232 ===\n-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
+commonmark-block-quotes.md	IM-29	TRANSITIONAL	2	 <blockquote>\n-<blockquote>\n-<blockquote>
+commonmark-block-quotes.md	IM-6	TRANSITIONAL	1	 === example 231 ===\n-<pre>\n+<pre lang="nil">
+commonmark-block-quotes.md	IM-6	TRANSITIONAL	3	 <blockquote>\n-<pre>\n+<pre lang="nil">
+commonmark-block-quotes.md	IM-6	TRANSITIONAL	1	 </blockquote>\n-<pre>\n+<pre lang="nil">
+commonmark-block-quotes.md	IM-6	TRANSITIONAL	1	 </p>\n-<pre>\n+<pre lang="nil">
+commonmark-block-quotes.md	IM-30	TRANSITIONAL	4	 <p>\n-bar baz\n+bar baz #+end<sub>quote</sub>
+commonmark-block-quotes.md	IM-10	TRANSITIONAL	1	 <p>\n-foo - bar\n+foo
+commonmark-block-quotes.md	IM-29	TRANSITIONAL	1	 <p>\n-foo bar\n+#+begin<sub>quote</sub> #+begin<sub>quote</sub> foo bar
+commonmark-block-quotes.md	IM-29	TRANSITIONAL	1	 <p>\n-foo bar baz\n+#+begin<sub>quote</sub> #+begin<sub>quote</sub> foo bar baz
+commonmark-code-spans.md	IM-8	TRANSITIONAL	1	 <p>\n-*foo<code>*</code>\n+*foo~*~
+commonmark-code-spans.md	IM-18	TRANSITIONAL	1	 <p>\n-<a href="`">`</a>\n+&lt;a href="`"&gt;`
+commonmark-code-spans.md	IM-31	TRANSITIONAL	1	 <p>\n-<code>&#xa0;</code> <code></code>\n+~&#xa0;~ ~ ~
+commonmark-code-spans.md	IM-31	TRANSITIONAL	1	 <p>\n-<code>&#xa0;b&#xa0;</code>\n+~&#xa0;b&#xa0;~
+commonmark-code-spans.md	IM-8,IM-14	TRANSITIONAL	1	 <p>\n-<code>&lt;https://foo.bar.</code>baz&gt;`\n+~<a href="https://foo.bar.~baz">https://foo.bar.~baz</a>`
+commonmark-code-spans.md	IM-31	TRANSITIONAL	1	 <p>\n-<code>`` </code>\n+~ `` ~
+commonmark-code-spans.md	IM-31	TRANSITIONAL	1	 <p>\n-<code>a</code>\n+~ a~
+commonmark-code-spans.md	IM-31	TRANSITIONAL	1	 <p>\n-<code>foo </code>\n+~foo ~
+commonmark-code-spans.md	IM-8	TRANSITIONAL	1	 <p>\n-<code>foo\\</code>bar`\n+~foo\\~bar`
+commonmark-code-spans.md	IM-1	TRANSITIONAL	1	 === example 346 ===\n-<p>\n-<a href="https://foo.bar.%60baz">https://foo.bar.`baz</a>`\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-code-spans.md	IM-8	TRANSITIONAL	1	 <p>\n-`foo<code>bar</code>\n+`foo~bar~
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-***<em>foo</em>\n+***/foo/
+commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	 <p>\n-**<a href="**"></a>\n+<strong><strong>&lt;a href="</strong></strong>"&gt;
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-**foo <strong>bar baz</strong>\n+<strong>*foo *bar baz</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-**foo bar **\n+<strong>*foo bar *</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-*<a href="/url">bar*</a>\n+*<a href="file:///url">bar*</a>
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-*<em>foo</em>\n+*/foo/
+commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	 <p>\n-*<img src="foo" title="*" />\n+<strong>&lt;img src="foo" title="</strong>"/&gt;
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-*<strong>foo</strong>\n+<strong>*foo</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	 <p>\n-*foo bar *\n+*foo bar\n+</p>\n+<p>\n+*
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-5<em>6</em>78\n+5/6/78
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-5_6_78\n+5<sub>6</sub><sub>78</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-5__6__78\n+5_<sub>6</sub>_<sub>78</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	2	 <p>\n-<em>(<em>foo</em>)</em>\n+<em>(/foo</em>)/
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<em><em>foo</em> bar</em>\n+<em>/foo</em> bar/
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-<em>foo <a href="/url"><em>bar</em></a></em>\n+<em>foo <a href="file:///url"><em>bar</em></a></em>
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-<em>foo <a href="/url">bar</a></em>\n+<em>foo <a href="file:///url">bar</a></em>
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<em>foo <em>bar</em> baz</em>\n+<em>foo /bar</em> baz/
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<em>foo <strong>bar <em>baz</em> bim</strong> bop</em>\n+<em>foo *bar /baz</em> bim* bop/
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo</em>*\n+/foo/*
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo</em>***\n+/foo/***
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo</em>_\n+/foo/_
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo</em>___\n+/foo/___
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo</em>bar\n+/foo/bar
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo<strong>bar</strong></em>\n+<em>foo*bar*</em>
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<em>foo<strong>bar</strong>baz</em>\n+<em>foo*bar*baz</em>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-<em>foo_bar_baz</em>\n+<em>foo<sub>bar</sub><sub>baz</sub></em>
+commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	 === example 379 ===\n-<p>\n-** foo bar**\n-</p>\n+<h1>\n+foo bar**\n+</h1>
+commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	 === example 420 ===\n-<p>\n-** is not an empty emphasis\n-</p>\n+<h1>\n+is not an empty emphasis\n+</h1>
+commonmark-emphasis-and-strong-emphasis.md	IM-10	TRANSITIONAL	1	 === example 421 ===\n-<p>\n-**** is not an empty strong emphasis\n-</p>\n+<h1>\n+is not an empty strong emphasis\n+</h1>
+commonmark-emphasis-and-strong-emphasis.md	IM-1	TRANSITIONAL	1	 === example 480 ===\n-<p>\n-**a<a href="https://foo.bar/?q=**">https://foo.bar/?q=**</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-emphasis-and-strong-emphasis.md	IM-1	TRANSITIONAL	1	 === example 481 ===\n-<p>\n-__a<a href="https://foo.bar/?q=__">https://foo.bar/?q=__</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<strong><strong>foo</strong> bar</strong>\n+<strong>*foo</strong> bar*
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-<strong>foo <a href="/url"><em>bar</em></a></strong>\n+<strong>foo <a href="file:///url"><em>bar</em></a></strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-<strong>foo <a href="/url">bar</a></strong>\n+<strong>foo <a href="file:///url">bar</a></strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<strong>foo <em>bar <strong>baz</strong> bim</em> bop</strong>\n+<strong>foo /bar *baz</strong> bim/ bop*
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<strong>foo <strong>bar</strong> baz</strong>\n+<strong>foo *bar</strong> baz*
+commonmark-emphasis-and-strong-emphasis.md	IM-9	TRANSITIONAL	1	 <p>\n-<strong>foo, <strong>bar</strong>, baz</strong>\n+<strong>foo, *bar</strong>, baz*
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-<strong>foo</strong>*\n+<strong>foo*</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<strong>foo</strong>_\n+*foo*_
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<strong>foo</strong>bar\n+*foo*bar
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-<strong>foo<em>bar</em>baz</strong>\n+<strong>foo/bar/baz</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-<strong>foo__bar__baz</strong>\n+<strong>foo_<sub>bar</sub>_<sub>baz</sub></strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-_(_foo)\n+_(<sub>foo</sub>)
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-_<em>foo</em>\n+_/foo/
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-_<strong>foo</strong>\n+_*foo*
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	2	 <p>\n-__ foo bar__\n+<span class="underline">_ foo bar_</span>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-__(__foo)\n+_<sub>(_<sub>foo</sub>)</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-7,IM-18	TRANSITIONAL	1	 <p>\n-__<a href="__"></a>\n+<span class="underline"><span class="underline">&lt;a href="</span></span>"&gt;
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-___<em>foo</em>\n+___/foo/
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-____ is not an empty strong emphasis\n+<span class="underline">__</span> is not an empty strong emphasis
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-__foo bar __\n+<span class="underline">_foo bar _</span>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-__foo__bar\n+_<sub>foo</sub>_<sub>bar</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-__пристаням__стремятся\n+_<sub>пристаням</sub>_<sub>стремятся</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-21	INHERENT	1	 <p>\n-_foo <a href="/url">bar_</a>\n+_foo <a href="file:///url">bar_</a>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-_foo_bar\n+_foo<sub>bar</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-_пристаням_стремятся\n+_пристаням<sub>стремятся</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-aa_"bb"_cc\n+aa_"bb"<sub>cc</sub>
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-foo ***\n+foo <strong>*</strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-foo *****\n+foo <strong><strong>*</strong></strong>
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-foo ___\n+foo <span class="underline">_</span>
+commonmark-emphasis-and-strong-emphasis.md	IM-7	TRANSITIONAL	1	 <p>\n-foo _____\n+foo <span class="underline"><span class="underline">_</span></span>
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-foo<em><strong>bar</strong></em>baz\n+foo/*bar*/baz
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-foo<em>bar</em>\n+foo/bar/
+commonmark-emphasis-and-strong-emphasis.md	IM-8,IM-9	TRANSITIONAL	1	 <p>\n-foo<strong><strong><strong>bar</strong></strong></strong>***baz\n+foo***bar******baz
+commonmark-emphasis-and-strong-emphasis.md	IM-8	TRANSITIONAL	1	 <p>\n-foo<strong>bar</strong>\n+foo*bar*
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-foo__bar__\n+foo_<sub>bar</sub>__
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-foo_bar_\n+foo<sub>bar</sub>_
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-пристаням__стремятся__\n+пристаням_<sub>стремятся</sub>__
+commonmark-emphasis-and-strong-emphasis.md	IM-15	TRANSITIONAL	1	 <p>\n-пристаням_стремятся_\n+пристаням<sub>стремятся</sub>_
+commonmark-entity-and-numeric-character-references.md	IM-7	TRANSITIONAL	1	 <p>\n-*foo* <em>foo</em>\n+<strong>foo</strong> <em>foo</em>
+commonmark-entity-and-numeric-character-references.md	IM-2,IM-10	TRANSITIONAL	1	 foo\n-</li>\n-</ul>\n+</h1>\n+<h1>\n+foo\n+</h1>
+commonmark-entity-and-numeric-character-references.md	IM-21,IM-25	INHERENT	2	 <p>\n-<a href="/föö" title="föö">foo</a>\n+<a href="file:///föö">foo</a>
+commonmark-entity-and-numeric-character-references.md	IM-10	TRANSITIONAL	1	 === example 26 ===\n-<p>\n-# Ӓ Ϡ �\n-</p>
+commonmark-entity-and-numeric-character-references.md	IM-2,IM-10	TRANSITIONAL	1	 === example 38 ===\n-<p>\n-* foo\n-</p>\n-<ul>\n-<li>\n+<h1>
+commonmark-entity-and-numeric-character-references.md	IM-6	TRANSITIONAL	1	 === example 36 ===\n-<pre>\n+<pre lang="nil">
+commonmark-entity-and-numeric-character-references.md	IM-11	TRANSITIONAL	1	 <p>\n-foo bar\n+foo\n+</p>\n+<p>\n+bar
+commonmark-fenced-code-blocks.md	IM-5,IM-6	TRANSITIONAL	1	 <pre>\n-  
+commonmark-fenced-code-blocks.md	IM-31	TRANSITIONAL	1	 <p>\n-<code></code>aaa\n+~ ~ aaa
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 119 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 120 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 122 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 123 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 124 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 125 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 126 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 127 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 <blockquote>\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 130 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 131 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 132 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 133 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 134 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 135 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 136 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 137 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 139 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 </p>\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 </h2>\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 147 ===\n-<pre>\n+<pre lang="nil">
+commonmark-fenced-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 129 ===\n-<pre>\n+<pre lang="nil">\n+
+commonmark-hard-line-breaks.md	IM-18	TRANSITIONAL	1	 <p>\n-<a href="foo  \n-bar"></a>\n+&lt;a href="foo bar"&gt;
+commonmark-hard-line-breaks.md	IM-18	TRANSITIONAL	1	 <p>\n-<a href="foo\\\n-bar"></a>\n+&lt;a href="foo\\ bar"&gt;
+commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	 </p>\n+
+commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	 </pre>\n-</p>
+commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	 <p>\n-<del><em>foo</em></del>\n+&lt;del&gt;/foo/&lt;/del&gt;
+commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	 **Hello**,\n-<p><em>world</em>.\n+\n+<p>\n+<em>world</em>.\n+&lt;/pre&gt;
+commonmark-html-blocks.md	IM-6	TRANSITIONAL	1	 <!-- foo -->\n-<pre>\n+<pre lang="nil">
+commonmark-html-blocks.md	IM-6	TRANSITIONAL	1	 <div>\n-<pre>\n+<pre lang="nil">
+commonmark-html-blocks.md	IM-6	TRANSITIONAL	1	 <tr>\n-<pre>\n+<pre lang="nil">
+commonmark-html-blocks.md	IM-18	TRANSITIONAL	1	 <p>\n-Foo <a href="bar">baz</a>\n+Foo &lt;a href="bar"&gt; baz
+commonmark-images.md	IM-21,IM-25	INHERENT	1	 <p>\n-!<a href="/url" title="title">foo</a>\n+!<a href="file:///url">foo</a>
+commonmark-images.md	IM-21,IM-22	TRANSITIONAL	1	 <p>\n-<img alt="" src="/url" />\n+<a href="file:///url">file:///url</a>
+commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	2	 <p>\n-<img alt="Foo" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
+commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	2	 <p>\n-<img alt="foo bar" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
+commonmark-images.md	IM-21,IM-22	TRANSITIONAL	2	 <p>\n-<img alt="foo bar" src="/url2" />\n+<a href="file:///url2">file:///url2</a>
+commonmark-images.md	IM-21,IM-22	TRANSITIONAL	2	 <p>\n-<img alt="foo" src="/url" />\n+<a href="file:///url">file:///url</a>
+commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	3	 <p>\n-<img alt="foo" src="/url" title="title" />\n+<a href="file:///url">file:///url</a>
+commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	1	 <p>\n-<img alt="foo" src="/url" title="title" />[]\n+<a href="file:///url">file:///url</a> []
+commonmark-images.md	IM-14	TRANSITIONAL	1	 === example 590 ===\n-<p>\n-![[foo]]\n-</p>\n-<p>\n-[[foo]]: /url "title"\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
+commonmark-images.md	IM-19	TRANSITIONAL	1	 === example 573 ===\n-<p>\n-<img alt="foo bar" src="train.jpg" title="train &amp; tracks" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
+commonmark-images.md	IM-19	TRANSITIONAL	1	 === example 576 ===\n-<p>\n-<img alt="foo bar" src="train.jpg" title="train &amp; tracks" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
+commonmark-images.md	IM-19	TRANSITIONAL	1	 === example 577 ===\n-<p>\n-<img alt="foo bar" src="train.jpg" title="train &amp; tracks" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
+commonmark-images.md	IM-19	TRANSITIONAL	1	 === example 578 ===\n-<p>\n-<img alt="foo" src="train.jpg" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "train.jpg" See `org-export-with-broken-links'
+commonmark-images.md	IM-19	TRANSITIONAL	1	 === example 580 ===\n-<p>\n-<img alt="foo" src="url" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "url" See `org-export-with-broken-links'
+commonmark-images.md	IM-21,IM-22,IM-25	TRANSITIONAL	1	 <p>\n-My <img alt="foo bar" src="/path/to/train.jpg" title="title" />\n+My <img alt="train.jpg" src="file:///path/to/train.jpg" />
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 107 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 110 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 111 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 112 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 114 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 </h1>\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 </h2>\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 116 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 117 ===\n-<pre>\n+<pre lang="nil">
+commonmark-indented-code-blocks.md	IM-6	TRANSITIONAL	1	 === example 118 ===\n-<pre>\n+<pre lang="nil">
+commonmark-inlines.md	IM-8	TRANSITIONAL	1	 <p>\n-<code>hi</code>lo`\n+~hi~lo`
+commonmark-link-reference-definitions.md	IM-23	TRANSITIONAL	1	 <p>\n-<a href="">foo</a>\n+[[][foo]]
+commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/foo-url" title="foo">foo</a>, <a href="/bar-url" title="bar">bar</a>, <a href="/baz-url">baz</a>\n+<a href="file:///foo-url">foo</a>, <a href="file:///bar-url">bar</a>, <a href="file:///baz-url">baz</a>
+commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="\n-title\n-line1\n-line2\n-">foo</a>\n+<a href="file:///url">foo</a>
+commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="the title">foo</a>\n+<a href="file:///url">foo</a>
+commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="title">foo</a>\n+<a href="file:///url">foo</a>
+commonmark-link-reference-definitions.md	IM-21	INHERENT	1	 <p>\n-<a href="/url">Foo</a>\n+<a href="file:///url">Foo</a>
+commonmark-link-reference-definitions.md	IM-21	INHERENT	1	 <h1>\n-<a href="/url">Foo</a>\n+<a href="file:///url">Foo</a>
+commonmark-link-reference-definitions.md	IM-21	INHERENT	3	 <p>\n-<a href="/url">foo</a>\n+<a href="file:///url">foo</a>
+commonmark-link-reference-definitions.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url%5Cbar*baz" title="foo&quot;bar\\baz">foo</a>\n+<a href="file:///url%5Cbar*baz">foo</a>
+commonmark-link-reference-definitions.md	IM-21	INHERENT	1	 <p>\n-<a href="/φου">αγω</a>\n+<a href="file:///φου">αγω</a>
+commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	 === example 204 ===\n-<p>\n-<a href="first">foo</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "first" See `org-export-with-broken-links'
+commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	 === example 195 ===\n-<p>\n-<a href="my url" title="title">Foo bar</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my%20url" See `org-export-with-broken-links'
+commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	 === example 194 ===\n-<p>\n-<a href="my_(url)" title="title (with parens)">Foo*bar]</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my_(url)" See `org-export-with-broken-links'
+commonmark-link-reference-definitions.md	IM-19	TRANSITIONAL	1	 === example 203 ===\n-<p>\n-<a href="url">foo</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "url" See `org-export-with-broken-links'
+commonmark-link-reference-definitions.md	IM-6	TRANSITIONAL	1	 === example 211 ===\n-<pre>\n+<pre lang="nil">
+commonmark-link-reference-definitions.md	IM-6	TRANSITIONAL	1	 === example 212 ===\n-<pre>\n+<pre lang="nil">
+commonmark-link-reference-definitions.md	IM-7	TRANSITIONAL	1	 <p>\n-=== <a href="/url">foo</a>\n+<code>=</code> <a href="file:///url">foo</a>
+commonmark-link-reference-definitions.md	IM-18	TRANSITIONAL	1	 <p>\n-[foo]: <bar>(baz)</bar>\n+[foo]: &lt;bar&gt;(baz)
+commonmark-links.md	IM-21	INHERENT	2	 <p>\n-*<a href="/uri">foo*</a>\n+*<a href="file:///uri">foo*</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-*<a href="/url">foo*</a>\n+*<a href="file:///url">foo*</a>
+commonmark-links.md	IM-23	TRANSITIONAL	1	 <p>\n-<a href=""></a>\n+[[]]
+commonmark-links.md	IM-23	TRANSITIONAL	1	 <p>\n-<a href="">foo</a>\n+[[][foo]]
+commonmark-links.md	IM-23	TRANSITIONAL	2	 <p>\n-<a href="">link</a>\n+[[][link]]
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/my uri">link</a>\n+<a href="file:///my uri">link</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	2	 <p>\n-<a href="/uri" title="title">link</a>\n+<a href="file:///uri">link</a>
+commonmark-links.md	IM-21,IM-22	TRANSITIONAL	2	 <p>\n-<a href="/uri"><img alt="moon" src="moon.jpg" /></a>\n+<a href="file:///uri">[[moon.jpg</a>]]
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/uri">bar\\</a>\n+<a href="file:///uri">bar\\</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/uri">foo *bar</a>*\n+<a href="file:///uri">foo *bar</a>*
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/uri">foo</a>\n+<a href="file:///uri">foo</a>
+commonmark-links.md	IM-21	INHERENT	2	 <p>\n-<a href="/uri">link <em>foo <strong>bar</strong> <code>#</code></em></a>\n+<a href="file:///uri">link <em>foo <strong>bar</strong> <code>#</code></em></a>
+commonmark-links.md	IM-21	INHERENT	2	 <p>\n-<a href="/uri">link [bar</a>\n+<a href="file:///uri">link [bar</a>
+commonmark-links.md	IM-21,IM-24	TRANSITIONAL	2	 <p>\n-<a href="/uri">link [foo [bar]]</a>\n+<a href="file:///uri">link [foo [bar</a>]]
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/uri">link</a>\n+<a href="file:///uri">link</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="title &quot;&quot;">link</a>\n+<a href="file:///url">link</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="title &quot;and&quot; title">link</a>\n+<a href="file:///url">link</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	2	 <p>\n-<a href="/url" title="title"><em>foo</em> bar</a>\n+<a href="file:///url"><em>foo</em> bar</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	2	 <p>\n-<a href="/url" title="title">Foo</a>\n+<a href="file:///url">Foo</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	4	 <p>\n-<a href="/url" title="title">foo</a>\n+<a href="file:///url">foo</a>
+commonmark-links.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="title">foo</a> []\n+<a href="file:///url">foo</a> []
+commonmark-links.md	IM-21,IM-25	INHERENT	1	 <p>\n-<a href="/url" title="title">link</a> <a href="/url" title="title">link</a> <a href="/url" title="title">link</a>\n+<a href="file:///url">link</a> <a href="file:///url">link</a> <a href="file:///url">link</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url">Baz</a>\n+<a href="file:///url">Baz</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url">foo</a> bar\n+<a href="file:///url">foo</a> bar
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url">ẞ</a>\n+<a href="file:///url">ẞ</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url1">bar</a>\n+<a href="file:///url1">bar</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url1">foo</a>\n+<a href="file:///url1">foo</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url1">foo</a>(not a link)\n+<a href="file:///url1">foo</a>(not a link)
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url2">foo</a>\n+<a href="file:///url2">foo</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url2">foo</a><a href="/url1">baz</a>\n+<a href="file:///url2">foo</a><a href="file:///url1">baz</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-<a href="/url %22title%22">link</a>\n+<a href="file:///url %22title%22">link</a>
+commonmark-links.md	IM-20	TRANSITIONAL	1	 === example 501 ===\n-<p>\n-<a href="#fragment">link</a>\n-</p>\n-<p>\n-<a href="https://example.com#fragment">link</a>\n-</p>\n-<p>\n-<a href="https://example.com?foo=3#frag">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "fragment" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 504 ===\n-<p>\n-<a href="%22title%22">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "%22title%22" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 495 ===\n-<p>\n-<a href="(foo)">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 492 ===\n-<p>\n-<a href="b)c">a</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "b)c" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 522 ===\n-<p>\n-<a href="baz*">foo *bar</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "baz*" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 503 ===\n-<p>\n-<a href="foo bä">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo%20b%C3%A4" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 502 ===\n-<p>\n-<a href="foo%5Cbar">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo%5Cbar" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 498 ===\n-<p>\n-<a href="foo(and(bar)">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo(and(bar)" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 499 ===\n-<p>\n-<a href="foo(and(bar)">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo(and(bar)" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 496 ===\n-<p>\n-<a href="foo(and(bar))">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo(and(bar))" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 500 ===\n-<p>\n-<a href="foo):">link</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo):" See `org-export-with-broken-links'
+commonmark-links.md	IM-19	TRANSITIONAL	1	 === example 520 ===\n-<p>\n-<img alt="[foo](uri2)" src="uri3" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "uri3" See `org-export-with-broken-links'
+commonmark-links.md	IM-14	TRANSITIONAL	1	 === example 548 ===\n-<p>\n-[[[foo]]]\n-</p>\n-<p>\n-[[[foo]]]: /url\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "foo" See `org-export-with-broken-links'
+commonmark-links.md	IM-1	TRANSITIONAL	1	 === example 538 ===\n-<p>\n-[foo<a href="https://example.com/?search=%5D%5Bref%5D">https://example.com/?search=][ref]</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-links.md	IM-1	TRANSITIONAL	1	 === example 526 ===\n-<p>\n-[foo<a href="https://example.com/?search=%5D(uri)">https://example.com/?search=](uri)</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+commonmark-links.md	IM-21,IM-25	INHERENT	1	 <p>\n-[<a href="/url" title="title"><em>foo</em> bar</a>]\n+[<a href="file:///url"><em>foo</em> bar</a>]
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[[bar <a href="/url">foo</a>\n+[[bar <a href="file:///url">foo</a>
+commonmark-links.md	IM-18	TRANSITIONAL	1	 <p>\n-[a](&lt;b)c [a](&lt;b)c&gt; [a](<strong>c)</strong>\n+[a](&lt;b)c [a](&lt;b)c&gt; [a](&lt;b&gt;c)
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[foo <a href="/uri">bar</a>](/uri)\n+[foo <a href="file:///uri">bar</a>](/uri)
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[foo <a href="/uri">bar</a>]<a href="/uri">ref</a>\n+[foo <a href="file:///uri">bar</a>]<a href="file:///uri">ref</a>
+commonmark-links.md	IM-18	TRANSITIONAL	1	 <p>\n-[foo <bar attr="](baz)"></bar>\n+[foo &lt;bar attr="](baz)"&gt;
+commonmark-links.md	IM-18	TRANSITIONAL	1	 <p>\n-[foo <bar attr="][ref]"></bar>\n+[foo &lt;bar attr="][ref]"&gt;
+commonmark-links.md	IM-8,IM-21	TRANSITIONAL	1	 <p>\n-[foo <em>[bar <a href="/uri">baz</a>](/uri)</em>](/uri)\n+[foo /[bar <a href="file:///uri">baz</a>](/uri)/](/uri)
+commonmark-links.md	IM-8,IM-21	TRANSITIONAL	1	 <p>\n-[foo <em>bar <a href="/uri">baz</a></em>]<a href="/uri">ref</a>\n+[foo /bar <a href="file:///uri">baz</a>/]<a href="file:///uri">ref</a>
+commonmark-links.md	IM-8	TRANSITIONAL	1	 <p>\n-[foo<code>](/uri)</code>\n+[foo~](/uri)~
+commonmark-links.md	IM-8	TRANSITIONAL	1	 <p>\n-[foo<code>][ref]</code>\n+[foo~][ref]~
+commonmark-links.md	IM-21,IM-25	INHERENT	2	 <p>\n-[foo] <a href="/url" title="title">bar</a>\n+[foo] <a href="file:///url">bar</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[foo]<a href="/url">bar</a>\n+[foo]<a href="file:///url">bar</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[foo]<a href="/url1">bar</a>\n+[foo]<a href="file:///url1">bar</a>
+commonmark-links.md	IM-21	INHERENT	1	 <p>\n-[link <a href="/uri">bar</a>\n+[link <a href="file:///uri">bar</a>
+commonmark-links.md	IM-18	TRANSITIONAL	1	 <p>\n-[link](<foo bar="">)</foo>\n+[link](&lt;foo bar&gt;)
+commonmark-list-items.md	IM-30	TRANSITIONAL	1	 baz\n+</p>
+commonmark-list-items.md	IM-10	TRANSITIONAL	1	 </p>\n+<ol>\n+<li n="1">\n+</li>\n+</ol>
+commonmark-list-items.md	IM-29	TRANSITIONAL	2	 </blockquote>\n+<p>\n+#+end<sub>quote</sub>\n+</p>
+commonmark-list-items.md	IM-29	TRANSITIONAL	2	 </blockquote>\n-</blockquote>\n+<p>\n+#+end<sub>quote</sub>\n+</p>
+commonmark-list-items.md	IM-30	TRANSITIONAL	1	 Foo\n-</h1>\n+</li>\n+</ul>
+commonmark-list-items.md	IM-3	TRANSITIONAL	1	 </li>\n-</ol>\n-<ul>\n-<li>\n+<li n="11">
+commonmark-list-items.md	IM-3	TRANSITIONAL	1	 </li>\n-</ul>\n+</ol>
+commonmark-list-items.md	IM-29	TRANSITIONAL	2	 <blockquote>\n-<blockquote>\n+<p>\n+#+begin<sub>quote</sub>\n+</p>
+commonmark-list-items.md	IM-29	TRANSITIONAL	2	 <li n="1">\n-<blockquote>\n-<p>\n-Blockquote continued here.\n-</p>\n-</blockquote>\n+#+begin<sub>quote</sub> Blockquote continued here.
+commonmark-list-items.md	IM-30	TRANSITIONAL	1	 <li>\n-<h1>\n+<ul>\n+<li>
+commonmark-list-items.md	IM-30	TRANSITIONAL	1	 <li>\n-<h2>\n-Bar\n-</h2>\n+<p>\n+** Bar\n+</p>\n+<p>
+commonmark-list-items.md	IM-10	TRANSITIONAL	1	 === example 266 ===\n-<p>\n-1234567890. not ok\n-</p>\n+<ol>\n+<li n="1">\n+not ok\n+</li>\n+</ol>
+commonmark-list-items.md	IM-6	TRANSITIONAL	13	 </p>\n-<pre>\n+<pre lang="nil">
+commonmark-list-items.md	IM-6	TRANSITIONAL	1	 === example 272 ===\n-<pre>\n+<pre lang="nil">
+commonmark-list-items.md	IM-6	TRANSITIONAL	1	 <li n="1">\n-<pre>\n+<pre lang="nil">
+commonmark-list-items.md	IM-6	TRANSITIONAL	2	 <li>\n-<pre>\n+<pre lang="nil">
+commonmark-list-items.md	IM-6	TRANSITIONAL	1	 === example 289 ===\n-<pre>\n+<pre lang="nil">
+commonmark-list-items.md	IM-5,IM-6	TRANSITIONAL	1	 <li n="1">\n-<pre>\n- indented code\n+<pre lang="nil">\n+indented code
+commonmark-list-items.md	IM-5,IM-6	TRANSITIONAL	1	 </ul>\n-<pre>\n- two\n+<pre lang="nil">\n+two
+commonmark-list-items.md	IM-2	TRANSITIONAL	1	 === example 284 ===\n-<ul>\n-<li>\n-</li>\n-</ul>\n+<p>\n+*\n+</p>
+commonmark-list-items.md	IM-10	TRANSITIONAL	1	 <p>\n-foo *\n+foo
+commonmark-list-items.md	IM-10	TRANSITIONAL	1	 <p>\n-foo 1.\n+*\n+</p>\n+<p>\n+foo
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 a\n+</h1>
+commonmark-lists.md	IM-10	TRANSITIONAL	1	 </p>\n+<ol>\n+<li n="1">\n+The number of doors is 6.\n+</li>\n+</ol>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 </p>\n-</li>\n-</ul>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 c\n-</li>\n-</ul>\n+</h1>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 </p>\n-</li>\n-</ul>\n+<h1>\n+c\n+</h1>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 </blockquote>\n-</li>\n-<li>\n+<h1>
+commonmark-lists.md	IM-3	TRANSITIONAL	1	 </li>\n-</ol>\n-<ol>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 foo\n-</p>\n+</h1>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 a\n-</p>\n-</li>\n-<li>\n-</li>\n-<li>\n+</h1>
+commonmark-lists.md	IM-3	TRANSITIONAL	1	 </li>\n-</ul>\n-<ul>
+commonmark-lists.md	IM-6	TRANSITIONAL	1	 <!-- -->\n-<pre>\n+<pre lang="nil">
+commonmark-lists.md	IM-6	TRANSITIONAL	1	 </ol>\n-<pre>\n+<pre lang="nil">
+commonmark-lists.md	IM-6	TRANSITIONAL	1	 <li>\n-<pre>\n+<pre lang="nil">
+commonmark-lists.md	IM-6	TRANSITIONAL	1	 </blockquote>\n-<pre>\n+<pre lang="nil">
+commonmark-lists.md	IM-6	TRANSITIONAL	1	 <li n="1">\n-<pre>\n+<pre lang="nil">
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 === example 320 ===\n-<ul>\n-<li>\n+<h1>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 === example 315 ===\n-<ul>\n-<li>\n-<p>\n+<h1>
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 === example 325 ===\n-<ul>\n-<li>\n-<p>\n+<h1>
+commonmark-lists.md	IM-10	TRANSITIONAL	1	 <p>\n-The number of windows in my house is 14. The number of doors is 6.\n+The number of windows in my house is
+commonmark-lists.md	IM-2	TRANSITIONAL	1	 <p>\n-c\n+*
+commonmark-lists.md	IM-10	TRANSITIONAL	1	 <li>\n-d - e\n+d\n+<ul>\n+<li>\n+e\n+</li>\n+</ul>
+commonmark-paragraphs.md	IM-6	TRANSITIONAL	1	 === example 225 ===\n-<pre>\n+<pre lang="nil">
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-</a></foo>\n+&lt;/a&gt;&lt;/foo &gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-<a _boolean="" bam="baz <em>&quot;</em>" foo="bar" zoop:33="zoop:33"></a>\n+&lt;a foo="bar" bam = 'baz &lt;em&gt;"&lt;/em&gt;' _boolean zoop:33=zoop:33 /&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-<a><b2 data="foo"></b2></a>\n+&lt;a /&gt;&lt;b2 data="foo" &gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-<a><b2></b2></a>\n+&lt;a/&gt;&lt;b2/&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-<a><bab><c2c></c2c></bab></a>\n+&lt;a&gt;&lt;bab&gt;&lt;c2c&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-Foo <responsive-image src="foo.jpg"></responsive-image>\n+Foo &lt;responsive-image src="foo.jpg" /&gt;
+commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	 <p>\n-foo <!-- this is a --\n-comment - with hyphens -->\n+foo &lt;!– this is a – comment - with hyphens –&gt;
+commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	 <p>\n-foo <!--->foo --&gt;\n+foo &lt;!—&gt; foo –&gt;
+commonmark-raw-html.md	IM-16,IM-18	TRANSITIONAL	1	 <p>\n-foo <!-->foo --&gt;\n+foo &lt;!–&gt; foo –&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-foo <!ELEMENT br EMPTY>\n+foo &lt;!ELEMENT br EMPTY&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-foo <![CDATA[>&<]]>\n+foo &lt;![CDATA[&gt;&amp;&lt;]]&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-foo <?php echo $a; ?>\n+foo &lt;?php echo $a; ?&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-foo <a href="\\*"></a>\n+foo &lt;a href="\\*"&gt;
+commonmark-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-foo <a href="ö"></a>\n+foo &lt;a href="&amp;ouml;"&gt;
+commonmark-setext-headings.md	IM-12	TRANSITIONAL	2	 </h1>\n+<p>\n+baz/\n+</p>
+commonmark-setext-headings.md	IM-6	TRANSITIONAL	1	 === example 85 ===\n-<pre>\n+<pre lang="nil">
+commonmark-setext-headings.md	IM-6	TRANSITIONAL	1	 === example 100 ===\n-<pre>\n+<pre lang="nil">
+commonmark-setext-headings.md	IM-7	TRANSITIONAL	1	 <p>\n-====\n+<code>==</code>
+commonmark-setext-headings.md	IM-16	TRANSITIONAL	1	 <p>\n-Foo ---\n+Foo —
+commonmark-setext-headings.md	IM-12	TRANSITIONAL	2	 <h1>\n-Foo <em>bar baz</em>\n+Foo /bar
+commonmark-setext-headings.md	IM-16	TRANSITIONAL	1	 <p>\n-Foo bar --- baz\n+Foo bar — baz
+commonmark-setext-headings.md	IM-7	TRANSITIONAL	1	 <p>\n-foo bar ===\n+foo bar <code>=</code>
+commonmark-tabs.md	IM-6	TRANSITIONAL	1	 === example 1 ===\n-<pre>\n+<pre lang="nil">
+commonmark-tabs.md	IM-6	TRANSITIONAL	1	 === example 2 ===\n-<pre>\n+<pre lang="nil">
+commonmark-tabs.md	IM-6	TRANSITIONAL	1	 === example 3 ===\n-<pre>\n+<pre lang="nil">
+commonmark-tabs.md	IM-6	TRANSITIONAL	1	 === example 8 ===\n-<pre>\n+<pre lang="nil">
+commonmark-tabs.md	IM-5,IM-6	TRANSITIONAL	1	 </p>\n-<pre>\n-  bar\n+<pre lang="nil">\n+bar
+commonmark-tabs.md	IM-5,IM-6	TRANSITIONAL	1	 <blockquote>\n-<pre>\n-  foo\n+<pre lang="nil">\n+foo
+commonmark-tabs.md	IM-5,IM-6	TRANSITIONAL	1	 <li>\n-<pre>\n-  foo\n+<pre lang="nil">\n+foo
+commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	 <p>\n-+++\n+<del>+</del>
+commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	 <p>\n--- ** __\n+– ** __
+commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	 <p>\n----a---\n+—a—
+commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	1	 Foo\n-</li>\n-</ul>\n+</h1>
+commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	1	 Bar\n-</li>\n-</ul>\n+</h1>
+commonmark-thematic-breaks.md	IM-6	TRANSITIONAL	1	 === example 48 ===\n-<pre>\n+<pre lang="nil">
+commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	1	 === example 60 ===\n-<ul>\n-<li>\n+<h1>
+commonmark-thematic-breaks.md	IM-2	TRANSITIONAL	1	 <hr />\n-<ul>\n-<li>\n+<h1>
+commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	 <p>\n-===\n+<code>=</code>
+commonmark-thematic-breaks.md	IM-7	TRANSITIONAL	1	 <p>\n-Foo ***\n+Foo <strong>*</strong>
+commonmark-thematic-breaks.md	IM-16	TRANSITIONAL	1	 <p>\n-a------\n+a-–—
+footnotes.md	IM-33	TRANSITIONAL	1	 code\n+```
+footnotes.md	IM-33	TRANSITIONAL	1	 </pre>\n-</fn>\n-</footnotes>
+footnotes.md	IM-33	TRANSITIONAL	1	 </p>\n-</fn>\n-<fn n="2">\n-<p>\n-Second <em>note</em>.\n-</p>\n-</fn>\n-</footnotes>
+footnotes.md	IM-33	TRANSITIONAL	1	 Para two.\n-</p>\n-<pre>\n+\n+```
+footnotes.md	IM-33	TRANSITIONAL	2	 </p>\n-<footnotes>\n-<fn n="1">
+footnotes.md	IM-6,IM-33	TRANSITIONAL	1	 </p>\n-<p>\n+<pre lang="nil">
+footnotes.md	IM-15,IM-33	TRANSITIONAL	1	 <p>\n-A<fnref n="1"></fnref>.\n+A[<sup>a</sup>].
+footnotes.md	IM-15,IM-33	TRANSITIONAL	1	 <p>\n-First note.\n+[<sup>1</sup>]: First note. [<sup>note</sup>]: Second <em>note</em>.
+footnotes.md	IM-15,IM-33	TRANSITIONAL	1	 <p>\n-Para one.\n+[<sup>a</sup>]: Para one.
+footnotes.md	IM-15,IM-33	TRANSITIONAL	1	 <p>\n-Text<fnref n="1"></fnref> and more<fnref n="2"></fnref>.\n+Text[<sup>1</sup>] and more[<sup>note</sup>].
+front-matter.md	IM-32	TRANSITIONAL	1	 <p>\n+<del>+</del> title = "T" <del>+</del>\n+</p>\n+<p>
+front-matter.md	IM-32	TRANSITIONAL	1	 === fm_yaml ===\n+<hr />\n+<h2>\n+title: My Doc\n+</h2>\n+<p>\n+author: Jane date: 2024-01-02 tags: [a, b]\n+</p>
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 628 ===\n-<p>\n-<a href="http://commonmark.org">http://commonmark.org</a>\n-</p>\n-<p>\n-(Visit <a href="https://encrypted.google.com/search?q=Markup+(business)">https://encrypted.google.com/search?q=Markup+(business)</a>)\n-</p>\n-<p>\n-Anonymous FTP is available at <a href="ftp://foo.bar.baz">ftp://foo.bar.baz</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 621 ===\n-<p>\n-<a href="http://www.commonmark.org">www.commonmark.org</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 627 ===\n-<p>\n-<a href="http://www.commonmark.org/he">www.commonmark.org/he</a>&lt;lp\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 625 ===\n-<p>\n-<a href="http://www.google.com/search?q=(business))+ok">www.google.com/search?q=(business))+ok</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 624 ===\n-<p>\n-<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>\n-</p>\n-<p>\n-<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>))\n-</p>\n-<p>\n-(<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>)\n-</p>\n-<p>\n-(<a href="http://www.google.com/search?q=Markup+(business)">www.google.com/search?q=Markup+(business)</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 626 ===\n-<p>\n-<a href="http://www.google.com/search?q=commonmark&amp;hl=en">www.google.com/search?q=commonmark&amp;hl=en</a>\n-</p>\n-<p>\n-<a href="http://www.google.com/search?q=commonmark">www.google.com/search?q=commonmark</a>&amp;hl;\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 631 ===\n-<p>\n-<a href="mailto:a.b-c_d@a.b">a.b-c_d@a.b</a>\n-</p>\n-<p>\n-<a href="mailto:a.b-c_d@a.b">a.b-c_d@a.b</a>.\n-</p>\n-<p>\n-a.b-c_d@a.b-\n-</p>\n-<p>\n-a.b-c_d@a.b_\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 629 ===\n-<p>\n-<a href="mailto:foo@bar.baz">foo@bar.baz</a>\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 623 ===\n-<p>\n-Visit <a href="http://www.commonmark.org">www.commonmark.org</a>.\n-</p>\n-<p>\n-Visit <a href="http://www.commonmark.org/a.b">www.commonmark.org/a.b</a>.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 622 ===\n-<p>\n-Visit <a href="http://www.commonmark.org/help">www.commonmark.org/help</a> for more information.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-autolinks.md	IM-1	TRANSITIONAL	1	 === example 630 ===\n-<p>\n-hello@mail+xyz.example isn't valid, but <a href="mailto:hello+xyz@mail.example">hello+xyz@mail.example</a> is.\n-</p>\n+ORGAN-ERROR: bad argument #1 to 'ipairs' (table expected, got string)
+gfm-disallowed-raw-html.md	IM-18	TRANSITIONAL	1	 <blockquote>\n-&lt;xmp&gt; is disallowed. &lt;XMP&gt; is also disallowed.\n+<xmp>is disallowed. <xmp>is also disallowed. </xmp></xmp>
+gfm-disallowed-raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-<strong>&lt;title&gt; &lt;style&gt; <em></em></strong>\n+&lt;strong&gt; &lt;title&gt; &lt;style&gt; &lt;em&gt;
+gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	 def\n-</th>\n+</td>
+gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	 abc\n-</th>\n-<th>\n+</td>\n+<td align="left">
+gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	 </tr>\n-</thead>\n+</tbody>
+gfm-tables.md	IM-10	TRANSITIONAL	1	 === example 203 ===\n-<p>\n-| abc | def | | --- | | bar |\n-</p>\n+<table>\n+<tbody>\n+<tr>\n+<td align="left">\n+abc\n+</td>\n+<td align="left">\n+def\n+</td>\n+</tr>\n+<tr>\n+<td align="left">\n+---\n+</td>\n+</tr>\n+<tr>\n+<td align="left">\n+bar\n+</td>\n+</tr>\n+</tbody>\n+</table>
+gfm-tables.md	IM-27	TRANSITIONAL	1	 <tr>\n-<td align="center">\n+<td align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	1	 </td>\n-<td align="right">\n+<td align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	6	 <tr>\n-<td>\n+<td align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	6	 </td>\n-<td>\n+<td align="left">
+gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	 <tr>\n-<td>\n-b <code>|</code> az\n+<td align="left">\n+b ~\n+</td>\n+<td align="left">\n+~ az
+gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	 <tr>\n-<td>\n-b <strong>|</strong> im\n+<td align="left">\n+b *\n+</td>\n+<td align="left">\n+* im
+gfm-tables.md	IM-27	TRANSITIONAL	1	 <tr>\n-<th align="center">\n+<th align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	1	 </th>\n-<th align="right">\n+<th align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	1	 <tr>\n-<th>\n+<td align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	4	 <tr>\n-<th>\n+<th align="left">
+gfm-tables.md	IM-27	TRANSITIONAL	4	 </th>\n-<th>\n+<th align="left">
+gfm-tables.md	IM-26,IM-27	TRANSITIONAL	1	 <tr>\n-<th>\n-f|oo\n+<th align="left">\n+f\n+</th>\n+<th align="left">\n+oo
+gfm-tables.md	IM-27,IM-28	TRANSITIONAL	1	 <table>\n-<thead>\n+<tbody>
+headings-org-bait.md	IM-30	TRANSITIONAL	1	 H\n-</h1>\n+</li>\n+</ul>
+headings-org-bait.md	IM-30	TRANSITIONAL	1	 <li>\n-<h1>\n+<ul>\n+<li>
+headings-org-bait.md	IM-13	TRANSITIONAL	1	 <h1>\n-COMMENT hidden\n+prio
+headings-org-bait.md	IM-13	TRANSITIONAL	1	 <h2>\n-DONE x\n+<span class="done DONE">DONE</span> x
+headings-org-bait.md	IM-13	TRANSITIONAL	1	 <h1>\n-TODO buy milk\n+<span class="todo TODO">TODO</span> buy milk
+headings-org-bait.md	IM-13	TRANSITIONAL	1	 <h1>\n-Title :tag:x:\n-</h1>\n-<h1>\n-Stats [1/2]\n+Stats <code>[1/2]</code>
+headings-org-bait.md	IM-13	TRANSITIONAL	1	 <h1>\n-[#A] prio\n+Title&#xa0;&#xa0;&amp;nbsp<span class="tag"><span class="tag">tag</span>&#xa0;<span class="x">x</span></span>
+images-alt-title-in-link.md	IM-22	TRANSITIONAL	1	 <p>\n-<a href="http://ci"><img alt="b" src="badge.svg" /></a>\n+<a href="http://ci">[[badge.svg</a>]]
+images-alt-title-in-link.md	IM-19,IM-25	TRANSITIONAL	1	 === img_title ===\n-<p>\n-<img alt="a" src="p.png" title="T" />\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "p.png" See `org-export-with-broken-links'
+images-alt-title-in-link.md	IM-19,IM-22	TRANSITIONAL	1	 === img_alt ===\n-<p>\n-<img alt="alt text" src="pic.png" />\n-</p>\n-<p>\n-Inline <img alt="i" src="a.jpg" />image.\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "pic.png" See `org-export-with-broken-links'
+link-targets.md	IM-25	INHERENT	1	 <p>\n-<a href="http://x.com" title="T">a</a>\n+<a href="http://x.com">a</a>
+link-targets.md	IM-20	TRANSITIONAL	1	 === link_target_hash_custom ===\n-<p>\n-<a href="#my-id">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "my-id" See `org-export-with-broken-links'
+link-targets.md	IM-19	TRANSITIONAL	1	 === link_target_star_heading ===\n-<p>\n-<a href="*foo">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "*foo" See `org-export-with-broken-links'
+link-targets.md	IM-19	TRANSITIONAL	1	 === link_angle_space ===\n-<p>\n-<a href="a b.html">s</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "a%20b.html" See `org-export-with-broken-links'
+link-targets.md	IM-19	TRANSITIONAL	1	 === link_target_paren_coderef ===\n-<p>\n-<a href="a(b)">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "a(b)" See `org-export-with-broken-links'
+link-targets.md	IM-19,IM-20	TRANSITIONAL	1	 === link_relative ===\n-<p>\n-<a href="docs/file.md">r</a> <a href="#sec">h</a> <a href="mailto:a@b.c">m</a> <a href="./x.org">d</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "docs/file.md" See `org-export-with-broken-links'
+lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	 b\n+</h1>
+lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	 </ul>\n-</li>\n-</ul>
+lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	 a\n-</li>\n-<li>\n+</h1>\n+<h1>
+lists-markers-and-starts.md	IM-3	TRANSITIONAL	1	 </li>\n-</ul>\n-<ul>
+lists-markers-and-starts.md	IM-2	TRANSITIONAL	1	 === list_star ===\n-<ul>\n-<li>\n+<h1>
+org-syntax-at-line-start.md	IM-2	TRANSITIONAL	1	 bar\n-</li>\n-</ul>\n+</h1>
+org-syntax-at-line-start.md	IM-10,IM-12	TRANSITIONAL	1	 === line_starts ===\n-<h2>\n-para : fixed | t | #+TITLE: x #+begin_src\n-</h2>\n-<ul>\n-<li>\n-item\n-</li>\n-</ul>\n-<ul>\n-<li>\n-plus\n-</li>\n-</ul>\n-<ol>\n-<li n="1">\n-one CLOCK: [2024-01-01 Mon 10:00] DEADLINE: &lt;2024-01-01&gt; :PROPERTIES: :END: \\begin{equation} [fn:x] def\n-</li>\n-</ol>\n+EMACS-ERROR: Definition not found for footnote x
+org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	 === para_start_hash ===\n-<p>\n-# not heading\n-</p>\n-<p>\n-#+TITLE: no\n-</p>
+org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	 === para_start_dash5 ===\n-<p>\n------\n-</p>\n+<hr />
+org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	 === para_start_colon ===\n-<p>\n-: colon start\n-</p>\n+<pre>\n+colon start\n+</pre>
+org-syntax-at-line-start.md	IM-10	TRANSITIONAL	1	 === para_start_pipe ===\n-<p>\n-| pipe start |\n-</p>\n+<table>\n+<tbody>\n+<tr>\n+<td align="left">\n+pipe start\n+</td>\n+</tr>\n+</tbody>\n+</table>
+org-syntax-at-line-start.md	IM-2	TRANSITIONAL	1	 </p>\n-<ul>\n-<li>\n+<h1>
+org-syntax-in-text.md	IM-14	TRANSITIONAL	1	 <p>\n-$x$ and $$y$$ and (z) and [w]\n+\\(x\\) and \\[y\\] and (z) and [w]
+org-syntax-in-text.md	IM-7	TRANSITIONAL	1	 <p>\n-*a* _b_ ~c~ =d= +e+ /f/ =g= <del>h</del>\n+<strong>a</strong> <span class="underline">b</span> <code>c</code> <code>d</code> <del>e</del> <em>f</em> <code>g</code> <del>h</del>
+org-syntax-in-text.md	IM-14	TRANSITIONAL	1	 === text_orgsyntax ===\n-<p>\n-[fn:1] &lt;<target>&gt; &lt;&lt;<radio>&gt;&gt; {{{macro}}} @@html:<strong>@@ [[link]] [[a][b]] &lt;2024-01-01 Mon&gt; [2024-01-01 Mon] [1/2] [50%] &lt;%%(diary)&gt;</strong></radio></target>\n-</p>\n+EMACS-ERROR: Undefined Org macro: macro; aborting
+org-syntax-in-text.md	IM-14	TRANSITIONAL	1	 === bracket_text ===\n-<p>\n-[not a link] and [[double]]\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "double" See `org-export-with-broken-links'
+org-syntax-in-text.md	IM-14	TRANSITIONAL	1	 <p>\n-[cite:@key] and src_python{1+1} and call_f()\n+(??, ????) and <code>1+1</code> and
+org-syntax-in-text.md	IM-14	TRANSITIONAL	1	 <p>\n-\\alpha \\beta \\to \\nbsp \\ foo\n+α β → &#xa0; \\ foo
+org-syntax-in-text.md	IM-16	TRANSITIONAL	1	 <p>\n-a -- b --- c ... d - e\n+a – b — c … d - e
+org-syntax-in-text.md	IM-7	TRANSITIONAL	1	 <p>\n-a /b/ c +d+ e =f= g <del>h</del>\n+a <em>b</em> c <del>d</del> e <code>f</code> g <del>h</del>
+org-syntax-in-text.md	IM-15	TRANSITIONAL	1	 <p>\n-a_b x^2 H_2O file_name_here 10^3\n+a<sub>b</sub> x<sup>2</sup> H<sub>2O</sub> file<sub>name</sub><sub>here</sub> 10<sup>3</sup>
+quotes-nested.md	IM-29	TRANSITIONAL	1	 </li>\n+</ul>\n+</blockquote>\n+<ul>
+quotes-nested.md	IM-29	TRANSITIONAL	1	 </p>\n-</blockquote>
+quotes-nested.md	IM-29	TRANSITIONAL	1	 </ul>\n-</blockquote>\n+<p>\n+#+end<sub>quote</sub>\n+</p>
+quotes-nested.md	IM-29	TRANSITIONAL	1	 </p>\n-<blockquote>
+quotes-nested.md	IM-29	TRANSITIONAL	1	 <li>\n-a\n-<blockquote>\n-<p>\n-q\n-</p>\n-</blockquote>\n+a #+begin<sub>quote</sub> q
+quotes-nested.md	IM-29	TRANSITIONAL	1	 <p>\n-b\n+#+begin<sub>quote</sub> b
+quotes-nested.md	IM-29	TRANSITIONAL	1	 <p>\n-c\n+c #+end<sub>quote</sub>
+raw-html.md	IM-18	TRANSITIONAL	1	 === html_block_script ===\n-&lt;script&gt; var a = 1; &lt;/script&gt;\n+<script>\n+\n+var a = 1;\n+</script>
+raw-html.md	IM-18	TRANSITIONAL	1	 === gfm_disallowed ===\n-&lt;title&gt;x&lt;/title&gt;\n+<title>\n+x\n+</title>
+raw-html.md	IM-18	TRANSITIONAL	1	 <p>\n-a <kbd>Ctrl</kbd> b <br />c <span style="color:red">red</span>\n+a &lt;kbd&gt;Ctrl&lt;/kbd&gt; b &lt;br&gt; c &lt;span style="color:red"&gt;red&lt;/span&gt;
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	 </td>\n-<td align="center">\n+<td align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	 </td>\n-<td align="right">\n+<td align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	4	 <tr>\n-<td>\n+<td align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	6	 </td>\n-<td>\n+<td align="left">
+tables-alignment-and-cells.md	IM-26,IM-27	TRANSITIONAL	1	 </td>\n-<td>\n+<td align="left">\n+y~\n+</td>\n+<td align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	4	 </td>\n-<td>\n+<td align="right">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	 <tr>\n-<td>\n+<td align="right">
+tables-alignment-and-cells.md	IM-26,IM-27	TRANSITIONAL	1	 <tr>\n-<td>\n-<code>x|y</code>\n+<td align="left">\n+~x
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	1	 </th>\n-<th align="center">\n+<th align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	1	 </th>\n-<th align="right">\n+<th align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	 <tr>\n-<th>\n+<th align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	3	 </th>\n-<th>\n+<th align="left">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	2	 </th>\n-<th>\n+<th align="right">
+tables-alignment-and-cells.md	IM-27	TRANSITIONAL	1	 <tr>\n-<th>\n+<th align="right">
+task-lists-and-strikethrough.md	IM-3	TRANSITIONAL	1	 </li>\n-</ol>\n+</ul>
+task-lists-and-strikethrough.md	IM-3	TRANSITIONAL	1	 </li>\n-</ul>\n-<ol>\n-<li n="1">\n+<li id="1">
+task-lists-and-strikethrough.md	IM-8	TRANSITIONAL	1	 <p>\n-<del>del</del> and <del>one</del> and a<del>b</del>c\n+<del>del</del> and <del>one</del> and a+b+c
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 foo\n-</h2>\n+</h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 foo\n-</h2>\n-<h3>\n+</h1>\n+<h2>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 bar\n-</h3>\n+</h2>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 foo\n-</h3>\n+</h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 foo ### b\n-</h3>\n+</h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 === example 71 ===\n-<h2>\n+<h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 <hr />\n-<h2>\n+<h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 === example 73 ===\n-<h3>\n+<h1>
+commonmark-atx-headings.md	IM-39	TRANSITIONAL	1	 === example 74 ===\n-<h3>\n+<h1>
+commonmark-block-quotes.md	IM-41	TRANSITIONAL	2	 <blockquote>\n+nil
+commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	1	 foo\\\n-</h3>\n+</h1>
+commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	1	 foo\n-</h3>\n+</h1>
+commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	1	 === example 646 ===\n-<h3>\n+<h1>
+commonmark-hard-line-breaks.md	IM-39	TRANSITIONAL	1	 === example 647 ===\n-<h3>\n+<h1>
+commonmark-indented-code-blocks.md	IM-40	TRANSITIONAL	1	 foo\n-</p>
+commonmark-indented-code-blocks.md	IM-40	TRANSITIONAL	1	 <li n="1">\n-<p>
+commonmark-link-reference-definitions.md	IM-41	TRANSITIONAL	1	 <blockquote>\n+nil
+commonmark-links.md	IM-42	TRANSITIONAL	1	 <p>\n-<a href="./target.md"></a>\n+<a href="./target.md">./target.md</a>
+commonmark-lists.md	IM-40	TRANSITIONAL	1	 a\n+</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	1	 <li>\n+<p>
+commonmark-lists.md	IM-40	TRANSITIONAL	2	 foo\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	1	 bar\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	1	 baz\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	6	 a\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	4	 b\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	2	 c\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	3	 d\n-</p>
+commonmark-lists.md	IM-40	TRANSITIONAL	14	 <li>\n-<p>
+commonmark-lists.md	IM-40	TRANSITIONAL	2	 <li n="1">\n-<p>
+commonmark-lists.md	IM-40	TRANSITIONAL	2	 <li n="2">\n-<p>
+commonmark-lists.md	IM-40	TRANSITIONAL	1	 <li n="3">\n-<p>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 Foo\n-</h2>\n-<h2>\n+</h1>\n+<h1>
+commonmark-setext-headings.md	IM-39,IM-12	TRANSITIONAL	1	 === example 95 ===\n-<h2>\n-Foo Bar\n-</h2>\n+<h1>\n+Foo\n+</h1>\n+<p>\n+Bar\n+</p>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	2	 Foo\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 Foo\\\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 `Foo\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 &lt;a title="a lot\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 Bar\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 &gt; foo\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 bar\n-</h2>\n+</h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 === example 86 ===\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 === example 89 ===\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 === example 90 ===\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 === example 91 ===\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	2	 </p>\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 <hr />\n-<h2>\n+<h1>
+commonmark-setext-headings.md	IM-39	TRANSITIONAL	1	 === example 102 ===\n-<h2>\n+<h1>
+commonmark-thematic-breaks.md	IM-39	TRANSITIONAL	1	 Foo\n-</h2>\n+</h1>
+commonmark-thematic-breaks.md	IM-39	TRANSITIONAL	1	 === example 59 ===\n-<h2>\n+<h1>
+input-bytes-crlf-nul.md	IM-43	TRANSITIONAL	1	 <p>\n-a�b\n+a b
+link-targets.md	IM-44	TRANSITIONAL	1	 === link_id ===\n-<p>\n-<a href="id:123">x</a>\n-</p>\n+EMACS-ERROR: Org export aborted. Unable to resolve link: "123" See `org-export-with-broken-links'
+lists-markers-and-starts.md	IM-40	TRANSITIONAL	1	 a\n-</p>
+lists-markers-and-starts.md	IM-40	TRANSITIONAL	1	 c\n-</p>
+lists-markers-and-starts.md	IM-40	TRANSITIONAL	2	 <li>\n-<p>

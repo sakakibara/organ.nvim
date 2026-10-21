@@ -1,196 +1,196 @@
 # Expected differences of the babel-links default run (format: tests/conformance/_signatures.lua).
-abbrev-after-heading.org	BL-114	TRANSITIONAL	1	-=== open https://late.example/xy
-abbrev-function.org	BL-117	TRANSITIONAL	1	-=== open https://ex.com/AB\n+=== open https://ex.com/%(upcase)ab
-abbrev-hex.org	BL-113	TRANSITIONAL	1	-=== open https://example.com/q?x=a%20b%26c%2Fd%3Fe\n+=== open https://example.com/q?x=a%20b&c/d%3fe
-abbrev-lowercase.org	BL-115	TRANSITIONAL	1	-=== open https://lc.example/ab
-abbrev-two-s.org	BL-116	TRANSITIONAL	1	-=== open https://ex.com/ab/%s\n+=== open https://ex.com/ab/ab
-abbrev-unsafe-function.org	BL-117	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * pct:ab\n+=== point case.org 2:10\n+=== line Go [[pct:ab]]\n+=== open https://ex.com/%(identity)ab
-cache-hash.org	BL-18	TRANSITIONAL	1	-#+RESULTS[f08260b217ba0bc40c3526427381055117b81645]:\n+#+RESULTS[944da39c45bd1622c268bfa966d0a3d8e8f02df6]:
-call-line.org	BL-41	TRANSITIONAL	1	+! error execute
-call-line.org	BL-41	TRANSITIONAL	1	-\n-#+RESULTS:\n-: 10
-cite-bib-files.org	BL-223,BL-224	TRANSITIONAL	1	-doe:2020\n-extra1\n-knuth84
-cite-bib-files.org	BL-223,BL-224	TRANSITIONAL	1	-sub/more.bib\n-my refs.bib\n+"my refs.bib"
-cite-bibliography.org	BL-226	TRANSITIONAL	1	-#+print_bibliography:\n+Doe, J., & Roe, R. (2020). On Things. /J. Stuff/.\n+Knuth, D. E. (1984). The TeXbook. Addison-Wesley.\n+Person, E. (2001). Extra.\n+\n+* References\n+Doe, J., & Roe, R. (2020). On Things. /J. Stuff/.\n+Knuth, D. E. (1984). The TeXbook. Addison-Wesley.\n+Person, E. (2001). Extra.
-cite-follow-first.org	BL-219	TRANSITIONAL	1	-=== point refs.bib 1:0\n-=== line @book{knuth84,\n+=== point case.org 6:15\n+=== line L6 [cite/t:see @knuth84 p. 3; @doe:2020] multi
-cite-follow-second.org	BL-219	TRANSITIONAL	1	-=== point refs.bib 8:0\n-=== line @article{doe:2020,\n+=== point case.org 6:30\n+=== line L6 [cite/t:see @knuth84 p. 3; @doe:2020] multi
-cite-insert-replace-key.org	BL-220	TRANSITIONAL	1	-L5 [cite:@knuth84] simple\n+L5 [cite:@kn[cite:@knuth84]uth84] simple
-cite-parse.org	BL-221	TRANSITIONAL	1	-L7 style=nil pre="common pre" suf="common suf" refs=(knuth84 nil nil) (doe:2020 nil nil)\n+L7 style=nil pre=nil suf=nil refs=(knuth84 nil nil) (doe:2020 nil nil)
-cite-parse.org	BL-222	TRANSITIONAL	1	+L19 style=nil pre=nil suf=nil refs=(verb nil nil)
-coderef-label.org	BL-43	TRANSITIONAL	1	-: hi\n+: hi(ref:a)
-colnames-default.org	BL-45	TRANSITIONAL	1	-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-colnames-explicit.org	BL-45	TRANSITIONAL	1	-| X | Y |\n-|---+---|\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-colnames-no.org	BL-45	TRANSITIONAL	1	-| k | v |\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-colnames-yes.org	BL-45	TRANSITIONAL	1	-| k | v |\n-|---+---|\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-confirm-prompt.org	BL-44	TRANSITIONAL	1	-? Evaluate this sh code block (foo) on your system? \n+? Evaluate sh block? (Y/n)\\necho hi
-default-header-args.org	BL-48	TRANSITIONAL	1	-#+begin_quote\n-langdef\n-#+end_quote
-dir-default.org	BL-12,BL-27,BL-29	TRANSITIONAL	1	-: <DIR>/sub\n-\n+: STDERR: :dir is not a directory: sub
-dir-default.org	BL-27	TRANSITIONAL	1	-: <DIR>\n+: <ROOT>
-dir-missing.org	BL-29	TRANSITIONAL	1	+\n+#+RESULTS:\n+: STDERR: :dir is not a directory: nosuch
-dir-missing.org	BL-29	TRANSITIONAL	1	-! error execute
-dir-mkdirp.org	BL-28	TRANSITIONAL	1	-: <DIR>/newdir\n+: STDERR: :dir is not a directory: newdir
-elisp-block.org	BL-46	TRANSITIONAL	1	+! error execute
-elisp-block.org	BL-46	TRANSITIONAL	1	-\n-#+RESULTS:\n-: 3
-eval-query.org	BL-24	TRANSITIONAL	1	-? Evaluate this sh code block on your system? 
-execute-buffer-order.org	BL-27,BL-39	TRANSITIONAL	1	+commented\n+second\n+first
-execute-buffer-order.org	BL-27,BL-39	TRANSITIONAL	1	---- w/log.txt (644)\n-first\n-second\n-commented\n+--- log.txt (644)
-execute-on-name-line.org	BL-16	TRANSITIONAL	1	+! error execute
-execute-on-name-line.org	BL-16	TRANSITIONAL	1	-\n-#+RESULTS: me\n-: new
-file-desc-bare.org	BL-20	TRANSITIONAL	1	-[[file:out.txt][out.txt]]\n+[[file:out.txt]]
-file-desc-text.org	BL-20	TRANSITIONAL	1	-[[file:out.txt][Hello]]\n+[[file:out.txt]]
-file-ext.org	BL-21	TRANSITIONAL	1	-[[file:nm.txt]]\n-=== files\n---- w/nm.txt (644)\n-hi\n+[[file:hi]]
-file-missing-dir.org	BL-23	TRANSITIONAL	1	+\n+#+RESULTS: nm\n+[[file:sub2/out.txt]]\n+=== files\n+--- w/sub2/out.txt (644)\n+hi
-file-missing-dir.org	BL-23	TRANSITIONAL	1	-! error execute
-file-mode.org	BL-22	TRANSITIONAL	1	---- w/out.txt (755)\n+--- w/out.txt (644)
-file-output-dir.org	BL-19	TRANSITIONAL	1	---- w/sub/out.txt (644)\n+--- out.txt (644)
-file-output-dir.org	BL-19	TRANSITIONAL	1	-[[file:sub/out.txt]]\n+[[file:out.txt]]
-fn-action-plain.org	BL-201	TRANSITIONAL	1	-=== point case.org 8:6\n+! error fn-action\n+=== point case.org 2:9
-fn-action-plain.org	BL-201	TRANSITIONAL	1	-Some text[fn:1] here.\n+Some text here.
-fn-action-plain.org	BL-201	TRANSITIONAL	1	-\n-* Footnotes\n-\n-[fn:1] 
-fn-adjust.org	BL-215	TRANSITIONAL	1	-=== point case.org 11:7\n+=== point case.org 11:6
-fn-adjust.org	BL-215	TRANSITIONAL	1	-Text[fn:1] more[fn:2] and here[fn:3].\n+Text[fn:2] more[fn:1] and here[fn:3].
-fn-adjust.org	BL-215	TRANSITIONAL	1	-[fn:1] Two.\n+[fn:1] One.
-fn-adjust.org	BL-215	TRANSITIONAL	1	-[fn:2] One.\n+[fn:2] Two.
-fn-delete.org	BL-214	TRANSITIONAL	1	+! crash: organ has no footnote delete
-fn-delete.org	BL-214	TRANSITIONAL	1	+[fn:7] Seven def\n+continues here.
-fn-delete.org	BL-214	TRANSITIONAL	1	-Alpha beta[fn:named] gamma[fn:3] delta eps[fn::anon body] zeta[fn:in: inline named].\n+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].
-fn-follow-ref.org	BL-218	TRANSITIONAL	1	-=== point case.org 8:6\n-=== line [fn:a] Def of a.\n+=== point case.org 2:9\n+=== line First[fn:a] and again[fn:a] here.
-fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	+\n+[fn:1] 
-fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	-! error fn-new\n-=== point case.org 6:9\n+=== point case.org 10:6
-fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	-Text ~code here~ end.\n+Text ~cod[fn:1]e here~ end.
-fn-insert-keyword.org	BL-210	TRANSITIONAL	1	+\n+[fn:1] 
-fn-insert-keyword.org	BL-210	TRANSITIONAL	1	-! error fn-new\n-=== point case.org 1:5\n+=== point case.org 10:6
-fn-insert-keyword.org	BL-210	TRANSITIONAL	1	-#+TITLE: T\n+#+TIT[fn:1]LE: T
-fn-insert-src-body.org	BL-210	TRANSITIONAL	1	+\n+[fn:1] 
-fn-insert-src-body.org	BL-210	TRANSITIONAL	1	-! error fn-new\n-=== point case.org 4:2\n+=== point case.org 10:6
-fn-insert-src-body.org	BL-210	TRANSITIONAL	1	-echo x\n+ec[fn:1]ho x
-fn-jump-anonymous-inline.org	BL-207	TRANSITIONAL	1	-=== point case.org 4:9\n+! error fn-action\n+=== point case.org 4:6
-fn-jump-bare-def.org	BL-206	TRANSITIONAL	1	-! error fn-action
-fn-jump-def-to-ref.org	BL-205	TRANSITIONAL	1	-=== point case.org 2:21\n+=== point case.org 2:5
-fn-jump-missing-def.org	BL-209	TRANSITIONAL	1	-=== point case.org 9:7\n+! error fn-action\n+=== point case.org 3:10
-fn-jump-missing-def.org	BL-209	TRANSITIONAL	1	-\n-[fn:zz] 
-fn-jump-named-inline.org	BL-208	TRANSITIONAL	1	-=== point case.org 4:43\n+! error fn-action\n+=== point case.org 4:40
-fn-jump-ref-to-def.org	BL-204	TRANSITIONAL	1	-=== point case.org 8:6\n+=== point case.org 8:0
-fn-new-anonymous.org	BL-211	TRANSITIONAL	1	+\n+[fn:1] 
-fn-new-anonymous.org	BL-211	TRANSITIONAL	1	-=== point case.org 2:14\n+=== point case.org 6:6
-fn-new-anonymous.org	BL-211	TRANSITIONAL	1	-Some text[fn::] here.\n+Some text[fn:1] here.
-fn-new-define-inline.org	BL-211	TRANSITIONAL	1	+\n+[fn:1] 
-fn-new-define-inline.org	BL-211	TRANSITIONAL	1	-=== point case.org 2:15\n+=== point case.org 6:6
-fn-new-define-inline.org	BL-211	TRANSITIONAL	1	-Some text[fn:1:] here.\n+Some text[fn:1] here.
-fn-new-existing-section.org	BL-202	TRANSITIONAL	1	+\n+[fn:2] 
-fn-new-existing-section.org	BL-202	TRANSITIONAL	1	-=== point case.org 6:6\n+=== point case.org 9:6
-fn-new-existing-section.org	BL-202	TRANSITIONAL	1	-\n-[fn:2] 
-fn-new-local.org	BL-203	TRANSITIONAL	1	+\n+[fn:1] 
-fn-new-local.org	BL-203	TRANSITIONAL	1	-=== point case.org 4:6\n+=== point case.org 6:6
-fn-new-local.org	BL-203	TRANSITIONAL	1	-\n-[fn:1] 
-fn-new-section.org	BL-202	TRANSITIONAL	1	-* Footnotes\n-
-fn-new-section.org	BL-202	TRANSITIONAL	1	-=== point case.org 8:6\n+=== point case.org 6:6
-fn-normalize.org	BL-213	TRANSITIONAL	1	-Alpha[fn:1] beta[fn:2] gamma[fn:3] delta[fn:1] eps[fn:4] zeta[fn:5].\n-\n-* Notes\n-More text[fn:6].\n-\n-* Footnotes\n-\n-[fn:1] Seven def\n-continues here.\n-\n-[fn:2] Named def.\n+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn:1] zeta[fn:in].
-fn-normalize.org	BL-213	TRANSITIONAL	1	-[fn:4] anon body\n+* Notes\n+More text[fn:20].
-fn-normalize.org	BL-213	TRANSITIONAL	1	-[fn:5] inline named\n+[fn:named] Named def.\n+[fn:7] Seven def\n+continues here.
-fn-normalize.org	BL-213	TRANSITIONAL	1	-[fn:6] Twenty.\n+[fn:20] Twenty.\n+[fn:99] Unreferenced.
-fn-normalize.org	BL-213	TRANSITIONAL	1	-[fn:7] Unreferenced.\n+[fn:1] anon body\n+[fn:in]  inline named
-fn-ref-in-def.org	BL-217	TRANSITIONAL	1	-=== point case.org 6:6\n+=== point case.org 2:4
-fn-renumber-verbatim.org	BL-216	TRANSITIONAL	1	-Text[fn:1] and code =[fn:5]= and ~[fn:9]~.\n+Text[fn:1] and code =[fn:1]= and ~[fn:2]~.
-fn-sort.org	BL-212	TRANSITIONAL	1	-
-fn-sort.org	BL-212	TRANSITIONAL	1	-* Notes\n-More text[fn:20].\n-\n-* Footnotes\n-\n-[fn:7] Seven def\n+[fn:1] Seven def
-fn-sort.org	BL-212	TRANSITIONAL	1	-Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].\n+Alpha[fn:1] beta[fn:named] gamma[fn:2] delta[fn:1] eps[fn::anon body] zeta[fn:in: inline named].
-fn-sort.org	BL-212	TRANSITIONAL	1	-[fn:20] Twenty.\n+* Notes\n+More text[fn:3].\n+
-fn-sort.org	BL-212	TRANSITIONAL	1	-[fn:99] Unreferenced.
-fn-sort.org	BL-212	TRANSITIONAL	1	-\n-[fn:3] Three def.\n+[fn:2] Three def.\n+[fn:3] Twenty.\n+[fn:4] Unreferenced.
-follow-coderef-format.org	BL-104	TRANSITIONAL	1	-=== point case.org 3:11\n-=== line (setq y 2) <<ly>>\n+=== point case.org 5:12\n+=== line In line [[(ly)]] we set y.
-follow-coderef.org	BL-104	TRANSITIONAL	1	-=== point case.org 3:11\n-=== line (setq y 2) (ref:sy)\n+=== point case.org 5:12\n+=== line In line [[(sy)]] we set y.
-follow-custom-id.org	BL-103	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+=== point case.org 1:10\n+=== line Go [[#my-id]]
-follow-dot-slash-search.org	BL-105	TRANSITIONAL	1	-=== point other.org 3:0\n-=== line * First\n+=== point other.org::*First 1:0\n+=== line 
-follow-escaped-brackets.org	BL-109	TRANSITIONAL	1	-=== point w.org 2:0\n-=== line * Weird [x] name\n+=== point w.org 1:0\n+=== line * Intro
-follow-file-custom-id.org	BL-107	TRANSITIONAL	1	-=== point other.org 4:0\n-=== line * TODO Second Heading [1/2] :x:\n+=== point other.org 6:0\n+=== line :CUSTOM_ID: sec2
-follow-file-emacs.org	BL-110	TRANSITIONAL	1	-=== point other.org 3:0\n-=== line * First\n+=== point case.org 1:6\n+=== line See [[file+emacs:other.org::*First]]
-follow-file-regexp-alt.org	BL-108	TRANSITIONAL	1	-=== point w.org 1:2\n+=== point w.org 1:0
-follow-file-regexp.org	BL-108	TRANSITIONAL	1	-=== point w.org 1:2\n-=== line * Intro\n+=== point w.org 4:0\n+=== line beta needle
-follow-file-words-missing.org	BL-106	TRANSITIONAL	1	-=== point other.org 14:0\n-=== line * nosuch\n+=== point other.org 1:0\n+=== line #+TITLE: Other
-follow-file-words.org	BL-106	TRANSITIONAL	1	-=== point other.org 14:0\n-=== line * needle\n+=== point other.org 2:0\n+=== line Intro line with needle word.
-follow-fuzzy-heading.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target Heading\n+=== point case.org 1:13\n+=== line Go [[Target Heading]]
-follow-fuzzy-name.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line #+NAME: foo\n+=== point case.org 1:7\n+=== line Go [[foo]]
-follow-fuzzy-nomatch.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * nonexistent\n+=== point case.org 1:11\n+=== line Go [[nonexistent]]
-follow-fuzzy-target.org	BL-102	TRANSITIONAL	1	-=== point case.org 3:5\n-=== line Text <<foo>> here.\n+=== point case.org 1:7\n+=== line Go [[foo]]
-follow-id-unindexed.org	BL-112	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+=== point case.org 1:13\n+=== line Go [[id:abc-123]]
-follow-modified-buffer-file.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[file:case.org::*Target]]
-follow-modified-buffer-id.org	BL-111	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[id:abc-123]]
-follow-on-headline.org	BL-119	TRANSITIONAL	1	-=== open https://only.example
-follow-star-heading.org	BL-101	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * TODO [#A] Target Heading :tag:\n+=== point case.org 1:14\n+=== line Go [[*Target Heading]]
-follow-text-file-words.org	BL-106	TRANSITIONAL	1	-=== point t.txt 2:7\n+=== point t.txt 2:0
-hlines-yes.org	BL-45	TRANSITIONAL	1	-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-inline-call-src.org	BL-42	TRANSITIONAL	1	-Value call_dbl(n=4) {{{results(=8=)}}} and src_sh{echo 7} {{{results(=7=)}}} and src_sh[:results raw]{echo *b*} *b*\n-.\n+Value call_dbl(n=4) and src_sh{echo 7} and src_sh[:results raw]{echo *b*}.
-insert-on-link.org	BL-128	TRANSITIONAL	1	-X [[https://b.example][new desc]] Y\n+X [[https://a.example][o[[https://b.example][new desc]]ld]] Y
-insert-region.org	BL-129	TRANSITIONAL	1	-Some [[https://c.example][region text]] here\n+Some region text[[https://c.example]] here
-name-header.org	BL-47	KEEP	1	-#+RESULTS:\n+#+RESULTS: bar
-noweb-call-args.org	BL-31	TRANSITIONAL	1	-: r=x=w\n+: r=echo x=
-noweb-inline.org	BL-30	TRANSITIONAL	1	-: inline echo A2 end\n+: A2 end
-noweb-missing.org	BL-30	TRANSITIONAL	1	-echo inline echo A2 end\n+echo A2 end
-noweb-missing.org	BL-33	TRANSITIONAL	1	-\n+<<missing>>
-noweb-prefix-call-ref.org	BL-30,BL-31,BL-32	TRANSITIONAL	1	-# pre echo A2\n-echo "num=42"\n-echo G1\n-echo G2\n+echo A2\n+echo "num=echo 42"\n+<<grp>>
-post-wrapper.org	BL-25	TRANSITIONAL	1	-: <hi>\n+: hi
-prologue-epilogue.org	BL-26	TRANSITIONAL	1	-| pro |\n-| hi  |\n-| epi |\n+: hi
-python-default-print.org	BL-6	TRANSITIONAL	1	-: None\n+: hi
-python-default-return.org	BL-6	TRANSITIONAL	1	-: 3\n+: STDERR:   File "<stdin>", line 1\n+: SyntaxError: 'return' outside function
-python-session-value.org	BL-40	TRANSITIONAL	1	-: 6\n+: None
-python-value-hline.org	BL-9	TRANSITIONAL	1	-| 1 | 2 |\n-|---+---|\n-| 3 | 4 |\n+: [[1, 2], None, [3, 4]]
-python-value-list-type.org	BL-9	TRANSITIONAL	1	-- 1\n-- 2\n-- 3\n+: - [1, 2, 3]
-python-value-list.org	BL-9	TRANSITIONAL	1	-| 1 | 2 | 3 |\n+: [1, 2, 3]
-python-value-nested.org	BL-9	TRANSITIONAL	1	-| 1 | 2 |\n-| 3 | 4 |\n+: [[1, 2], [3, 4]]
-python-value-string-table.org	BL-9	TRANSITIONAL	1	-| a b\\nc d |\n+: a b\\nc d
-radio-wrapped.org	BL-118	TRANSITIONAL	1	-=== point case.org 2:0\n-=== line <<<my phrase>>>\n+=== point case.org 5:3\n+=== line phrase here.
-results-blank-before-heading.org	BL-12	TRANSITIONAL	1	-
-results-blank-before-text.org	BL-12	TRANSITIONAL	1	-
-results-empty-line.org	BL-14	TRANSITIONAL	1	-: 
-results-indented-block.org	BL-13	TRANSITIONAL	1	-  #+RESULTS:\n-  : hi\n+#+RESULTS:\n+: hi
-results-other-name.org	BL-15	TRANSITIONAL	1	-#+RESULTS:\n-: new\n-
-results-other-name.org	BL-15	TRANSITIONAL	1	-: theirs\n+: new
-results-table-align.org	BL-11	TRANSITIONAL	1	-|      1 |       2 |\n+| 1 | 2 |
-rownames-yes.org	BL-45	TRANSITIONAL	1	-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
-sh-default-ragged.org	BL-7	TRANSITIONAL	1	-| a | b |\n-| c |   |\n+: a b\n+: c
-sh-default-table.org	BL-7	TRANSITIONAL	1	-| a | b |\n-| c | d |\n+: a b\n+: c d
-sh-default-ten-lines.org	BL-7	TRANSITIONAL	1	-|  1 |\n-|  2 |\n-|  3 |\n-|  4 |\n-|  5 |\n-|  6 |\n-|  7 |\n-|  8 |\n-|  9 |\n-| 10 |\n+#+begin_example\n+1\n+2\n+3\n+4\n+5\n+6\n+7\n+8\n+9\n+10\n+#+end_example
-sh-results-list.org	BL-10	TRANSITIONAL	1	-- x\n-- y\n+: - x\n+: - y
-sh-value-exit-status.org	BL-8	KEEP	1	-: 1\n+: a b\n+: c d
-stderr-exit.org	BL-29	KEEP	1	+: STDERR: err
-store-before-heading.org	BL-124	TRANSITIONAL	1	-=== stored file:<DIR>/case.org::Before any heading.\n-=== description nil\n+=== stored file:<DIR>/case.org::1\n+=== description case.org:1
-store-before-heading.org	BL-124,BL-126	TRANSITIONAL	1	-[[Before any heading.]]\n+[[file:<DIR>/case.org::1][case.org:1]]
-store-body-same-file.org	BL-126	TRANSITIONAL	1	-[[*Head][Head]]\n+[[file:<DIR>/case.org::*Head][Head]]
-store-brackets.org	BL-126,BL-127	TRANSITIONAL	1	-[[*Weird \\[x\\] name][Weird [x] name]]\n+[[file:<DIR>/case.org::*Weird [x] name][Weird [x] name]]
-store-custom-id.org	BL-122	TRANSITIONAL	1	-=== stored file:<DIR>/case.org::#cid-1\n+=== stored file:<DIR>/case.org::*With Custom
-store-custom-id.org	BL-122,BL-126	TRANSITIONAL	1	-[[#cid-1][With Custom]]\n+[[file:<DIR>/case.org::*With Custom][With Custom]]
-store-existing-id.org	BL-123	KEEP	1	-=== stored file:<DIR>/case.org::*With ID\n+=== stored id:1111-2222
-store-existing-id.org	BL-123	KEEP	1	-[[*With ID][With ID]]\n+[[id:1111-2222][With ID]]
-store-headline-todo.org	BL-121	TRANSITIONAL	1	-=== stored file:<DIR>/case.org::*Plain Heading\n-=== description Plain Heading\n+=== stored file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:\n+=== description TODO [#B] Plain Heading [1/3] :tag:
-store-headline-todo.org	BL-121,BL-126	TRANSITIONAL	1	-[[*Plain Heading][Plain Heading]]\n+[[file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:][TODO [#B] Plain Heading [1/3] :tag:]]
-store-id-create-cookie.org	BL-127,BL-132	TRANSITIONAL	1	-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Ends with cookie [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][Ends with cookie [1/3]]]
-store-id-create-drawer.org	BL-121	TRANSITIONAL	1	-=== description Plain Heading [1/3]\n+=== description TODO [#B] Plain Heading [1/3] :tag:
-store-id-create-drawer.org	BL-121,BL-127,BL-132	TRANSITIONAL	1	-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Plain Heading [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][TODO [#B] Plain Heading [1/3] :tag:]]
-store-other-file.org	BL-126	TRANSITIONAL	1	-[[file:sub/far.org::*Far Head][Far Head]]\n+[[file:<DIR>/sub/far.org::*Far Head][Far Head]]
-store-target.org	BL-125	TRANSITIONAL	1	-=== stored file:<DIR>/case.org::my target\n-=== description nil\n+=== stored file:<DIR>/case.org::*Head\n+=== description Head
-store-target.org	BL-125,BL-126	TRANSITIONAL	1	-[[my target]]\n+[[file:<DIR>/case.org::*Head][Head]]
-tangle-comments-modes.org	BL-35	TRANSITIONAL	1	+# Sub:1 ends here
-tangle-comments-modes.org	BL-35	TRANSITIONAL	1	-# Sub\n-# Prose for org comment.\n-\n+# [[file:case.org::*Sub][Sub:1]]
-tangle-comments-modes.org	BL-37	TRANSITIONAL	1	---- w/f.sh (600)\n+--- w/f.sh (644)
-tangle-link-subdir.org	BL-36	TRANSITIONAL	1	-# [[file:../case.org::*H][H:1]]\n+# [[file:case.org::*H][H:1]]
-tangle-missing-dir.org	BL-23	TRANSITIONAL	1	+=== files\n+--- w/j/k.sh (644)\n+echo ten
-tangle-missing-dir.org	BL-23	TRANSITIONAL	1	-! error tangle
-tangle-noweb.org	BL-30	TRANSITIONAL	1	-# x line2\n+line2
-tangle-noweb.org	BL-34	TRANSITIONAL	1	-# [[file:case.org::*H][nm]]
-tangle-noweb.org	BL-34	TRANSITIONAL	1	-# nm ends here
-tangle-symlink.org	BL-38	TRANSITIONAL	1	---- w/real.sh (644)\n+--- w/link.sh (644)
-var-index-slice.org	BL-1,BL-3	TRANSITIONAL	1	-: 2\n-: ['a', 1]\n-: ['b', 'c']\n-: 3\n+: 'tbl[1,1] y=tbl[0] z=tbl[1:2,0] n=(+ 1 2)'\n+: STDERR: Traceback (most recent call last):\n+:   File "<stdin>", line 2, in <module>\n+: NameError: name 'y' is not defined
-var-multi-assign.org	BL-1	TRANSITIONAL	1	-: a=line2 b=line\n+: a=prop" b="prop b=line" a="line2
-var-references.org	BL-3	TRANSITIONAL	1	-: [['a', 1], ['b', 2]]\n-: ['x', 'y']\n+: 'tbl'\n+: 'lst'
-var-references.org	BL-3,BL-5	TRANSITIONAL	1	-: 'literal ex\\n'\n-: 2\n-: 3\n-: 7\n-: 1.5\n+: 'ex'\n+: 'tbl[1,1]'\n+: '(+ 1 2)'\n+: '7'\n+: '1.5'
-var-references.org	BL-4	TRANSITIONAL	1	+#+RESULTS: blk\n+: fromblk\n+
-var-refs-results-files.org	BL-3,BL-4,BL-7	TRANSITIONAL	1	-| a=fresh | b=just | a | result | c=two | words | d=external | e=1 |\n-|       2 |        |   |        |       |       |            |     |\n+: a=stale b=onlyres c=two words d=other.org:ext e='(1 2)
-var-table-into-sh.org	BL-3	TRANSITIONAL	1	-: a\t1\n-: b\t2\n+: tbl
-var-unknown-name.org	BL-2	TRANSITIONAL	1	+\n+#+RESULTS:\n+: filelang
-var-unknown-name.org	BL-2	TRANSITIONAL	1	-! error execute
-wrap-bare-drawer.org	BL-17	TRANSITIONAL	1	-#+begin_results\n+:results:
-wrap-bare-drawer.org	BL-17	TRANSITIONAL	1	-#+end_results\n+:end:
-wrap-bare.org	BL-17	TRANSITIONAL	1	-#+begin_results\n-hi\n-#+end_results\n+: hi
-tangle-unknown-language.org	BL-227	TRANSITIONAL	1	+=== files\n+--- w/u.txt (644)\n+// [[file:case.org::*H][H:1]]\n+raw\n+// H:1 ends here
-tangle-unknown-language.org	BL-227	TRANSITIONAL	1	-! error tangle
-follow-unknown-type-fuzzy.org	BL-228	TRANSITIONAL	1	-=== point case.org 3:0\n-=== line * ROAM_REFS:https://x.org/b\n+=== point case.org 1:16\n+=== line Go [[ROAM_REFS:https://x.org/b]]
+abbrev-after-heading.org	BL-114	TRANSITIONAL	1	 === line Go [[late:xy]]\n-=== open https://late.example/xy
+abbrev-function.org	BL-117	TRANSITIONAL	1	 === line Go [[up:ab]]\n-=== open https://ex.com/AB\n+=== open https://ex.com/%(upcase)ab
+abbrev-hex.org	BL-113	TRANSITIONAL	1	 === line Go [[srch:a b&c/d?e]]\n-=== open https://example.com/q?x=a%20b%26c%2Fd%3Fe\n+=== open https://example.com/q?x=a%20b&c/d%3fe
+abbrev-lowercase.org	BL-115	TRANSITIONAL	1	 === line Go [[lc:ab]]\n-=== open https://lc.example/ab
+abbrev-two-s.org	BL-116	TRANSITIONAL	1	 === line Go [[two:ab]]\n-=== open https://ex.com/ab/%s\n+=== open https://ex.com/ab/ab
+abbrev-unsafe-function.org	BL-117	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * pct:ab\n+=== point case.org 2:10\n+=== line Go [[pct:ab]]\n+=== open https://ex.com/%(identity)ab
+cache-hash.org	BL-18	TRANSITIONAL	1	 #+end_src\n-#+RESULTS[f08260b217ba0bc40c3526427381055117b81645]:\n+#+RESULTS[944da39c45bd1622c268bfa966d0a3d8e8f02df6]:
+call-line.org	BL-41	TRANSITIONAL	1	^\n+! error execute
+call-line.org	BL-41	TRANSITIONAL	1	 #+CALL: dbl(n=5)\n-\n-#+RESULTS:\n-: 10
+cite-bib-files.org	BL-223,BL-224	TRANSITIONAL	1	 === keys\n-doe:2020\n-extra1\n-knuth84
+cite-bib-files.org	BL-223,BL-224	TRANSITIONAL	1	 === bibliography\n-sub/more.bib\n-my refs.bib\n+"my refs.bib"
+cite-bibliography.org	BL-226	TRANSITIONAL	1	 L19 =[cite:@verb]= in verbatim\n-#+print_bibliography:\n+Doe, J., & Roe, R. (2020). On Things. /J. Stuff/.\n+Knuth, D. E. (1984). The TeXbook. Addison-Wesley.\n+Person, E. (2001). Extra.\n+\n+* References\n+Doe, J., & Roe, R. (2020). On Things. /J. Stuff/.\n+Knuth, D. E. (1984). The TeXbook. Addison-Wesley.\n+Person, E. (2001). Extra.
+cite-follow-first.org	BL-219	TRANSITIONAL	1	^\n-=== point refs.bib 1:0\n-=== line @book{knuth84,\n+=== point case.org 6:15\n+=== line L6 [cite/t:see @knuth84 p. 3; @doe:2020] multi
+cite-follow-second.org	BL-219	TRANSITIONAL	1	^\n-=== point refs.bib 8:0\n-=== line @article{doe:2020,\n+=== point case.org 6:30\n+=== line L6 [cite/t:see @knuth84 p. 3; @doe:2020] multi
+cite-insert-replace-key.org	BL-220	TRANSITIONAL	1	 * Cites\n-L5 [cite:@knuth84] simple\n+L5 [cite:@kn[cite:@knuth84]uth84] simple
+cite-parse.org	BL-221	TRANSITIONAL	1	 L6 style=text pre=nil suf=nil refs=(knuth84 "see" "p. 3") (doe:2020 nil nil)\n-L7 style=nil pre="common pre" suf="common suf" refs=(knuth84 nil nil) (doe:2020 nil nil)\n+L7 style=nil pre=nil suf=nil refs=(knuth84 nil nil) (doe:2020 nil nil)
+cite-parse.org	BL-222	TRANSITIONAL	1	 L18 style=nil pre=nil suf=nil refs=(ünï nil nil)\n+L19 style=nil pre=nil suf=nil refs=(verb nil nil)
+coderef-label.org	BL-43	TRANSITIONAL	1	 #+RESULTS:\n-: hi\n+: hi(ref:a)
+colnames-default.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+colnames-explicit.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| X | Y |\n-|---+---|\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+colnames-no.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| k | v |\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+colnames-yes.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| k | v |\n-|---+---|\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+confirm-prompt.org	BL-44	TRANSITIONAL	1	 === prompts\n-? Evaluate this sh code block (foo) on your system? \n+? Evaluate sh block? (Y/n)\\necho hi
+default-header-args.org	BL-48	TRANSITIONAL	1	 #+RESULTS:\n-#+begin_quote\n-langdef\n-#+end_quote
+dir-default.org	BL-12,BL-27,BL-29	TRANSITIONAL	1	 #+RESULTS:\n-: <DIR>/sub\n-\n+: STDERR: :dir is not a directory: sub
+dir-default.org	BL-27	TRANSITIONAL	1	 #+RESULTS:\n-: <DIR>\n+: <ROOT>
+dir-missing.org	BL-29	TRANSITIONAL	1	 #+end_src\n+\n+#+RESULTS:\n+: STDERR: :dir is not a directory: nosuch
+dir-missing.org	BL-29	TRANSITIONAL	1	^\n-! error execute
+dir-mkdirp.org	BL-28	TRANSITIONAL	1	 #+RESULTS:\n-: <DIR>/newdir\n+: STDERR: :dir is not a directory: newdir
+elisp-block.org	BL-46	TRANSITIONAL	1	^\n+! error execute
+elisp-block.org	BL-46	TRANSITIONAL	1	 #+end_src\n-\n-#+RESULTS:\n-: 3
+eval-query.org	BL-24	TRANSITIONAL	1	 === prompts\n-? Evaluate this sh code block on your system? 
+execute-buffer-order.org	BL-27,BL-39	TRANSITIONAL	1	 archived\n+commented\n+second\n+first
+execute-buffer-order.org	BL-27,BL-39	TRANSITIONAL	1	 === files\n---- w/log.txt (644)\n-first\n-second\n-commented\n+--- log.txt (644)
+execute-on-name-line.org	BL-16	TRANSITIONAL	1	^\n+! error execute
+execute-on-name-line.org	BL-16	TRANSITIONAL	1	 #+end_src\n-\n-#+RESULTS: me\n-: new
+file-desc-bare.org	BL-20	TRANSITIONAL	1	 #+RESULTS: nm\n-[[file:out.txt][out.txt]]\n+[[file:out.txt]]
+file-desc-text.org	BL-20	TRANSITIONAL	1	 #+RESULTS: nm\n-[[file:out.txt][Hello]]\n+[[file:out.txt]]
+file-ext.org	BL-21	TRANSITIONAL	1	 #+RESULTS: nm\n-[[file:nm.txt]]\n-=== files\n---- w/nm.txt (644)\n-hi\n+[[file:hi]]
+file-missing-dir.org	BL-23	TRANSITIONAL	1	 #+end_src\n+\n+#+RESULTS: nm\n+[[file:sub2/out.txt]]\n+=== files\n+--- w/sub2/out.txt (644)\n+hi
+file-missing-dir.org	BL-23	TRANSITIONAL	1	^\n-! error execute
+file-mode.org	BL-22	TRANSITIONAL	1	 === files\n---- w/out.txt (755)\n+--- w/out.txt (644)
+file-output-dir.org	BL-19	TRANSITIONAL	1	 === files\n---- w/sub/out.txt (644)\n+--- out.txt (644)
+file-output-dir.org	BL-19	TRANSITIONAL	1	 #+RESULTS: nm\n-[[file:sub/out.txt]]\n+[[file:out.txt]]
+fn-action-plain.org	BL-201	TRANSITIONAL	1	^\n-=== point case.org 8:6\n+! error fn-action\n+=== point case.org 2:9
+fn-action-plain.org	BL-201	TRANSITIONAL	1	 * A\n-Some text[fn:1] here.\n+Some text here.
+fn-action-plain.org	BL-201	TRANSITIONAL	1	 More.\n-\n-* Footnotes\n-\n-[fn:1] 
+fn-adjust.org	BL-215	TRANSITIONAL	1	^\n-=== point case.org 11:7\n+=== point case.org 11:6
+fn-adjust.org	BL-215	TRANSITIONAL	1	 * A\n-Text[fn:1] more[fn:2] and here[fn:3].\n+Text[fn:2] more[fn:1] and here[fn:3].
+fn-adjust.org	BL-215	TRANSITIONAL	1	 * Footnotes\n-[fn:1] Two.\n+[fn:1] One.
+fn-adjust.org	BL-215	TRANSITIONAL	1	 [fn:1] Two.\n-[fn:2] One.\n+[fn:2] Two.
+fn-delete.org	BL-214	TRANSITIONAL	1	^\n+! crash: organ has no footnote delete
+fn-delete.org	BL-214	TRANSITIONAL	1	 [fn:named] Named def.\n+[fn:7] Seven def\n+continues here.
+fn-delete.org	BL-214	TRANSITIONAL	1	 * Intro\n-Alpha beta[fn:named] gamma[fn:3] delta eps[fn::anon body] zeta[fn:in: inline named].\n+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].
+fn-follow-ref.org	BL-218	TRANSITIONAL	1	^\n-=== point case.org 8:6\n-=== line [fn:a] Def of a.\n+=== point case.org 2:9\n+=== line First[fn:a] and again[fn:a] here.
+fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	 :PROPERTIES:\n+\n+[fn:1] 
+fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	^\n-! error fn-new\n-=== point case.org 6:9\n+=== point case.org 10:6
+fn-insert-inline-code.org	BL-210	TRANSITIONAL	1	 #+end_src\n-Text ~code here~ end.\n+Text ~cod[fn:1]e here~ end.
+fn-insert-keyword.org	BL-210	TRANSITIONAL	1	 :PROPERTIES:\n+\n+[fn:1] 
+fn-insert-keyword.org	BL-210	TRANSITIONAL	1	^\n-! error fn-new\n-=== point case.org 1:5\n+=== point case.org 10:6
+fn-insert-keyword.org	BL-210	TRANSITIONAL	1	 === buffer\n-#+TITLE: T\n+#+TIT[fn:1]LE: T
+fn-insert-src-body.org	BL-210	TRANSITIONAL	1	 :PROPERTIES:\n+\n+[fn:1] 
+fn-insert-src-body.org	BL-210	TRANSITIONAL	1	^\n-! error fn-new\n-=== point case.org 4:2\n+=== point case.org 10:6
+fn-insert-src-body.org	BL-210	TRANSITIONAL	1	 #+begin_src sh\n-echo x\n+ec[fn:1]ho x
+fn-jump-anonymous-inline.org	BL-207	TRANSITIONAL	1	^\n-=== point case.org 4:9\n+! error fn-action\n+=== point case.org 4:6
+fn-jump-bare-def.org	BL-206	TRANSITIONAL	1	^\n-! error fn-action
+fn-jump-def-to-ref.org	BL-205	TRANSITIONAL	1	^\n-=== point case.org 2:21\n+=== point case.org 2:5
+fn-jump-missing-def.org	BL-209	TRANSITIONAL	1	^\n-=== point case.org 9:7\n+! error fn-action\n+=== point case.org 3:10
+fn-jump-missing-def.org	BL-209	TRANSITIONAL	1	 * Footnotes\n-\n-[fn:zz] 
+fn-jump-named-inline.org	BL-208	TRANSITIONAL	1	^\n-=== point case.org 4:43\n+! error fn-action\n+=== point case.org 4:40
+fn-jump-ref-to-def.org	BL-204	TRANSITIONAL	1	^\n-=== point case.org 8:6\n+=== point case.org 8:0
+fn-new-anonymous.org	BL-211	TRANSITIONAL	1	 More.\n+\n+[fn:1] 
+fn-new-anonymous.org	BL-211	TRANSITIONAL	1	^\n-=== point case.org 2:14\n+=== point case.org 6:6
+fn-new-anonymous.org	BL-211	TRANSITIONAL	1	 * A\n-Some text[fn::] here.\n+Some text[fn:1] here.
+fn-new-define-inline.org	BL-211	TRANSITIONAL	1	 More.\n+\n+[fn:1] 
+fn-new-define-inline.org	BL-211	TRANSITIONAL	1	^\n-=== point case.org 2:15\n+=== point case.org 6:6
+fn-new-define-inline.org	BL-211	TRANSITIONAL	1	 * A\n-Some text[fn:1:] here.\n+Some text[fn:1] here.
+fn-new-existing-section.org	BL-202	TRANSITIONAL	1	 [fn:named] named\n+\n+[fn:2] 
+fn-new-existing-section.org	BL-202	TRANSITIONAL	1	^\n-=== point case.org 6:6\n+=== point case.org 9:6
+fn-new-existing-section.org	BL-202	TRANSITIONAL	1	 * Footnotes\n-\n-[fn:2] 
+fn-new-local.org	BL-203	TRANSITIONAL	1	 More.\n+\n+[fn:1] 
+fn-new-local.org	BL-203	TRANSITIONAL	1	^\n-=== point case.org 4:6\n+=== point case.org 6:6
+fn-new-local.org	BL-203	TRANSITIONAL	1	 Some text[fn:1] here.\n-\n-[fn:1] 
+fn-new-section.org	BL-202	TRANSITIONAL	1	 More.\n-* Footnotes\n-
+fn-new-section.org	BL-202	TRANSITIONAL	1	^\n-=== point case.org 8:6\n+=== point case.org 6:6
+fn-normalize.org	BL-213	TRANSITIONAL	1	 * Intro\n-Alpha[fn:1] beta[fn:2] gamma[fn:3] delta[fn:1] eps[fn:4] zeta[fn:5].\n-\n-* Notes\n-More text[fn:6].\n-\n-* Footnotes\n-\n-[fn:1] Seven def\n-continues here.\n-\n-[fn:2] Named def.\n+Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn:1] zeta[fn:in].
+fn-normalize.org	BL-213	TRANSITIONAL	1	 Second para of three.\n-[fn:4] anon body\n+* Notes\n+More text[fn:20].
+fn-normalize.org	BL-213	TRANSITIONAL	1	 [fn:4] anon body\n-[fn:5] inline named\n+[fn:named] Named def.\n+[fn:7] Seven def\n+continues here.
+fn-normalize.org	BL-213	TRANSITIONAL	1	 [fn:5] inline named\n-[fn:6] Twenty.\n+[fn:20] Twenty.\n+[fn:99] Unreferenced.
+fn-normalize.org	BL-213	TRANSITIONAL	1	 [fn:6] Twenty.\n-[fn:7] Unreferenced.\n+[fn:1] anon body\n+[fn:in]  inline named
+fn-ref-in-def.org	BL-217	TRANSITIONAL	1	^\n-=== point case.org 6:6\n+=== point case.org 2:4
+fn-renumber-verbatim.org	BL-216	TRANSITIONAL	1	 * A\n-Text[fn:1] and code =[fn:5]= and ~[fn:9]~.\n+Text[fn:1] and code =[fn:1]= and ~[fn:2]~.
+fn-sort.org	BL-212	TRANSITIONAL	1	 continues here.\n-
+fn-sort.org	BL-212	TRANSITIONAL	1	 Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].\n-* Notes\n-More text[fn:20].\n-\n-* Footnotes\n-\n-[fn:7] Seven def\n+[fn:1] Seven def
+fn-sort.org	BL-212	TRANSITIONAL	1	 * Intro\n-Alpha[fn:7] beta[fn:named] gamma[fn:3] delta[fn:7] eps[fn::anon body] zeta[fn:in: inline named].\n+Alpha[fn:1] beta[fn:named] gamma[fn:2] delta[fn:1] eps[fn::anon body] zeta[fn:in: inline named].
+fn-sort.org	BL-212	TRANSITIONAL	1	 Second para of three.\n-[fn:20] Twenty.\n+* Notes\n+More text[fn:3].\n+
+fn-sort.org	BL-212	TRANSITIONAL	1	 [fn:20] Twenty.\n-[fn:99] Unreferenced.
+fn-sort.org	BL-212	TRANSITIONAL	1	 [fn:named] Named def.\n-\n-[fn:3] Three def.\n+[fn:2] Three def.\n+[fn:3] Twenty.\n+[fn:4] Unreferenced.
+follow-coderef-format.org	BL-104	TRANSITIONAL	1	^\n-=== point case.org 3:11\n-=== line (setq y 2) <<ly>>\n+=== point case.org 5:12\n+=== line In line [[(ly)]] we set y.
+follow-coderef.org	BL-104	TRANSITIONAL	1	^\n-=== point case.org 3:11\n-=== line (setq y 2) (ref:sy)\n+=== point case.org 5:12\n+=== line In line [[(sy)]] we set y.
+follow-custom-id.org	BL-103	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * Target\n+=== point case.org 1:10\n+=== line Go [[#my-id]]
+follow-dot-slash-search.org	BL-105	TRANSITIONAL	1	^\n-=== point other.org 3:0\n-=== line * First\n+=== point other.org::*First 1:0\n+=== line 
+follow-escaped-brackets.org	BL-109	TRANSITIONAL	1	^\n-=== point w.org 2:0\n-=== line * Weird [x] name\n+=== point w.org 1:0\n+=== line * Intro
+follow-file-custom-id.org	BL-107	TRANSITIONAL	1	^\n-=== point other.org 4:0\n-=== line * TODO Second Heading [1/2] :x:\n+=== point other.org 6:0\n+=== line :CUSTOM_ID: sec2
+follow-file-emacs.org	BL-110	TRANSITIONAL	1	^\n-=== point other.org 3:0\n-=== line * First\n+=== point case.org 1:6\n+=== line See [[file+emacs:other.org::*First]]
+follow-file-regexp-alt.org	BL-108	TRANSITIONAL	1	^\n-=== point w.org 1:2\n+=== point w.org 1:0
+follow-file-regexp.org	BL-108	TRANSITIONAL	1	^\n-=== point w.org 1:2\n-=== line * Intro\n+=== point w.org 4:0\n+=== line beta needle
+follow-file-words-missing.org	BL-106	TRANSITIONAL	1	^\n-=== point other.org 14:0\n-=== line * nosuch\n+=== point other.org 1:0\n+=== line #+TITLE: Other
+follow-file-words.org	BL-106	TRANSITIONAL	1	^\n-=== point other.org 14:0\n-=== line * needle\n+=== point other.org 2:0\n+=== line Intro line with needle word.
+follow-fuzzy-heading.org	BL-102	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * Target Heading\n+=== point case.org 1:13\n+=== line Go [[Target Heading]]
+follow-fuzzy-name.org	BL-102	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line #+NAME: foo\n+=== point case.org 1:7\n+=== line Go [[foo]]
+follow-fuzzy-nomatch.org	BL-102	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * nonexistent\n+=== point case.org 1:11\n+=== line Go [[nonexistent]]
+follow-fuzzy-target.org	BL-102	TRANSITIONAL	1	^\n-=== point case.org 3:5\n-=== line Text <<foo>> here.\n+=== point case.org 1:7\n+=== line Go [[foo]]
+follow-id-unindexed.org	BL-112	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * Target\n+=== point case.org 1:13\n+=== line Go [[id:abc-123]]
+follow-modified-buffer-file.org	BL-111	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[file:case.org::*Target]]
+follow-modified-buffer-id.org	BL-111	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * Target\n+! crash: nvim_exec2(), line 1: Vim(edit):E37: No write since last change (add ! to override)\n+=== point case.org 1:6\n+=== line Go [[id:abc-123]]
+follow-on-headline.org	BL-119	TRANSITIONAL	1	 === line * Heading\n-=== open https://only.example
+follow-star-heading.org	BL-101	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * TODO [#A] Target Heading :tag:\n+=== point case.org 1:14\n+=== line Go [[*Target Heading]]
+follow-text-file-words.org	BL-106	TRANSITIONAL	1	^\n-=== point t.txt 2:7\n+=== point t.txt 2:0
+hlines-yes.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+inline-call-src.org	BL-42	TRANSITIONAL	1	 : 4\n-Value call_dbl(n=4) {{{results(=8=)}}} and src_sh{echo 7} {{{results(=7=)}}} and src_sh[:results raw]{echo *b*} *b*\n-.\n+Value call_dbl(n=4) and src_sh{echo 7} and src_sh[:results raw]{echo *b*}.
+insert-on-link.org	BL-128	TRANSITIONAL	1	 === buffer\n-X [[https://b.example][new desc]] Y\n+X [[https://a.example][o[[https://b.example][new desc]]ld]] Y
+insert-region.org	BL-129	TRANSITIONAL	1	 === buffer\n-Some [[https://c.example][region text]] here\n+Some region text[[https://c.example]] here
+name-header.org	BL-47	KEEP	1	 #+end_src\n-#+RESULTS:\n+#+RESULTS: bar
+noweb-call-args.org	BL-31	TRANSITIONAL	1	 #+RESULTS:\n-: r=x=w\n+: r=echo x=
+noweb-inline.org	BL-30	TRANSITIONAL	1	 : inline echo A1\n-: inline echo A2 end\n+: A2 end
+noweb-missing.org	BL-30	TRANSITIONAL	1	 echo inline echo A1\n-echo inline echo A2 end\n+echo A2 end
+noweb-missing.org	BL-33	TRANSITIONAL	1	 echo start\n-\n+<<missing>>
+noweb-prefix-call-ref.org	BL-30,BL-31,BL-32	TRANSITIONAL	1	 # pre echo A1\n-# pre echo A2\n-echo "num=42"\n-echo G1\n-echo G2\n+echo A2\n+echo "num=echo 42"\n+<<grp>>
+post-wrapper.org	BL-25	TRANSITIONAL	1	 #+RESULTS:\n-: <hi>\n+: hi
+prologue-epilogue.org	BL-26	TRANSITIONAL	1	 #+RESULTS:\n-| pro |\n-| hi  |\n-| epi |\n+: hi
+python-default-print.org	BL-6	TRANSITIONAL	1	 #+RESULTS:\n-: None\n+: hi
+python-default-return.org	BL-6	TRANSITIONAL	1	 #+RESULTS:\n-: 3\n+: STDERR:   File "<stdin>", line 1\n+: SyntaxError: 'return' outside function
+python-session-value.org	BL-40	TRANSITIONAL	1	 #+RESULTS:\n-: 6\n+: None
+python-value-hline.org	BL-9	TRANSITIONAL	1	 #+RESULTS:\n-| 1 | 2 |\n-|---+---|\n-| 3 | 4 |\n+: [[1, 2], None, [3, 4]]
+python-value-list-type.org	BL-9	TRANSITIONAL	1	 #+RESULTS:\n-- 1\n-- 2\n-- 3\n+: - [1, 2, 3]
+python-value-list.org	BL-9	TRANSITIONAL	1	 #+RESULTS:\n-| 1 | 2 | 3 |\n+: [1, 2, 3]
+python-value-nested.org	BL-9	TRANSITIONAL	1	 #+RESULTS:\n-| 1 | 2 |\n-| 3 | 4 |\n+: [[1, 2], [3, 4]]
+python-value-string-table.org	BL-9	TRANSITIONAL	1	 #+RESULTS:\n-| a b\\nc d |\n+: a b\\nc d
+radio-wrapped.org	BL-118	TRANSITIONAL	1	^\n-=== point case.org 2:0\n-=== line <<<my phrase>>>\n+=== point case.org 5:3\n+=== line phrase here.
+results-blank-before-heading.org	BL-12	TRANSITIONAL	1	 : hi\n-
+results-blank-before-text.org	BL-12	TRANSITIONAL	1	 : hi\n-
+results-empty-line.org	BL-14	TRANSITIONAL	1	 #+RESULTS:\n-: 
+results-indented-block.org	BL-13	TRANSITIONAL	1	   #+end_src\n-  #+RESULTS:\n-  : hi\n+#+RESULTS:\n+: hi
+results-other-name.org	BL-15	TRANSITIONAL	1	 #+end_src\n-#+RESULTS:\n-: new\n-
+results-other-name.org	BL-15	TRANSITIONAL	1	 #+RESULTS: other\n-: theirs\n+: new
+results-table-align.org	BL-11	TRANSITIONAL	1	 | a=plus | b=dplus |\n-|      1 |       2 |\n+| 1 | 2 |
+rownames-yes.org	BL-45	TRANSITIONAL	1	 #+RESULTS:\n-| a | 1 |\n-| b | 2 |\n+: ['t', 'b']
+sh-default-ragged.org	BL-7	TRANSITIONAL	1	 #+RESULTS:\n-| a | b |\n-| c |   |\n+: a b\n+: c
+sh-default-table.org	BL-7	TRANSITIONAL	1	 #+RESULTS:\n-| a | b |\n-| c | d |\n+: a b\n+: c d
+sh-default-ten-lines.org	BL-7	TRANSITIONAL	1	 #+RESULTS:\n-|  1 |\n-|  2 |\n-|  3 |\n-|  4 |\n-|  5 |\n-|  6 |\n-|  7 |\n-|  8 |\n-|  9 |\n-| 10 |\n+#+begin_example\n+1\n+2\n+3\n+4\n+5\n+6\n+7\n+8\n+9\n+10\n+#+end_example
+sh-results-list.org	BL-10	TRANSITIONAL	1	 #+RESULTS:\n-- x\n-- y\n+: - x\n+: - y
+sh-value-exit-status.org	BL-8	KEEP	1	 #+RESULTS:\n-: 1\n+: a b\n+: c d
+stderr-exit.org	BL-29	KEEP	1	 : out\n+: STDERR: err
+store-before-heading.org	BL-124	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::Before any heading.\n-=== description nil\n+=== stored file:<DIR>/case.org::1\n+=== description case.org:1
+store-before-heading.org	BL-124,BL-126	TRANSITIONAL	1	 * Head\n-[[Before any heading.]]\n+[[file:<DIR>/case.org::1][case.org:1]]
+store-body-same-file.org	BL-126	TRANSITIONAL	1	 Some body text line.\n-[[*Head][Head]]\n+[[file:<DIR>/case.org::*Head][Head]]
+store-brackets.org	BL-126,BL-127	TRANSITIONAL	1	 * Weird [x] name\n-[[*Weird \\[x\\] name][Weird [x] name]]\n+[[file:<DIR>/case.org::*Weird [x] name][Weird [x] name]]
+store-custom-id.org	BL-122	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::#cid-1\n+=== stored file:<DIR>/case.org::*With Custom
+store-custom-id.org	BL-122,BL-126	TRANSITIONAL	1	 :END:\n-[[#cid-1][With Custom]]\n+[[file:<DIR>/case.org::*With Custom][With Custom]]
+store-existing-id.org	BL-123	KEEP	1	^\n-=== stored file:<DIR>/case.org::*With ID\n+=== stored id:1111-2222
+store-existing-id.org	BL-123	KEEP	1	 :END:\n-[[*With ID][With ID]]\n+[[id:1111-2222][With ID]]
+store-headline-todo.org	BL-121	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::*Plain Heading\n-=== description Plain Heading\n+=== stored file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:\n+=== description TODO [#B] Plain Heading [1/3] :tag:
+store-headline-todo.org	BL-121,BL-126	TRANSITIONAL	1	 ** TODO [#B] Plain Heading [1/3] :tag:\n-[[*Plain Heading][Plain Heading]]\n+[[file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:][TODO [#B] Plain Heading [1/3] :tag:]]
+store-id-create-cookie.org	BL-127,BL-132	TRANSITIONAL	1	 ** Ends with cookie [1/3]\n-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Ends with cookie [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][Ends with cookie [1/3]]]
+store-id-create-drawer.org	BL-121	TRANSITIONAL	1	 === stored id:<ID1>\n-=== description Plain Heading [1/3]\n+=== description TODO [#B] Plain Heading [1/3] :tag:
+store-id-create-drawer.org	BL-121,BL-127,BL-132	TRANSITIONAL	1	 ** TODO [#B] Plain Heading [1/3] :tag:\n-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Plain Heading [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][TODO [#B] Plain Heading [1/3] :tag:]]
+store-other-file.org	BL-126	TRANSITIONAL	1	 Insert here:\n-[[file:sub/far.org::*Far Head][Far Head]]\n+[[file:<DIR>/sub/far.org::*Far Head][Far Head]]
+store-target.org	BL-125	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::my target\n-=== description nil\n+=== stored file:<DIR>/case.org::*Head\n+=== description Head
+store-target.org	BL-125,BL-126	TRANSITIONAL	1	 Here is <<my target>> in text.\n-[[my target]]\n+[[file:<DIR>/case.org::*Head][Head]]
+tangle-comments-modes.org	BL-35	TRANSITIONAL	1	 echo three\n+# Sub:1 ends here
+tangle-comments-modes.org	BL-35	TRANSITIONAL	1	 --- w/b.sh (644)\n-# Sub\n-# Prose for org comment.\n-\n+# [[file:case.org::*Sub][Sub:1]]
+tangle-comments-modes.org	BL-37	TRANSITIONAL	1	 echo seven\n---- w/f.sh (600)\n+--- w/f.sh (644)
+tangle-link-subdir.org	BL-36	TRANSITIONAL	1	 --- w/sub/x.sh (644)\n-# [[file:../case.org::*H][H:1]]\n+# [[file:case.org::*H][H:1]]
+tangle-missing-dir.org	BL-23	TRANSITIONAL	1	 #+end_src\n+=== files\n+--- w/j/k.sh (644)\n+echo ten
+tangle-missing-dir.org	BL-23	TRANSITIONAL	1	^\n-! error tangle
+tangle-noweb.org	BL-30	TRANSITIONAL	1	 # x line1\n-# x line2\n+line2
+tangle-noweb.org	BL-34	TRANSITIONAL	1	 # [[file:case.org::*H][H:4]]\n-# [[file:case.org::*H][nm]]
+tangle-noweb.org	BL-34	TRANSITIONAL	1	 line2\n-# nm ends here
+tangle-symlink.org	BL-38	TRANSITIONAL	1	 === files\n---- w/real.sh (644)\n+--- w/link.sh (644)
+var-index-slice.org	BL-1,BL-3	TRANSITIONAL	1	 #+RESULTS:\n-: 2\n-: ['a', 1]\n-: ['b', 'c']\n-: 3\n+: 'tbl[1,1] y=tbl[0] z=tbl[1:2,0] n=(+ 1 2)'\n+: STDERR: Traceback (most recent call last):\n+:   File "<stdin>", line 2, in <module>\n+: NameError: name 'y' is not defined
+var-multi-assign.org	BL-1	TRANSITIONAL	1	 #+RESULTS:\n-: a=line2 b=line\n+: a=prop" b="prop b=line" a="line2
+var-references.org	BL-3	TRANSITIONAL	1	 #+RESULTS:\n-: [['a', 1], ['b', 2]]\n-: ['x', 'y']\n+: 'tbl'\n+: 'lst'
+var-references.org	BL-3,BL-5	TRANSITIONAL	1	 : 'fromblk'\n-: 'literal ex\\n'\n-: 2\n-: 3\n-: 7\n-: 1.5\n+: 'ex'\n+: 'tbl[1,1]'\n+: '(+ 1 2)'\n+: '7'\n+: '1.5'
+var-references.org	BL-4	TRANSITIONAL	1	 #+end_src\n+#+RESULTS: blk\n+: fromblk\n+
+var-refs-results-files.org	BL-3,BL-4,BL-7	TRANSITIONAL	1	 #+RESULTS:\n-| a=fresh | b=just | a | result | c=two | words | d=external | e=1 |\n-|       2 |        |   |        |       |       |            |     |\n+: a=stale b=onlyres c=two words d=other.org:ext e='(1 2)
+var-table-into-sh.org	BL-3	TRANSITIONAL	1	 #+RESULTS:\n-: a\t1\n-: b\t2\n+: tbl
+var-unknown-name.org	BL-2	TRANSITIONAL	1	 #+end_src\n+\n+#+RESULTS:\n+: filelang
+var-unknown-name.org	BL-2	TRANSITIONAL	1	^\n-! error execute
+wrap-bare-drawer.org	BL-17	TRANSITIONAL	1	 #+RESULTS:\n-#+begin_results\n+:results:
+wrap-bare-drawer.org	BL-17	TRANSITIONAL	1	 hi\n-#+end_results\n+:end:
+wrap-bare.org	BL-17	TRANSITIONAL	1	 #+RESULTS:\n-#+begin_results\n-hi\n-#+end_results\n+: hi
+tangle-unknown-language.org	BL-227	TRANSITIONAL	1	 #+end_src\n+=== files\n+--- w/u.txt (644)\n+// [[file:case.org::*H][H:1]]\n+raw\n+// H:1 ends here
+tangle-unknown-language.org	BL-227	TRANSITIONAL	1	^\n-! error tangle
+follow-unknown-type-fuzzy.org	BL-228	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * ROAM_REFS:https://x.org/b\n+=== point case.org 1:16\n+=== line Go [[ROAM_REFS:https://x.org/b]]

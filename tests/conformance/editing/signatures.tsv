@@ -1,367 +1,368 @@
 # Expected editing differences against Emacs (format: tests/conformance/_signatures.lua).
-allowed-values-drawer-after-blank.org	ED-49	TRANSITIONAL	1	-nil\n+"a"\n+"b"
-allowed-values-from-body.org	ED-49	TRANSITIONAL	1	-"a"\n-"b"\n+nil
-allowed-values-inherited-plus.org	ED-49	TRANSITIONAL	1	-"b"
-allowed-values-priority.org	ED-49	TRANSITIONAL	1	-"A"\n-"B"\n-"C"\n+nil
-allowed-values-quoted.org	ED-49	TRANSITIONAL	1	-"a b"\n+"\\"a"\n+"b\\""
-allowed-values-todo.org	ED-49	TRANSITIONAL	1	-"TODO"\n-"NEXT"\n-"DONE"\n-""\n+nil
-checkbox-remove.org	ED-35	TRANSITIONAL	1	-- item\n+! no organ command\n+- [ ] item
-checkbox-remove.org	ED-35	TRANSITIONAL	1	-1:6\n+1:10
-checkbox-toggle-cookieless-parent.org	ED-37	TRANSITIONAL	1	-- [-] a\n+- [ ] a
-checkbox-toggle-derived-parent.org	ED-36	TRANSITIONAL	1	-- [-] parent\n+- [X] parent
-checkbox-toggle-done.org	ED-34	TRANSITIONAL	1	-- [ ] a\n+- [-] a
-checkbox-toggle-lowercase-done.org	ED-34	TRANSITIONAL	1	-- [X] [x] a\n+- [-] a
-checkbox-toggle-lowercase-done.org	ED-34	TRANSITIONAL	1	-1:11\n+1:7
-checkbox-toggle-multi-level.org	ED-37	TRANSITIONAL	1	-- [-] parent [1/2]\n-  - [X] a\n+- [ ] parent [/]\n+  - [-] a
-checkbox-toggle-non-hierarchical.org	ED-37,ED-40	TRANSITIONAL	1	-* Head [1/4]\n-- [-] a\n+* Head [0/2]\n+- [ ] a
-checkbox-toggle-partial-leaf.org	ED-34	TRANSITIONAL	1	-- [X] a\n+- [ ] a
-checkbox-toggle-partial-parent.org	ED-36	TRANSITIONAL	1	-- [-] parent\n+- [ ] parent
-checkbox-toggle-plain-item.org	ED-35	KEEP	1	-- item\n+- [ ] item
-checkbox-toggle-region-first-done.org	ED-43	TRANSITIONAL	1	-- [ ] a\n+- [-] a
-checkbox-toggle-section.org	ED-43	TRANSITIONAL	1	+! error
-checkbox-toggle-section.org	ED-43	TRANSITIONAL	1	-- [X] a\n-- [X] b\n+- [ ] a\n+- [ ] b
-checkbox-toggle-two-cookies.org	ED-38	TRANSITIONAL	1	-- [X] parent [1/1] and [100%] text\n+- [X] parent [1/1] and [%] text
-cycle-bullet-description-bol.org	ED-29	KEEP	1	-1. a :: x\n-2. b :: y\n+- a :: x\n+- b :: y
-cycle-bullet-description.org	ED-29	KEEP	1	-1. a :: x\n-2. b :: y\n+- a :: x\n+- b :: y
-cycle-bullet-description.org	ED-29	KEEP	1	-1:9\n+1:8
-demote-adapt-flush-body.org	ED-12	TRANSITIONAL	1	- body at 0\n+body at 0
-demote-adapt-headline-data.org	ED-12,ED-68	TRANSITIONAL	1	-   SCHEDULED: <2026-05-04 Mon>\n-   :PROPERTIES:\n-   :X:        1\n-   :END:\n+  SCHEDULED: <2026-05-04 Mon>\n+  :PROPERTIES:\n+  :X: 1\n+  :END:
-demote-adapt-indentation-planning.org	ED-12	TRANSITIONAL	1	-   body\n-   SCHEDULED: <2026-05-04 Mon>\n+  body\n+  SCHEDULED: <2026-05-04 Mon>
-demote-adapt-indentation-planning.org	ED-12	TRANSITIONAL	1	-    bb\n+   bb
-demote-adapt-indentation.org	ED-12	TRANSITIONAL	1	-   body\n-   SCHEDULED: <2026-05-04 Mon>\n+  body\n+  SCHEDULED: <2026-05-04 Mon>
-demote-adapt-indentation.org	ED-12	TRANSITIONAL	1	-    bb\n- #+begin_src sh\n- x\n- #+end_src\n+   bb\n+#+begin_src sh\n+x\n+#+end_src
-demote-adapt-list-body.org	ED-12	TRANSITIONAL	1	-   - item\n-     cont\n+  - item\n+    cont
-demote-aligned-tags.org	ED-11	TRANSITIONAL	1	-** A                                                                    :tag:\n-*** b                                                                     :x:\n+** A                                                                  :tag:\n+*** b                                                                 :x:
-demote-aligned-tags.org	ED-11	TRANSITIONAL	1	-1:77\n+1:75
-demote-unaligned-tags.org	ED-11	TRANSITIONAL	1	-** A                                                                    :tag:\n+** A :tag:
-demote-unaligned-tags.org	ED-11	TRANSITIONAL	1	-1:77\n+1:10
-emphasize-word.org	ED-64	KEEP	1	-some wo ** rd here\n+some *word* here
-emphasize-word.org	ED-64	KEEP	1	-1:9\n+1:11
-fast-tags-exclusive-group.org	ED-51	TRANSITIONAL	1	-* A                                                                    :home:\n+* A
-fast-tags-existing-order.org	ED-52	TRANSITIONAL	1	-* A                                                       :zeta:urgent:alpha:\n+* A                                                              :alpha:zeta:
-fast-tags-file-tags.org	ED-51	TRANSITIONAL	1	-* A                                                                    :work:\n+* A
-fill-src-block.org	ED-65	TRANSITIONAL	1	-  echo a long shell line with many words that should not be wrapped at\n-  all by fill paragraph ever ok\n+echo a long shell line with many words that should not be wrapped at all by fill paragraph ever ok
-format-list-start-number.org	ED-23	TRANSITIONAL	1	-1. a\n-2. b\n+3. a\n+4. b
-format-planning-and-drawers.org	ED-79	TRANSITIONAL	1	-DEADLINE: <2026-05-05 Tue> SCHEDULED: <2026-05-04 Mon>\n+DEADLINE: <2026-05-05 Tue>   SCHEDULED: <2026-05-04 Mon>
-format-planning-and-drawers.org	ED-79	TRANSITIONAL	1	-:X: 1\n+:X:        1
-indent-region-default.org	~ED-44,ED-67	TRANSITIONAL	1	-text\n-SCHEDULED: <2026-05-04 Mon>\n+   text\n+  SCHEDULED: <2026-05-04 Mon>
-indent-region-default.org	ED-67	TRANSITIONAL	1	-- sub\n+   - sub
-indent-region-default.org	ED-67	TRANSITIONAL	1	-deep\n+     deep
-indent-region-headline-data.org	ED-68	TRANSITIONAL	1	-  :X:        1\n+  :X: 1
-inherited-archive-plus-chain.org	ED-50	TRANSITIONAL	1	-5\ta b\n-9\ta b\n+5\ta\n+9\ta
-inherited-archive-plus-child.org	ED-50	TRANSITIONAL	1	-5\talpha beta\n+5\talpha
-inherited-property-file-keyword.org	ED-50	TRANSITIONAL	1	-"filev"\n+nil
-inherited-property-key-case.org	ED-50	TRANSITIONAL	1	-"a"\n+nil
-inherited-property-plus.org	ED-50	TRANSITIONAL	1	-"a b"\n+"a"
-insert-heading-rc-preamble.org	ED-7	TRANSITIONAL	1	-
-insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	+! no organ command
-insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	-** Be\n-*** ta\n+** Beta
-insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	-3:6\n+2:5
-insert-todo-done-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	-* FIXED Be\n-* TODO ta\n+* FIXED Beta
-insert-todo-done-keyword.org	ED-5	TRANSITIONAL	1	+* BUG 
-insert-todo-done-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	-4:7\n+5:6
-insert-todo-next-keyword.org	ED-1	KEEP	1	-** NEXT Be\n-** NEXT ta\n+** NEXT Beta
-insert-todo-next-keyword.org	ED-5	TRANSITIONAL	1	+** TODO 
-insert-todo-next-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	-4:8\n+5:8
-insert-todo-plain-heading.org	ED-1	KEEP	1	-* Be\n-* TODO ta\n+* Beta\n+* TODO 
-insert-todo-rc-next-keyword.org	ED-5	TRANSITIONAL	1	-* NEXT \n+* TODO 
-item-indent-modify-bullet.org	ED-30	TRANSITIONAL	1	-   - b\n+   1. b
-item-indent-modify-bullet.org	ED-30	TRANSITIONAL	1	-2:6\n+2:4
-item-indent-tree-modify-bullet.org	ED-30	TRANSITIONAL	1	-  + b\n+  - b
-item-indent-tree-modify-bullet.org	ED-30	TRANSITIONAL	1	-2:5\n+2:3
-list-sort-alpha.org	ED-31	TRANSITIONAL	1	-- A\n+- [ ] C
-list-sort-alpha.org	ED-31	TRANSITIONAL	1	+- A
-list-sort-alpha.org	ED-31	TRANSITIONAL	1	-- [ ] C
-list-sort-checkbox.org	ED-32	TRANSITIONAL	1	-- c
-list-sort-checkbox.org	ED-32	TRANSITIONAL	1	+- c
-list-sort-numeric.org	ED-31	TRANSITIONAL	1	-1. z\n+1. 10 x
-list-sort-numeric.org	ED-31	TRANSITIONAL	1	-3. 10 x\n+3. z
-list-sort-time.org	ED-32	TRANSITIONAL	1	-- none
-list-sort-time.org	ED-32	TRANSITIONAL	1	+- none
-mark-subtree-from-body.org	ED-18	TRANSITIONAL	1	+! no organ command
-mark-subtree-from-body.org	ED-18	TRANSITIONAL	1	-2:0\n-mark 5:0\n+3:1
-meta-return-blank-between-headings.org	ED-9	TRANSITIONAL	2	-
-meta-return-blank-between-headings.org	ED-9	TRANSITIONAL	1	-3:2\n+2:2
-meta-return-blank-in-body.org	ED-1	KEEP	1	-** \n+
-meta-return-blank-in-body.org	ED-1	KEEP	1	+** 
-meta-return-blank-in-body.org	ED-1	KEEP	1	-4:3\n+6:3
-meta-return-blank-style-spaced.org	ED-1	KEEP	1	+body
-meta-return-blank-style-spaced.org	ED-1	KEEP	1	-body
-meta-return-blank-style-spaced.org	ED-1	KEEP	1	-5:2\n+6:2
-meta-return-blank-style-tight.org	ED-1	KEEP	1	-* 
-meta-return-blank-style-tight.org	ED-1	KEEP	1	+* 
-meta-return-blank-style-tight.org	ED-1	KEEP	1	-3:2\n+4:2
-meta-return-body-eol.org	ED-1	KEEP	1	-** 
-meta-return-body-eol.org	ED-1	KEEP	1	+** 
-meta-return-body-eol.org	ED-1	KEEP	1	-4:3\n+6:3
-meta-return-body-mid-line.org	ED-1	KEEP	1	-first li\n-** ne\n+first line
-meta-return-body-mid-line.org	ED-1	KEEP	1	+** 
-meta-return-body-mid-line.org	ED-1	KEEP	1	-4:3\n+6:3
-meta-return-first-heading-bol.org	ED-1	KEEP	1	-* 
-meta-return-first-heading-bol.org	ED-1	KEEP	1	+* 
-meta-return-first-heading-bol.org	ED-1	KEEP	1	-1:2\n+3:2
-meta-return-heading-bol.org	ED-1	KEEP	1	-** 
-meta-return-heading-bol.org	ED-1	KEEP	1	+** 
-meta-return-heading-bol.org	ED-1	KEEP	1	-2:3\n+4:3
-meta-return-heading-eol.org	ED-1	KEEP	1	-** 
-meta-return-heading-eol.org	ED-1	KEEP	1	+** 
-meta-return-heading-eol.org	ED-1	KEEP	1	-3:3\n+5:3
-meta-return-heading-mid-title.org	ED-1	KEEP	1	-** Be\n-** ta gamma\n+** Beta gamma
-meta-return-heading-mid-title.org	ED-1	KEEP	1	+** 
-meta-return-heading-mid-title.org	ED-1	KEEP	1	-3:11\n+5:3
-meta-return-in-drawer.org	ED-1	KEEP	1	-* 
-meta-return-in-drawer.org	ED-1	KEEP	1	+* 
-meta-return-in-drawer.org	ED-1	KEEP	1	-4:2\n+6:2
-meta-return-in-link.org	ED-1	KEEP	1	-see [[ht\n-* tps://x][x]]\n+see [[https://x][x]]\n+* 
-meta-return-in-src-block.org	ED-1	KEEP	1	-echo\n-*  hi\n+echo hi
-meta-return-in-src-block.org	ED-1	KEEP	1	+* 
-meta-return-in-src-block.org	ED-1	KEEP	1	-4:2\n+5:2
-meta-return-item-alphabetical.org	ED-28	TRANSITIONAL	1	-b. \n-c. two\n+b. two\n+* 
-meta-return-item-alphabetical.org	ED-28	TRANSITIONAL	1	-2:3\n+3:2
-meta-return-item-bare-bullet.org	ED-26	TRANSITIONAL	1	-- \n-- \n+-\n+* 
-meta-return-item-bare-bullet.org	ED-26	TRANSITIONAL	1	-2:2\n+3:2
-meta-return-item-bol.org	ED-2	KEEP	1	-- 
-meta-return-item-bol.org	ED-2	KEEP	1	+- 
-meta-return-item-bol.org	ED-2	KEEP	1	-2:2\n+3:2
-meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	-  contin\n-- uation\n+  continuation
-meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	+* 
-meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	-3:2\n+4:2
-meta-return-item-counter.org	ED-21	TRANSITIONAL	1	-5. [@5] a\n-6. \n-7. b\n-8. c\n+1. [@5] a\n+2. \n+3. b\n+4. c
-meta-return-item-description-tabs.org	ED-27	TRANSITIONAL	1	--  :: \n+- 
-meta-return-item-loose-list.org	ED-24	TRANSITIONAL	1	-
-meta-return-item-loose-list.org	ED-24	TRANSITIONAL	1	-3:2\n+2:2
-meta-return-item-mid.org	ED-2	KEEP	1	-- al\n-- pha\n+- alpha\n+- 
-meta-return-item-numbered-sublist.org	ED-22	TRANSITIONAL	1	-3. b\n+2. b
-meta-return-item-start-number.org	ED-23	TRANSITIONAL	1	-  1. a\n-  2. \n-  3. b\n+  9. a\n+  10. \n+  11. b
-meta-return-item-start-number.org	ED-23	TRANSITIONAL	1	-2:5\n+2:6
-meta-return-keyword-line.org	ED-8	KEEP	1	-* \n+
-meta-return-keyword-line.org	ED-8	KEEP	1	-2:2\n+2:0
-meta-return-planning-line.org	ED-1	KEEP	1	-* 
-meta-return-planning-line.org	ED-1	KEEP	1	+* 
-meta-return-planning-line.org	ED-1	KEEP	1	-3:2\n+4:2
-meta-return-preamble-only.org	ED-8	KEEP	1	-some te\n-* xt\n+some text\n+* 
-meta-return-preamble-text.org	ED-8	KEEP	1	-some te\n-* xt\n+some text\n+
-meta-return-preamble-text.org	ED-8	KEEP	1	-3:2\n+3:0
-meta-return-split-heading-bol.org	ED-1	KEEP	1	-** 
-meta-return-split-heading-bol.org	ED-1	KEEP	1	+** 
-meta-return-split-heading-bol.org	ED-1	KEEP	1	-2:3\n+4:3
-meta-return-split-in-keyword.org	ED-4	TRANSITIONAL	1	-** TODO Beta\n-** \n+** TO\n+** DO Beta
-meta-return-split-in-keyword.org	ED-4	TRANSITIONAL	1	-3:3\n+3:9
-meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	-** 
-meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	+** 
-meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	-3:3\n+4:3
-meta-return-split-tagged-title.org	ED-3	TRANSITIONAL	1	-** Be                                                                   :tag:\n-** ta gamma\n+** Be\n+** ta gamma :tag:
-meta-return-split-tagged-title.org	ED-3	TRANSITIONAL	1	-3:11\n+3:16
-meta-return-table.org	ED-10	TRANSITIONAL	1	+|  |  |
-meta-return-table.org	ED-10	TRANSITIONAL	1	-3:6\n+3:2
-meta-return-tagged-heading-eol.org	ED-1	KEEP	1	-* 
-meta-return-tagged-heading-eol.org	ED-1	KEEP	1	+* 
-meta-return-tagged-heading-eol.org	ED-1	KEEP	1	-2:2\n+3:2
-meta-return-trailing-blanks.org	ED-1	KEEP	1	-** 
-meta-return-trailing-blanks.org	ED-1	KEEP	1	-3:3\n+4:3
-move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	-
-move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	+
-move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	-5:3\n+4:3
-narrow-trailing-blanks.org	ED-17	TRANSITIONAL	1	+
-org-indent-prefix-widths.org	ED-66	KEEP	1	-lp=1|** L2\n-lp=4|body2\n-lp=2|*** L3\n-lp=6|body3\n-lp=6|- item\n-lp=6|  cont\n+lp=2|** L2\n+lp=5|body2\n+lp=4|*** L3\n+lp=8|body3\n+lp=8|- item\n+lp=8|  cont
-overview-separator-lines.org	ED-62	TRANSITIONAL	1	-H|\n+V|
-paste-subtree-blank-line.org	ED-15	TRANSITIONAL	1	-
-paste-subtree-blank-line.org	ED-15	TRANSITIONAL	1	-5:0\n+4:0
-paste-subtree-body-line.org	ED-14	TRANSITIONAL	1	-** A\n+*** A
-paste-subtree-body-line.org	ED-14	TRANSITIONAL	1	-4:0\n+3:4
-paste-subtree-copy-bol.org	ED-14	TRANSITIONAL	1	-* A\n-** a1\n-PP* B
-paste-subtree-copy-bol.org	ED-14	TRANSITIONAL	1	+** A\n+*** a1\n+PP* B
-paste-subtree-cut-from-body.org	ED-14	TRANSITIONAL	1	-* A\n+** A
-paste-subtree-cut-from-body.org	ED-14	TRANSITIONAL	1	-2:0\n+1:3
-paste-subtree-deep-into-title.org	ED-14	TRANSITIONAL	1	-* deep\n-*** deeper\n+** deep\n+**** deeper
-paste-subtree-deep-into-title.org	ED-14	TRANSITIONAL	1	-2:0\n+1:2
-paste-subtree-heading-bol.org	ED-14	TRANSITIONAL	1	-** A\n-a\n-*** a1
-paste-subtree-heading-bol.org	ED-14	TRANSITIONAL	1	+*** A\n+a\n+**** a1
-paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	-** A\n+*** A
-paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	-*** a1\n+**** a1
-paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	-3:0\n+2:5
-paste-subtree-preamble.org	ED-14	TRANSITIONAL	1	-2:0\n+1:3
-paste-subtree-trailing-blanks.org	ED-14	TRANSITIONAL	1	-* A\n+** A
-paste-subtree-trailing-blanks.org	ED-14	TRANSITIONAL	1	-3:0\n+2:3
-priority-lower-no-cookie.org	XT-20	TRANSITIONAL	1	-* [#B] Title\n+* [#C] Title
-priority-raise-no-cookie.org	XT-20	TRANSITIONAL	1	-* [#B] Title\n+* [#A] Title
-priority-shiftdown-buffer-range.org	ED-78	TRANSITIONAL	1	-* [#E] T\n+* T
-priority-shiftdown-buffer-range.org	ED-78	TRANSITIONAL	1	-2:5\n+2:2
-priority-shiftdown-no-cookie.org	ED-77	KEEP	1	-* [#B] Title\n+* TODO Title
-priority-shiftdown-no-cookie.org	ED-77	KEEP	1	-1:8\n+1:3
-priority-shiftup-no-cookie.org	ED-77	KEEP	1	-* [#B] Title\n+* CANCELLED Title\n+  CLOSED: [2026-05-04 Mon 09:30]
-priority-shiftup-no-cookie.org	ED-77	KEEP	1	-1:8\n+1:3
-priority-shiftup-numeric-range.org	ED-78	TRANSITIONAL	1	-* [#4] T\n+* CANCELLED [#5] T\n+  CLOSED: [2026-05-04 Mon 09:30]
-promote-adapt-indentation.org	ED-12	TRANSITIONAL	1	-  body\n-under-indented\n-    over\n+   body\n+ under-indented\n+     over
-promote-headline-adapt-indentation.org	ED-12	TRANSITIONAL	1	-  body\n+   body
-property-delete-duplicates.org	ED-48	TRANSITIONAL	1	+:FOO:      3
-property-set-after-logbook.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
-property-set-after-planning.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
-property-set-empty-value.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:\n-:END:\n+  :PROPERTIES:\n+  :FOO:\n+  :END:
-property-set-file-level.org	ED-45	TRANSITIONAL	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+! error
-property-set-file-level.org	ED-45	TRANSITIONAL	1	-5:4\n+2:4
-property-set-from-body.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
-property-set-from-last-body-line.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
-property-set-invalid-key.org	ED-47	TRANSITIONAL	1	-! error
-property-set-invalid-key.org	ED-47	TRANSITIONAL	1	+  :PROPERTIES:\n+  :BAD KEY:  v\n+  :END:
-property-set-item.org	ED-47	TRANSITIONAL	1	-! error
-property-set-item.org	ED-47	TRANSITIONAL	1	+  :PROPERTIES:\n+  :ITEM:     x\n+  :END:
-property-set-long-key.org	ED-44	KEEP	1	-:PROPERTIES:\n-:VERYLONGPROPERTYNAME: v\n-:END:\n+  :PROPERTIES:\n+  :VERYLONGPROPERTYNAME: v\n+  :END:
-property-set-padded-value.org	~ED-44,ED-48	TRANSITIONAL	1	-:PROPERTIES:\n-:FOO:      spaced\n-:END:\n+  :PROPERTIES:\n+  :FOO:        spaced  \n+  :END:
-property-set-planning-after-blank.org	ED-44	KEEP	1	-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
-property-set-plus-key.org	ED-46	TRANSITIONAL	1	+:header-args+: :results silent
-property-set-todo.org	~ED-44,ED-47	TRANSITIONAL	1	-* DONE A\n+* TODO A\n+  :PROPERTIES:\n+  :TODO:     DONE\n+  :END:
-sort-entries-alpha-markup.org	ED-19	TRANSITIONAL	1	+** *Cherry*
-sort-entries-alpha-markup.org	ED-19	TRANSITIONAL	1	-** *Cherry*
-sort-entries-numeric.org	ED-20	TRANSITIONAL	1	+** 1e3 sci
-sort-entries-numeric.org	ED-20	TRANSITIONAL	1	-** 1e3 sci
-sparse-match-property.org	ED-54,ED-56	TRANSITIONAL	1	-H|:PROPERTIES:\n-H|:FOO: x\n-H|:END:\n-H|** child\n-V|* B\n+V|:PROPERTIES:\n+V|:FOO: x\n+V|:END:\n+V|** child\n+H|* B
-sparse-match-tag-todo.org	ED-56	TRANSITIONAL	1	-H|a body\n-H|** TODO a1\n-H|a1 body\n-H|*** a1x\n+V|a body\n+V|** TODO a1\n+V|a1 body\n+V|*** a1x
-sparse-match-tag-todo.org	ED-54	TRANSITIONAL	1	-H|a2 body\n+V|a2 body
-sparse-match-tag-todo.org	ED-56	TRANSITIONAL	1	-H|deep body\n+V|deep body
-sparse-match-tag-todo.org	ED-54	TRANSITIONAL	1	-V|* C\n+H|* C
-sparse-match-todo-only.org	ED-54	TRANSITIONAL	1	-V|* B :work:\n+H|* B :work:
-sparse-match-todo-only.org	ED-54	TRANSITIONAL	1	-V|* C\n+H|* C
-sparse-occur-body.org	ED-54,ED-57	TRANSITIONAL	1	-V|* B :work:\n-V|** b1\n-V|b body has needle\n+H|* B :work:\n+H|** b1\n+H|b body has needle
-sparse-occur-body.org	ED-54,ED-57	TRANSITIONAL	1	-V|* C\n-V|c needle body\n+H|* C\n+H|c needle body
-sparse-tag.org	ED-56	TRANSITIONAL	1	-H|a body\n-H|** TODO a1\n-H|a1 body\n-H|*** a1x\n+V|a body\n+V|** TODO a1\n+V|a1 body\n+V|*** a1x
-sparse-tag.org	ED-54	TRANSITIONAL	1	-H|a2 body\n+V|a2 body
-sparse-tag.org	ED-56	TRANSITIONAL	1	-H|deep body\n+V|deep body
-sparse-tag.org	ED-53,ED-54	TRANSITIONAL	1	-V|** DONE b2\n-V|* C\n+H|** DONE b2\n+H|* C
-sparse-todo-keyword.org	ED-56	TRANSITIONAL	1	-H|a body\n+V|a body
-sparse-todo-keyword.org	ED-54,ED-56	TRANSITIONAL	1	-H|a1 body\n-H|*** a1x\n+V|a1 body\n+V|*** a1x
-sparse-todo-keyword.org	ED-54	TRANSITIONAL	1	-V|* B :work:\n+H|* B :work:
-sparse-todo-keyword.org	ED-54	TRANSITIONAL	1	-V|* C\n+H|* C
-sparse-todo.org	ED-56	TRANSITIONAL	1	-H|a body\n+V|a body
-sparse-todo.org	ED-54,ED-56	TRANSITIONAL	1	-H|a1 body\n-H|*** a1x\n-H|** a2 :work:\n-H|a2 body\n-H|*** a2x\n-H|deep body\n+V|a1 body\n+V|*** a1x\n+V|** a2 :work:\n+V|a2 body\n+V|*** a2x\n+V|deep body
-sparse-todo.org	ED-55,ED-56	TRANSITIONAL	1	-H|** b1\n-H|b body has needle\n-H|** DONE b2\n+V|** b1\n+V|b body has needle\n+V|** DONE b2
-speed-key-f.org	XT-22	TRANSITIONAL	1	-V|a body\n-V|** a1\n-V|** a2\n+H|a body\n+H|** a1\n+H|** a2
-speed-key-f.org	XT-22	TRANSITIONAL	1	-5:0\n+1:0
-speed-key-greater.org	XT-22	TRANSITIONAL	1	-V|** a1\n-V|*** a1x\n+V|*** a1\n+V|**** a1x
-speed-key-greater.org	XT-22	TRANSITIONAL	1	-2:0\n+2:1
-speed-key-less.org	XT-22	TRANSITIONAL	1	-V|** a1\n-V|*** a1x\n+V|* a1\n+V|** a1x
-speed-key-n.org	XT-22	TRANSITIONAL	1	-3:0\n+9:0
-speed-key-p.org	XT-22	TRANSITIONAL	1	-3:0\n+1:0
-speed-key-upper-f.org	XT-22	TRANSITIONAL	1	-V|a body\n-V|#+begin_src sh\n-V|echo\n-V|#+end_src\n+H|a body\n+H|#+begin_src sh\n+H|echo\n+H|#+end_src
-speed-key-upper-f.org	XT-22	TRANSITIONAL	1	-V|#+begin_src sh\n-V|echo\n-V|#+end_src\n+H|#+begin_src sh\n+H|echo\n+H|#+end_src
-speed-key-upper-f.org	XT-22	TRANSITIONAL	1	-7:0\n+6:0
-startup-hideblocks.org	ED-59	TRANSITIONAL	1	-H|echo\n-H|#+end_src\n+V|echo\n+V|#+end_src
-startup-show2levels.org	ED-58	TRANSITIONAL	1	-H|a body\n-H|:PROPERTIES:\n-H|:X: 1\n-H|:END:\n+V|a body\n+V|:PROPERTIES:\n+V|:X: 1\n+V|:END:
-startup-show2levels.org	ED-58	TRANSITIONAL	1	-H|a1 body\n-H|*** a1x\n-H|x body\n+V|a1 body\n+V|*** a1x\n+V|x body
-startup-show2levels.org	ED-58	TRANSITIONAL	1	-H|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|#+begin_src sh\n+V|echo\n+V|#+end_src
-startup-show3levels.org	ED-58	TRANSITIONAL	1	-H|a body\n-H|:PROPERTIES:\n-H|:X: 1\n-H|:END:\n+V|a body\n+V|:PROPERTIES:\n+V|:X: 1\n+V|:END:
-startup-show3levels.org	ED-58	TRANSITIONAL	1	-H|a1 body\n+V|a1 body
-startup-show3levels.org	ED-58	TRANSITIONAL	1	-H|x body\n+V|x body
-startup-show3levels.org	ED-58	TRANSITIONAL	1	-H|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|#+begin_src sh\n+V|echo\n+V|#+end_src
-startup-visibility-property.org	ED-60	TRANSITIONAL	1	-H|:PROPERTIES:\n+V|:PROPERTIES:
-startup-visibility-property.org	ED-60	TRANSITIONAL	1	-H|a body\n-H|** a1\n+V|a body\n+V|** a1
-startup-visibility-property.org	ED-60	TRANSITIONAL	1	-H|b1 body\n-H|*** b1x\n+V|b1 body\n+V|*** b1x
-statistics-buffer-todo-keywords.org	ED-42	TRANSITIONAL	1	-* Head [1/2]\n+* Head [0/1]
-statistics-cookie-mid-title.org	ED-11	TRANSITIONAL	1	-* TODO [#A] Head [1/2] more                                             :tag:\n+* TODO [#A] Head [1/2] more :tag:
-statistics-loose-children.org	ED-39	TRANSITIONAL	1	-- [ ] p [1/2]\n+- [ ] p [0/0]
-statistics-todo-non-hierarchical.org	ED-40	TRANSITIONAL	1	-* Head [2/3]\n+* Head [1/2]
-statistics-todo-recursive.org	ED-41	TRANSITIONAL	1	-* Head [2/3]\n+* Head [1/2]
-structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	-#+begin_quote\n+! no organ command
-structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	-#+end_quote
-structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	-2:0\n+1:0
-tab-empty-heading.org	ED-63	TRANSITIONAL	1	-V|* \n+V|** 
-tab-empty-heading.org	ED-63	TRANSITIONAL	1	-2:2\n+2:3
-tab-empty-item.org	ED-63	TRANSITIONAL	1	-V|  - \n+V|- 
-tab-empty-item.org	ED-63	TRANSITIONAL	1	-2:4\n+2:2
-tab-on-block.org	ED-59	TRANSITIONAL	1	-H|echo\n-H|#+end_src\n+V|echo\n+V|#+end_src
-tab-on-list-item.org	ED-61	TRANSITIONAL	1	-H|  - sub\n-H|  more\n+V|  - sub\n+V|  more
-tempo-indented.org	ED-71	TRANSITIONAL	1	-  #+begin_quote\n+#+begin_quote
-tempo-indented.org	ED-71	TRANSITIONAL	1	-  #+end_quote\n+#+end_quote
-tempo-lower-c.org	ED-69,XT-21	TRANSITIONAL	1	-#+begin_center\n+#+begin_comment
-tempo-lower-c.org	ED-69,XT-21	TRANSITIONAL	1	-#+end_center\n+#+end_comment
-tempo-lower-i.org	ED-70	TRANSITIONAL	1	-#+index: \n+<i
-tempo-lower-i.org	ED-70	TRANSITIONAL	1	-2:9\n+2:2
-tempo-upper-A.org	ED-70	TRANSITIONAL	1	-#+ascii: \n+<A
-tempo-upper-A.org	ED-70	TRANSITIONAL	1	-2:9\n+2:2
-tempo-upper-C.org	ED-70	TRANSITIONAL	1	-#+begin_comment\n-\n-#+end_comment\n+<C
-tempo-upper-C.org	ED-70	TRANSITIONAL	1	-3:0\n+2:2
-tempo-upper-E.org	ED-70	TRANSITIONAL	1	-#+begin_export \n-\n-#+end_export\n+<E
-tempo-upper-E.org	ED-70	TRANSITIONAL	1	-2:15\n+2:2
-tempo-upper-H.org	ED-70	TRANSITIONAL	1	-#+html: \n+<H
-tempo-upper-H.org	ED-70	TRANSITIONAL	1	-2:8\n+2:2
-tempo-upper-I.org	ED-70	TRANSITIONAL	1	-#+include: "include.org" \n+<I
-tempo-upper-I.org	ED-70	TRANSITIONAL	1	-2:25\n+2:2
-tempo-upper-L.org	ED-70	TRANSITIONAL	1	-#+latex: \n+<L
-tempo-upper-L.org	ED-70	TRANSITIONAL	1	-2:9\n+2:2
-timestamp-down-minute.org	ED-74	TRANSITIONAL	1	-x <2026-05-04 Mon 10:00>\n+x <2026-05-04 Mon 10:02>
-timestamp-up-close-bracket.org	ED-75	TRANSITIONAL	1	-x [2026-05-04 Mon]\n+x <2026-05-05 Tue>
-timestamp-up-leap-year.org	ED-73	TRANSITIONAL	1	-x <2025-03-01 Sat>\n+x <2025-02-28 Fri>
-timestamp-up-minute.org	ED-74	TRANSITIONAL	1	-x <2026-05-04 Mon 10:05>\n+x <2026-05-04 Mon 10:04>
-timestamp-up-month-end.org	ED-73	TRANSITIONAL	1	-x <2026-03-03 Tue>\n+x <2026-02-28 Sat>
-timestamp-up-open-bracket.org	ED-75	TRANSITIONAL	1	-x [2026-05-04 Mon]\n+x <2026-05-05 Tue>
-timestamp-up-repeater-mark.org	ED-76	TRANSITIONAL	1	-x <2026-05-04 Mon .+1w>\n+x <2026-05-05 Tue .+1w>
-timestamp-up-repeater-number.org	ED-76	TRANSITIONAL	1	-x <2026-05-04 Mon +2w>\n+x <2026-05-05 Tue +1w>
-timestamp-up-repeater-unit.org	ED-76	TRANSITIONAL	1	-x <2026-05-04 Mon +1m>\n+x <2026-05-05 Tue +1w>
-timestamp-up-warning-after-repeater.org	ED-76	TRANSITIONAL	1	-x <2026-05-04 Mon 10:00 +1d -2w>\n+x <2026-05-05 Tue 10:00 +1d -2d>
-timestamp-up-warning-unit.org	ED-76	TRANSITIONAL	1	-DEADLINE: <2026-05-04 Mon -3w>\n+DEADLINE: <2026-05-05 Tue -3d>
-toggle-heading-region-items.org	ED-33	TRANSITIONAL	1	-** b\n+- b
-toggle-item-region-text.org	ED-33	TRANSITIONAL	1	-- line two\n+line two
-comment-toggle-on.org	ED-80	TRANSITIONAL	1	-1:32\n+1:24
-cycle-bullet-plus.org	ED-80	TRANSITIONAL	1	-1:4\n+1:3
-cycle-bullet-previous.org	ED-80	TRANSITIONAL	1	-1:4\n+1:3
-cycle-bullet-star-checkbox.org	ED-80	TRANSITIONAL	1	-1:10\n+1:9
-demote-region-headings.org	ED-81	KEEP	1	-1:0\n+1:1
-fast-tags-existing-order.org	ED-80	TRANSITIONAL	1	-2:3\n+2:16
-format-blank-lines.org	ED-84	KEEP	1	-\n-
-format-drawer-values.org	ED-84	KEEP	1	-:empty:    \n+:empty:
-format-indented-body.org	ED-84	KEEP	1	-indented text\n-- item\n-  cont\n+    indented text\n+  - item\n+      cont
-format-keyword-case.org	ED-84	KEEP	1	-#+begin_src sh\n-  echo\n-#+end_src\n+#+BEGIN_SRC sh\n+echo\n+#+END_SRC
-format-lists.org	ED-23,~ED-84	TRANSITIONAL	1	-1. a\n-2. b\n-   - x\n-   - y\n-3. spaced bullet\n+3. a\n+4. b\n+   + x\n+   + y\n+5. spaced bullet
-format-lowercase-property-drawer.org	ED-84	KEEP	1	-:END:\n+:end:
-format-lowercase-property-drawer.org	ED-84	KEEP	1	-:PROPERTIES:\n+:properties:
-format-trailing-whitespace.org	ED-84	KEEP	1	-text   \n+text
-inherited-category-file-keyword.org	ED-50	TRANSITIONAL	1	-2\tfile-cat\n-3\tfile-cat\n+2\t\n+3\t
-inherited-category-parent-sibling.org	ED-50	TRANSITIONAL	1	-7\tfile-cat\n+7\t
-insert-todo-table.org	ED-1	KEEP	1	-| a | b\n-* TODO  |\n+| a | b |\n+* TODO 
-item-indent-tree-cookie.org	ED-80	TRANSITIONAL	1	-3:9\n+3:7
-item-indent-tree-first-item.org	ED-80	TRANSITIONAL	1	-1:4\n+1:3
-item-indent-tree-numbered.org	ED-80	TRANSITIONAL	1	-2:7\n+2:4
-item-indent-tree-with-child.org	ED-80	TRANSITIONAL	1	-2:7\n+2:4
-item-indent-with-child.org	ED-80	TRANSITIONAL	1	-2:7\n+2:4
-list-sort-alpha.org	ED-81	KEEP	1	-1:0\n+1:3
-list-sort-checkbox.org	ED-81	KEEP	1	-1:0\n+1:7
-list-sort-numeric.org	ED-81	KEEP	1	-1:3\n+1:7
-list-sort-time.org	ED-81	KEEP	1	-1:0\n+1:23
-list-to-subtree.org	ED-81	KEEP	1	-5:0\n+2:3
-meta-return-split-todo-title.org	ED-80	TRANSITIONAL	1	-3:5\n+3:4
-meta-return-trailing-blanks.org	ED-9	TRANSITIONAL	1	-\n-\n+** 
-move-down-last-child.org	ED-81	KEEP	1	-3:0\n+3:4
-move-down-skipped-level.org	ED-81	KEEP	1	-2:0\n+2:5
-move-up-first-child.org	ED-81	KEEP	1	-2:0\n+2:4
-property-delete-missing.org	ED-82	KEEP	1	+! error
-sort-entries-alpha-markup.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-alpha-reverse.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-alpha-unicode.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-blank-lines.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-clocking.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-created.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-deadline.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-from-child.org	ED-81	KEEP	1	-2:0\n+2:4
-sort-entries-last-line.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-numeric.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-priority.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-property.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-scheduled.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-timestamp.org	ED-81	KEEP	1	-1:0\n+1:3
-sort-entries-todo.org	ED-81	KEEP	1	-2:0\n+2:3
-sort-entries-top-level.org	ED-81	KEEP	1	-2:0\n+1:10
-sparse-occur-body.org	ED-81	KEEP	1	-1:2\n+1:0
-sparse-todo-keyword.org	ED-81	KEEP	1	-1:2\n+1:0
-sparse-todo.org	ED-81	KEEP	1	-1:2\n+1:0
-tempo-lower-s.org	XT-21	TRANSITIONAL	1	-2:12\n+3:0
-timestamp-up-diary-sexp.org	ED-83	TRANSITIONAL	1	-! error
-toggle-heading-checkbox-item.org	ED-81	KEEP	1	-2:0\n+2:7
-toggle-heading-heading.org	ED-80	TRANSITIONAL	1	-2:8\n+2:11
-toggle-heading-item.org	ED-81	KEEP	1	-2:0\n+2:3
-toggle-heading-numbered-item.org	ED-81	KEEP	1	-2:0\n+2:4
-toggle-heading-preamble-text.org	ED-80	TRANSITIONAL	1	-1:4\n+1:2
-toggle-heading-text.org	ED-80	TRANSITIONAL	1	-2:10\n+2:7
-toggle-item-heading.org	ED-80	TRANSITIONAL	1	-2:5\n+2:6
-toggle-item-item.org	ED-80	TRANSITIONAL	1	-1:2\n+1:4
-toggle-item-text.org	ED-80	TRANSITIONAL	1	-2:9\n+2:7
-toggle-item-todo-heading.org	ED-80	TRANSITIONAL	1	-1:8\n+1:9
+allowed-values-drawer-after-blank.org	ED-49	TRANSITIONAL	1	^\n-nil\n+"a"\n+"b"
+allowed-values-from-body.org	ED-49	TRANSITIONAL	1	^\n-"a"\n-"b"\n+nil
+allowed-values-inherited-plus.org	ED-49	TRANSITIONAL	1	 "a"\n-"b"
+allowed-values-priority.org	ED-49	TRANSITIONAL	1	^\n-"A"\n-"B"\n-"C"\n+nil
+allowed-values-quoted.org	ED-49	TRANSITIONAL	1	^\n-"a b"\n+"\\"a"\n+"b\\""
+allowed-values-todo.org	ED-49	TRANSITIONAL	1	^\n-"TODO"\n-"NEXT"\n-"DONE"\n-""\n+nil
+checkbox-remove.org	ED-35	TRANSITIONAL	1	^\n-- item\n+! no organ command\n+- [ ] item
+checkbox-remove.org	ED-35	TRANSITIONAL	1	 --- point\n-1:6\n+1:10
+checkbox-toggle-cookieless-parent.org	ED-37	TRANSITIONAL	1	 * Head [0/2]\n-- [-] a\n+- [ ] a
+checkbox-toggle-derived-parent.org	ED-36	TRANSITIONAL	1	^\n-- [-] parent\n+- [X] parent
+checkbox-toggle-done.org	ED-34	TRANSITIONAL	1	^\n-- [ ] a\n+- [-] a
+checkbox-toggle-lowercase-done.org	ED-34	TRANSITIONAL	1	^\n-- [X] [x] a\n+- [-] a
+checkbox-toggle-lowercase-done.org	ED-34	TRANSITIONAL	1	 --- point\n-1:11\n+1:7
+checkbox-toggle-multi-level.org	ED-37	TRANSITIONAL	1	^\n-- [-] parent [1/2]\n-  - [X] a\n+- [ ] parent [/]\n+  - [-] a
+checkbox-toggle-non-hierarchical.org	ED-37,ED-40	TRANSITIONAL	1	^\n-* Head [1/4]\n-- [-] a\n+* Head [0/2]\n+- [ ] a
+checkbox-toggle-partial-leaf.org	ED-34	TRANSITIONAL	1	^\n-- [X] a\n+- [ ] a
+checkbox-toggle-partial-parent.org	ED-36	TRANSITIONAL	1	^\n-- [-] parent\n+- [ ] parent
+checkbox-toggle-plain-item.org	ED-35	KEEP	1	^\n-- item\n+- [ ] item
+checkbox-toggle-region-first-done.org	ED-43	TRANSITIONAL	1	^\n-- [ ] a\n+- [-] a
+checkbox-toggle-section.org	ED-43	TRANSITIONAL	1	^\n+! error
+checkbox-toggle-section.org	ED-43	TRANSITIONAL	1	 * Head\n-- [X] a\n-- [X] b\n+- [ ] a\n+- [ ] b
+checkbox-toggle-two-cookies.org	ED-38	TRANSITIONAL	1	^\n-- [X] parent [1/1] and [100%] text\n+- [X] parent [1/1] and [%] text
+cycle-bullet-description-bol.org	ED-29	KEEP	1	^\n-1. a :: x\n-2. b :: y\n+- a :: x\n+- b :: y
+cycle-bullet-description.org	ED-29	KEEP	1	^\n-1. a :: x\n-2. b :: y\n+- a :: x\n+- b :: y
+cycle-bullet-description.org	ED-29	KEEP	1	 --- point\n-1:9\n+1:8
+demote-adapt-flush-body.org	ED-12	TRANSITIONAL	1	 ** A\n- body at 0\n+body at 0
+demote-adapt-headline-data.org	ED-12,ED-68	TRANSITIONAL	1	 ** A\n-   SCHEDULED: <2026-05-04 Mon>\n-   :PROPERTIES:\n-   :X:        1\n-   :END:\n+  SCHEDULED: <2026-05-04 Mon>\n+  :PROPERTIES:\n+  :X: 1\n+  :END:
+demote-adapt-indentation-planning.org	ED-12	TRANSITIONAL	1	 ** A\n-   body\n-   SCHEDULED: <2026-05-04 Mon>\n+  body\n+  SCHEDULED: <2026-05-04 Mon>
+demote-adapt-indentation-planning.org	ED-12	TRANSITIONAL	1	 *** b\n-    bb\n+   bb
+demote-adapt-indentation.org	ED-12	TRANSITIONAL	1	 ** A\n-   body\n-   SCHEDULED: <2026-05-04 Mon>\n+  body\n+  SCHEDULED: <2026-05-04 Mon>
+demote-adapt-indentation.org	ED-12	TRANSITIONAL	1	 *** b\n-    bb\n- #+begin_src sh\n- x\n- #+end_src\n+   bb\n+#+begin_src sh\n+x\n+#+end_src
+demote-adapt-list-body.org	ED-12	TRANSITIONAL	1	 ** A\n-   - item\n-     cont\n+  - item\n+    cont
+demote-aligned-tags.org	ED-11	TRANSITIONAL	1	^\n-** A                                                                    :tag:\n-*** b                                                                     :x:\n+** A                                                                  :tag:\n+*** b                                                                 :x:
+demote-aligned-tags.org	ED-11	TRANSITIONAL	1	 --- point\n-1:77\n+1:75
+demote-unaligned-tags.org	ED-11	TRANSITIONAL	1	^\n-** A                                                                    :tag:\n+** A :tag:
+demote-unaligned-tags.org	ED-11	TRANSITIONAL	1	 --- point\n-1:77\n+1:10
+emphasize-word.org	ED-64	KEEP	1	^\n-some wo ** rd here\n+some *word* here
+emphasize-word.org	ED-64	KEEP	1	 --- point\n-1:9\n+1:11
+fast-tags-exclusive-group.org	ED-51	TRANSITIONAL	1	 #+TAGS: { work(w) home(h) } urgent(u)\n-* A                                                                    :home:\n+* A
+fast-tags-existing-order.org	ED-52	TRANSITIONAL	1	 #+TAGS: zeta(z) urgent(u) alpha(a)\n-* A                                                       :zeta:urgent:alpha:\n+* A                                                              :alpha:zeta:
+fast-tags-file-tags.org	ED-51	TRANSITIONAL	1	 #+TAGS: work(w) home(h)\n-* A                                                                    :work:\n+* A
+fill-src-block.org	ED-65	TRANSITIONAL	1	 #+begin_src sh\n-  echo a long shell line with many words that should not be wrapped at\n-  all by fill paragraph ever ok\n+echo a long shell line with many words that should not be wrapped at all by fill paragraph ever ok
+format-list-start-number.org	ED-23	TRANSITIONAL	1	^\n-1. a\n-2. b\n+3. a\n+4. b
+format-planning-and-drawers.org	ED-79	TRANSITIONAL	1	 * TODO A\n-DEADLINE: <2026-05-05 Tue> SCHEDULED: <2026-05-04 Mon>\n+DEADLINE: <2026-05-05 Tue>   SCHEDULED: <2026-05-04 Mon>
+format-planning-and-drawers.org	ED-79	TRANSITIONAL	1	 :PROPERTIES:\n-:X: 1\n+:X:        1
+indent-region-default.org	~ED-44,ED-67	TRANSITIONAL	1	 * A\n-text\n-SCHEDULED: <2026-05-04 Mon>\n+   text\n+  SCHEDULED: <2026-05-04 Mon>
+indent-region-default.org	ED-67	TRANSITIONAL	1	 continuation\n-- sub\n+   - sub
+indent-region-default.org	ED-67	TRANSITIONAL	1	 ** B\n-deep\n+     deep
+indent-region-headline-data.org	ED-68	TRANSITIONAL	1	   :PROPERTIES:\n-  :X:        1\n+  :X: 1
+inherited-archive-plus-chain.org	ED-50	TRANSITIONAL	1	 1\ta\n-5\ta b\n-9\ta b\n+5\ta\n+9\ta
+inherited-archive-plus-child.org	ED-50	TRANSITIONAL	1	 1\talpha\n-5\talpha beta\n+5\talpha
+inherited-property-file-keyword.org	ED-50	TRANSITIONAL	1	^\n-"filev"\n+nil
+inherited-property-key-case.org	ED-50	TRANSITIONAL	1	^\n-"a"\n+nil
+inherited-property-plus.org	ED-50	TRANSITIONAL	1	^\n-"a b"\n+"a"
+insert-heading-rc-preamble.org	ED-7	TRANSITIONAL	1	 * \n-
+insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	^\n+! no organ command
+insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	 * A\n-** Be\n-*** ta\n+** Beta
+insert-subheading-mid-title.org	ED-6	TRANSITIONAL	1	 --- point\n-3:6\n+2:5
+insert-todo-done-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	 #+TODO: BUG FIX | FIXED\n-* FIXED Be\n-* TODO ta\n+* FIXED Beta
+insert-todo-done-keyword.org	ED-5	TRANSITIONAL	1	 body\n+* BUG 
+insert-todo-done-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	 --- point\n-4:7\n+5:6
+insert-todo-next-keyword.org	ED-1	KEEP	1	 * A\n-** NEXT Be\n-** NEXT ta\n+** NEXT Beta
+insert-todo-next-keyword.org	ED-5	TRANSITIONAL	1	 body\n+** TODO 
+insert-todo-next-keyword.org	~ED-1,ED-5	TRANSITIONAL	1	 --- point\n-4:8\n+5:8
+insert-todo-plain-heading.org	ED-1	KEEP	1	 #+TODO: TODO NEXT | DONE\n-* Be\n-* TODO ta\n+* Beta\n+* TODO 
+insert-todo-rc-next-keyword.org	ED-5	TRANSITIONAL	1	 * NEXT Beta\n-* NEXT \n+* TODO 
+item-indent-modify-bullet.org	ED-30	TRANSITIONAL	1	 1. a\n-   - b\n+   1. b
+item-indent-modify-bullet.org	ED-30	TRANSITIONAL	1	 --- point\n-2:6\n+2:4
+item-indent-tree-modify-bullet.org	ED-30	TRANSITIONAL	1	 - a\n-  + b\n+  - b
+item-indent-tree-modify-bullet.org	ED-30	TRANSITIONAL	1	 --- point\n-2:5\n+2:3
+list-sort-alpha.org	ED-31	TRANSITIONAL	1	^\n-- A\n+- [ ] C
+list-sort-alpha.org	ED-31	TRANSITIONAL	1	   - sub\n+- A
+list-sort-alpha.org	ED-31	TRANSITIONAL	1	 - b\n-- [ ] C
+list-sort-checkbox.org	ED-32	TRANSITIONAL	1	^\n-- c
+list-sort-checkbox.org	ED-32	TRANSITIONAL	1	 - [X] a\n+- c
+list-sort-numeric.org	ED-31	TRANSITIONAL	1	^\n-1. z\n+1. 10 x
+list-sort-numeric.org	ED-31	TRANSITIONAL	1	 2. 9 y\n-3. 10 x\n+3. z
+list-sort-time.org	ED-32	TRANSITIONAL	1	 - early <2026-01-01 Thu>\n-- none
+list-sort-time.org	ED-32	TRANSITIONAL	1	 - late <2026-06-01 Mon>\n+- none
+mark-subtree-from-body.org	ED-18	TRANSITIONAL	1	^\n+! no organ command
+mark-subtree-from-body.org	ED-18	TRANSITIONAL	1	 --- point\n-2:0\n-mark 5:0\n+3:1
+meta-return-blank-between-headings.org	ED-9	TRANSITIONAL	1	 * A\n-
+meta-return-blank-between-headings.org	ED-9	TRANSITIONAL	1	 * \n-
+meta-return-blank-between-headings.org	ED-9	TRANSITIONAL	1	 --- point\n-3:2\n+2:2
+meta-return-blank-in-body.org	ED-1	KEEP	1	 para\n-** \n+
+meta-return-blank-in-body.org	ED-1	KEEP	1	 more\n+** 
+meta-return-blank-in-body.org	ED-1	KEEP	1	 --- point\n-4:3\n+6:3
+meta-return-blank-style-spaced.org	ED-1	KEEP	1	 * B\n+body
+meta-return-blank-style-spaced.org	ED-1	KEEP	1	 * \n-body
+meta-return-blank-style-spaced.org	ED-1	KEEP	1	 --- point\n-5:2\n+6:2
+meta-return-blank-style-tight.org	ED-1	KEEP	1	 * B\n-* 
+meta-return-blank-style-tight.org	ED-1	KEEP	1	 body\n+* 
+meta-return-blank-style-tight.org	ED-1	KEEP	1	 --- point\n-3:2\n+4:2
+meta-return-body-eol.org	ED-1	KEEP	1	 first line\n-** 
+meta-return-body-eol.org	ED-1	KEEP	1	 *** child\n+** 
+meta-return-body-eol.org	ED-1	KEEP	1	 --- point\n-4:3\n+6:3
+meta-return-body-mid-line.org	ED-1	KEEP	1	 ** Beta\n-first li\n-** ne\n+first line
+meta-return-body-mid-line.org	ED-1	KEEP	1	 *** child\n+** 
+meta-return-body-mid-line.org	ED-1	KEEP	1	 --- point\n-4:3\n+6:3
+meta-return-first-heading-bol.org	ED-1	KEEP	1	^\n-* 
+meta-return-first-heading-bol.org	ED-1	KEEP	1	 body\n+* 
+meta-return-first-heading-bol.org	ED-1	KEEP	1	 --- point\n-1:2\n+3:2
+meta-return-heading-bol.org	ED-1	KEEP	1	 * A\n-** 
+meta-return-heading-bol.org	ED-1	KEEP	1	 body\n+** 
+meta-return-heading-bol.org	ED-1	KEEP	1	 --- point\n-2:3\n+4:3
+meta-return-heading-eol.org	ED-1	KEEP	1	 ** Beta\n-** 
+meta-return-heading-eol.org	ED-1	KEEP	1	 *** child\n+** 
+meta-return-heading-eol.org	ED-1	KEEP	1	 --- point\n-3:3\n+5:3
+meta-return-heading-mid-title.org	ED-1	KEEP	1	 * A\n-** Be\n-** ta gamma\n+** Beta gamma
+meta-return-heading-mid-title.org	ED-1	KEEP	1	 *** child\n+** 
+meta-return-heading-mid-title.org	ED-1	KEEP	1	 --- point\n-3:11\n+5:3
+meta-return-in-drawer.org	ED-1	KEEP	1	 :X: 1\n-* 
+meta-return-in-drawer.org	ED-1	KEEP	1	 body\n+* 
+meta-return-in-drawer.org	ED-1	KEEP	1	 --- point\n-4:2\n+6:2
+meta-return-in-link.org	ED-1	KEEP	1	 * A\n-see [[ht\n-* tps://x][x]]\n+see [[https://x][x]]\n+* 
+meta-return-in-src-block.org	ED-1	KEEP	1	 #+begin_src sh\n-echo\n-*  hi\n+echo hi
+meta-return-in-src-block.org	ED-1	KEEP	1	 #+end_src\n+* 
+meta-return-in-src-block.org	ED-1	KEEP	1	 --- point\n-4:2\n+5:2
+meta-return-item-alphabetical.org	ED-28	TRANSITIONAL	1	 a. one\n-b. \n-c. two\n+b. two\n+* 
+meta-return-item-alphabetical.org	ED-28	TRANSITIONAL	1	 --- point\n-2:3\n+3:2
+meta-return-item-bare-bullet.org	ED-26	TRANSITIONAL	1	 - a\n-- \n-- \n+-\n+* 
+meta-return-item-bare-bullet.org	ED-26	TRANSITIONAL	1	 --- point\n-2:2\n+3:2
+meta-return-item-bol.org	ED-2	KEEP	1	 - a\n-- 
+meta-return-item-bol.org	ED-2	KEEP	1	 - b\n+- 
+meta-return-item-bol.org	ED-2	KEEP	1	 --- point\n-2:2\n+3:2
+meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	 - a\n-  contin\n-- uation\n+  continuation
+meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	 - b\n+* 
+meta-return-item-continuation.org	ED-25	TRANSITIONAL	1	 --- point\n-3:2\n+4:2
+meta-return-item-counter.org	ED-21	TRANSITIONAL	1	^\n-5. [@5] a\n-6. \n-7. b\n-8. c\n+1. [@5] a\n+2. \n+3. b\n+4. c
+meta-return-item-description-tabs.org	ED-27	TRANSITIONAL	1	 - term\t::\tdef\n--  :: \n+- 
+meta-return-item-loose-list.org	ED-24	TRANSITIONAL	1	 - a\n-
+meta-return-item-loose-list.org	ED-24	TRANSITIONAL	1	 --- point\n-3:2\n+2:2
+meta-return-item-mid.org	ED-2	KEEP	1	^\n-- al\n-- pha\n+- alpha\n+- 
+meta-return-item-numbered-sublist.org	ED-22	TRANSITIONAL	1	    2. y\n-3. b\n+2. b
+meta-return-item-start-number.org	ED-23	TRANSITIONAL	1	^\n-  1. a\n-  2. \n-  3. b\n+  9. a\n+  10. \n+  11. b
+meta-return-item-start-number.org	ED-23	TRANSITIONAL	1	 --- point\n-2:5\n+2:6
+meta-return-keyword-line.org	ED-8	KEEP	1	 #+TITLE: x\n-* \n+
+meta-return-keyword-line.org	ED-8	KEEP	1	 --- point\n-2:2\n+2:0
+meta-return-planning-line.org	ED-1	KEEP	1	 SCHEDULED: <2026-05-04 Mon>\n-* 
+meta-return-planning-line.org	ED-1	KEEP	1	 body\n+* 
+meta-return-planning-line.org	ED-1	KEEP	1	 --- point\n-3:2\n+4:2
+meta-return-preamble-only.org	ED-8	KEEP	1	 #+TITLE: x\n-some te\n-* xt\n+some text\n+* 
+meta-return-preamble-text.org	ED-8	KEEP	1	 #+TITLE: x\n-some te\n-* xt\n+some text\n+
+meta-return-preamble-text.org	ED-8	KEEP	1	 --- point\n-3:2\n+3:0
+meta-return-split-heading-bol.org	ED-1	KEEP	1	 * A\n-** 
+meta-return-split-heading-bol.org	ED-1	KEEP	1	 body\n+** 
+meta-return-split-heading-bol.org	ED-1	KEEP	1	 --- point\n-2:3\n+4:3
+meta-return-split-in-keyword.org	ED-4	TRANSITIONAL	1	 * A\n-** TODO Beta\n-** \n+** TO\n+** DO Beta
+meta-return-split-in-keyword.org	ED-4	TRANSITIONAL	1	 --- point\n-3:3\n+3:9
+meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	 ** Beta\n-** 
+meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	 body\n+** 
+meta-return-split-in-stars.org	ED-4	TRANSITIONAL	1	 --- point\n-3:3\n+4:3
+meta-return-split-tagged-title.org	ED-3	TRANSITIONAL	1	 * A\n-** Be                                                                   :tag:\n-** ta gamma\n+** Be\n+** ta gamma :tag:
+meta-return-split-tagged-title.org	ED-3	TRANSITIONAL	1	 --- point\n-3:11\n+3:16
+meta-return-table.org	ED-10	TRANSITIONAL	1	 | a | b |\n+|  |  |
+meta-return-table.org	ED-10	TRANSITIONAL	1	 --- point\n-3:6\n+3:2
+meta-return-tagged-heading-eol.org	ED-1	KEEP	1	 * A                                                                  :tag:\n-* 
+meta-return-tagged-heading-eol.org	ED-1	KEEP	1	 body\n+* 
+meta-return-tagged-heading-eol.org	ED-1	KEEP	1	 --- point\n-2:2\n+3:2
+meta-return-trailing-blanks.org	ED-1	KEEP	1	 ** B\n-** 
+meta-return-trailing-blanks.org	ED-1	KEEP	1	 --- point\n-3:3\n+4:3
+move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	 b body\n-
+move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	 a body\n+
+move-down-trailing-blanks.org	ED-13	TRANSITIONAL	1	 --- point\n-5:3\n+4:3
+narrow-trailing-blanks.org	ED-17	TRANSITIONAL	1	 b\n+
+org-indent-prefix-widths.org	ED-66	KEEP	1	 lp=2|body1\n-lp=1|** L2\n-lp=4|body2\n-lp=2|*** L3\n-lp=6|body3\n-lp=6|- item\n-lp=6|  cont\n+lp=2|** L2\n+lp=5|body2\n+lp=4|*** L3\n+lp=8|body3\n+lp=8|- item\n+lp=8|  cont
+overview-separator-lines.org	ED-62	TRANSITIONAL	1	 H|a\n-H|\n+V|
+paste-subtree-blank-line.org	ED-15	TRANSITIONAL	1	 b\n-
+paste-subtree-blank-line.org	ED-15	TRANSITIONAL	1	 --- point\n-5:0\n+4:0
+paste-subtree-body-line.org	ED-14	TRANSITIONAL	1	 body\n-** A\n+*** A
+paste-subtree-body-line.org	ED-14	TRANSITIONAL	1	 --- point\n-4:0\n+3:4
+paste-subtree-copy-bol.org	ED-14	TRANSITIONAL	1	 ** a1\n-* A\n-** a1\n-PP* B
+paste-subtree-copy-bol.org	ED-14	TRANSITIONAL	1	 * B\n+** A\n+*** a1\n+PP* B
+paste-subtree-cut-from-body.org	ED-14	TRANSITIONAL	1	 * B\n-* A\n+** A
+paste-subtree-cut-from-body.org	ED-14	TRANSITIONAL	1	 --- point\n-2:0\n+1:3
+paste-subtree-deep-into-title.org	ED-14	TRANSITIONAL	1	 * A\n-* deep\n-*** deeper\n+** deep\n+**** deeper
+paste-subtree-deep-into-title.org	ED-14	TRANSITIONAL	1	 --- point\n-2:0\n+1:2
+paste-subtree-heading-bol.org	ED-14	TRANSITIONAL	1	 * B\n-** A\n-a\n-*** a1
+paste-subtree-heading-bol.org	ED-14	TRANSITIONAL	1	 b1\n+*** A\n+a\n+**** a1
+paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	 ** B1\n-** A\n+*** A
+paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	 a\n-*** a1\n+**** a1
+paste-subtree-heading-eol.org	ED-14	TRANSITIONAL	1	 --- point\n-3:0\n+2:5
+paste-subtree-preamble.org	ED-14	TRANSITIONAL	1	 --- point\n-2:0\n+1:3
+paste-subtree-trailing-blanks.org	ED-14	TRANSITIONAL	1	 * C\n-* A\n+** A
+paste-subtree-trailing-blanks.org	ED-14	TRANSITIONAL	1	 --- point\n-3:0\n+2:3
+priority-lower-no-cookie.org	XT-20	TRANSITIONAL	1	^\n-* [#B] Title\n+* [#C] Title
+priority-raise-no-cookie.org	XT-20	TRANSITIONAL	1	^\n-* [#B] Title\n+* [#A] Title
+priority-shiftdown-buffer-range.org	ED-78	TRANSITIONAL	1	 #+PRIORITIES: A E C\n-* [#E] T\n+* T
+priority-shiftdown-buffer-range.org	ED-78	TRANSITIONAL	1	 --- point\n-2:5\n+2:2
+priority-shiftdown-no-cookie.org	ED-77	KEEP	1	^\n-* [#B] Title\n+* TODO Title
+priority-shiftdown-no-cookie.org	ED-77	KEEP	1	 --- point\n-1:8\n+1:3
+priority-shiftup-no-cookie.org	ED-77	KEEP	1	^\n-* [#B] Title\n+* CANCELLED Title\n+  CLOSED: [2026-05-04 Mon 09:30]
+priority-shiftup-no-cookie.org	ED-77	KEEP	1	 --- point\n-1:8\n+1:3
+priority-shiftup-numeric-range.org	ED-78	TRANSITIONAL	1	 #+PRIORITIES: 1 9 5\n-* [#4] T\n+* CANCELLED [#5] T\n+  CLOSED: [2026-05-04 Mon 09:30]
+promote-adapt-indentation.org	ED-12	TRANSITIONAL	1	 * A\n-  body\n-under-indented\n-    over\n+   body\n+ under-indented\n+     over
+promote-headline-adapt-indentation.org	ED-12	TRANSITIONAL	1	 * A\n-  body\n+   body
+property-delete-duplicates.org	ED-48	TRANSITIONAL	1	 :BAR:      2\n+:FOO:      3
+property-set-after-logbook.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
+property-set-after-planning.org	ED-44	KEEP	1	 SCHEDULED: <2026-05-04 Mon> DEADLINE: <2026-05-05 Tue>\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
+property-set-empty-value.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:FOO:\n-:END:\n+  :PROPERTIES:\n+  :FOO:\n+  :END:
+property-set-file-level.org	ED-45	TRANSITIONAL	1	^\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+! error
+property-set-file-level.org	ED-45	TRANSITIONAL	1	 --- point\n-5:4\n+2:4
+property-set-from-body.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
+property-set-from-last-body-line.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
+property-set-invalid-key.org	ED-47	TRANSITIONAL	1	^\n-! error
+property-set-invalid-key.org	ED-47	TRANSITIONAL	1	 * A\n+  :PROPERTIES:\n+  :BAD KEY:  v\n+  :END:
+property-set-item.org	ED-47	TRANSITIONAL	1	^\n-! error
+property-set-item.org	ED-47	TRANSITIONAL	1	 * A\n+  :PROPERTIES:\n+  :ITEM:     x\n+  :END:
+property-set-long-key.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:VERYLONGPROPERTYNAME: v\n-:END:\n+  :PROPERTIES:\n+  :VERYLONGPROPERTYNAME: v\n+  :END:
+property-set-padded-value.org	~ED-44,ED-48	TRANSITIONAL	1	 * A\n-:PROPERTIES:\n-:FOO:      spaced\n-:END:\n+  :PROPERTIES:\n+  :FOO:        spaced  \n+  :END:
+property-set-planning-after-blank.org	ED-44	KEEP	1	 * A\n-:PROPERTIES:\n-:FOO:      bar\n-:END:\n+  :PROPERTIES:\n+  :FOO:      bar\n+  :END:
+property-set-plus-key.org	ED-46	TRANSITIONAL	1	 :PROPERTIES:\n+:header-args+: :results silent
+property-set-todo.org	~ED-44,ED-47	TRANSITIONAL	1	^\n-* DONE A\n+* TODO A\n+  :PROPERTIES:\n+  :TODO:     DONE\n+  :END:
+sort-entries-alpha-markup.org	ED-19	TRANSITIONAL	1	 intro\n+** *Cherry*
+sort-entries-alpha-markup.org	ED-19	TRANSITIONAL	1	 ** banana\n-** *Cherry*
+sort-entries-numeric.org	ED-20	TRANSITIONAL	1	 ** x no number\n+** 1e3 sci
+sort-entries-numeric.org	ED-20	TRANSITIONAL	1	 ** 10 ten\n-** 1e3 sci
+sparse-match-property.org	ED-54,ED-56	TRANSITIONAL	1	 V|* A\n-H|:PROPERTIES:\n-H|:FOO: x\n-H|:END:\n-H|** child\n-V|* B\n+V|:PROPERTIES:\n+V|:FOO: x\n+V|:END:\n+V|** child\n+H|* B
+sparse-match-tag-todo.org	ED-56	TRANSITIONAL	1	 V|* A\n-H|a body\n-H|** TODO a1\n-H|a1 body\n-H|*** a1x\n+V|a body\n+V|** TODO a1\n+V|a1 body\n+V|*** a1x
+sparse-match-tag-todo.org	ED-54	TRANSITIONAL	1	 V|** a2 :work:\n-H|a2 body\n+V|a2 body
+sparse-match-tag-todo.org	ED-56	TRANSITIONAL	1	 V|*** a2x\n-H|deep body\n+V|deep body
+sparse-match-tag-todo.org	ED-54	TRANSITIONAL	1	 H|** DONE b2\n-V|* C\n+H|* C
+sparse-match-todo-only.org	ED-54	TRANSITIONAL	1	 H|deep body\n-V|* B :work:\n+H|* B :work:
+sparse-match-todo-only.org	ED-54	TRANSITIONAL	1	 H|** DONE b2\n-V|* C\n+H|* C
+sparse-occur-body.org	ED-54,ED-57	TRANSITIONAL	1	 H|deep body\n-V|* B :work:\n-V|** b1\n-V|b body has needle\n+H|* B :work:\n+H|** b1\n+H|b body has needle
+sparse-occur-body.org	ED-54,ED-57	TRANSITIONAL	1	 H|** DONE b2\n-V|* C\n-V|c needle body\n+H|* C\n+H|c needle body
+sparse-tag.org	ED-56	TRANSITIONAL	1	 V|* A\n-H|a body\n-H|** TODO a1\n-H|a1 body\n-H|*** a1x\n+V|a body\n+V|** TODO a1\n+V|a1 body\n+V|*** a1x
+sparse-tag.org	ED-54	TRANSITIONAL	1	 V|** a2 :work:\n-H|a2 body\n+V|a2 body
+sparse-tag.org	ED-56	TRANSITIONAL	1	 V|*** a2x\n-H|deep body\n+V|deep body
+sparse-tag.org	ED-53,ED-54	TRANSITIONAL	1	 H|b body has needle\n-V|** DONE b2\n-V|* C\n+H|** DONE b2\n+H|* C
+sparse-todo-keyword.org	ED-56	TRANSITIONAL	1	 V|* A\n-H|a body\n+V|a body
+sparse-todo-keyword.org	ED-54,ED-56	TRANSITIONAL	1	 V|** TODO a1\n-H|a1 body\n-H|*** a1x\n+V|a1 body\n+V|*** a1x
+sparse-todo-keyword.org	ED-54	TRANSITIONAL	1	 H|deep body\n-V|* B :work:\n+H|* B :work:
+sparse-todo-keyword.org	ED-54	TRANSITIONAL	1	 H|** DONE b2\n-V|* C\n+H|* C
+sparse-todo.org	ED-56	TRANSITIONAL	1	 V|* A\n-H|a body\n+V|a body
+sparse-todo.org	ED-54,ED-56	TRANSITIONAL	1	 V|** TODO a1\n-H|a1 body\n-H|*** a1x\n-H|** a2 :work:\n-H|a2 body\n-H|*** a2x\n-H|deep body\n+V|a1 body\n+V|*** a1x\n+V|** a2 :work:\n+V|a2 body\n+V|*** a2x\n+V|deep body
+sparse-todo.org	ED-55,ED-56	TRANSITIONAL	1	 V|* B :work:\n-H|** b1\n-H|b body has needle\n-H|** DONE b2\n+V|** b1\n+V|b body has needle\n+V|** DONE b2
+speed-key-f.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|a body\n-V|** a1\n-V|** a2\n+H|a body\n+H|** a1\n+H|** a2
+speed-key-f.org	XT-22	TRANSITIONAL	1	 --- point\n-5:0\n+1:0
+speed-key-greater.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|** a1\n-V|*** a1x\n+V|*** a1\n+V|**** a1x
+speed-key-greater.org	XT-22	TRANSITIONAL	1	 --- point\n-2:0\n+2:1
+speed-key-less.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|** a1\n-V|*** a1x\n+V|* a1\n+V|** a1x
+speed-key-n.org	XT-22	TRANSITIONAL	1	 --- point\n-3:0\n+9:0
+speed-key-p.org	XT-22	TRANSITIONAL	1	 --- point\n-3:0\n+1:0
+speed-key-upper-f.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|a body\n-V|#+begin_src sh\n-V|echo\n-V|#+end_src\n+H|a body\n+H|#+begin_src sh\n+H|echo\n+H|#+end_src
+speed-key-upper-f.org	XT-22	TRANSITIONAL	1	 V|* B\n-V|#+begin_src sh\n-V|echo\n-V|#+end_src\n+H|#+begin_src sh\n+H|echo\n+H|#+end_src
+speed-key-upper-f.org	XT-22	TRANSITIONAL	1	 --- point\n-7:0\n+6:0
+startup-hideblocks.org	ED-59	TRANSITIONAL	1	 V|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|echo\n+V|#+end_src
+startup-show2levels.org	ED-58	TRANSITIONAL	1	 V|* A\n-H|a body\n-H|:PROPERTIES:\n-H|:X: 1\n-H|:END:\n+V|a body\n+V|:PROPERTIES:\n+V|:X: 1\n+V|:END:
+startup-show2levels.org	ED-58	TRANSITIONAL	1	 V|** a1\n-H|a1 body\n-H|*** a1x\n-H|x body\n+V|a1 body\n+V|*** a1x\n+V|x body
+startup-show2levels.org	ED-58	TRANSITIONAL	1	 V|* B\n-H|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|#+begin_src sh\n+V|echo\n+V|#+end_src
+startup-show3levels.org	ED-58	TRANSITIONAL	1	 V|* A\n-H|a body\n-H|:PROPERTIES:\n-H|:X: 1\n-H|:END:\n+V|a body\n+V|:PROPERTIES:\n+V|:X: 1\n+V|:END:
+startup-show3levels.org	ED-58	TRANSITIONAL	1	 V|** a1\n-H|a1 body\n+V|a1 body
+startup-show3levels.org	ED-58	TRANSITIONAL	1	 V|*** a1x\n-H|x body\n+V|x body
+startup-show3levels.org	ED-58	TRANSITIONAL	1	 V|* B\n-H|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|#+begin_src sh\n+V|echo\n+V|#+end_src
+startup-visibility-property.org	ED-60	TRANSITIONAL	1	 V|* A\n-H|:PROPERTIES:\n+V|:PROPERTIES:
+startup-visibility-property.org	ED-60	TRANSITIONAL	1	 H|:END:\n-H|a body\n-H|** a1\n+V|a body\n+V|** a1
+startup-visibility-property.org	ED-60	TRANSITIONAL	1	 V|** b1\n-H|b1 body\n-H|*** b1x\n+V|b1 body\n+V|*** b1x
+statistics-buffer-todo-keywords.org	ED-42	TRANSITIONAL	1	 #+TODO: TODO | FINISHED\n-* Head [1/2]\n+* Head [0/1]
+statistics-cookie-mid-title.org	ED-11	TRANSITIONAL	1	^\n-* TODO [#A] Head [1/2] more                                             :tag:\n+* TODO [#A] Head [1/2] more :tag:
+statistics-loose-children.org	ED-39	TRANSITIONAL	1	^\n-- [ ] p [1/2]\n+- [ ] p [0/0]
+statistics-todo-non-hierarchical.org	ED-40	TRANSITIONAL	1	^\n-* Head [2/3]\n+* Head [1/2]
+statistics-todo-recursive.org	ED-41	TRANSITIONAL	1	 #+TODO: TODO | DONE FINISHED\n-* Head [2/3]\n+* Head [1/2]
+structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	^\n-#+begin_quote\n+! no organ command
+structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	 line two\n-#+end_quote
+structure-template-wrap-region.org	ED-72	TRANSITIONAL	1	 --- point\n-2:0\n+1:0
+tab-empty-heading.org	ED-63	TRANSITIONAL	1	 V|* A\n-V|* \n+V|** 
+tab-empty-heading.org	ED-63	TRANSITIONAL	1	 --- point\n-2:2\n+2:3
+tab-empty-item.org	ED-63	TRANSITIONAL	1	 V|- a\n-V|  - \n+V|- 
+tab-empty-item.org	ED-63	TRANSITIONAL	1	 --- point\n-2:4\n+2:2
+tab-on-block.org	ED-59	TRANSITIONAL	1	 V|#+begin_src sh\n-H|echo\n-H|#+end_src\n+V|echo\n+V|#+end_src
+tab-on-list-item.org	ED-61	TRANSITIONAL	1	 V|- item\n-H|  - sub\n-H|  more\n+V|  - sub\n+V|  more
+tempo-indented.org	ED-71	TRANSITIONAL	1	 - item\n-  #+begin_quote\n+#+begin_quote
+tempo-indented.org	ED-71	TRANSITIONAL	1	   #+begin_quote\n-  #+end_quote\n+#+end_quote
+tempo-lower-c.org	ED-69,XT-21	TRANSITIONAL	1	 * H\n-#+begin_center\n+#+begin_comment
+tempo-lower-c.org	ED-69,XT-21	TRANSITIONAL	1	 #+begin_center\n-#+end_center\n+#+end_comment
+tempo-lower-i.org	ED-70	TRANSITIONAL	1	 * H\n-#+index: \n+<i
+tempo-lower-i.org	ED-70	TRANSITIONAL	1	 --- point\n-2:9\n+2:2
+tempo-upper-A.org	ED-70	TRANSITIONAL	1	 * H\n-#+ascii: \n+<A
+tempo-upper-A.org	ED-70	TRANSITIONAL	1	 --- point\n-2:9\n+2:2
+tempo-upper-C.org	ED-70	TRANSITIONAL	1	 * H\n-#+begin_comment\n-\n-#+end_comment\n+<C
+tempo-upper-C.org	ED-70	TRANSITIONAL	1	 --- point\n-3:0\n+2:2
+tempo-upper-E.org	ED-70	TRANSITIONAL	1	 * H\n-#+begin_export \n-\n-#+end_export\n+<E
+tempo-upper-E.org	ED-70	TRANSITIONAL	1	 --- point\n-2:15\n+2:2
+tempo-upper-H.org	ED-70	TRANSITIONAL	1	 * H\n-#+html: \n+<H
+tempo-upper-H.org	ED-70	TRANSITIONAL	1	 --- point\n-2:8\n+2:2
+tempo-upper-I.org	ED-70	TRANSITIONAL	1	 * H\n-#+include: "include.org" \n+<I
+tempo-upper-I.org	ED-70	TRANSITIONAL	1	 --- point\n-2:25\n+2:2
+tempo-upper-L.org	ED-70	TRANSITIONAL	1	 * H\n-#+latex: \n+<L
+tempo-upper-L.org	ED-70	TRANSITIONAL	1	 --- point\n-2:9\n+2:2
+timestamp-down-minute.org	ED-74	TRANSITIONAL	1	^\n-x <2026-05-04 Mon 10:00>\n+x <2026-05-04 Mon 10:02>
+timestamp-up-close-bracket.org	ED-75	TRANSITIONAL	1	^\n-x [2026-05-04 Mon]\n+x <2026-05-05 Tue>
+timestamp-up-leap-year.org	ED-73	TRANSITIONAL	1	^\n-x <2025-03-01 Sat>\n+x <2025-02-28 Fri>
+timestamp-up-minute.org	ED-74	TRANSITIONAL	1	^\n-x <2026-05-04 Mon 10:05>\n+x <2026-05-04 Mon 10:04>
+timestamp-up-month-end.org	ED-73	TRANSITIONAL	1	^\n-x <2026-03-03 Tue>\n+x <2026-02-28 Sat>
+timestamp-up-open-bracket.org	ED-75	TRANSITIONAL	1	^\n-x [2026-05-04 Mon]\n+x <2026-05-05 Tue>
+timestamp-up-repeater-mark.org	ED-76	TRANSITIONAL	1	^\n-x <2026-05-04 Mon .+1w>\n+x <2026-05-05 Tue .+1w>
+timestamp-up-repeater-number.org	ED-76	TRANSITIONAL	1	^\n-x <2026-05-04 Mon +2w>\n+x <2026-05-05 Tue +1w>
+timestamp-up-repeater-unit.org	ED-76	TRANSITIONAL	1	^\n-x <2026-05-04 Mon +1m>\n+x <2026-05-05 Tue +1w>
+timestamp-up-warning-after-repeater.org	ED-76	TRANSITIONAL	1	^\n-x <2026-05-04 Mon 10:00 +1d -2w>\n+x <2026-05-05 Tue 10:00 +1d -2d>
+timestamp-up-warning-unit.org	ED-76	TRANSITIONAL	1	^\n-DEADLINE: <2026-05-04 Mon -3w>\n+DEADLINE: <2026-05-05 Tue -3d>
+toggle-heading-region-items.org	ED-33	TRANSITIONAL	1	 ** a\n-** b\n+- b
+toggle-item-region-text.org	ED-33	TRANSITIONAL	1	 - line one\n-- line two\n+line two
+comment-toggle-on.org	ED-80	TRANSITIONAL	1	 --- point\n-1:32\n+1:24
+cycle-bullet-plus.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:3
+cycle-bullet-previous.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:3
+cycle-bullet-star-checkbox.org	ED-80	TRANSITIONAL	1	 --- point\n-1:10\n+1:9
+demote-region-headings.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:1
+fast-tags-existing-order.org	ED-80	TRANSITIONAL	1	 --- point\n-2:3\n+2:16
+format-blank-lines.org	ED-84	KEEP	1	 * B\n-\n-
+format-drawer-values.org	ED-84	KEEP	1	 :VERYLONGKEYNAME: v\n-:empty:    \n+:empty:
+format-indented-body.org	ED-84	KEEP	1	 * A\n-indented text\n-- item\n-  cont\n+    indented text\n+  - item\n+      cont
+format-keyword-case.org	ED-84	KEEP	1	 #+title: T\n-#+begin_src sh\n-  echo\n-#+end_src\n+#+BEGIN_SRC sh\n+echo\n+#+END_SRC
+format-lists.org	ED-23,~ED-84	TRANSITIONAL	1	^\n-1. a\n-2. b\n-   - x\n-   - y\n-3. spaced bullet\n+3. a\n+4. b\n+   + x\n+   + y\n+5. spaced bullet
+format-lowercase-property-drawer.org	ED-84	KEEP	1	 :x:        1\n-:END:\n+:end:
+format-lowercase-property-drawer.org	ED-84	KEEP	1	 * A\n-:PROPERTIES:\n+:properties:
+format-trailing-whitespace.org	ED-84	KEEP	1	 * A\n-text   \n+text
+inherited-category-file-keyword.org	ED-50	TRANSITIONAL	1	^\n-2\tfile-cat\n-3\tfile-cat\n+2\t\n+3\t
+inherited-category-parent-sibling.org	ED-50	TRANSITIONAL	1	 6\tparent-cat\n-7\tfile-cat\n+7\t
+insert-todo-table.org	ED-1	KEEP	1	 * A\n-| a | b\n-* TODO  |\n+| a | b |\n+* TODO 
+item-indent-tree-cookie.org	ED-80	TRANSITIONAL	1	 --- point\n-3:9\n+3:7
+item-indent-tree-first-item.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:3
+item-indent-tree-numbered.org	ED-80	TRANSITIONAL	1	 --- point\n-2:7\n+2:4
+item-indent-tree-with-child.org	ED-80	TRANSITIONAL	1	 --- point\n-2:7\n+2:4
+item-indent-with-child.org	ED-80	TRANSITIONAL	1	 --- point\n-2:7\n+2:4
+list-sort-alpha.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+list-sort-checkbox.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:7
+list-sort-numeric.org	ED-81	KEEP	1	 --- point\n-1:3\n+1:7
+list-sort-time.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:23
+list-to-subtree.org	ED-81	KEEP	1	 --- point\n-5:0\n+2:3
+meta-return-split-todo-title.org	ED-80	TRANSITIONAL	1	 --- point\n-3:5\n+3:4
+meta-return-trailing-blanks.org	ED-9	TRANSITIONAL	1	 body\n-\n-\n+** 
+move-down-last-child.org	ED-81	KEEP	1	 --- point\n-3:0\n+3:4
+move-down-skipped-level.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:5
+move-up-first-child.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:4
+property-delete-missing.org	ED-82	KEEP	1	^\n+! error
+sort-entries-alpha-markup.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-alpha-reverse.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-alpha-unicode.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-blank-lines.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-clocking.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-created.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-deadline.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-from-child.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:4
+sort-entries-last-line.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-numeric.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-priority.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-property.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-scheduled.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-timestamp.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:3
+sort-entries-todo.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:3
+sort-entries-top-level.org	ED-81	KEEP	1	 --- point\n-2:0\n+1:10
+sparse-occur-body.org	ED-81	KEEP	1	 --- point\n-1:2\n+1:0
+sparse-todo-keyword.org	ED-81	KEEP	1	 --- point\n-1:2\n+1:0
+sparse-todo.org	ED-81	KEEP	1	 --- point\n-1:2\n+1:0
+tempo-lower-s.org	XT-21	TRANSITIONAL	1	 --- point\n-2:12\n+3:0
+timestamp-up-diary-sexp.org	ED-83	TRANSITIONAL	1	^\n-! error
+toggle-heading-checkbox-item.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:7
+toggle-heading-heading.org	ED-80	TRANSITIONAL	1	 --- point\n-2:8\n+2:11
+toggle-heading-item.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:3
+toggle-heading-numbered-item.org	ED-81	KEEP	1	 --- point\n-2:0\n+2:4
+toggle-heading-preamble-text.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:2
+toggle-heading-text.org	ED-80	TRANSITIONAL	1	 --- point\n-2:10\n+2:7
+toggle-item-heading.org	ED-80	TRANSITIONAL	1	 --- point\n-2:5\n+2:6
+toggle-item-item.org	ED-80	TRANSITIONAL	1	 --- point\n-1:2\n+1:4
+toggle-item-text.org	ED-80	TRANSITIONAL	1	 --- point\n-2:9\n+2:7
+toggle-item-todo-heading.org	ED-80	TRANSITIONAL	1	 --- point\n-1:8\n+1:9
