@@ -70,12 +70,12 @@ m3 = mark(b, 2)
 obuf.set_lines(b, 0, 3, { "* A", "* New", "body", "* B", "* C" })
 check("insert above keeps a later heading's mark on it", where(b, m3) == 4)
 
--- The cursor stays on the same character when text is inserted before it.
+-- A cursor on an edited line keeps its column, as with a whole-line write.
 b = buffer({ "* heading title" })
 vim.api.nvim_set_current_buf(b)
 vim.api.nvim_win_set_cursor(0, { 1, 10 })
 obuf.set_lines(b, 0, 1, { "* TODO heading title" })
-check("cursor stays on its character", vim.api.nvim_win_get_cursor(0)[2] == 15)
+check("cursor keeps its column", vim.api.nvim_win_get_cursor(0)[2] == 10)
 
 -- One call is one undo step.
 b = buffer({ "a", "b", "c", "d" })

@@ -42,8 +42,17 @@ local function element(line, keywords)
 end
 
 -- Rewrite one line in place by its changed span only, so extmarks on the
--- unchanged prefix (a heading's fold and reveal marks at col 0) stay.
+-- unchanged prefix (a heading's fold and reveal marks at col 0) stay.  A
+-- cursor on the line keeps its column, as a whole-line replace (and
+-- Emacs, for organ's in-place commands) leaves it.
 local function set_line_text(bufnr, row, old, new)
+  local cursors = {}
+  for _, win in ipairs(vim.fn.win_findbuf(bufnr == 0 and vim.api.nvim_get_current_buf() or bufnr)) do
+    local pos = vim.api.nvim_win_get_cursor(win)
+    if pos[1] == row + 1 then
+      cursors[win] = pos[2]
+    end
+  end
   local p = 0
   local max = math.min(#old, #new)
   while p < max and old:byte(p + 1) == new:byte(p + 1) do
@@ -54,6 +63,9 @@ local function set_line_text(bufnr, row, old, new)
     q = q + 1
   end
   vim.api.nvim_buf_set_text(bufnr, row, p, row, #old - q, { new:sub(p + 1, #new - q) })
+  for win, col in pairs(cursors) do
+    pcall(vim.api.nvim_win_set_cursor, win, { row + 1, math.min(col, #new) })
+  end
 end
 
 -- Write `new_lines` (a list of strings) to the range [start, end_), changing

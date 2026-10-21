@@ -181,6 +181,26 @@ vim.api.nvim_win_set_cursor(0, { line_of("** N"), 0 })
 vim.cmd("normal! zc")
 check("a heading typed in Insert mode is foldable", closed("** N"))
 
+-- Moving a subtree keeps its folds and its sibling's, and undo restores.
+open({ "* A", "body a", "** A1", "a1 body", "", "* B", "body b", "* C", "body c" })
+zc("** A1")
+zc("* B")
+vim.api.nvim_win_set_cursor(0, { line_of("* A"), 0 })
+require("organ.structure").move_subtree_down()
+idle()
+check("moved subtree keeps its nested fold closed", closed("** A1"))
+check("sibling it moved past stays closed", closed("* B"))
+check("the separator blank stays between them", vim.api.nvim_buf_get_lines(0, 0, -1, false)[3] == "")
+check("cursor follows the moved heading", vim.fn.getline(".") == "* A")
+vim.cmd("silent undo")
+idle()
+check("one undo restores the order", vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] == "* A")
+check("and the folds", closed("** A1") and closed("* B"))
+require("organ.structure").move_subtree_up({ line = line_of("* B") })
+idle()
+check("moving up keeps the moved fold closed", closed("* B"))
+check("and the one it passed", closed("** A1"))
+
 -- Fold keys typed in one burst with edits are kept: before an edit,
 -- after it, and between two edits, and inside a macro.
 open()

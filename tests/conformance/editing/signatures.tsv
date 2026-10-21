@@ -239,7 +239,6 @@ sparse-todo.org	ED-55,ED-56	TRANSITIONAL	1	 V|* B :work:\n-H|** b1\n-H|b body ha
 speed-key-f.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|a body\n-V|** a1\n-V|** a2\n+H|a body\n+H|** a1\n+H|** a2
 speed-key-f.org	XT-22	TRANSITIONAL	1	 --- point\n-5:0\n+1:0
 speed-key-greater.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|** a1\n-V|*** a1x\n+V|*** a1\n+V|**** a1x
-speed-key-greater.org	XT-22	TRANSITIONAL	1	 --- point\n-2:0\n+2:1
 speed-key-less.org	XT-22	TRANSITIONAL	1	 V|* A\n-V|** a1\n-V|*** a1x\n+V|* a1\n+V|** a1x
 speed-key-n.org	XT-22	TRANSITIONAL	1	 --- point\n-3:0\n+9:0
 speed-key-p.org	XT-22	TRANSITIONAL	1	 --- point\n-3:0\n+1:0
@@ -306,7 +305,6 @@ comment-toggle-on.org	ED-80	TRANSITIONAL	1	 --- point\n-1:32\n+1:24
 cycle-bullet-plus.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:3
 cycle-bullet-previous.org	ED-80	TRANSITIONAL	1	 --- point\n-1:4\n+1:3
 cycle-bullet-star-checkbox.org	ED-80	TRANSITIONAL	1	 --- point\n-1:10\n+1:9
-demote-region-headings.org	ED-81	KEEP	1	 --- point\n-1:0\n+1:1
 fast-tags-existing-order.org	ED-80	TRANSITIONAL	1	 --- point\n-2:3\n+2:16
 format-blank-lines.org	ED-84	KEEP	1	 * B\n-\n-
 format-drawer-values.org	ED-84	KEEP	1	 :VERYLONGKEYNAME: v\n-:empty:    \n+:empty:

@@ -72,6 +72,7 @@ end
 local starts_cache = {} -- bufnr -> { tick = N, starts = list }
 
 local function fold_starts(bufnr)
+  bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
   local fold = require("organ.fold")
   local tick = vim.api.nvim_buf_get_changedtick(bufnr)
   local hit = starts_cache[bufnr]
@@ -279,6 +280,7 @@ end
 
 -- Make every in-scope window showing `bufnr` match its marks.
 function M.reconcile(bufnr, opts)
+  bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
   opts = opts or {}
   if not vim.api.nvim_buf_is_valid(bufnr) then
     pending[bufnr] = nil
@@ -373,6 +375,7 @@ end
 -- Mark the fold starting at `lnum` closed in every window showing the
 -- buffer, and close it there.
 function M.close(bufnr, lnum)
+  bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
   for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
     if in_scope(winid) then
       local st = win_state(winid, bufnr)

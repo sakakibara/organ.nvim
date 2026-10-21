@@ -282,6 +282,8 @@ end
 -- as `want(start)` says, then make Vim's folds match.  Setting foldlevel
 -- first gives zm / zr the state's level to step from, as in Vim.
 local function apply_marks(winid, bufnr, foldlevel, want)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  bufnr = nbuf(bufnr)
   local marks = require("organ.fold.marks")
   local own = marks.in_scope(winid)
   if own then
@@ -303,6 +305,7 @@ local function apply_marks(winid, bufnr, foldlevel, want)
 end
 
 local function deepest_level(bufnr)
+  bufnr = nbuf(bufnr)
   local deepest = 0
   for _, s in ipairs(require("organ.fold.marks").starts(bufnr)) do
     deepest = math.max(deepest, s.level)
@@ -322,6 +325,7 @@ end
 
 -- CONTENTS: every heading open, bodies concealed by organ.fold.contents.
 function M.apply_content(winid, bufnr)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
   apply_marks(winid, bufnr, 99, function(s)
     if s.kind == "heading" then
       return false

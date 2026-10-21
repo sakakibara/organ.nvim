@@ -27,6 +27,12 @@ local function check(label, ok, detail)
   end
 end
 
+-- An editor idles (SafeState) between the user's fold commands and the
+-- next edit; headless -l never does.
+local function idle()
+  require("organ.fold.marks").on_safe_state()
+end
+
 local function set_up_buf(lines)
   local b = vim.api.nvim_create_buf(true, false)
   vim.api.nvim_set_current_buf(b)
@@ -37,6 +43,7 @@ local function set_up_buf(lines)
   vim.wo.foldenable = true
   -- Force foldexpr evaluation across the buffer so foldclosed() is meaningful.
   vim.cmd("normal! zX")
+  idle()
   return b
 end
 
@@ -51,7 +58,9 @@ do
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   pcall(vim.cmd, "1foldopen")
   local was_closed_before = vim.fn.foldclosed(1) == 1
+  idle()
   structure.demote_headline({ count = 1 })
+  idle()
   local is_closed_after = vim.fn.foldclosed(1) == 1
   check(
     "demote_headline keeps open fold open",
@@ -71,7 +80,9 @@ do
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   pcall(vim.cmd, "1foldclose")
   local was_closed_before = vim.fn.foldclosed(1) == 1
+  idle()
   structure.demote_headline({ count = 1 })
+  idle()
   local is_closed_after = vim.fn.foldclosed(1) == 1
   check(
     "demote_headline keeps closed fold closed",
@@ -95,7 +106,9 @@ do
   pcall(vim.cmd, "3foldclose")
   local parent_closed_before = vim.fn.foldclosed(1) == 1
   local child_closed_before = vim.fn.foldclosed(3) == 3
+  idle()
   structure.promote_subtree({ count = 1 })
+  idle()
   local parent_closed_after = vim.fn.foldclosed(1) == 1
   local child_closed_after = vim.fn.foldclosed(3) == 3
   check(
@@ -122,7 +135,9 @@ do
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
   pcall(vim.cmd, "1foldclose")
   local was_closed_before = vim.fn.foldclosed(1) == 1
+  idle()
   structure.promote_headline({ count = 1 })
+  idle()
   local is_closed_after = vim.fn.foldclosed(1) == 1
   check(
     "promote_headline keeps closed fold closed",
@@ -132,7 +147,9 @@ do
 end
 
 -- 5. Demoting a nested heading must not disturb untouched neighbors:
---    the open parent stays open and the closed siblings stay closed.
+--    the open parent stays open and the closed sibling C stays closed.
+--    B joins the closed A, which opens so the edited line stays visible
+--    (Emacs shows B too; Vim cannot keep A's own body hidden then).
 --    (Regression: demoting `** B` collapsed the whole `* Parent`.)
 do
   set_up_buf({
@@ -150,13 +167,15 @@ do
   pcall(vim.cmd, "6foldclose") -- C closed
   local parent_open_before = vim.fn.foldclosed(1) ~= 1
   vim.api.nvim_win_set_cursor(0, { 4, 0 })
+  idle()
   structure.demote_headline()
+  idle()
   local parent_open_after = vim.fn.foldclosed(1) ~= 1
   local a_closed_after = vim.fn.foldclosed(2) == 2
   local c_closed_after = vim.fn.foldclosed(6) == 6
   check(
     "demote_headline leaves parent open + siblings closed untouched",
-    parent_open_before and parent_open_after and a_closed_after and c_closed_after,
+    parent_open_before and parent_open_after and not a_closed_after and c_closed_after,
     ("parent_before=%s parent_after=%s A_closed=%s C_closed=%s"):format(
       tostring(parent_open_before),
       tostring(parent_open_after),
@@ -182,7 +201,9 @@ do
   pcall(vim.cmd, "5foldclose") -- B closed
   local b_closed_before = vim.fn.foldclosed(5) == 5
   vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  idle()
   structure.promote_subtree()
+  idle()
   local b_closed_after = vim.fn.foldclosed(5) == 5
   check(
     "promote_subtree leaves untouched sibling B closed",
@@ -192,9 +213,8 @@ do
 end
 
 -- 7. A heading closed-and-buried inside a closed ancestor keeps its own
---    closed state through an unrelated demote: opening the ancestor
---    afterward must still reveal it folded.  (foldclosed() cannot read a
---    buried fold, so this exercises the active-probe capture.)
+--    closed state through a demote that joins B to that ancestor: the
+--    ancestor opens to show the edited line, and A1 is still folded.
 do
   set_up_buf({
     "* Parent", -- 1
@@ -210,13 +230,15 @@ do
   pcall(vim.cmd, "3foldclose") -- A1 closed
   pcall(vim.cmd, "2foldclose") -- A closed -> A1 now buried & closed
   vim.api.nvim_win_set_cursor(0, { 5, 0 })
-  structure.demote_headline() -- B: ** -> ***, does not touch A subtree
+  idle()
+  structure.demote_headline() -- B: ** -> ***, joins A's subtree
+  idle()
   local a_closed_after = vim.fn.foldclosed(2) == 2
   pcall(vim.cmd, "2foldopen") -- reveal A's children
   local a1_closed_after = vim.fn.foldclosed(3) == 3
   check(
-    "buried-closed A1 stays closed through unrelated demote",
-    a_closed_after and a1_closed_after,
+    "buried-closed A1 stays closed through a demote into A",
+    not a_closed_after and a1_closed_after,
     ("A_closed=%s A1_closed_after_open=%s"):format(
       tostring(a_closed_after),
       tostring(a1_closed_after)
@@ -239,7 +261,9 @@ do
   pcall(vim.cmd, "2foldclose") -- drawer folded
   local drawer_closed_before = vim.fn.foldclosed(2) == 2
   vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  idle()
   structure.promote_subtree() -- ** A -> * A
+  idle()
   local drawer_closed_after = vim.fn.foldclosed(2) == 2
   check(
     "promote_subtree keeps a folded PROPERTIES drawer folded",
