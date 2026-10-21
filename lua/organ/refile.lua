@@ -156,6 +156,19 @@ function M.move(src_bufnr, src_line, target_file, target_line, move_opts)
     end
   end
   local subtree = vim.list_slice(lines, hl_line, end_line - 1)
+  -- Closed folds of the subtree, as offsets from its headline, so the
+  -- refiled copy folds the same way (Emacs keeps a refiled subtree's
+  -- visibility).
+  local closed = {}
+  local src_win = vim.fn.bufwinid(src_bufnr)
+  if vim.api.nvim_get_current_buf() == src_bufnr then
+    src_win = vim.api.nvim_get_current_win()
+  end
+  if src_win > 0 then
+    for _, lnum in ipairs(require("organ.fold.marks").closed_lines(src_win, hl_line, end_line - 1)) do
+      closed[#closed + 1] = lnum - hl_line
+    end
+  end
 
   -- Load target buffer, validate target headline.  Resolve to a
   -- canonical path first + scan loaded buffers so a window already
@@ -222,6 +235,9 @@ function M.move(src_bufnr, src_line, target_file, target_line, move_opts)
   end
   obuf.set_lines(target_bufnr, insert_at, insert_at, subtree)
   local dest_hl = insert_at + 1
+  for _, offset in ipairs(closed) do
+    require("organ.fold.marks").close(target_bufnr, dest_hl + offset)
+  end
 
   -- LOGBOOK refile note. Recorded BEFORE the save so the entry persists.
   local cfg = (require("organ.buf_config").read(nil, "todo") or {})

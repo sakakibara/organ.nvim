@@ -24,7 +24,13 @@ local function ensure_file(path)
   end
 end
 
+-- The target's lines, from its buffer when it is loaded: capture inserts
+-- into that buffer, unsaved changes included, as Emacs does.
 local function read_lines(path)
+  local b = require("organ.path").loaded_buffer(path)
+  if b then
+    return vim.api.nvim_buf_get_lines(b, 0, -1, false)
+  end
   if not vim.loop.fs_stat(path) then
     return {}
   end

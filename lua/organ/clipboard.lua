@@ -8,6 +8,25 @@ local obuf = require("organ.buf")
 -- Module-local clipboard.
 local _lines = nil -- list of line strings
 local _top_level = nil -- integer: the heading level of the top headline
+local _closed = {} -- offsets from the top headline of the folds that were closed
+
+-- Offsets of the closed folds in [first, last] in the window showing
+-- `bufnr` (the current one when it does), so a paste can fold them again.
+local function closed_offsets(bufnr, first, last)
+  bufnr = bufnr == 0 and vim.api.nvim_get_current_buf() or bufnr
+  local win = vim.api.nvim_get_current_win()
+  if vim.api.nvim_win_get_buf(win) ~= bufnr then
+    win = vim.fn.bufwinid(bufnr)
+  end
+  if win <= 0 then
+    return {}
+  end
+  local out = {}
+  for _, lnum in ipairs(require("organ.fold.marks").closed_lines(win, first, last)) do
+    out[#out + 1] = lnum - first
+  end
+  return out
+end
 
 -- Parse the level of a headline line. Returns integer or nil.
 local function headline_level(text)
@@ -57,6 +76,7 @@ function M.copy(bufnr, line)
   local lines = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, subtree_end, false)
   _lines = lines
   _top_level = hl.level
+  _closed = closed_offsets(bufnr, hl.line, subtree_end)
   return nil
 end
 
@@ -72,6 +92,7 @@ function M.cut(bufnr, line)
   local lines = vim.api.nvim_buf_get_lines(bufnr, hl.line - 1, subtree_end, false)
   _lines = lines
   _top_level = hl.level
+  _closed = closed_offsets(bufnr, hl.line, subtree_end)
   -- Delete the lines from the buffer.
   obuf.set_lines(bufnr, hl.line - 1, subtree_end, {})
   pcall(function()
@@ -129,6 +150,11 @@ function M.paste(bufnr, line)
   end
 
   obuf.set_lines(bufnr, insert_after, insert_after, pasted)
+  -- The pasted folds come back as they were cut or copied, as
+  -- org-paste-subtree keeps them.
+  for _, offset in ipairs(_closed) do
+    require("organ.fold.marks").close(bufnr, insert_after + 1 + offset)
+  end
   pcall(function()
     require("organ.spacing").normalize_around(bufnr, insert_after + 1)
   end)

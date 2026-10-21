@@ -190,7 +190,10 @@ require("organ.structure").move_subtree_down()
 idle()
 check("moved subtree keeps its nested fold closed", closed("** A1"))
 check("sibling it moved past stays closed", closed("* B"))
-check("the separator blank stays between them", vim.api.nvim_buf_get_lines(0, 0, -1, false)[3] == "")
+check(
+  "the separator blank stays between them",
+  vim.api.nvim_buf_get_lines(0, 0, -1, false)[3] == ""
+)
 check("cursor follows the moved heading", vim.fn.getline(".") == "* A")
 vim.cmd("silent undo")
 idle()
@@ -200,6 +203,66 @@ require("organ.structure").move_subtree_up({ line = line_of("* B") })
 idle()
 check("moving up keeps the moved fold closed", closed("* B"))
 check("and the one it passed", closed("** A1"))
+
+-- A drawer organ creates starts folded; a pasted subtree keeps the folds
+-- it was copied with.
+open()
+require("organ.property").set(0, line_of("* C"), "X", "1")
+idle()
+local drawer_line
+for i, l in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+  if l:match("^%s*:PROPERTIES:%s*$") then
+    drawer_line = i
+  end
+end
+check(
+  "a PROPERTIES drawer organ creates starts folded",
+  drawer_line and vim.fn.foldclosed(drawer_line) == drawer_line
+)
+check("its heading stays open", not closed("* C"))
+open({ "* A", "body a", "** A1", "a1 body", "* B", "body b" })
+zc("** A1")
+local clipboard = require("organ.clipboard")
+clipboard.copy(0, line_of("* A"))
+clipboard.paste(0, line_of("* B"))
+idle()
+local pasted
+for i, l in ipairs(vim.api.nvim_buf_get_lines(0, 0, -1, false)) do
+  if l == "*** A1" then
+    pasted = i
+  end
+end
+check("a pasted subtree keeps its closed fold", pasted and vim.fn.foldclosed(pasted) == pasted)
+check("the source keeps its own", closed("** A1"))
+
+-- Capture into a file open in a window keeps that window's folds and
+-- shows the new entry under its folded parent, its siblings folded.
+open({ "* Inbox", "** Old", "old body", "* Other", "other body" })
+local inbox_file = vim.api.nvim_buf_get_name(0)
+zc("** Old")
+zc("* Inbox")
+zc("* Other")
+local capture = require("organ.capture")
+capture.start({
+  name = "T",
+  target = { kind = "file_headline", path = inbox_file, headline = "Inbox" },
+  body = "* New\nnew body",
+}, { now = os.time(), prompts = { text = {}, dates = {} } })
+local cap = vim.api.nvim_get_current_buf()
+vim.cmd("stopinsert")
+capture.finalise(cap)
+idle()
+check(
+  "capture leaves the target buffer loaded, not re-read",
+  vim.api.nvim_buf_get_name(0) == inbox_file
+)
+check(
+  "the new entry is visible",
+  not closed("** New") and vim.fn.foldclosed(line_of("** New")) == -1
+)
+check("its sibling stays folded", closed("** Old"))
+check("an unrelated heading stays folded", closed("* Other"))
+check("the file on disk has the entry", vim.tbl_contains(vim.fn.readfile(inbox_file), "** New"))
 
 -- Fold keys typed in one burst with edits are kept: before an edit,
 -- after it, and between two edits, and inside a macro.

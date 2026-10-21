@@ -264,6 +264,25 @@ function M.sync(winid)
   M.record(winid)
 end
 
+-- Lines in [first, last] whose fold the window has marked closed, after
+-- recording what the user did since the last idle point.
+function M.closed_lines(winid, first, last)
+  winid = (winid == nil or winid == 0) and vim.api.nvim_get_current_win() or winid
+  if not in_scope(winid) then
+    return {}
+  end
+  M.sync(winid)
+  local bufnr = vim.api.nvim_win_get_buf(winid)
+  local out = {}
+  for lnum in pairs(mark_lines(bufnr, win_state(winid, bufnr))) do
+    if lnum >= first and lnum <= last then
+      out[#out + 1] = lnum
+    end
+  end
+  table.sort(out)
+  return out
+end
+
 -- Mark the fold starting at `lnum` closed or open in one window; the
 -- next reconcile of that window applies it.
 function M.set_closed(winid, lnum, closed)
@@ -382,6 +401,52 @@ function M.close(bufnr, lnum)
       local by_line = mark_lines(bufnr, st)
       if not by_line[lnum] then
         add_mark(bufnr, st, by_line, lnum)
+      end
+    end
+  end
+  pending[bufnr] = true
+end
+
+-- Show the heading at `lnum` in every window: each closed ancestor opens
+-- and its other direct child headings close instead, so the new heading
+-- shows among folded siblings (Emacs keeps the parent's own body hidden
+-- too; a Vim fold cannot).
+function M.reveal(bufnr, lnum)
+  bufnr = (bufnr == nil or bufnr == 0) and vim.api.nvim_get_current_buf() or bufnr
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local function level(l)
+    local stars = (lines[l] or ""):match("^(%*+)%s")
+    return stars and #stars or nil
+  end
+  local ancestors, want = {}, (level(lnum) or math.huge)
+  for l = lnum - 1, 1, -1 do
+    local lv = level(l)
+    if lv and lv < want then
+      ancestors[#ancestors + 1] = { line = l, level = lv }
+      want = lv
+    end
+  end
+  local path = { [lnum] = true }
+  for _, a in ipairs(ancestors) do
+    path[a.line] = true
+  end
+  for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
+    if in_scope(winid) then
+      local st = win_state(winid, bufnr)
+      local by_line = mark_lines(bufnr, st)
+      for _, a in ipairs(ancestors) do
+        if by_line[a.line] then
+          drop_marks(bufnr, st, by_line, a.line)
+          for l = a.line + 1, #lines do
+            local lv = level(l)
+            if lv and lv <= a.level then
+              break
+            end
+            if lv == a.level + 1 and not path[l] and not by_line[l] then
+              add_mark(bufnr, st, by_line, l)
+            end
+          end
+        end
       end
     end
   end
@@ -550,6 +615,7 @@ end
 -- ftplugin teardown removes the key wrappers.
 function M.detach(bufnr)
   attached[bufnr] = nil
+  M.clear(bufnr)
   M.forget_buffer(bufnr)
   pcall(vim.api.nvim_del_augroup_by_name, "organ_fold_marks_" .. bufnr)
 end

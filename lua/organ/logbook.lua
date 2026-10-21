@@ -124,6 +124,8 @@ function M.append(bufnr, hl_line, entry_lines)
     end
     block[#block + 1] = ind(":END:")
     obuf.set_lines(bufnr, pos - 1, pos - 1, block)
+    -- A drawer organ creates starts folded, as Emacs folds a new log drawer.
+    require("organ.fold.marks").close(bufnr, pos)
   end
 end
 

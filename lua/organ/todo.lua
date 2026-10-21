@@ -664,6 +664,8 @@ local function add_logbook_entry(bufnr, hl_line, drawer_name, from_state, to_sta
     end
     block[#block + 1] = ":END:"
     obuf.set_lines(bufnr, pos - 1, pos - 1, block)
+    -- A drawer organ creates starts folded, as Emacs folds a new log drawer.
+    require("organ.fold.marks").close(bufnr, pos)
   end
 end
 

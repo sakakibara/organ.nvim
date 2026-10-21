@@ -115,6 +115,8 @@ function M.set(bufnr, line, key, value)
     indent .. ":END:",
   }
   obuf.set_lines(bufnr, insert_at - 1, insert_at - 1, new_drawer)
+  -- A drawer organ creates starts folded, as org-entry-put leaves it.
+  require("organ.fold.marks").close(bufnr, insert_at)
   return nil
 end
 

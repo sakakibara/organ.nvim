@@ -484,7 +484,9 @@ function M.finalise(bufnr)
     lines = releveled
   end
 
-  local file_lines = vim.fn.readfile(path)
+  local target_buf = require("organ.path").loaded_buffer(path)
+  local file_lines = target_buf and vim.api.nvim_buf_get_lines(target_buf, 0, -1, false)
+    or vim.fn.readfile(path)
   local before = {}
   for _ = 1, (meta.empty_lines_before or 0) do
     before[#before + 1] = ""
@@ -508,51 +510,44 @@ function M.finalise(bufnr)
     insert[#insert + 1] = l
   end
 
-  local out = {}
-  for i = 1, insert_line - 1 do
-    out[#out + 1] = file_lines[i]
-  end
-  for _, l in ipairs(insert) do
-    out[#out + 1] = l
-  end
-  for i = insert_line, #file_lines do
-    out[#out + 1] = file_lines[i]
-  end
-
-  -- Atomic-rename write so a crash mid-finalise can't corrupt the user's
-  -- inbox file (would otherwise leave a half-truncated org file).
-  local body = table.concat(out, "\n") .. "\n"
-  local ok, werr = require("organ.path").write_atomic(path, body)
-  if not ok then
-    require("organ.notify").error(
-      "organ.capture: failed to write " .. path .. ": " .. tostring(werr)
-    )
-    return
-  end
-
-  -- If the target file is currently loaded as a buffer (the user has
-  -- inbox.org open in a window, or any other plugin loaded it), the
-  -- atomic write went to disk but the buffer's in-memory copy is now
-  -- stale.  :checktime asks vim to re-read any buffer whose mtime
-  -- changed -- without this the user has to manually `:e` to see the
-  -- captured entry, and any fold/cursor state references the old
-  -- line numbers.
-  do
-    local canonical = require("organ.path").canonical(path) or path
-    for _, b in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_loaded(b) then
-        local name = vim.api.nvim_buf_get_name(b)
-        local bcanon = require("organ.path").canonical(name) or name
-        if bcanon == canonical then
-          pcall(vim.api.nvim_buf_call, b, function()
-            vim.cmd("silent! checktime")
-          end)
-        end
-      end
+  local entry_line = (insert_line - 1) + #prelude + #before + 1
+  if target_buf then
+    -- The target is open: insert into its buffer and save it, so the
+    -- window keeps its fold state and the user's unsaved text, and show
+    -- the new entry under a folded parent (organ.fold.marks).
+    require("organ.buf").set_lines(target_buf, insert_line - 1, insert_line - 1, insert)
+    require("organ.fold.marks").reveal(target_buf, entry_line)
+    local ok_w, werr = pcall(vim.api.nvim_buf_call, target_buf, function()
+      vim.cmd("silent write")
+    end)
+    if not ok_w then
+      require("organ.notify").error(
+        "organ.capture: failed to write " .. path .. ": " .. tostring(werr)
+      )
+      return
+    end
+  else
+    local out = {}
+    for i = 1, insert_line - 1 do
+      out[#out + 1] = file_lines[i]
+    end
+    for _, l in ipairs(insert) do
+      out[#out + 1] = l
+    end
+    for i = insert_line, #file_lines do
+      out[#out + 1] = file_lines[i]
+    end
+    -- Atomic-rename write so a crash mid-finalise can't corrupt the
+    -- user's inbox file (would otherwise leave a half-truncated org file).
+    local body = table.concat(out, "\n") .. "\n"
+    local ok, werr = require("organ.path").write_atomic(path, body)
+    if not ok then
+      require("organ.notify").error(
+        "organ.capture: failed to write " .. path .. ": " .. tostring(werr)
+      )
+      return
     end
   end
-
-  local entry_line = (insert_line - 1) + #prelude + #before + 1
 
   if meta.on_finalise then
     pcall(meta.on_finalise, meta.ctx, lines)

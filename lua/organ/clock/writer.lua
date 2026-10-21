@@ -38,6 +38,8 @@ function M.write_active(bufnr, hl_line, drawer_name, start_ts)
       indent .. "CLOCK: " .. ts_inactive(start_ts),
       indent .. ":END:",
     })
+    -- A drawer organ creates starts folded, as Emacs folds a new clock drawer.
+    require("organ.fold.marks").close(bufnr, pos)
   end
 end
 
