@@ -98,6 +98,8 @@ Both sides:
   the first item; Emacs `completing-read` / `read-string` return the
   initial input or default, or the answer the case names).
 - The clock is pinned through `../_clock.el` / `../_clock.lua`.
+- HOME is the directory the case roots are made in, so a path into a case
+  can take its `~` form, as it does for most users and on CI.
 
 Emacs only:
 
@@ -141,9 +143,10 @@ takes part; it shows that the option reaches Emacs's choice of a
 In the producers (`emacs.el`, `organ.lua`):
 
 1. The case directory (`ROOT/w`, also in its symlink-resolved form) is
-   written `<DIR>`, the root `<ROOT>`. They are fresh temporary paths that
-   differ per run and per side; the relation of a path to them is what
-   carries meaning, and it is kept.
+   written `<DIR>`, the root `<ROOT>`, and their `~` forms `~<DIR>` and
+   `~<ROOT>`. They are fresh temporary paths that differ per run and per
+   side; the relation of a path to them is what carries meaning, and it is
+   kept.
 2. Citation affixes are trimmed and a whitespace-only affix is printed as
    nil. org-element keeps the blank before `@key` as the reference's
    prefix (`; @doe` has prefix " "); the separator blank is not affix text.

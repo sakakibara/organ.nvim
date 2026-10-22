@@ -15,6 +15,9 @@ pcall(function()
   })
 end)
 
+-- Case roots are made under HOME, as on the Emacs side.
+vim.env.HOME = vim.fn.fnamemodify(vim.fn.tempname(), ":h")
+
 local buf_config = require("organ.buf_config")
 
 local POINT_OPS = { follow = true, ["fn-action"] = true, ["fn-new"] = true }
@@ -282,8 +285,10 @@ local function replace_dirs(text, base, dir)
   for _, pair in ipairs({
     { vim.fn.resolve(dir), "<DIR>" },
     { dir, "<DIR>" },
+    { vim.fn.fnamemodify(dir, ":~"), "~<DIR>" },
     { vim.fn.resolve(base), "<ROOT>" },
     { base, "<ROOT>" },
+    { vim.fn.fnamemodify(base, ":~"), "~<ROOT>" },
   }) do
     text = text:gsub(vim.pesc(pair[1]), pair[2])
   end

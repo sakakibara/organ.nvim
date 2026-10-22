@@ -1,2 +1,3 @@
 # Expected differences of the babel-links id-link-nil run (links.id_link_policy = false).
 store-existing-id.org	BL-126	TRANSITIONAL	1	 :END:\n-[[*With ID][With ID]]\n+[[file:<DIR>/case.org::*With ID][With ID]]
+store-existing-id.org	BL-126	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::*With ID\n+=== stored file:<DIR>/case.org::*With ID

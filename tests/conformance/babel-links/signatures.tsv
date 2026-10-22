@@ -151,21 +151,21 @@ sh-default-ten-lines.org	BL-7	TRANSITIONAL	1	 #+RESULTS:\n-|  1 |\n-|  2 |\n-|  
 sh-results-list.org	BL-10	TRANSITIONAL	1	 #+RESULTS:\n-- x\n-- y\n+: - x\n+: - y
 sh-value-exit-status.org	BL-8	KEEP	1	 #+RESULTS:\n-: 1\n+: a b\n+: c d
 stderr-exit.org	BL-29	KEEP	1	 : out\n+: STDERR: err
-store-before-heading.org	BL-124	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::Before any heading.\n-=== description nil\n+=== stored file:<DIR>/case.org::1\n+=== description case.org:1
+store-before-heading.org	BL-124	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::Before any heading.\n-=== description nil\n+=== stored file:<DIR>/case.org::1\n+=== description case.org:1
 store-before-heading.org	BL-124,BL-126	TRANSITIONAL	1	 * Head\n-[[Before any heading.]]\n+[[file:<DIR>/case.org::1][case.org:1]]
 store-body-same-file.org	BL-126	TRANSITIONAL	1	 Some body text line.\n-[[*Head][Head]]\n+[[file:<DIR>/case.org::*Head][Head]]
 store-brackets.org	BL-126,BL-127	TRANSITIONAL	1	 * Weird [x] name\n-[[*Weird \\[x\\] name][Weird [x] name]]\n+[[file:<DIR>/case.org::*Weird [x] name][Weird [x] name]]
-store-custom-id.org	BL-122	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::#cid-1\n+=== stored file:<DIR>/case.org::*With Custom
+store-custom-id.org	BL-122	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::#cid-1\n+=== stored file:<DIR>/case.org::*With Custom
 store-custom-id.org	BL-122,BL-126	TRANSITIONAL	1	 :END:\n-[[#cid-1][With Custom]]\n+[[file:<DIR>/case.org::*With Custom][With Custom]]
-store-existing-id.org	BL-123	KEEP	1	^\n-=== stored file:<DIR>/case.org::*With ID\n+=== stored id:1111-2222
+store-existing-id.org	BL-123	KEEP	1	^\n-=== stored file:~<DIR>/case.org::*With ID\n+=== stored id:1111-2222
 store-existing-id.org	BL-123	KEEP	1	 :END:\n-[[*With ID][With ID]]\n+[[id:1111-2222][With ID]]
-store-headline-todo.org	BL-121	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::*Plain Heading\n-=== description Plain Heading\n+=== stored file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:\n+=== description TODO [#B] Plain Heading [1/3] :tag:
+store-headline-todo.org	BL-121	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::*Plain Heading\n-=== description Plain Heading\n+=== stored file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:\n+=== description TODO [#B] Plain Heading [1/3] :tag:
 store-headline-todo.org	BL-121,BL-126	TRANSITIONAL	1	 ** TODO [#B] Plain Heading [1/3] :tag:\n-[[*Plain Heading][Plain Heading]]\n+[[file:<DIR>/case.org::*TODO [#B] Plain Heading [1/3] :tag:][TODO [#B] Plain Heading [1/3] :tag:]]
 store-id-create-cookie.org	BL-127,BL-132	TRANSITIONAL	1	 ** Ends with cookie [1/3]\n-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Ends with cookie [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][Ends with cookie [1/3]]]
 store-id-create-drawer.org	BL-121	TRANSITIONAL	1	 === stored id:<ID1>\n-=== description Plain Heading [1/3]\n+=== description TODO [#B] Plain Heading [1/3] :tag:
 store-id-create-drawer.org	BL-121,BL-127,BL-132	TRANSITIONAL	1	 ** TODO [#B] Plain Heading [1/3] :tag:\n-:PROPERTIES:\n-:ID:       <ID1>\n-:END:\n-[[id:<ID1>][Plain Heading [1/3]<U+200B>]]\n+   :PROPERTIES:\n+   :ID:       <ID1>\n+   :END:\n+[[id:<ID1>][TODO [#B] Plain Heading [1/3] :tag:]]
 store-other-file.org	BL-126	TRANSITIONAL	1	 Insert here:\n-[[file:sub/far.org::*Far Head][Far Head]]\n+[[file:<DIR>/sub/far.org::*Far Head][Far Head]]
-store-target.org	BL-125	TRANSITIONAL	1	^\n-=== stored file:<DIR>/case.org::my target\n-=== description nil\n+=== stored file:<DIR>/case.org::*Head\n+=== description Head
+store-target.org	BL-125	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::my target\n-=== description nil\n+=== stored file:<DIR>/case.org::*Head\n+=== description Head
 store-target.org	BL-125,BL-126	TRANSITIONAL	1	 Here is <<my target>> in text.\n-[[my target]]\n+[[file:<DIR>/case.org::*Head][Head]]
 tangle-comments-modes.org	BL-35	TRANSITIONAL	1	 echo three\n+# Sub:1 ends here
 tangle-comments-modes.org	BL-35	TRANSITIONAL	1	 --- w/b.sh (644)\n-# Sub\n-# Prose for org comment.\n-\n+# [[file:case.org::*Sub][Sub:1]]
@@ -192,3 +192,6 @@ wrap-bare.org	BL-17	TRANSITIONAL	1	 #+RESULTS:\n-#+begin_results\n-hi\n-#+end_re
 tangle-unknown-language.org	BL-227	TRANSITIONAL	1	 #+end_src\n+=== files\n+--- w/u.txt (644)\n+// [[file:case.org::*H][H:1]]\n+raw\n+// H:1 ends here
 tangle-unknown-language.org	BL-227	TRANSITIONAL	1	^\n-! error tangle
 follow-unknown-type-fuzzy.org	BL-228	TRANSITIONAL	1	^\n-=== point case.org 3:0\n-=== line * ROAM_REFS:https://x.org/b\n+=== point case.org 1:16\n+=== line Go [[ROAM_REFS:https://x.org/b]]
+store-other-file.org	BL-126	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/sub/far.org::*Far Head\n+=== stored file:<DIR>/sub/far.org::*Far Head
+store-body-same-file.org	BL-126	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::*Head\n+=== stored file:<DIR>/case.org::*Head
+store-brackets.org	BL-126	TRANSITIONAL	1	^\n-=== stored file:~<DIR>/case.org::*Weird [x] name\n+=== stored file:<DIR>/case.org::*Weird [x] name

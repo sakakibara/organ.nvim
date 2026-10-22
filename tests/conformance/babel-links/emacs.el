@@ -28,6 +28,11 @@
       org-babel-python-command "python3"
       org-id-track-globally nil)
 
+;; Case roots are made under HOME, as for most users and on CI, so stored
+;; links take the `~' form on every machine.
+(setenv "HOME" (directory-file-name temporary-file-directory))
+(setq abbreviated-home-dir nil)
+
 (defvar conformance--prompts nil)
 (defvar conformance--opens nil)
 (defvar conformance--link-answer nil)
@@ -189,7 +194,9 @@
 
 (defun conformance--replace-dirs (text root dir)
   (dolist (pair (list (cons (file-truename dir) "<DIR>") (cons dir "<DIR>")
-                      (cons (file-truename root) "<ROOT>") (cons root "<ROOT>")))
+                      (cons (abbreviate-file-name dir) "~<DIR>")
+                      (cons (file-truename root) "<ROOT>") (cons root "<ROOT>")
+                      (cons (abbreviate-file-name root) "~<ROOT>")))
     (setq text (replace-regexp-in-string
                 (regexp-quote (directory-file-name (car pair))) (cdr pair) text t t)))
   text)
