@@ -124,6 +124,8 @@ function M.render(path, _option)
     "--batch",
     "-Q",
     "-l",
+    root .. "/tests/conformance/_collate.el",
+    "-l",
     dir .. "/emacs.el",
     "--eval",
     string.format("(conformance-import-export %q)", work),

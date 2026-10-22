@@ -18,7 +18,8 @@
 --   signatures.tsv   expected differences of the default run
 --   signatures-<option>.tsv   expected differences of each option run
 --
--- Both sides run with TZ=UTC and LC_ALL=C.  An organ error while
+-- Both sides run with TZ=UTC and LC_ALL=C; Emacs loads _collate.el
+-- first, so it sorts strings the same way on every platform.  An organ error while
 -- rendering becomes the output "ORGAN-ERROR: <message>", so a crash is a
 -- difference like any other and needs a signature to pass.
 
@@ -114,6 +115,8 @@ local function run_emacs(area, cases, option, problems)
     "emacs",
     "--batch",
     "-Q",
+    "-l",
+    root .. "/tests/conformance/_collate.el",
     "-l",
     dir .. "/emacs.el",
     "--eval",

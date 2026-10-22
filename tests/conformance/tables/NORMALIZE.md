@@ -73,6 +73,8 @@ line does not name it.
 ## Emacs settings
 
 - `_clock.el` pins the time, as on every gate.
+- `_collate.el` makes Emacs on macOS sort strings as it does on GNU/Linux,
+  as on every gate: a `?a` sort ignores case.
 - `(set-terminal-coding-system 'utf-8)`: the gate runs with `LC_ALL=C`, and
   in a C-locale batch session `org-string-width` measures every non-ASCII
   character by the width of its escape (two CJK characters measure 12), so alignment
