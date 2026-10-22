@@ -43,7 +43,7 @@ local DB = TMP .. "/organ.db"
 require("organ").setup({
   org_dir = TMP,
   db_path = DB,
-  parser_path = vim.fn.expand("~/.local/share/nvim/organ/parser/org.so"),
+  parser_path = vim.fn.stdpath("data") .. "/organ/parser/org.so",
   notify = false,
   scan_on_startup = false,
   watcher = { enabled = false },
