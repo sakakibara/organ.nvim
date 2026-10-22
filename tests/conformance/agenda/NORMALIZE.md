@@ -66,7 +66,7 @@ case writes `(not in the OPTION run)` on both sides.
 
 1. Trailing blanks are removed from every line on both sides. An agenda
    window does not display them; Emacs leaves one where a timestamp was
-   cut out of a title (`Meeting <...>` becomes `Meeting `).
+   cut out of a title (`Meeting <...>` becomes `Meeting` and a blank).
 2. organ's keymap footer (a blank line plus `render.FOOTER_LINES`, the
    last lines of every agenda buffer while `agenda.footer` is on) is moved
    from the end of each view into a `--- footer` section after it; the

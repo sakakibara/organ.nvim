@@ -154,12 +154,12 @@ In the producers (`emacs.el`, `organ.lua`):
 
 In `normalize.lua` (both sides):
 
-4. UUIDs (8-4-4-4-12 hex) are numbered `<ID1>`, `<ID2>`, ... in order of
+1. UUIDs (8-4-4-4-12 hex) are numbered `<ID1>`, `<ID2>`, ... in order of
    first appearance, case-insensitively. A created `:ID:` is random on
    both sides (Emacs `uuidgen`, organ UUID v7); numbering keeps every
    place one ID recurs (drawer, stored link, inserted link) tied together.
    User IDs such as `abc-123` are not UUIDs and compare literally.
-5. U+200B (zero-width space) is written `<U+200B>`, so the character
+2. U+200B (zero-width space) is written `<U+200B>`, so the character
    Emacs appends to a description ending in `]` (BL-127) is visible in the
    signatures.
 

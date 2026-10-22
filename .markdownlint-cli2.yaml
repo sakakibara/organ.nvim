@@ -36,3 +36,6 @@ ignores:
   - "tree-sitter-org*/**"
   - ".superpowers/**"
   - ".git/**"
+  # Markdown import gate inputs: their blank lines, tabs and spacing are
+  # what the cases test.
+  - "tests/conformance/import/cases/**"

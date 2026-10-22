@@ -65,7 +65,7 @@ OPML entry.
 
 1. iCalendar: CRLF line ends read as plain lines on both sides. RFC 5545
    3.1 requires CRLF and both sides write it; a line ended by a bare LF
-   keeps a visible ` <bare-LF>` mark, so a side that stopped writing CRLF
+   keeps a visible `<bare-LF>` mark after a blank, so a side that stopped writing CRLF
    still differs.
 2. iCalendar: Emacs's generated UIDs are mapped by entry. Without an
    `:ID:` property ox-icalendar makes a random UUID per entry (prefixed
@@ -101,7 +101,7 @@ OPML entry.
    - trailing blank lines at the end of the document are dropped
      (CommonMark ignores them); blank lines elsewhere compare literally,
      because the ruling on OX-49 fixes heading spacing;
-   - a block-quote line `> ` reads as `>` (CommonMark 5.1: the space after
+   - a block-quote line of `>` and a blank reads as `>` (CommonMark 5.1: the space after
      `>` is optional and consumed);
    - HTML character references read as the characters they name, named
      (from organ's WHATWG table) and numeric alike, except the five

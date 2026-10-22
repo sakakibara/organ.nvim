@@ -98,7 +98,7 @@ a normalization.
    `<ID of FILE::HEADING>`, naming the element whose `:ID:` line holds it in
    the dump (`FILE::` for a file-level drawer); a UUID no `:ID:` line holds
    becomes `<UUID-N>` by first appearance. Its attachment-directory form
-   (`XX/REST`) becomes the same label plus ` as dir`. New IDs are random on
+   (`XX/REST`) becomes the same label, a blank and `as dir`. New IDs are random on
    both sides; the label keeps which element received an ID, and two
    different IDs never share a label. IDs given in the fixture compare
    literally.
