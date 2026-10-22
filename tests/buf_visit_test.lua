@@ -35,7 +35,11 @@ check("its folds are kept", vim.fn.foldclosed(2) == 2)
 
 vim.cmd("silent write")
 ok, err = pcall(obuf.visit, dir .. "/./a.txt")
-check("visiting the current file by another spelling keeps its folds", ok and vim.fn.foldclosed(2) == 2, err)
+check(
+  "visiting the current file by another spelling keeps its folds",
+  ok and vim.fn.foldclosed(2) == 2,
+  err
+)
 
 ok, err = pcall(obuf.visit, b)
 check("visiting another file switches to it", ok and vim.fn.expand("%:t") == "b.txt", err)
