@@ -181,23 +181,22 @@ local function run_one(area, cases, option)
   return problems, #rows
 end
 
---- Run the gate for `area` and exit the process with its result.
-function M.main(area)
+--- Run the gate for `area`: ok, the problems found, and a summary
+--- holding either `skip` (why the gate did not run), `fatal` (why it
+--- could not run), or the `cases`, `runs` and `recorded` counts.
+function M.run(area)
   vim.env.ORGAN_TEST_DB = vim.fn.tempname() .. "-" .. area .. ".db"
   dofile(root .. "/tests/_bootstrap.lua")
   if vim.fn.executable("emacs") ~= 1 then
     if vim.env.CI and vim.env.CI ~= "" then
-      io.write("conformance " .. area .. ": FAIL (emacs not installed, and CI must run the gate)\n")
-      os.exit(1)
+      local msg = "emacs not installed, and CI must run the gate"
+      return false, { msg }, { fatal = msg }
     end
-    io.write("conformance " .. area .. ": SKIP (emacs not installed)\n")
-    os.exit(0)
+    return true, {}, { skip = "emacs not installed" }
   end
   if os.getenv("TZ") ~= "UTC" or os.getenv("LC_ALL") ~= "C" then
-    io.write(
-      "conformance " .. area .. ": FAIL (run with TZ=UTC LC_ALL=C, as `make conformance` does)\n"
-    )
-    os.exit(1)
+    local msg = "run with TZ=UTC LC_ALL=C, as `make conformance` does"
+    return false, { msg }, { fatal = msg }
   end
   local problems = {}
   local cases = check_manifest(area, problems)
@@ -219,14 +218,28 @@ function M.main(area)
       end
     end
   end
-  if #problems == 0 then
+  return #problems == 0, problems, { cases = #cases, runs = #runs, recorded = recorded }
+end
+
+--- Run the gate for `area` and exit the process with its result.
+function M.main(area)
+  local ok, problems, info = M.run(area)
+  if info.skip then
+    io.write("conformance " .. area .. ": SKIP (" .. info.skip .. ")\n")
+    os.exit(0)
+  end
+  if info.fatal then
+    io.write("conformance " .. area .. ": FAIL (" .. info.fatal .. ")\n")
+    os.exit(1)
+  end
+  if ok then
     io.write(
       string.format(
         "conformance %s ok (%d cases, %d run(s), %d expected difference(s))\n",
         area,
-        #cases,
-        #runs,
-        recorded
+        info.cases,
+        info.runs,
+        info.recorded
       )
     )
     os.exit(0)
