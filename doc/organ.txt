@@ -206,6 +206,7 @@ Default global keymaps (from any buffer):
     `<Leader>of`   |:Org-find|
     `<Leader>or`   |:Org-roam|
     `<Leader>od`   |:Org-roam_daily_today|
+    `<Leader>oj`   |:Org-roam_daily|
     `<Leader>oi`   |:Org-clock_in|
     `<Leader>oo`   |:Org-clock_out|
 
@@ -1661,6 +1662,7 @@ Default table:
     Find link              `<Leader>ol`      |:Org-find_link|
     Roam                   `<Leader>or`      |:Org-roam|
     Daily note (today)     `<Leader>od`      |:Org-roam_daily_today|
+    Daily note (pick date) `<Leader>oj`      |:Org-roam_daily|
     Clock in               `<Leader>oi`      |:Org-clock_in|
     Clock out              `<Leader>oo`      |:Org-clock_out|
     Clock report           `<Leader>oR`      |:Org-clock_report|
@@ -2889,6 +2891,7 @@ Registered from any buffer when `setup()` runs.
     `<Leader>ol`     Find link               |:Org-find_link|
     `<Leader>or`     Roam find/insert        |:Org-roam|
     `<Leader>od`     Daily note (today)      |:Org-roam_daily_today|
+    `<Leader>oj`     Daily note (pick date)  |:Org-roam_daily|
     `<Leader>om`     Import markdown to org  |:Org-import_markdown|
     `<Leader>oi`     Clock in                |:Org-clock_in|
     `<Leader>oo`     Clock out               |:Org-clock_out|

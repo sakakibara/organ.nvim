@@ -264,6 +264,7 @@ Default global keymaps under `<Leader>o*`:
 | Find link         | `<Leader>ol`   |
 | Roam find/insert  | `<Leader>or`   |
 | Daily note        | `<Leader>od`   |
+| Daily (pick date) | `<Leader>oj`   |
 | Clock in / out    | `<Leader>oi` / `<Leader>oo` |
 
 ## Features

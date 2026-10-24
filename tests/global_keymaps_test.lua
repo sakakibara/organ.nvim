@@ -81,6 +81,16 @@ do
   assert(m ~= nil, "default: <Leader>oi should map to :Org clock in")
 end
 
+-- Default setup: <Leader>oj picks a daily note's date
+do
+  local m = has_global_keymap("<Leader>oj")
+  assert(m ~= nil, "default: <Leader>oj should map to :Org roam daily")
+  assert(
+    (m.rhs or ""):find("<Cmd>Org roam daily<CR>", 1, true),
+    "default: <Leader>oj rhs, got: " .. tostring(m.rhs)
+  )
+end
+
 -- ─── 5. Default setup → scan=false means no global keymap for OrgScan ────────
 do
   -- The defaults set scan = false, so there should be no :Org scan global map.

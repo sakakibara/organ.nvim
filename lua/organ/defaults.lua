@@ -1639,6 +1639,7 @@ return {
     find_link = "<Leader>ol",
     roam = "<Leader>or",
     roam_daily_today = "<Leader>od",
+    roam_daily = "<Leader>oj",
     import_markdown = "<Leader>om", -- from the markdown buffer: convert it to org
 
     clock_in = "<Leader>oi",
