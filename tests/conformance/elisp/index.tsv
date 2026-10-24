@@ -1,0 +1,2 @@
+# Coverage rows for the elisp area (format: tests/conformance/index.tsv).
+R6-OUT	elisp:read-list.el	pass

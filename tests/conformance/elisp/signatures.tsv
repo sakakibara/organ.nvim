@@ -1,0 +1,13 @@
+# Expected elisp differences against Emacs (format: tests/conformance/_signatures.lua).
+read-char.el	R6-OUT	KEEP	1	 => 59\n-=> 134217825\n-=> 8388705\n-=> 33554529\n-=> 16777313\n-=> 4194401\n-=> 67108913\n-=> 67108865\n-=> 67109097\n-=> 134217825\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier\n+REFUSED syntax modifier
+read-char.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax \\N{U+110000})\n-=> 97\n-=> 134217729\n+REFUSED syntax \\N{LATIN SMALL LETTER A}\n+REFUSED syntax modifier
+read-float.el	R6-OUT	KEEP	1	 => 1.0e+INF\n-=> 0.0e+NaN\n-=> -0.0e+NaN\n-=> 1.0e+NaN\n+REFUSED nan\n+REFUSED nan\n+REFUSED nan
+read-list.el	R6-OUT	KEEP	1	 => (1 2 . 3)\n-=> #s(foo)\n-=> #s(hash-table data (a 1))\n+REFUSED syntax #s(\n+REFUSED syntax #s(
+read-list.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax #s)\n-=> #&8"a"\n-!! (end-of-file)\n-=> nil\n-=> (a . #0)\n-!! (invalid-read-syntax #1#)\n-=> x\n-!! (invalid-read-syntax #<)\n-=> #("a" 0 1 (face bold))\n-!! (invalid-read-syntax Invalid byte-code object)\n-!! (invalid-read-syntax Invalid size char-table)\n-!! (error Invalid size in sub-char-table)\n+REFUSED syntax #&\n+REFUSED syntax #@\n+REFUSED syntax #$\n+REFUSED syntax #N=\n+REFUSED syntax #N#\n+REFUSED syntax #N=\n+REFUSED syntax #<\n+REFUSED syntax #(\n+REFUSED syntax #[\n+REFUSED syntax #^[\n+REFUSED syntax #^^[
+read-list.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax #^)\n-=> 1\n+REFUSED syntax #!
+read-list.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax #\\n)\n-=> (a c)\n+REFUSED syntax #!
+read-string.el	R6-OUT	KEEP	1	 => "Ag"\n-=> "\\200"\n-=> "\\200"\n-=> "\\377"\n+REFUSED syntax unibyte\n+REFUSED syntax unibyte\n+REFUSED syntax unibyte
+read-string.el	R6-OUT	KEEP	1	 => "😀"\n-=> "a"\n+REFUSED syntax \\N{LATIN SMALL LETTER A}
+read-string.el	R6-OUT	KEEP	1	 !! (error Malformed Unicode escape: \\u12)\n-=> "\\200"\n+REFUSED syntax unibyte
+read-string.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax Invalid modifier in string)\n-=> "\\341"\n+REFUSED syntax unibyte
+read-symbol.el	R6-OUT	KEEP	1	 => abc\\\tdef\n-=> ##\n-=> foo\n-=> ##\n-=> foo\n-=> ##\n+REFUSED syntax ##\n+REFUSED syntax #:\n+REFUSED syntax #:\n+REFUSED syntax #_\n+REFUSED syntax #_
