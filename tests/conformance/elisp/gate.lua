@@ -51,6 +51,95 @@ local function emacs_data(form)
 end
 
 local syntax = require("organ.elisp.syntax")
+local chars = require("organ.elisp.chars")
+local V = require("organ.elisp.value")
+
+local CASE_KINDS = { "upcase", "downcase", "capitalize" }
+
+local function codes_of(s)
+  local out, i = {}, 1
+  while i <= #s do
+    local cp, j = V.utf8_next(s, i)
+    out[#out + 1] = string.format("%X", cp)
+    i = j
+  end
+  return table.concat(out, ",")
+end
+
+-- organ's lookups over Emacs's per-character dump (elisp-data-dump-chars):
+-- the number of characters checked; differences go to `problems'.
+local function check_chars(path)
+  local bad, n, next_c = 0, 0, 0
+  local function differ(c, what, got, want)
+    bad = bad + 1
+    if bad <= 5 then
+      problems[#problems + 1] = string.format(
+        "data: %s of U+%04X: organ %s, Emacs %s",
+        what,
+        c,
+        tostring(got),
+        tostring(want)
+      )
+    end
+  end
+  local function check_maps(c, up, down, title)
+    for k, want in ipairs({ up, down, title }) do
+      local got = chars.case_char(CASE_KINDS[k], c)
+      if got ~= want then
+        differ(c, CASE_KINDS[k], got, want)
+      end
+    end
+  end
+  local function identity_until(last)
+    while next_c <= last do
+      check_maps(next_c, next_c, next_c, next_c)
+      n = n + 1
+      next_c = next_c + 1
+    end
+  end
+  for line in io.lines(path) do
+    local f = vim.split(line, " ", { plain = true })
+    if f[1] == "end" then
+      identity_until(tonumber(f[2]))
+    else
+      local c = tonumber(f[1])
+      if c ~= next_c then
+        identity_until(c - 1)
+      end
+      check_maps(c, tonumber(f[2]), tonumber(f[3]), tonumber(f[4]))
+      if #f > 4 then
+        if chars.canon(c) ~= tonumber(f[5]) then
+          differ(c, "canon", chars.canon(c), f[5])
+        end
+        if chars.char_width(c) ~= tonumber(f[6]) then
+          differ(c, "char-width", chars.char_width(c), f[6])
+        end
+        if (chars.composes(c) and "1" or "0") ~= f[7] then
+          differ(c, "composition", chars.composes(c), f[7])
+        end
+        if (chars.cjk(c) and "1" or "0") ~= f[8] then
+          differ(c, "cjk width", chars.cjk(c), f[8])
+        end
+        for k, kind in ipairs(CASE_KINDS) do
+          local s = chars.case_special(kind, c)
+          local got = s and codes_of(s) or "="
+          if got ~= f[8 + k] then
+            differ(c, kind .. " of its string", got, f[8 + k])
+          end
+        end
+      end
+      n = n + 1
+      next_c = c + 1
+    end
+  end
+  if bad > 5 then
+    problems[#problems + 1] = string.format("data: %d more character differences", bad - 5)
+  end
+  if next_c ~= 0x400000 then
+    problems[#problems + 1] = string.format("data: character dump ends at %X", next_c - 1)
+  end
+  return n
+end
 
 local function check_data()
   local tmp = vim.fn.tempname()
@@ -112,6 +201,10 @@ local function check_data()
         problems[#problems + 1] = string.format("data: %s dump holds %d code points", tbl, n)
       end
     end
+  end
+  local chars_truth = tmp .. "/chars.txt"
+  if emacs_data(string.format("(elisp-data-dump-chars %q)", chars_truth)) then
+    points = points + check_chars(chars_truth)
   end
   vim.fn.delete(tmp, "rf")
   return files, points

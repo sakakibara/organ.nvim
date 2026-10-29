@@ -5,6 +5,8 @@
 ;;;     --eval '(elisp-data-write "lua/organ/elisp/data")'
 ;;;   emacs --batch -Q -l scripts/elisp-data.el \
 ;;;     --eval '(elisp-data-dump-truth "/tmp/truth.txt")'
+;;;   emacs --batch -Q -l scripts/elisp-data.el \
+;;;     --eval '(elisp-data-dump-chars "/tmp/chars.txt")'
 ;;;
 ;;; `elisp-data-write' writes the Lua tables lua/organ/elisp/data/*.lua
 ;;; holds; tests/conformance/elisp/gate.lua regenerates them into a
@@ -22,10 +24,17 @@
 ;;;   evaluator implements, its kind, the argument counts it accepts and
 ;;;   the head of its `wrong-number-of-arguments' data called directly
 ;;;   and through `funcall', all from live calls.
+;;; - case.lua: `upcase', `downcase' and `capitalize' of every character
+;;;   and of every code point's one-character string in an org-mode
+;;;   buffer, where they change it.
+;;; - width.lua: `char-width' in an org-mode buffer, the characters
+;;;   `composition-function-table' holds a rule for, and those a CJK
+;;;   locale's width table gives another width.
 ;;;
 ;;; `elisp-data-dump-truth' writes the same syntax tables one code point
-;;; per line ("TABLE CODE MATCH", MATCH -1 for none), for the gate's check
-;;; of organ's lookup functions.
+;;; per line ("TABLE CODE MATCH", MATCH -1 for none), and
+;;; `elisp-data-dump-chars' the case and width data one character per
+;;; line, for the gate's check of organ's lookup functions.
 
 (require 'org)
 
@@ -50,11 +59,19 @@
           acos atan isnan logand logior logxor lognot ash = /= < > <= >= zerop
           natnump numberp integerp floatp number-to-string string-to-number
           null not atom consp listp nlistp stringp symbolp vectorp sequencep
-          functionp booleanp characterp keywordp eq eql equal)
+          functionp booleanp characterp keywordp eq eql equal
+          concat substring string-to-char char-to-string string make-string
+          string-to-list string-to-vector length string= string-equal string<
+          string-lessp string> string-greaterp string-prefix-p string-suffix-p
+          string-search string-replace string-empty-p string-blank-p upcase
+          downcase capitalize upcase-initials string-trim string-trim-left
+          string-trim-right split-string string-join mapconcat format
+          symbol-name intern string-width
+          truncate-string-to-width string-pad)
   "Special forms, macros and builtins organ's evaluator implements.
 `setq' is not listed: its odd-count check is not an argument count.")
 
-(defconst elisp-data-max-args 6
+(defconst elisp-data-max-args 7
   "Argument counts probed for each of `elisp-data-functions'.")
 
 (defun elisp-data--tables ()
@@ -244,6 +261,159 @@ and every refused count must give (HEAD N), HEAD the same for all."
               "")
    "}\n"))
 
+;; Characters: case mappings and display widths in an org-mode buffer
+
+(defconst elisp-data-max-raw-char #x3FFFFF)
+
+(defun elisp-data--canon (c)
+  (or (aref (char-table-extra-slot (current-case-table) 1) c) c))
+
+(defun elisp-data--cased (fn c)
+  "FN of C and, for a Unicode C, of its one-character string:
+(CHAR . STRING-OR-NIL), STRING-OR-NIL nil when the string result is the
+character result's."
+  (let ((ch (funcall fn c)))
+    (cons ch (and (<= c elisp-data-max-char)
+                  (let ((s (funcall fn (string c))))
+                    (if (equal s (string ch)) nil s))))))
+
+(defun elisp-data--case-maps ()
+  "Vectors of each character's (CHAR . STRING) for upcase, downcase and
+capitalize, checking the facts organ's case functions rely on."
+  (let ((up (make-vector (1+ elisp-data-max-raw-char) nil))
+        (down (make-vector (1+ elisp-data-max-raw-char) nil))
+        (title (make-vector (1+ elisp-data-max-raw-char) nil)))
+    (dotimes (c (1+ elisp-data-max-raw-char))
+      (aset up c (elisp-data--cased #'upcase c))
+      (aset down c (elisp-data--cased #'downcase c))
+      (aset title c (elisp-data--cased #'capitalize c))
+      (unless (eql (upcase-initials c) (car (aref title c)))
+        (error "elisp-data: upcase-initials of %X is not capitalize's" c))
+      (when (<= c elisp-data-max-char)
+        (unless (equal (upcase-initials (string c))
+                       (or (cdr (aref title c)) (string (car (aref title c)))))
+          (error "elisp-data: upcase-initials of \"%c\" is not capitalize's" c))
+        (let ((k (elisp-data--canon c)))
+          (unless (eql k (downcase (upcase (downcase c))))
+            (error "elisp-data: canon of %X is not downcase-upcase-downcase" c))
+          (when (and (>= c 128) (< k 128))
+            (error "elisp-data: non-ASCII %X folds to ASCII" c)))))
+    (list up down title)))
+
+(defun elisp-data--case-file ()
+  (with-temp-buffer
+    (org-mode)
+    (let ((maps (elisp-data--case-maps))
+          (names '("upcase" "downcase" "capitalize")))
+      (concat
+       (elisp-data--header
+        "-- `upcase', `downcase' and `capitalize' in an org-mode buffer.  The\n-- first three are flat arrays of (character, result) pairs for each\n-- character up to #x3FFFFF the function maps to another; `special_*'\n-- maps a code point to the function's result on its one-character\n-- string where that is not the character result (Unicode's\n-- unconditional special casing).\n")
+       "return {\n"
+       (mapconcat
+        (lambda (i)
+          (let ((v (nth i maps)) (rows nil))
+            (dotimes (c (length v))
+              (let ((ch (car (aref v c))))
+                (unless (eql ch c)
+                  (push (format "    %d,\n    %d,\n" c ch) rows))))
+            (concat "  " (nth i names) " = {\n" (apply #'concat (nreverse rows)) "  },\n")))
+        '(0 1 2) "")
+       (mapconcat
+        (lambda (i)
+          (let ((v (nth i maps)) (rows nil))
+            (dotimes (c (length v))
+              (let ((s (cdr (aref v c))))
+                (when s
+                  (push (format "    [%d] = %s,\n" c (elisp-data--lua-string s)) rows))))
+            (concat "  special_" (nth i names) " = {\n" (apply #'concat (nreverse rows)) "  },\n")))
+        '(0 1 2) "")
+       "}\n"))))
+
+(defun elisp-data--widths ()
+  "Vectors of each code point's `char-width' in an org-mode buffer, whether
+`composition-function-table' holds a rule for it, and whether its width
+differs under a CJK locale's width table with ambiguous characters wide
+or narrow."
+  (let ((width (make-vector (1+ elisp-data-max-char) nil))
+        (comp (make-vector (1+ elisp-data-max-char) nil))
+        (cjk (make-vector (1+ elisp-data-max-char) nil)))
+    (with-temp-buffer
+      (org-mode)
+      (use-default-char-width-table)
+      (dotimes (c (1+ elisp-data-max-char))
+        (aset width c (char-width c))
+        (aset comp c (and (aref composition-function-table c) t)))
+      (unwind-protect
+          (dolist (slot cjk-char-width-table-list)
+            (dolist (wide '(t nil))
+              (let ((cjk-ambiguous-chars-are-wide wide))
+                (update-cjk-ambiguous-char-widths (car slot))
+                (dotimes (c (1+ elisp-data-max-char))
+                  (unless (eql (char-width c) (aref width c))
+                    (aset cjk c t))))))
+        (dolist (slot cjk-char-width-table-list)
+          (setcar (cdr slot) nil))
+        (use-default-char-width-table)))
+    (list width comp cjk)))
+
+(defun elisp-data--ranges (v)
+  "Flat (first, value) ranges of vector V."
+  (let ((prev 'none) (rows nil))
+    (dotimes (c (length v))
+      (let ((x (aref v c)))
+        (unless (equal x prev)
+          (push (format "    %d,\n    %d,\n" c (cond ((eq x t) 1) ((null x) 0) (t x))) rows)
+          (setq prev x))))
+    (apply #'concat (nreverse rows))))
+
+(defun elisp-data--width-file ()
+  (let ((w (elisp-data--widths)))
+    (concat
+     (elisp-data--header
+      "-- Display widths in an org-mode buffer, each a flat array of ranges:\n-- [2k-1] is the range's first code point and [2k] its value, the last\n-- range running to U+10FFFF.  `width' is `char-width'; `composition'\n-- is 1 where `composition-function-table' holds a rule for the\n-- character; `cjk' is 1 where a CJK locale's width table, with\n-- ambiguous characters wide or narrow, gives another width.\n")
+     "return {\n"
+     "  width = {\n" (elisp-data--ranges (nth 0 w)) "  },\n"
+     "  composition = {\n" (elisp-data--ranges (nth 1 w)) "  },\n"
+     "  cjk = {\n" (elisp-data--ranges (nth 2 w)) "  },\n"
+     "}\n")))
+
+(defun elisp-data--codes (s)
+  (mapconcat (lambda (c) (format "%X" c)) s ","))
+
+(defun elisp-data-dump-chars (file)
+  "Write each code point's case and width data to FILE, one line each:
+\"CODE UP DOWN TITLE CANON WIDTH COMPOSITION CJK SUP SDOWN STITLE\", the
+string results as comma-separated hex code points, or \"=\" when the
+one-character string maps as the character does.  Characters beyond
+Unicode follow as \"CODE UP DOWN TITLE\" lines for those some mapping
+changes, then \"end CODE\" naming the last character."
+  (with-temp-buffer
+    (let ((maps (with-temp-buffer (org-mode) (elisp-data--case-maps)))
+          (w (elisp-data--widths))
+          (canon (with-temp-buffer
+                   (org-mode)
+                   (let ((v (make-vector (1+ elisp-data-max-char) nil)))
+                     (dotimes (c (length v)) (aset v c (elisp-data--canon c)))
+                     v))))
+      (dotimes (c (1+ elisp-data-max-raw-char))
+        (let ((up (car (aref (nth 0 maps) c)))
+              (down (car (aref (nth 1 maps) c)))
+              (title (car (aref (nth 2 maps) c))))
+          (cond
+           ((<= c elisp-data-max-char)
+            (insert (format "%d %d %d %d %d %d %d %d" c up down title (aref canon c)
+                            (aref (nth 0 w) c) (if (aref (nth 1 w) c) 1 0)
+                            (if (aref (nth 2 w) c) 1 0)))
+            (dolist (m maps)
+              (let ((s (cdr (aref m c))))
+                (insert " " (if s (elisp-data--codes s) "="))))
+            (insert "\n"))
+           ((not (and (eql up c) (eql down c) (eql title c)))
+            (insert (format "%d %d %d %d\n" c up down title))))))
+      (insert (format "end %d\n" elisp-data-max-raw-char)))
+    (let ((coding-system-for-write 'utf-8-unix))
+      (write-region nil nil file))))
+
 (defun elisp-data--write (file text)
   (let ((coding-system-for-write 'utf-8-unix))
     (with-temp-file file (insert text))))
@@ -256,7 +426,9 @@ and every refused count must give (HEAD N), HEAD the same for all."
                        (elisp-data--syntax-file (car tbl) (cdr tbl))))
   (elisp-data--write (expand-file-name "errors.lua" dir) (elisp-data--errors-file))
   (elisp-data--write (expand-file-name "specials.lua" dir) (elisp-data--specials-file))
-  (elisp-data--write (expand-file-name "functions.lua" dir) (elisp-data--functions-file)))
+  (elisp-data--write (expand-file-name "functions.lua" dir) (elisp-data--functions-file))
+  (elisp-data--write (expand-file-name "case.lua" dir) (elisp-data--case-file))
+  (elisp-data--write (expand-file-name "width.lua" dir) (elisp-data--width-file)))
 
 (defun elisp-data-dump-truth (file)
   "Write every code point's syntax under each table to FILE."
