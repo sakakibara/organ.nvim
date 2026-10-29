@@ -1,5 +1,5 @@
--- A bounded Emacs Lisp reader, printer and (from its later parts)
--- evaluator for the side-effect-free subset org files use.  Internal.
+-- A bounded Emacs Lisp reader, printer and evaluator for the
+-- side-effect-free subset org files use.  Internal.
 --
 -- Every entry point returns one result and never raises:
 --   { ok = true, value = v }              (read adds next_pos)
@@ -11,13 +11,30 @@
 -- organ.elisp.run, lowered by `ctx.caps` and shared through
 -- `ctx.budget` (which accumulates `steps`, `alloc` and `time` in ms).
 -- `ctx.escape_newlines` is print-escape-newlines for printing.
+--
+-- Evaluation reads, all optional:
+--   ctx.profile    "table" (default), "diary", "link" (dynamic binding),
+--                  "prefix", "capture", "var" (lexical binding)
+--   ctx.case_fold  case-fold-search
+--   ctx.variables  { name = value }: global dynamic values (not special)
+--   ctx.functions  { name = spec }: spec.fn(argv, cx) gets the evaluated
+--                  arguments (argv[1..argv.n]) and returns a value
+--   ctx.macros     { name = spec }: as functions, with argument forms
+-- Each consumer call is charged at least 1 000 steps and its wall time
+-- counts unless spec.timeout is set.  `cx` offers signal(symbol, data)
+-- (symbol a name or a symbol value), refuse(code, detail),
+-- charge(steps, bytes) and eval(form), which shares the call's caps,
+-- budget, depth and dynamic bindings.  Values given as Lua data convert
+-- as to_value does.
 
 local R = require("organ.elisp.run")
 local V = require("organ.elisp.value")
 local convert = require("organ.elisp.convert")
 local errors = require("organ.elisp.errors")
+local evaluator = require("organ.elisp.eval")
 local printer = require("organ.elisp.printer")
 local reader = require("organ.elisp.reader")
+local subst = require("organ.elisp.subst")
 local syntax = require("organ.elisp.syntax")
 
 local M = {}
@@ -28,7 +45,7 @@ M.T = V.T
 local function signal_result(e)
   local name = e.symbol.name.s
   local ok, text = pcall(function()
-    return printer.princ(R.new(), V.cons(e.symbol, e.data))
+    return printer.princ(R.new(), V.cons(e.symbol, e.data), true)
   end)
   return {
     ok = false,
@@ -95,28 +112,33 @@ function M.scan_sexp(src, pos, syntax_name)
   end)
 end
 
+--- Evaluate `form` (a value) under `ctx`.
 function M.eval(form, ctx)
-  return entry(ctx, function()
-    R.refuse("function", "eval")
+  return entry(ctx, function(run)
+    return evaluator.eval_top(run, form)
   end)
 end
 
+--- `read` at byte 1, then `eval`; trailing text is ignored.
 function M.eval_string(src, ctx)
   return entry(ctx, function(run)
-    reader.read(run, src, 1)
-    R.refuse("function", "eval")
+    return evaluator.eval_top(run, reader.read(run, src, 1))
   end)
 end
 
+--- Call builtin `name` of the profile with the array `args`.
 function M.call(name, args, ctx)
-  return entry(ctx, function()
-    R.refuse("function", tostring(name))
+  return entry(ctx, function(run)
+    return evaluator.call(run, name, args)
   end)
 end
 
+--- org-capture--expand-keyword-in-embedded-elisp: `form` with each
+--- symbol whose name holds "%:KEY" replaced by the value `plist` maps
+--- the keyword name ":KEY" to, when that is non-nil.
 function M.subst_symbols(form, plist, ctx)
-  return entry(ctx, function()
-    R.refuse("function", "subst_symbols")
+  return entry(ctx, function(run)
+    return subst.subst_symbols(run, form, plist)
   end)
 end
 

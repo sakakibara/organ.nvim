@@ -122,7 +122,7 @@ local function pr(p, obj, depth)
       emit(p, symbol_string(name, p.escape))
       return
     elseif k == "str" then
-      if p.escape and obj.props then
+      if (p.escape or p.strict) and obj.props then
         R.refuse("unprintable", "string with properties")
       end
       run:step(math.floor(#obj.s / 64))
@@ -189,7 +189,7 @@ local function pr(p, obj, depth)
   end
 end
 
-local function print_value(run, v, escape, escape_newlines)
+local function print_value(run, v, escape, escape_newlines, strict)
   local p = {
     run = run,
     out = {},
@@ -198,6 +198,7 @@ local function print_value(run, v, escape, escape_newlines)
     bq = 0,
     escape = escape,
     escape_newlines = escape_newlines,
+    strict = strict,
   }
   pr(p, v, 0)
   run:charge(p.bytes)
@@ -209,9 +210,10 @@ function M.prin1(run, v, escape_newlines)
   return print_value(run, v, true, escape_newlines)
 end
 
---- `prin1-to-string` of `v` with NOESCAPE.
-function M.princ(run, v)
-  return print_value(run, v, false, false)
+--- `prin1-to-string` of `v` with NOESCAPE; `strict` refuses a string
+--- with properties too, as (format "%s" err) of one is not organ's text.
+function M.princ(run, v, strict)
+  return print_value(run, v, false, false, strict)
 end
 
 return M

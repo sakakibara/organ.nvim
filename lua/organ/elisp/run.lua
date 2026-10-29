@@ -16,8 +16,10 @@ M.DEFAULTS = {
 
 local hrtime = vim.uv.hrtime
 
-function M.signal(symbol, data)
-  error({ elisp = "signal", symbol = symbol, data = data }, 0)
+--- Signal (SYMBOL . DATA); `obj` is the error object itself when the
+--- caller has one (signal with a nil symbol), else it is built on demand.
+function M.signal(symbol, data, obj)
+  error({ elisp = "signal", symbol = symbol, data = data, obj = obj }, 0)
 end
 
 function M.refuse(code, detail)

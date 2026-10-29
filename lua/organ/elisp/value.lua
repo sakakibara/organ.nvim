@@ -4,8 +4,8 @@
 -- { k = "big", n = <organ.calc.bn> } beyond.  Every other value is a table
 -- tagged by `k`: "sym" { name = <string box> }, "str" { s = <UTF-8>,
 -- props = true|nil }, "flt" { x = <number> }, "cons" { car, cdr }, "vec"
--- { n = <count>, [1..n] }.  Symbols are interned per name; `nil` is the
--- empty list.
+-- { n = <count>, [1..n] }, "fn" (see organ.elisp.eval).  Symbols are
+-- interned per name unless `uninterned`; `nil` is the empty list.
 
 local bn = require("organ.calc.bn")
 
@@ -27,6 +27,15 @@ function M.intern(name)
     symbols[name] = sym
   end
   return sym
+end
+
+--- A fresh uninterned symbol (make-symbol), as macros bind.
+function M.make_symbol(name)
+  return { k = "sym", name = str(name), uninterned = true }
+end
+
+function M.is_keyword(v)
+  return type(v) == "table" and v.k == "sym" and not v.uninterned and v.name.s:byte(1) == 58
 end
 
 M.NIL = M.intern("nil")

@@ -1,10 +1,12 @@
 -- organ.elisp entry points: result shapes, never raising, the coroutine
 -- entry, read and scan-sexps end positions, printed_length,
--- error_message and to_value / to_lua.  Expected positions, lengths and
+-- error_message, evaluation (ctx, call, consumer functions and macros,
+-- subst_symbols) and to_value / to_lua.  Expected positions, lengths and
 -- messages are what GNU Emacs 31.1 returns for the same input
 -- (read-from-string, scan-sexps in an org-mode buffer and under
 -- emacs-lisp-mode-syntax-table, (length (format "%S" ...)),
--- error-message-string), recorded here.
+-- error-message-string, org-capture--expand-keyword-in-embedded-elisp
+-- with org-store-link-plist bound), recorded here.
 --
 -- Run via: nvim --headless -l tests/elisp_api_test.lua
 
@@ -35,6 +37,11 @@ end
 
 local function printed(src)
   local p = elisp.prin1(read_value(src))
+  return p.ok and p.value
+end
+
+local function printed_of(v)
+  local p = elisp.prin1(v)
   return p.ok and p.value
 end
 
@@ -153,11 +160,13 @@ do
     return 1 + recurse(n - 1)
   end
   local nested = string.rep("(", 399) .. string.rep(")", 399)
-  local got, direct
+  local nested_eval = string.rep("(progn ", 399) .. "1" .. string.rep(")", 399)
+  local got, got_eval, direct
   local function deep(n)
     if n == 0 then
       direct = pcall(recurse, 400)
       got = elisp.read(nested)
+      got_eval = elisp.eval_string(nested_eval)
       return 0
     end
     return 1 + deep(n - 1)
@@ -168,6 +177,11 @@ do
     "read of 399 levels from " .. (max - 50) .. " Lua frames deep",
     ok and got and got.ok and got.next_pos == #nested + 1,
     show(got)
+  )
+  check(
+    "eval of 399 nested forms from " .. (max - 50) .. " Lua frames deep",
+    ok and got_eval and got_eval.ok and got_eval.value == 1,
+    show(got_eval)
   )
 end
 
@@ -328,20 +342,418 @@ do
   )
 end
 
--- evaluation is not part of this module yet
+-- evaluation: results, ctx, call, consumer functions and macros
+
+local function ev(src, ctx)
+  return elisp.eval_string(src, ctx)
+end
+
+local function ev_printed(src, ctx)
+  local r = ev(src, ctx)
+  if not r.ok then
+    return r
+  end
+  local p = elisp.prin1(r.value)
+  return p.ok and p.value or p
+end
 
 do
-  local form = read_value("(+ 1 2)")
-  for name, r in pairs({
-    eval = elisp.eval(form),
-    eval_string = elisp.eval_string("(+ 1 2)"),
-    call = elisp.call("+", { 1, 2 }),
-    subst_symbols = elisp.subst_symbols(form, elisp.NIL),
-  }) do
-    check(name .. " refuses function", r.kind == "refused" and r.code == "function", show(r))
-  end
-  local r = elisp.eval_string("(+ 1")
+  local r = ev("(cons 1 '(2)) trailing")
+  check(
+    "eval_string: value, trailing text ignored",
+    r.ok and printed_of(r.value) == "(1 2)",
+    show(r)
+  )
+  r = elisp.eval(read_value('(list \'a "b")'))
+  check("eval of a read form", r.ok and printed_of(r.value) == '(a "b")', show(r))
+  r = elisp.eval({ { sym = "car" }, { { sym = "quote" }, { 7, 8 } } })
+  check("eval converts Lua data to a form", r.ok and r.value == 7, show(r))
+  r = ev("(+ 1")
   check("eval_string reads first", r.kind == "signal" and r.symbol == "end-of-file", show(r))
+  r = ev("(car 1)")
+  check(
+    "a signal: symbol name, data, text",
+    r.kind == "signal"
+      and r.symbol == "wrong-type-argument"
+      and r.text == "(wrong-type-argument listp 1)"
+      and printed_of(r.data) == "(listp 1)",
+    show(r)
+  )
+  local m = elisp.error_message(r)
+  check(
+    "error_message of an eval signal",
+    m.ok and m.value == "Wrong type argument: listp, 1",
+    show(m)
+  )
+  m = elisp.error_message(ev("(signal 'foo nil)"))
+  check(
+    "error_message of Invalid error symbol",
+    m.ok and m.value == "Invalid error symbol: foo",
+    show(m)
+  )
+  m = elisp.error_message(ev('(error "boom")'))
+  check("error_message of error", m.ok and m.value == "boom", show(m))
+  r = ev("(funcall #'car)")
+  check(
+    "data holding a subr: text nil",
+    r.kind == "signal"
+      and r.symbol == "wrong-number-of-arguments"
+      and r.text == nil
+      and r.data.car.k == "fn",
+    show(r)
+  )
+  r = ev("(funcall (lambda (x) x))")
+  check("data holding a closure: text nil", r.kind == "signal" and r.text == nil, show(r))
+  local props = { variables = { entry = { str = "x", props = true } } }
+  r = ev("(error entry)", props)
+  check(
+    "error data holding a string with properties: text nil",
+    r.kind == "signal" and r.text == nil,
+    show(r)
+  )
+  r = ev("(signal 'error (list entry))", props)
+  check(
+    "signal data holding a string with properties: text nil",
+    r.kind == "signal" and r.text == nil,
+    show(r)
+  )
+  r = ev("(car entry)", props)
+  check(
+    "wrong-type-argument data holding a string with properties: text nil",
+    r.kind == "signal" and r.text == nil,
+    show(r)
+  )
+end
+
+-- refusals of evaluation
+
+for _, case in ipairs({
+  { "(foo 1)", "function", "foo" },
+  { "foo", "free-variable", "foo" },
+  { "(setq foo 1)", "setq-global", "foo" },
+  { "(let ((fill-column 1)) 1)", "special", "fill-column" },
+  { "(signal 'quit nil)", "function", "quit" },
+  { "(signal 'minibuffer-quit nil)", "function", "minibuffer-quit" },
+  { "(signal 'iter-end-of-sequence nil)", "profile", "iter-end-of-sequence" },
+  { "(diary-date 1 2 3)", "profile", "diary-date" },
+  { '(string-trim "a")', "function", "string-trim" },
+  { '(error "%d" 1)', "function", "format" },
+  { '(error "it\'s")', "locale", "format-message" },
+  { "(condition-case nil (car 1) ((error . x) 1))", "syntax", "dotted condition list" },
+  { "(let ((x 1)) (lambda () (cond 1)))", "syntax", "cond clause in a closure" },
+}) do
+  local r = ev(case[1], { profile = "capture" })
+  check(
+    ("refuses %s: %s"):format(case[2], case[1]),
+    r.kind == "refused" and r.code == case[2] and r.detail == case[3],
+    show(r)
+  )
+end
+
+do
+  local r =
+    ev("(condition-case e (signal 'iter-end-of-sequence nil) (error 1))", { profile = "diary" })
+  check(
+    "an error symbol of the profile's features signals, outside `error'",
+    r.kind == "signal" and r.symbol == "iter-end-of-sequence" and r.text == "(iter-end-of-sequence)",
+    show(r)
+  )
+  r = ev("(diary-date 1 2 3)", { profile = "diary" })
+  check(
+    "a diary function exists in the diary profile",
+    r.kind == "refused" and r.code == "function",
+    show(r)
+  )
+  r = ev("(org-date 1 2 3)", { profile = "prefix" })
+  check(
+    "org-date exists in the prefix profile",
+    r.kind == "refused" and r.code == "function",
+    show(r)
+  )
+  r = ev("1", { profile = "nosuch" })
+  check(
+    "an unknown profile refuses internal",
+    r.kind == "refused" and r.code == "internal",
+    show(r)
+  )
+end
+
+-- condition-case and ignore-errors catch signals only
+
+for _, src in ipairs({
+  "(condition-case nil (foo) (t 1))",
+  "(ignore-errors (foo))",
+  "(condition-case nil (signal 'quit nil) (t 1))",
+}) do
+  local r = ev(src)
+  check("not caught: " .. src, r.kind == "refused", show(r))
+end
+
+-- ctx: profile binding, case_fold, variables
+
+do
+  local date = read_value("(10 24 2026)")
+  local r = ev_printed("(list date entry)", { variables = { date = date, entry = "Meeting" } })
+  check("ctx.variables are global values", r == '((10 24 2026) "Meeting")', show(r))
+  r = ev_printed(
+    "(let ((date 5)) (funcall '(lambda () date)))",
+    { profile = "prefix", variables = { date = date } }
+  )
+  check(
+    "a lexical let of a ctx variable does not bind it dynamically",
+    r == "(10 24 2026)",
+    show(r)
+  )
+  r = ev_printed(
+    "(let ((date 5)) (funcall '(lambda () date)))",
+    { profile = "diary", variables = { date = date } }
+  )
+  check("a dynamic let of a ctx variable binds it", r == "5", show(r))
+  r = ev("(setq date 1)", { variables = { date = 1 } })
+  check(
+    "setq of a ctx variable refuses setq-global",
+    r.kind == "refused" and r.code == "setq-global",
+    show(r)
+  )
+  r = ev_printed(
+    "(list case-fold-search (let ((case-fold-search nil)) case-fold-search))",
+    { case_fold = true }
+  )
+  check("ctx.case_fold is case-fold-search", r == "(t nil)", show(r))
+  r = ev_printed("(let ((x 1)) (funcall (lambda () x)))", { profile = "var" })
+  check("lexical profile closure", r == "1", show(r))
+  r = ev("(let ((x 1)) (funcall '(lambda () x)))", { profile = "var" })
+  check(
+    "a quoted lambda binds dynamically",
+    r.kind == "refused" and r.code == "free-variable",
+    show(r)
+  )
+end
+
+-- call: one builtin from Lua, as a direct call
+
+do
+  local r = elisp.call("identity", { 5 })
+  check("call identity", r.ok and r.value == 5, show(r))
+  r = elisp.call("list", { 1, "a", { sym = "b" } })
+  check("call converts Lua arguments", r.ok and printed_of(r.value) == '(1 "a" b)', show(r))
+  r = elisp.call("identity", { 1, 2 })
+  check(
+    "call: argument count data of a direct call",
+    r.kind == "signal" and r.text == "(wrong-number-of-arguments identity 2)",
+    show(r)
+  )
+  r = elisp.call("car", { 1 })
+  check(
+    "call: a builtin's signal",
+    r.kind == "signal" and r.text == "(wrong-type-argument listp 1)",
+    show(r)
+  )
+  r = elisp.call("string-trim", { "a" })
+  check(
+    "call: an unimplemented builtin refuses",
+    r.kind == "refused" and r.code == "function",
+    show(r)
+  )
+  r = elisp.call("diary-date", { 1, 2, 3 })
+  check(
+    "call: a builtin outside the profile refuses",
+    r.kind == "refused" and r.code == "profile",
+    show(r)
+  )
+  r = elisp.call("quote", { 1 })
+  check(
+    "call: a special form is not a builtin",
+    r.kind == "refused" and r.code == "function",
+    show(r)
+  )
+end
+
+-- consumer functions and macros
+
+do
+  local seen
+  local ctx = {
+    functions = {
+      ["org-entry-get"] = {
+        fn = function(argv, cx)
+          seen = argv
+          return { "v", argv.n }
+        end,
+      },
+      boom = {
+        fn = function(argv, cx)
+          cx.signal("wrong-type-argument", { { sym = "stringp" }, argv[1] or 0 })
+        end,
+      },
+      no = {
+        fn = function(argv, cx)
+          cx.refuse("holidays", "no holidays")
+        end,
+      },
+      badcode = {
+        fn = function(argv, cx)
+          cx.refuse("nosuch", "x")
+        end,
+      },
+      nested = {
+        fn = function(argv, cx)
+          return cx.eval(argv[1])
+        end,
+      },
+      luaerr = {
+        fn = function()
+          error("consumer bug")
+        end,
+      },
+    },
+    macros = {
+      ["org-sbe"] = {
+        fn = function(argv, cx)
+          seen = argv
+          return argv[2]
+        end,
+      },
+    },
+  }
+  local r = ev_printed('(org-entry-get (car \'(1)) "P")', ctx)
+  check(
+    "a consumer function gets evaluated arguments",
+    r == '("v" 2)' and seen.n == 2 and seen[1] == 1,
+    show(r)
+  )
+  r = ev_printed("(funcall 'org-entry-get 1)", ctx)
+  check("funcall of a consumer function", r == '("v" 1)', show(r))
+  r = ev_printed('(org-sbe "blk" (n $2))', ctx)
+  check(
+    "a consumer macro gets the argument forms",
+    r == "(n $2)" and seen.n == 2 and seen[1].k == "str",
+    show(r)
+  )
+  r = ev("(funcall 'org-sbe 1)", ctx)
+  check(
+    "funcall of a consumer macro is invalid-function",
+    r.kind == "signal" and r.text == "(invalid-function org-sbe)",
+    show(r)
+  )
+  r = ev_printed("(condition-case e (boom 3) (wrong-type-argument (list 'caught e)))", ctx)
+  check(
+    "cx.signal is caught by condition-case",
+    r == "(caught (wrong-type-argument stringp 3))",
+    show(r)
+  )
+  r = ev("(condition-case nil (no) (t 1))", ctx)
+  check(
+    "cx.refuse is a refusal condition-case does not catch",
+    r.kind == "refused" and r.code == "holidays" and r.detail == "no holidays",
+    show(r)
+  )
+  r = ev("(badcode)", ctx)
+  check(
+    "cx.refuse of an unknown code refuses internal",
+    r.kind == "refused" and r.code == "internal",
+    show(r)
+  )
+  r = ev("(condition-case nil (luaerr) (t 1))", ctx)
+  check(
+    "a consumer's Lua error refuses internal, uncaught",
+    r.kind == "refused" and r.code == "internal" and r.detail:find("consumer bug", 1, true) ~= nil,
+    show(r)
+  )
+  r = ev_printed("(let ((x 5)) (nested '(list x)))", ctx)
+  check("cx.eval sees the dynamic bindings", r == "(5)", show(r))
+  r = ev("(let ((x 5)) (nested '(list x)))", { profile = "capture", functions = ctx.functions })
+  check(
+    "cx.eval starts a fresh lexical environment",
+    r.kind == "refused" and r.code == "free-variable",
+    show(r)
+  )
+  local budget = {}
+  r = ev("(progn (org-entry-get) (org-entry-get))", { functions = ctx.functions, budget = budget })
+  check(
+    "each consumer call is charged at least 1 000 steps",
+    r.ok and budget.steps >= 2000,
+    show(budget)
+  )
+end
+
+do
+  local function sleeper(ms, timeout)
+    return {
+      fn = function()
+        vim.uv.sleep(ms)
+        return 0
+      end,
+      timeout = timeout,
+    }
+  end
+  local r =
+    ev("(progn (slow) (slow))", { caps = { time = 30 }, functions = { slow = sleeper(20) } })
+  check("a consumer call's wall time counts", r.kind == "limit" and r.cap == "time", show(r))
+  r =
+    ev("(progn (slow) (slow))", { caps = { time = 30 }, functions = { slow = sleeper(20, 1000) } })
+  check("spec.timeout keeps a consumer call's wall time out", r.ok, show(r))
+  local steps_used
+  r = ev("(spend)", {
+    caps = { steps = 5000 },
+    functions = {
+      spend = {
+        fn = function(_, cx)
+          steps_used = true
+          cx.charge(10000, 0)
+          return 0
+        end,
+      },
+    },
+  })
+  check(
+    "cx.charge counts against the caps",
+    steps_used and r.kind == "limit" and r.cap == "steps",
+    show(r)
+  )
+end
+
+-- subst_symbols (org-capture--expand-keyword-in-embedded-elisp)
+
+do
+  local plist = { [":link"] = "L", [":desc"] = false, [":x"] = { { sym = "a" }, { sym = "b" } } }
+  for _, case in ipairs({
+    {
+      '(f %:link (g %:desc) [%:link] "%:link" a%:linkb b%:link%:x)',
+      '(f "L" (g %:desc) [%:link] "%:link" a%:linkb b%:link%:x)',
+    },
+    { "(f x%:link\\\ny)", '(f "L")' },
+    { "%:link", '"L"' },
+    { "[%:link]", "[%:link]" },
+    { "(%:x %:x)", "((a b) (a b))" },
+    { "(f %:li\\nk)", '(f "L")' },
+    { "(f %%:link :link %:)", '(f "L" :link %:)' },
+    { "(a . %:link)", "!! (wrong-type-argument listp %:link)" },
+    { "((x . y) . z)", "!! (wrong-type-argument listp z)" },
+  }) do
+    local r = elisp.subst_symbols(read_value(case[1]), plist)
+    local got = r.ok and printed_of(r.value) or (r.kind == "signal" and "!! " .. r.text) or show(r)
+    check("subst_symbols " .. vim.inspect(case[1]), got == case[2], got)
+  end
+  local r = elisp.subst_symbols(read_value("(%:x %:x)"), plist)
+  check(
+    "subst_symbols puts one value at each use",
+    r.ok and r.value.car == r.value.cdr.car,
+    show(r)
+  )
+  local form = read_value("(a (b))")
+  r = elisp.subst_symbols(form, {})
+  check(
+    "subst_symbols builds fresh conses",
+    r.ok and r.value ~= form and r.value.cdr ~= form.cdr,
+    show(r)
+  )
+  r = elisp.subst_symbols(form, "x")
+  check(
+    "subst_symbols with a non-table plist refuses internal",
+    r.kind == "refused" and r.code == "internal",
+    show(r)
+  )
 end
 
 -- to_value / to_lua

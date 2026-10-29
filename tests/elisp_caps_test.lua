@@ -1,5 +1,5 @@
 -- organ.elisp caps: each hostile input stops at its cap's limit result,
--- well inside 2 s of wall clock.
+-- well inside 2 s of wall clock, and condition-case catches none.
 --
 -- Run via: nvim --headless -l tests/elisp_caps_test.lua
 
@@ -99,6 +99,170 @@ do
     "a shared budget ends a run of calls with a steps limit",
     last.kind == "limit" and last.cap == "steps" and ok_count > 0 and budget.steps > 0,
     show(last) .. " after " .. ok_count
+  )
+end
+
+-- evaluation
+
+local function ev(src, ctx)
+  return elisp.eval_string(src, ctx)
+end
+
+local function limited_any(label, caps, fn)
+  local t0 = vim.uv.hrtime()
+  local r = fn()
+  local ms = (vim.uv.hrtime() - t0) / 1e6
+  check(
+    ("%s: %s limit in %.0f ms"):format(label, tostring(r.cap), ms),
+    r.ok == false and r.kind == "limit" and vim.tbl_contains(caps, r.cap) and ms < 2000,
+    show(r)
+  )
+end
+
+limited("(while t)", "steps", function()
+  return ev("(while t)")
+end)
+
+limited_any("(while t) under a 5 ms time cap", { "steps", "time" }, function()
+  return ev("(while t)", { caps = { time = 5 } })
+end)
+
+for _, profile in ipairs({ "table", "capture" }) do
+  limited("self-application recursion (" .. profile .. ")", "depth", function()
+    return ev(
+      "(funcall (lambda (f) (funcall f f)) (lambda (f) (funcall f f)))",
+      { profile = profile }
+    )
+  end)
+  limited("apply recursion (" .. profile .. ")", "depth", function()
+    return ev("(let ((f (lambda (g) (apply g (list g))))) (funcall f f))", { profile = profile })
+  end)
+end
+
+limited("consumer calls in a loop", "steps", function()
+  local calls = 0
+  local r = ev("(while t (tick))", {
+    functions = {
+      tick = {
+        fn = function()
+          calls = calls + 1
+          return 0
+        end,
+      },
+    },
+  })
+  check("consumer calls are charged 1 000 steps each", calls <= 201, tostring(calls))
+  return r
+end)
+
+limited_any("nested cx.eval recursion", { "depth", "steps" }, function()
+  local form = elisp.read("(again)").value
+  return ev("(again)", {
+    functions = {
+      again = {
+        fn = function(_, cx)
+          return cx.eval(form)
+        end,
+      },
+    },
+  })
+end)
+
+limited_any("a consumer macro recursion", { "depth", "steps" }, function()
+  local form = elisp.read("(m)").value
+  return ev("(m)", {
+    macros = {
+      m = {
+        fn = function(_, cx)
+          return cx.eval(form)
+        end,
+      },
+    },
+  })
+end)
+
+for _, src in ipairs({
+  "(condition-case nil (while t) (t 1))",
+  "(ignore-errors (while t))",
+  "(condition-case nil (while t) (error 1) (:success 2))",
+}) do
+  limited("not caught: " .. src, "steps", function()
+    return ev(src)
+  end)
+end
+
+limited("not caught: depth under condition-case", "depth", function()
+  return ev(
+    "(condition-case nil (funcall (lambda (f) (funcall f f)) (lambda (f) (funcall f f))) (t 1))"
+  )
+end)
+
+do
+  local budget = {}
+  local n, last = 0, nil
+  for _ = 1, 10000 do
+    last = ev("(dotimes (i 200))", { budget = budget })
+    if not last.ok then
+      break
+    end
+    n = n + 1
+  end
+  check(
+    "a shared budget ends a run of evaluations with a steps limit",
+    last.kind == "limit" and last.cap == "steps" and n > 0 and budget.steps > 0,
+    show(last) .. " after " .. n
+  )
+end
+
+-- The deepest Lua chain evaluation builds before printing: a closure
+-- calls a consumer function through apply, which evaluates the next
+-- call to the closure with cx.eval; at the bottom a backquote error
+-- prints a 190-deep form.  mapcar and sort (with equal and value<) join
+-- the chain once they exist.
+do
+  local deep = string.rep("(", 190) .. "x" .. string.rep(")", 190)
+  local bottom_form = elisp.read("`(\\, " .. deep .. " b)").value
+  local down_form = elisp.read("(funcall self self (cdr l))").value
+  local ctx = {
+    functions = {
+      down = {
+        fn = function(_, cx)
+          return cx.eval(down_form)
+        end,
+      },
+      bottom = {
+        fn = function(_, cx)
+          return cx.eval(bottom_form)
+        end,
+      },
+    },
+  }
+  local function chain(n)
+    local list = "'(" .. string.rep("1 ", n) .. ")"
+    return ev(
+      "(let ((f (lambda (self l) (if l (apply 'down (list l)) (bottom))))) (funcall f f "
+        .. list
+        .. "))",
+      ctx
+    )
+  end
+  local deepest, r, bad
+  for n = 0, 200 do
+    r = chain(n)
+    if r.kind == "limit" then
+      break
+    elseif not (r.kind == "signal" and r.text and r.text:find("Multiple args to ,", 1, true)) then
+      bad = r
+      break
+    end
+    deepest = n
+  end
+  check(
+    ("the chain reaches the depth cap after %s levels, printing at the bottom"):format(
+      tostring(deepest)
+    ),
+    not bad and deepest and deepest > 20 and r.kind == "limit" and r.cap == "depth",
+    show(bad or r)
   )
 end
 
