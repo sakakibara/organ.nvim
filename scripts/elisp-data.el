@@ -15,7 +15,13 @@
 ;;;   sharing one raw syntax descriptor (class plus flags) and matching
 ;;;   character.
 ;;; - errors.lua: `error-conditions' and `error-message' of every error
-;;;   symbol organ's evaluator signals.
+;;;   symbol of an Emacs with every profile's features loaded, and the
+;;;   profiles whose features do not define it.
+;;; - specials.lua: the names `special-variable-p' holds for in that Emacs.
+;;; - functions.lua: for each special form, macro and builtin organ's
+;;;   evaluator implements, its kind, the argument counts it accepts and
+;;;   the head of its `wrong-number-of-arguments' data called directly
+;;;   and through `funcall', all from live calls.
 ;;;
 ;;; `elisp-data-dump-truth' writes the same syntax tables one code point
 ;;; per line ("TABLE CODE MATCH", MATCH -1 for none), for the gate's check
@@ -25,13 +31,25 @@
 
 (defconst elisp-data-max-char #x10FFFF)
 
-(defconst elisp-data-errors
-  '(error user-error args-out-of-range arith-error overflow-error
-          range-error domain-error singularity-error underflow-error
-          wrong-type-argument wrong-number-of-arguments wrong-length-argument
-          void-function void-variable invalid-function setting-constant
-          invalid-read-syntax end-of-file scan-error type-mismatch)
-  "Error symbols organ's evaluator signals.")
+(defconst elisp-data-profiles
+  '(("table" org)
+    ("diary" org org-agenda diary-lib calendar)
+    ("prefix" org org-agenda)
+    ("capture" org org-capture)
+    ("var" org ob-core)
+    ("link" org ol))
+  "Each evaluation profile and the features its Emacs entry point has loaded.")
+
+(defconst elisp-data-functions
+  '(quote function if cond and or progn prog1 let let* while condition-case
+          when unless prog2 dolist dotimes lambda ignore-errors \` backquote
+          funcall apply identity ignore error signal user-error
+          cons list car cdr)
+  "Special forms, macros and builtins organ's evaluator implements.
+`setq' is not listed: its odd-count check is not an argument count.")
+
+(defconst elisp-data-max-args 6
+  "Argument counts probed for each of `elisp-data-functions'.")
 
 (defun elisp-data--tables ()
   (list (cons "org" (with-temp-buffer (org-mode) (syntax-table)))
@@ -64,23 +82,160 @@
      "}\n")))
 
 (defun elisp-data--lua-string (s)
-  (concat "\"" (replace-regexp-in-string "[\"\\\\]" "\\\\\\&" s) "\""))
+  (concat "\""
+          (mapconcat (lambda (c)
+                       (cond ((memq c '(?\" ?\\)) (string ?\\ c))
+                             ((or (< c 32) (= c 127)) (format "\\%03d" c))
+                             (t (string c))))
+                     s "")
+          "\""))
+
+(defun elisp-data--child (features form)
+  "The value of FORM in a fresh Emacs that has loaded FEATURES."
+  (with-temp-buffer
+    (let ((status
+           (call-process
+            (expand-file-name invocation-name invocation-directory)
+            nil '(t nil) nil "--batch" "-Q" "--eval"
+            (format "(progn (mapc #'require '%S) (let ((print-escape-multibyte t) (print-escape-nonascii t) (print-length nil) (print-level nil)) (prin1 %S)))"
+                    features form))))
+      (unless (eq status 0)
+        (error "elisp-data: child Emacs failed (%s): %s" status (buffer-string)))
+      (car (read-from-string (buffer-string))))))
+
+(defun elisp-data--all-features ()
+  (delete-dups (apply #'append (mapcar #'cdr elisp-data-profiles))))
+
+(defconst elisp-data--error-names-form
+  '(let (l)
+     (mapatoms (lambda (s) (when (get s 'error-conditions) (push (symbol-name s) l))))
+     (sort l #'string<)))
 
 (defun elisp-data--errors-file ()
+  (let* ((all (elisp-data--child
+               (elisp-data--all-features)
+               `(mapcar (lambda (n)
+                          (let ((s (intern n)))
+                            (list n (mapcar #'symbol-name (get s 'error-conditions))
+                                  (get s 'error-message))))
+                        ,elisp-data--error-names-form)))
+         (per-profile
+          (mapcar (lambda (p)
+                    (cons (car p) (elisp-data--child (cdr p) elisp-data--error-names-form)))
+                  elisp-data-profiles)))
+    (concat
+     (elisp-data--header
+      "-- Each error symbol's `error-conditions' and `error-message' in an\n-- Emacs with every profile's features loaded; `profiles' lists the\n-- profiles whose features define the symbol when not all do.\n")
+     "return {\n"
+     (mapconcat
+      (lambda (e)
+        (let ((in (delq nil (mapcar (lambda (p) (and (member (car e) (cdr p)) (car p)))
+                                    per-profile))))
+          (concat
+           (format "  [%s] = {\n    conditions = { %s },\n"
+                   (elisp-data--lua-string (nth 0 e))
+                   (mapconcat #'elisp-data--lua-string (nth 1 e) ", "))
+           (if (stringp (nth 2 e))
+               (format "    message = %s,\n" (elisp-data--lua-string (nth 2 e)))
+             "")
+           (if (= (length in) (length per-profile))
+               ""
+             (format "    profiles = { %s },\n"
+                     (mapconcat #'elisp-data--lua-string in ", ")))
+           "  },\n")))
+      all "")
+     "}\n")))
+
+(defun elisp-data--specials-file ()
   (concat
    (elisp-data--header
-    "-- Each error symbol's `error-conditions' and `error-message'.\n")
+    "-- The names `special-variable-p' holds for in an Emacs with every\n-- profile's features loaded, sorted.\n")
    "return {\n"
-   (mapconcat
-    (lambda (sym)
-      (format "  [%s] = {\n    conditions = { %s },\n    message = %s,\n  },\n"
-              (elisp-data--lua-string (symbol-name sym))
-              (mapconcat (lambda (c) (elisp-data--lua-string (symbol-name c)))
-                         (get sym 'error-conditions) ", ")
-              (elisp-data--lua-string (get sym 'error-message))))
-    (sort (copy-sequence elisp-data-errors)
-          (lambda (a b) (string< (symbol-name a) (symbol-name b))))
-    "")
+   (mapconcat (lambda (n) (format "  %s,\n" (elisp-data--lua-string n)))
+              (elisp-data--child
+               (elisp-data--all-features)
+               '(let (l)
+                  (mapatoms (lambda (s) (when (special-variable-p s) (push (symbol-name s) l))))
+                  (sort l #'string<)))
+              "")
+   "}\n"))
+
+(defun elisp-data--kind (f)
+  (let ((fn (indirect-function f)))
+    (cond ((special-form-p fn) "special")
+          ((macrop fn) "macro")
+          ((subrp fn) "subr")
+          (t "lisp"))))
+
+(defun elisp-data--wna (form)
+  "The `wrong-number-of-arguments' data FORM signals, or nil."
+  (condition-case err
+      (progn (eval form t) nil)
+    (wrong-number-of-arguments (cdr err))
+    (error nil)))
+
+(defun elisp-data--lua-value (f x)
+  "X as a Lua constructor: the subr of F, a symbol, an integer or a cons."
+  (cond ((and (subrp x) (eq x (indirect-function f))) "{ subr = true }")
+        ((symbolp x) (format "{ sym = %s }" (elisp-data--lua-string (symbol-name x))))
+        ((integerp x) (number-to-string x))
+        ((consp x) (format "{ car = %s, cdr = %s }"
+                           (elisp-data--lua-value f (car x))
+                           (elisp-data--lua-value f (cdr x))))
+        (t (error "elisp-data: unencodable head %S of %s" x f))))
+
+(defun elisp-data--function-entry (f)
+  "F's kind, accepted argument counts and data heads, from live calls.
+A count N is accepted when (F nil ... nil) with N arguments signals no
+`wrong-number-of-arguments'; the accepted counts must form one range
+and every refused count must give (HEAD N), HEAD the same for all."
+  (let* ((kind (elisp-data--kind f))
+         (fn-p (member kind '("subr" "lisp")))
+         min max head fhead)
+    (dotimes (n (1+ elisp-data-max-args))
+      (let* ((args (make-list n nil))
+             (direct (elisp-data--wna (cons f args)))
+             (through (and fn-p (elisp-data--wna `(apply #'funcall ',f ',args)))))
+        (if (null direct)
+            (progn
+              (when (and min (< (or max min) (1- n)))
+                (error "elisp-data: %s accepts counts outside one range" f))
+              (when through
+                (error "elisp-data: %s refuses %d through funcall only" f n))
+              (unless min (setq min n))
+              (setq max n))
+          (unless (and (consp (cdr direct)) (eql (cadr direct) n) (null (cddr direct)))
+            (error "elisp-data: %s %d: unexpected data %S" f n direct))
+          (when (and head (not (equal head (car direct))))
+            (error "elisp-data: %s: heads %S and %S differ" f head (car direct)))
+          (setq head (car direct))
+          (when fn-p
+            (unless (and (consp (cdr through)) (eql (cadr through) n) (null (cddr through)))
+              (error "elisp-data: %s %d: unexpected funcall data %S" f n through))
+            (when (and fhead (not (equal fhead (car through))))
+              (error "elisp-data: %s: funcall heads differ" f))
+            (setq fhead (car through))))))
+    (unless min
+      (error "elisp-data: %s accepts no count up to %d" f elisp-data-max-args))
+    (concat
+     (format "  [%s] = {\n    kind = %s,\n    min = %d,\n"
+             (elisp-data--lua-string (symbol-name f))
+             (elisp-data--lua-string kind) min)
+     (if (< max elisp-data-max-args) (format "    max = %d,\n" max) "")
+     (if head (format "    head = %s,\n" (elisp-data--lua-value f head)) "")
+     (if fhead (format "    funcall_head = %s,\n" (elisp-data--lua-value f fhead)) "")
+     (if (function-get f 'compiler-macro) "    compiler_macro = true,\n" "")
+     "  },\n")))
+
+(defun elisp-data--functions-file ()
+  (concat
+   (elisp-data--header
+    "-- Each implemented special form, macro and builtin: `kind' (special,\n-- macro, subr or lisp), the argument counts it accepts (`max' absent:\n-- no upper bound) and the head of its (wrong-number-of-arguments HEAD N)\n-- data called directly and, for functions, through `funcall';\n-- `compiler_macro' when one rewrites its calls inside a closure.\n")
+   "return {\n"
+   (mapconcat #'elisp-data--function-entry
+              (sort (copy-sequence elisp-data-functions)
+                    (lambda (a b) (string< (symbol-name a) (symbol-name b))))
+              "")
    "}\n"))
 
 (defun elisp-data--write (file text)
@@ -93,7 +248,9 @@
   (dolist (tbl (elisp-data--tables))
     (elisp-data--write (expand-file-name (format "syntax_%s.lua" (car tbl)) dir)
                        (elisp-data--syntax-file (car tbl) (cdr tbl))))
-  (elisp-data--write (expand-file-name "errors.lua" dir) (elisp-data--errors-file)))
+  (elisp-data--write (expand-file-name "errors.lua" dir) (elisp-data--errors-file))
+  (elisp-data--write (expand-file-name "specials.lua" dir) (elisp-data--specials-file))
+  (elisp-data--write (expand-file-name "functions.lua" dir) (elisp-data--functions-file)))
 
 (defun elisp-data-dump-truth (file)
   "Write every code point's syntax under each table to FILE."

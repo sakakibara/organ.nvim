@@ -15,6 +15,12 @@ function M.conditions(name)
   return e and e.conditions
 end
 
+--- The error symbol `name`'s entry: { conditions, message, profiles }
+--- (`profiles` absent when every profile's features define it).
+function M.lookup(name)
+  return DATA[name]
+end
+
 local function has_condition(name, cond)
   for _, c in ipairs(M.conditions(name) or {}) do
     if c == cond then
@@ -50,10 +56,10 @@ function M.message(run, name, data, escape_newlines)
     if not e then
       R.refuse("internal", "no error data for " .. name)
     end
-    if e.message:find("[`']") then
+    if e.message and e.message:find("[`']") then
       R.refuse("locale", name)
     end
-    errmsg = V.str(e.message)
+    errmsg = e.message and V.str(e.message) or NIL
     tail = data
     file_error = has_condition(name, "file-error")
   end
