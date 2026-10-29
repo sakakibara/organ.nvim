@@ -30,6 +30,9 @@ local convert = require("organ.elisp.convert")
 local errors = require("organ.elisp.errors")
 local printer = require("organ.elisp.printer")
 
+require("organ.elisp.num")
+require("organ.elisp.equal")
+
 local M = {}
 
 local NIL, T = V.NIL, V.T
@@ -1074,6 +1077,30 @@ B.define("apply", function(run, argv)
   return funcall(run, all[1], rest)
 end)
 
+B.define("functionp", function(run, argv)
+  local x = argv[1]
+  if is_sym(x) then
+    if x == NIL or x.uninterned then
+      return NIL
+    end
+    local name = x.name.s
+    if SPECIAL_FORMS[name] or is_macro_name(run, name) then
+      return NIL
+    elseif run.ctx.functions and run.ctx.functions[name] then
+      return T
+    elseif B.SUBSET[name] then
+      if not B.in_profile(name, run.profile) then
+        R.refuse("profile", name)
+      end
+      return T
+    end
+    R.refuse("function", name)
+  elseif type(x) == "table" and x.k == "fn" then
+    return x.kind == "special" and NIL or T
+  end
+  return (is_cons(x) and x.car == Q_LAMBDA) and T or NIL
+end)
+
 B.define("signal", function(run, argv)
   return signal_value(run, argv[1], argv.n >= 2 and argv[2] or NIL)
 end)
@@ -1564,6 +1591,18 @@ local function unfold(run, eexp, eargs, form)
   return car_of(body)
 end
 
+-- Compiler macros macroexpand-all applies: the rewritten form, or nil
+-- when the macro leaves the call as it is (its arity check failed).
+local Q_NUM_EQ = intern("=")
+
+local COMPILER_MACROS = {
+  zerop = function(args, n)
+    if n == 1 then
+      return list3(Q_NUM_EQ, 0, args.car)
+    end
+  end,
+}
+
 local function expand_form(run, form)
   local h, args = form.car, form.cdr
   local n = proper_length(args)
@@ -1698,8 +1737,18 @@ local function expand_form(run, form)
     return cons(h, expand_list(run, args))
   end
   local def = builtin(run, name)
-  if not def or def.compiler_macro then
+  if not def then
     R.refuse("function", name)
+  end
+  if def.compiler_macro then
+    local cm = COMPILER_MACROS[name]
+    if not cm then
+      R.refuse("function", name)
+    end
+    local rewritten = cm(args, n)
+    if rewritten then
+      return expand(run, rewritten)
+    end
   end
   return cons(h, expand_list(run, args))
 end

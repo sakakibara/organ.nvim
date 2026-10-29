@@ -214,6 +214,48 @@ do
   )
 end
 
+-- integers: limb work and boxed limbs are charged, and results wider
+-- than integer-width signal before they are built
+
+limited("expt of a 65 000-bit result", "steps", function()
+  return ev("(expt 3 41000)")
+end)
+
+limited("ash to a 65 535-bit result", "steps", function()
+  return ev("(ash 1 65535)")
+end)
+
+limited("bignum limbs under a lowered alloc cap", "alloc", function()
+  return ev("(expt 10 7000)", { caps = { alloc = 4096 } })
+end)
+
+do
+  local digits = string.rep("7", 1000000 - 100)
+  limited("logand of a 999 900-digit integer", "steps", function()
+    return ev('(logand 3 (string-to-number "' .. digits .. '"))')
+  end)
+  limited("the square of a 999 900-digit integer", "steps", function()
+    return ev('(let ((n (string-to-number "' .. digits .. '"))) (* n n))')
+  end)
+end
+
+for _, src in ipairs({
+  "(expt 2 1000000000)",
+  "(expt 3 1180591620717411303424)",
+  "(ash 1 1000000000000)",
+  "(ash -1 65536)",
+  '(1+ (string-to-number "' .. string.rep("9", 19729) .. '"))',
+}) do
+  local t0 = vim.uv.hrtime()
+  local r = ev(src)
+  local ms = (vim.uv.hrtime() - t0) / 1e6
+  check(
+    ("%s: overflow-error in %.0f ms"):format(src:sub(1, 40), ms),
+    r.kind == "signal" and r.symbol == "overflow-error" and ms < 2000,
+    show(r)
+  )
+end
+
 -- The deepest Lua chain evaluation builds before printing: a closure
 -- calls a consumer function through apply, which evaluates the next
 -- call to the closure with cx.eval; at the bottom a backquote error

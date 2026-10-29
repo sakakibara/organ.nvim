@@ -569,6 +569,45 @@ do
   )
 end
 
+-- call: numbers, as Emacs's string-to-number, number-to-string and
+-- arithmetic return them
+
+do
+  local r = elisp.call("string-to-number", { " 12abc" })
+  check("call string-to-number", r.ok and r.value == 12, show(r))
+  r = elisp.call("string-to-number", { "-1.5e3" })
+  check("call string-to-number of a float", r.ok and printed_of(r.value) == "-1500.0", show(r))
+  r = elisp.call("number-to-string", { { float = 1 } })
+  check("call number-to-string of a float", r.ok and r.value.s == "1.0", show(r))
+  r = elisp.call("number-to-string", { { bignum = "-1180591620717411303424" } })
+  check(
+    "call number-to-string of a bignum",
+    r.ok and r.value.s == "-1180591620717411303424",
+    show(r)
+  )
+  r = elisp.call("*", { 9007199254740991, 2 })
+  local l = r.ok and elisp.to_lua(r.value)
+  check(
+    "a product beyond 2^53 converts to a bignum table",
+    l and l.ok and vim.deep_equal(l.value, { bignum = "18014398509481982" }),
+    show(l or r)
+  )
+  r = elisp.call("-", { { bignum = "9007199254740992" }, 1 })
+  check(
+    "a bignum result within 2^53 is a Lua number",
+    r.ok and r.value == 9007199254740991,
+    show(r)
+  )
+  r = elisp.call("+", { 0.5, 2 })
+  check("a non-integral Lua number is a float", r.ok and printed_of(r.value) == "2.5", show(r))
+  r = elisp.call("number-to-string", { 0 / 0 })
+  check("printing a NaN refuses", r.kind == "refused" and r.code == "nan", show(r))
+  r = elisp.call("eq", { "a", "a" })
+  check("eq of two equal strings refuses", r.kind == "refused" and r.code == "eq-identity", show(r))
+  r = elisp.call("equal", { "a", "a" })
+  check("equal of two equal strings", r.ok and r.value == elisp.T, show(r))
+end
+
 -- consumer functions and macros
 
 do

@@ -162,6 +162,63 @@ M.define("ignore", function()
   return NIL
 end)
 
+local function kind(v)
+  local t = type(v)
+  if t == "number" then
+    return "int"
+  end
+  return v.k
+end
+
+local function predicate(name, test)
+  M.define(name, function(_, argv)
+    return test(argv[1]) and V.T or NIL
+  end)
+end
+
+local function is_list(v)
+  return v == NIL or kind(v) == "cons"
+end
+
+predicate("null", function(x)
+  return x == NIL
+end)
+predicate("not", function(x)
+  return x == NIL
+end)
+predicate("atom", function(x)
+  return kind(x) ~= "cons"
+end)
+predicate("consp", function(x)
+  return kind(x) == "cons"
+end)
+predicate("listp", is_list)
+predicate("nlistp", function(x)
+  return not is_list(x)
+end)
+predicate("stringp", function(x)
+  return kind(x) == "str"
+end)
+predicate("symbolp", function(x)
+  return kind(x) == "sym"
+end)
+predicate("vectorp", function(x)
+  return kind(x) == "vec"
+end)
+predicate("sequencep", function(x)
+  local k = kind(x)
+  return k == "cons" or k == "vec" or k == "str" or x == NIL
+end)
+predicate("booleanp", function(x)
+  return x == NIL or x == V.T
+end)
+predicate("characterp", function(x)
+  return type(x) == "number" and x >= 0 and x <= 0x3FFFFF
+end)
+predicate("keywordp", function(x)
+  return V.is_keyword(x)
+end)
+
 M.define("cons", function(run, argv)
   run:charge(32)
   return V.cons(argv[1], argv[2])

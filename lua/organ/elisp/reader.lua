@@ -110,6 +110,7 @@ end
 
 -- Integers
 
+--- The integer of `digits` in `base`, negated when `neg`.
 local function digits_to_int(run, digits, neg, base)
   digits = digits:gsub("^0+", "")
   if digits == "" then
@@ -142,7 +143,10 @@ local function digits_to_int(run, digits, neg, base)
   end
   return V.int_from_bn(b)
 end
+M.digits_to_int = digits_to_int
 
+--- The nearest double to INT_PART.FRAC e EXP (EXP negated when
+--- `exp_neg`), from decimal digit strings.
 local function decimal_float(int_part, frac, exp_digits, exp_neg)
   local all = int_part .. frac
   local digits = all:gsub("^0+", "")
@@ -168,9 +172,10 @@ local function decimal_float(int_part, frac, exp_digits, exp_neg)
   end
   return tonumber("0." .. digits .. "e" .. mag)
 end
+M.decimal_float = decimal_float
 
--- The numeric prefix of `s` as Emacs's string_to_number (base 10) scans
--- it, or nil when `s` does not start with a number.
+--- The numeric prefix of `s` as Emacs's string_to_number (base 10)
+--- scans it, or nil when `s` does not start with a number.
 local function scan_number(s)
   local i = 1
   local c = byte(s, 1)
@@ -235,6 +240,7 @@ local function scan_number(s)
     special = special,
   }
 end
+M.scan_number = scan_number
 
 --- Whether all of `s` reads as a number (print.c's test for a symbol
 --- name that needs a leading backslash).
