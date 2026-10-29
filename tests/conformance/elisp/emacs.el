@@ -2,10 +2,10 @@
 ;;;
 ;;; `conformance-run' groups the cases by the profile their header names
 ;;; and starts one Emacs per profile, so features one profile loads never
-;;; reach another.  Each child loads its profile's features, reads every
-;;; item of its cases from the UTF-8 case file and writes one line per
-;;; item, in the shape tests/conformance/elisp/organ.lua writes (see
-;;; NORMALIZE.md).
+;;; reach another.  Each child loads its profile's features, reads (and in
+;;; `eval' mode evaluates, with the profile's binding) every item of its
+;;; cases from the UTF-8 case file and writes one line per item, in the
+;;; shape tests/conformance/elisp/organ.lua writes (see NORMALIZE.md).
 
 (require 'cl-lib)
 
@@ -20,7 +20,12 @@
     ("var" org ob-core)
     ("link" org ol)))
 
-(defconst conformance-elisp-modes '("read"))
+(defconst conformance-elisp-lexical
+  '(("table" . nil) ("diary" . nil) ("link" . nil)
+    ("prefix" . t) ("capture" . t) ("var" . t))
+  "Whether each profile's Emacs entry point evaluates with lexical binding.")
+
+(defconst conformance-elisp-modes '("read" "eval"))
 
 (defun conformance-elisp--text (file)
   (with-temp-buffer
@@ -62,16 +67,61 @@ each item is (NAIVE . SOURCE)."
 (defun conformance-elisp--oneline (s)
   (replace-regexp-in-string "\n" "\\\\n" s t))
 
+(defun conformance-elisp--unprintable-p (x)
+  "Non-nil if X holds a value organ does not print in error text."
+  (let ((todo (list x)) found)
+    (while (and todo (not found))
+      (let ((v (pop todo)))
+        (cond ((consp v) (push (car v) todo) (push (cdr v) todo))
+              ((vectorp v) (setq todo (append v todo)))
+              ((or (subrp v) (byte-code-function-p v) (interpreted-function-p v))
+               (setq found t))
+              ((and (stringp v) (next-property-change 0 v)) (setq found t))
+              ((and (stringp v) (text-properties-at 0 v)) (setq found t)))))
+    found))
+
+(defun conformance-elisp--error-line (err)
+  (if (conformance-elisp--unprintable-p (cdr err))
+      (format "!! %s <unprintable>" (car err))
+    (concat "!! " (conformance-elisp--oneline (format "%s" err)))))
+
+(defun conformance-elisp--value-line (value)
+  (concat "=> " (let ((print-escape-newlines t))
+                  (prin1-to-string value))))
+
 (defun conformance-elisp--read-item (source)
   (condition-case err
-      (let ((value (car (read-from-string source))))
-        (concat "=> " (let ((print-escape-newlines t))
-                        (prin1-to-string value))))
-    (error (concat "!! " (conformance-elisp--oneline (format "%s" err))))))
+      (conformance-elisp--value-line (car (read-from-string source)))
+    (error (conformance-elisp--error-line err))))
+
+(defun conformance-elisp--variables (header)
+  "The `date' and `entry' bindings HEADER gives, as (SYMBOL . VALUE)."
+  (let (vars)
+    (let ((d (cdr (assoc "date" header))))
+      (when d (push (cons 'date (car (read-from-string d))) vars)))
+    (let ((e (cdr (assoc "entry" header))))
+      (when e (push (cons 'entry e) vars)))
+    (nreverse vars)))
+
+(defun conformance-elisp--eval-item (source header lexical)
+  "Evaluate SOURCE as PROFILE's entry point does: the header's `date'
+and `entry' bound dynamically around it, `case-fold-search' from its
+`case_fold', binding lexical when LEXICAL."
+  (condition-case err
+      (let* ((form (car (read-from-string source)))
+             (vars (conformance-elisp--variables header))
+             (value (let ((case-fold-search
+                           (equal (cdr (assoc "case_fold" header)) "t")))
+                      (cl-progv (mapcar #'car vars) (mapcar #'cdr vars)
+                        (eval form lexical)))))
+        (conformance-elisp--value-line value))
+    (error (conformance-elisp--error-line err))))
 
 (defun conformance-elisp--render (file)
   (let* ((parsed (conformance-elisp--parse (conformance-elisp--text file)))
-         (mode (cdr (assoc "mode" (car parsed))))
+         (header (car parsed))
+         (mode (cdr (assoc "mode" header)))
+         (lexical (cdr (assoc (cdr (assoc "profile" header)) conformance-elisp-lexical)))
          (n 0)
          lines)
     (unless (member mode conformance-elisp-modes)
@@ -80,7 +130,9 @@ each item is (NAIVE . SOURCE)."
       (org-mode)
       (dolist (item (cdr parsed))
         (setq n (1+ n))
-        (let ((line (conformance-elisp--read-item (cdr item))))
+        (let ((line (if (equal mode "eval")
+                        (conformance-elisp--eval-item (cdr item) header lexical)
+                      (conformance-elisp--read-item (cdr item)))))
           (when (and (car item) (string= line (car item)))
             (error "conformance: %s item %d: Emacs gives the naive answer %s"
                    (file-name-nondirectory file) n line))

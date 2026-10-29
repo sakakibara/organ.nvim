@@ -1,12 +1,12 @@
--- organ side of the elisp conformance gate: reads each item of a case
--- through organ.elisp and prints one line per item in the shape
--- emacs.el prints (see NORMALIZE.md).
+-- organ side of the elisp conformance gate: reads (and in `eval' mode
+-- evaluates) each item of a case through organ.elisp and prints one
+-- line per item in the shape emacs.el prints (see NORMALIZE.md).
 
 local elisp = require("organ.elisp")
 
 local M = {}
 
-local MODES = { read = true }
+local MODES = { read = true, eval = true }
 
 local function blocks_of(text)
   local blocks, cur = {}, nil
@@ -68,16 +68,41 @@ local function failure_line(r)
   return "LIMIT " .. r.cap
 end
 
+local function value_line(v)
+  local p = elisp.prin1(v, { escape_newlines = true })
+  if not p.ok then
+    return failure_line(p)
+  end
+  return "=> " .. p.value
+end
+
 local function read_item(source)
   local r = elisp.read(source, 1)
   if not r.ok then
     return failure_line(r)
   end
-  local p = elisp.prin1(r.value, { escape_newlines = true })
-  if not p.ok then
-    return failure_line(p)
+  return value_line(r.value)
+end
+
+local function ctx_of(header)
+  local variables = {}
+  if header.date then
+    local d = elisp.read(header.date)
+    assert(d.ok, "case date does not read")
+    variables.date = d.value
   end
-  return "=> " .. p.value
+  if header.entry then
+    variables.entry = header.entry
+  end
+  return { profile = header.profile, case_fold = header.case_fold == "t", variables = variables }
+end
+
+local function eval_item(source, ctx)
+  local r = elisp.eval_string(source, ctx)
+  if not r.ok then
+    return failure_line(r)
+  end
+  return value_line(r.value)
 end
 
 function M.render(path)
@@ -88,9 +113,10 @@ function M.render(path)
   if not MODES[header.mode] then
     error("unknown mode " .. tostring(header.mode))
   end
+  local ctx = header.mode == "eval" and ctx_of(header)
   local out = {}
   for _, item in ipairs(items) do
-    out[#out + 1] = read_item(item.source) .. "\n"
+    out[#out + 1] = (ctx and eval_item(item.source, ctx) or read_item(item.source)) .. "\n"
   end
   return table.concat(out)
 end

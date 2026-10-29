@@ -11,3 +11,38 @@ read-string.el	R6-OUT	KEEP	1	 => "😀"\n-=> "a"\n+REFUSED syntax \\N{LATIN SMAL
 read-string.el	R6-OUT	KEEP	1	 !! (error Malformed Unicode escape: \\u12)\n-=> "\\200"\n+REFUSED syntax unibyte
 read-string.el	R6-OUT	KEEP	1	 !! (invalid-read-syntax Invalid modifier in string)\n-=> "\\341"\n+REFUSED syntax unibyte
 read-symbol.el	R6-OUT	KEEP	1	 => abc\\\tdef\n-=> ##\n-=> foo\n-=> ##\n-=> foo\n-=> ##\n+REFUSED syntax ##\n+REFUSED syntax #:\n+REFUSED syntax #:\n+REFUSED syntax #_\n+REFUSED syntax #_
+eval-backquote-lexical.el	R6-OUT	KEEP	1	 => (a 1)\n-!! (void-function ,)\n-!! (void-function ,@)\n+REFUSED function ,\n+REFUSED function ,@
+eval-backquote.el	R6-OUT	KEEP	1	 => (a 1)\n-!! (void-function ,)\n-!! (void-function ,@)\n+REFUSED function ,\n+REFUSED function ,@
+eval-binding-lexical.el	R6-OUT	KEEP	1	 => ((1 . 1) 1 . 1)\n-!! (void-variable x)\n+REFUSED free-variable x
+eval-binding-lexical.el	R6-OUT	KEEP	1	 => 5\n-!! (void-variable x)\n+REFUSED free-variable x
+eval-binding-lexical.el	R6-OUT	KEEP	1	 => iso\n-=> 1\n-=> 1\n-=> nil\n-=> nil\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column
+eval-binding-lexical.el	R6-OUT	KEEP	1	 => x\n-!! (void-variable y)\n-=> american\n+REFUSED free-variable y\n+REFUSED free-variable calendar-date-style
+eval-binding-lexical.el	R6-OUT	KEEP	1	 => y\n-=> 3\n-=> t\n-=> 1\n+REFUSED setq-global fill-column\n+REFUSED setq-global case-fold-search\n+REFUSED setq-global zzz-organ-elisp-global
+eval-binding.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 5)\n-!! (void-variable x)\n-!! (void-variable i)\n+REFUSED free-variable x\n+REFUSED free-variable i
+eval-binding.el	R6-OUT	KEEP	1	 => 1\n-=> american\n+REFUSED free-variable calendar-date-style
+eval-binding.el	R6-OUT	KEEP	1	 => 2\n-!! (void-variable x)\n-!! (void-variable x)\n+REFUSED free-variable x\n+REFUSED free-variable x
+eval-binding.el	R6-OUT	KEEP	1	 => 5\n-!! (void-variable x)\n+REFUSED free-variable x
+eval-binding.el	R6-OUT	KEEP	1	 => iso\n-=> 1\n-=> 1\n-=> nil\n-=> nil\n-=> 3\n-=> (wrong-type-argument listp 1)\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column\n+REFUSED special fill-column
+eval-binding.el	R6-OUT	KEEP	1	 => y\n-=> 3\n-=> t\n-=> 1\n+REFUSED setq-global fill-column\n+REFUSED setq-global case-fold-search\n+REFUSED setq-global zzz-organ-elisp-global
+eval-closure-lexical.el	R6-OUT	KEEP	1	 !! (error Multiple args to , are not supported: (\\, a b))\n-!! (wrong-type-argument listp 1)\n+REFUSED syntax cond clause in a closure
+eval-closure-lexical.el	R6-OUT	KEEP	1	 !! (wrong-number-of-arguments identity 2)\n-=> 5\n-=> 5\n-=> 5\n+REFUSED function foo\n+REFUSED function foo\n+REFUSED syntax lambda list in a closure
+eval-closure-lexical.el	R6-OUT	KEEP	1	 => 3\n-!! (void-function byte-compile-warn-x)\n+REFUSED syntax lambda call in a closure
+eval-closure-lexical.el	R6-OUT	KEEP	1	 => 5\n-!! (error Nothing after &rest in anonymous lambda)\n-=> 1\n+REFUSED syntax lambda list in a closure\n+REFUSED syntax condition-case in a closure
+eval-closure.el	R6-OUT	KEEP	1	 => (1 nil)\n-=> 2\n+REFUSED special fill-column
+eval-errors-lexical.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 1)\n-!! (error 1)\n-!! (error it's)\n+REFUSED function format\n+REFUSED locale format-message
+eval-errors-lexical.el	R6-OUT	KEEP	1	 => 3\n-!! (wrong-type-argument listp 1)\n+REFUSED syntax dotted condition list
+eval-errors.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 1)\n-!! (error 1)\n-!! (error it's)\n+REFUSED function format\n+REFUSED locale format-message
+eval-errors.el	R6-OUT	KEEP	1	 => 3\n-!! (wrong-type-argument listp 1)\n+REFUSED syntax dotted condition list
+eval-forms-lexical.el	R6-OUT	KEEP	1	 !! (invalid-function 1.5)\n-!! (void-function foo)\n+REFUSED function foo
+eval-forms-lexical.el	R6-OUT	KEEP	1	 !! (void-function nil)\n-!! (invalid-function (closure (t) (x) x))\n-!! (wrong-type-argument listp 1)\n+REFUSED function closure\n+REFUSED function macro
+eval-forms-lexical.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 5)\n-!! (cl-assertion-failed (listp args))\n+REFUSED syntax lambda list
+eval-forms-lexical.el	R6-OUT	KEEP	1	 => (1 2)\n-!! (void-function foo)\n-!! (void-function t)\n-!! (void-function :k)\n+REFUSED function foo\n+REFUSED function t\n+REFUSED function :k
+eval-forms-lexical.el	R6-OUT	KEEP	1	 => nil\n-!! (void-variable foo)\n+REFUSED free-variable foo
+eval-forms.el	R6-OUT	KEEP	1	 !! (invalid-function 1.5)\n-!! (void-function foo)\n+REFUSED function foo
+eval-forms.el	R6-OUT	KEEP	1	 !! (void-function nil)\n-!! (invalid-function (closure (t) (x) x))\n-!! (wrong-type-argument listp 1)\n+REFUSED function closure\n+REFUSED function macro
+eval-forms.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 5)\n-!! (wrong-type-argument listp x)\n+REFUSED syntax lambda list
+eval-forms.el	R6-OUT	KEEP	1	 => (1 2)\n-!! (void-function foo)\n-!! (void-function t)\n-!! (void-function :k)\n+REFUSED function foo\n+REFUSED function t\n+REFUSED function :k
+eval-forms.el	R6-OUT	KEEP	1	 => nil\n-!! (void-variable foo)\n+REFUSED free-variable foo
+eval-profile-diary.el	R6-OUT	KEEP	1	 => 2\n-=> nil\n+REFUSED function org-date
+eval-profile-prefix.el	R6-OUT	KEEP	1	 => 6\n-!! (void-function diary-date)\n-!! (void-function diary-date)\n+REFUSED function org-date\n+REFUSED profile diary-date
+eval-profile-table.el	R6-OUT	KEEP	1	^\n-!! (void-function diary-date)\n-!! (void-function org-date)\n-!! (wrong-type-argument listp 2)\n+REFUSED profile diary-date\n+REFUSED profile org-date\n+REFUSED function org-lookup-first
