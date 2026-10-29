@@ -84,8 +84,14 @@ special variable other than `case-fold-search` and `calendar-date-style`
 quote (`locale`), a dotted condition list (`syntax`; Emacs 31 aborts on
 one that matches), and malformed forms in the body of a closure created
 where a variable is bound lexically (`syntax`), where Emacs's
-macroexpand-all and closure conversion rewrite or reject them. The gate
-fails on any row that records `REFUSED internal`.
+macroexpand-all and closure conversion rewrite or reject them. Numbers
+and equality add: `eq` or `eql` of two distinct strings, floats, vectors
+or integers beyond `most-positive-fixnum` that could be one object in
+Emacs (`eq-identity`), a NaN printed or compared by contents (`nan`),
+`equal` of two distinct closures (`unprintable`), and `functionp` of a
+symbol organ does not know (`function`) or of a diary function outside
+the profiles that define it (`profile`). The gate fails on any row that
+records `REFUSED internal`.
 
 ## Data check
 

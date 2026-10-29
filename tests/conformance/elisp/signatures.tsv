@@ -46,3 +46,19 @@ eval-forms.el	R6-OUT	KEEP	1	 => nil\n-!! (void-variable foo)\n+REFUSED free-vari
 eval-profile-diary.el	R6-OUT	KEEP	1	 => 2\n-=> nil\n+REFUSED function org-date
 eval-profile-prefix.el	R6-OUT	KEEP	1	 => 6\n-!! (void-function diary-date)\n-!! (void-function diary-date)\n+REFUSED function org-date\n+REFUSED profile diary-date
 eval-profile-table.el	R6-OUT	KEEP	1	^\n-!! (void-function diary-date)\n-!! (void-function org-date)\n-!! (wrong-type-argument listp 2)\n+REFUSED profile diary-date\n+REFUSED profile org-date\n+REFUSED function org-lookup-first
+eval-equality-lexical.el	R6-OUT	KEEP	1	 => nil\n-=> t\n+REFUSED unprintable closure
+eval-equality.el	R6-OUT	KEEP	1	 => nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+REFUSED eq-identity
+eval-equality.el	R6-OUT	KEEP	1	 => t\n+REFUSED eq-identity
+eval-equality.el	R6-OUT	KEEP	1	 => t\n+REFUSED nan
+eval-equality.el	R6-OUT	KEEP	1	 => t\n-=> nil\n+REFUSED eq-identity
+eval-equality.el	R6-OUT	KEEP	1	 => t\n-=> nil\n-=> t\n+REFUSED eq-identity
+eval-equality.el	R6-OUT	KEEP	1	 => t\n-=> t\n+REFUSED nan
+eval-equality.el	R6-OUT	KEEP	2	 => nil\n+REFUSED eq-identity
+eval-floats.el	R6-OUT	KEEP	1	 => -1.0e+INF\n-=> 0.0e+NaN\n+REFUSED nan
+eval-floats.el	R6-OUT	KEEP	1	 => 1.0e+INF\n-=> 0.0e+NaN\n+REFUSED nan
+eval-floats.el	R6-OUT	KEEP	1	 => 1.4142135623730951\n-=> 0.0e+NaN\n+REFUSED nan
+eval-floats.el	R6-OUT	KEEP	1	 => 1.5707963267948966\n-=> 0.0e+NaN\n+REFUSED nan
+eval-functionp-prefix.el	R6-OUT	KEEP	1	 => t\n-=> nil\n+REFUSED profile diary-date
+eval-string-number.el	R6-OUT	KEEP	1	 => "1.0e+INF"\n-=> "0.0e+NaN"\n+REFUSED nan
+eval-string-number.el	R6-OUT	KEEP	1	 => 1.0e+INF\n-=> 1.0e+NaN\n+REFUSED nan
+eval-types.el	R6-OUT	KEEP	1	 => t\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+REFUSED profile diary-date\n+REFUSED profile org-date\n+REFUSED function zzz-organ-elisp-undefined\n+REFUSED function t\n+REFUSED function :k
