@@ -256,6 +256,43 @@ for _, src in ipairs({
   )
 end
 
+-- strings: sizes are checked before a string is built, and search is
+-- linear in charged loops
+
+limited("doubling concat", "string", function()
+  return ev('(let ((s "x")) (while t (setq s (concat s s))))')
+end)
+
+limited("(make-string 100000000 ?a)", "string", function()
+  return ev("(make-string 100000000 ?a)")
+end)
+
+limited('(format "%999999999d" 1)', "string", function()
+  return ev('(format "%999999999d" 1)')
+end)
+
+limited('(format "%999999999s" "")', "string", function()
+  return ev('(format "%999999999s" "")')
+end)
+
+limited("doubling string-replace", "string", function()
+  return ev('(let ((s "xx")) (while t (setq s (string-replace "x" s s))))')
+end)
+
+limited("long-needle searches", "steps", function()
+  return ev(
+    '(let ((hay (make-string 1000000 ?a)) (needle (concat (make-string 500000 ?a) "b")))'
+      .. " (while t (string-search needle hay)))"
+  )
+end)
+
+limited("long-needle split-string", "steps", function()
+  return ev(
+    '(let ((hay (make-string 1000000 ?a)) (sep (concat (make-string 500000 ?a) "b")))'
+      .. " (while t (split-string hay sep)))"
+  )
+end)
+
 -- The deepest Lua chain evaluation builds before printing: a closure
 -- calls a consumer function through apply, which evaluates the next
 -- call to the closure with cx.eval; at the bottom a backquote error

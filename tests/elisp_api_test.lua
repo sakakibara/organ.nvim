@@ -436,8 +436,8 @@ for _, case in ipairs({
   { "(signal 'minibuffer-quit nil)", "function", "minibuffer-quit" },
   { "(signal 'iter-end-of-sequence nil)", "profile", "iter-end-of-sequence" },
   { "(diary-date 1 2 3)", "profile", "diary-date" },
-  { '(string-trim "a")', "function", "string-trim" },
-  { '(error "%d" 1)', "function", "format" },
+  { "(mapcar #'1+ '(1))", "function", "mapcar" },
+  { '(format "%.100f" 1.0)', "precision", "100" },
   { '(error "it\'s")', "locale", "format-message" },
   { "(condition-case nil (car 1) ((error . x) 1))", "syntax", "dotted condition list" },
   { "(let ((x 1)) (lambda () (cond 1)))", "syntax", "cond clause in a closure" },
@@ -549,7 +549,7 @@ do
     r.kind == "signal" and r.text == "(wrong-type-argument listp 1)",
     show(r)
   )
-  r = elisp.call("string-trim", { "a" })
+  r = elisp.call("mapcar", { { sym = "1+" }, { 1 } })
   check(
     "call: an unimplemented builtin refuses",
     r.kind == "refused" and r.code == "function",
@@ -567,6 +567,34 @@ do
     r.kind == "refused" and r.code == "function",
     show(r)
   )
+end
+
+-- call: format as a consumer formats a table cell or an agenda token
+
+do
+  local r = elisp.call("format", { "%5.2f|%-4s|%x", { float = 3.14159 }, "ab", 255 })
+  check("call format", r.ok and r.value.s == " 3.14|ab  |ff", show(r))
+  r = elisp.call("format", { "%s" })
+  check(
+    "call format: a signal",
+    r.kind == "signal" and r.text == "(error Not enough arguments for format string)",
+    show(r)
+  )
+  r = elisp.call("format", { "%5s", { str = "x", props = true } })
+  check(
+    "call format: the width of a string with properties refuses",
+    r.kind == "refused" and r.code == "width",
+    show(r)
+  )
+  r = elisp.call("format", { "%s|", { str = "x", props = true } })
+  local p = r.ok and elisp.prin1(r.value)
+  check(
+    "call format: a string with properties gives one",
+    p and p.kind == "refused" and p.code == "unprintable",
+    show(p or r)
+  )
+  r = elisp.call("string-width", { "a\t" })
+  check("call string-width of a TAB refuses", r.kind == "refused" and r.code == "width", show(r))
 end
 
 -- call: numbers, as Emacs's string-to-number, number-to-string and

@@ -28,6 +28,7 @@ local SPECIALS = require("organ.elisp.data.specials")
 local V = require("organ.elisp.value")
 local convert = require("organ.elisp.convert")
 local errors = require("organ.elisp.errors")
+local format = require("organ.elisp.format")
 local printer = require("organ.elisp.printer")
 
 require("organ.elisp.num")
@@ -1105,28 +1106,12 @@ B.define("signal", function(run, argv)
   return signal_value(run, argv[1], argv.n >= 2 and argv[2] or NIL)
 end)
 
--- format-message for a format string without directives; a string
--- with one waits for `format', and quotes depend on text-quoting-style.
-local function format_message(run, fmt)
-  if not is_str(fmt) then
-    wta("stringp", fmt)
-  end
-  if fmt.s:find("%", 1, true) then
-    R.refuse("function", "format")
-  end
-  if fmt.s:find("[`']") then
-    R.refuse("locale", "format-message")
-  end
-  run:charge(#fmt.s)
-  return V.str(fmt.s, fmt.props)
-end
-
 B.define("error", function(run, argv)
-  R.signal(Q_ERROR, V.list({ format_message(run, argv[1]) }))
+  R.signal(Q_ERROR, V.list({ format.format(run, argv, true) }))
 end)
 
 B.define("user-error", function(run, argv)
-  R.signal(Q_USER_ERROR, V.list({ format_message(run, argv[1]) }))
+  R.signal(Q_USER_ERROR, V.list({ format.format(run, argv, true) }))
 end)
 
 -- Internal functions macro expansions call
@@ -1595,12 +1580,27 @@ end
 -- when the macro leaves the call as it is (its arity check failed).
 local Q_NUM_EQ = intern("=")
 
+local Q_STRING_LESSP = intern("string-lessp")
+
+local function string_greaterp(args, n)
+  if n == 2 then
+    local arg1 = V.make_symbol("arg1")
+    return list3(
+      Q_LET,
+      V.list({ list2(arg1, args.car) }),
+      list3(Q_STRING_LESSP, args.cdr.car, arg1)
+    )
+  end
+end
+
 local COMPILER_MACROS = {
   zerop = function(args, n)
     if n == 1 then
       return list3(Q_NUM_EQ, 0, args.car)
     end
   end,
+  ["string>"] = string_greaterp,
+  ["string-greaterp"] = string_greaterp,
 }
 
 local function expand_form(run, form)

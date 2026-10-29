@@ -491,6 +491,7 @@ local function dbl_to_raw(x)
   local m, e = math.frexp(x)
   return bn.mul(bn.from_int(m * 2 ^ 53), bn_pow2(e - 53))
 end
+M.dbl_to_raw = dbl_to_raw
 
 --- Emacs's double_to_integer of an integral double.
 local function dbl_to_int(run, x)
@@ -499,6 +500,7 @@ local function dbl_to_int(run, x)
   end
   return make_int(run, dbl_to_raw(C.trunc(x)))
 end
+M.dbl_to_int = dbl_to_int
 
 local function new_float(run, x)
   run:charge(16)
@@ -513,6 +515,7 @@ local function signbit(x)
   end
   return x < 0 or (x == 0 and 1 / x < 0)
 end
+M.signbit = signbit
 
 -- Comparison
 
@@ -627,6 +630,7 @@ local function chunks_of(run, m)
   end
   return c, n
 end
+M.chunks_of = chunks_of
 
 --- The non-negative raw integer of base-2^24 chunks c[1..n].
 local function raw_of_chunks(run, c, n)
