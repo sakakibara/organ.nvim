@@ -80,9 +80,9 @@ outside the subset or not yet implemented (`function`), a builtin outside
 its profile (`profile`), a variable bound by neither the form nor the
 caller (`free-variable`), a `setq` of one (`setq-global`), a binding of a
 special variable other than `case-fold-search` and `calendar-date-style`
-(`special`), an `error` format string with `%` (until `format`) or a
-quote (`locale`), a dotted condition list (`syntax`; Emacs 31 aborts on
-one that matches), and malformed forms in the body of a closure created
+(`special`), an `error` or `user-error` format string with a quote
+(`locale`: `text-quoting-style`), a dotted condition list (`syntax`;
+Emacs 31 aborts on one that matches), and malformed forms in the body of a closure created
 where a variable is bound lexically (`syntax`), where Emacs's
 macroexpand-all and closure conversion rewrite or reject them. Numbers
 and equality add: `eq` or `eql` of two distinct strings, floats, vectors
@@ -90,16 +90,39 @@ or integers beyond `most-positive-fixnum` that could be one object in
 Emacs (`eq-identity`), a NaN printed or compared by contents (`nan`),
 `equal` of two distinct closures (`unprintable`), and `functionp` of a
 symbol organ does not know (`function`) or of a diary function outside
-the profiles that define it (`profile`). The gate fails on any row that
-records `REFUSED internal`.
+the profiles that define it (`profile`). Strings add: a regexp argument
+other than the default or a literal string, or a literal holding a
+non-ASCII cased letter under case folding (`regexp`); a width measured
+over a character whose width differs between users (a control character
+or TAB, a character a CJK language environment widens, a character an
+automatic composition may join in `string-width`) or over a string with
+text properties (`width`); lowercasing a capital sigma inside a word
+(`case-special`); `format` precision above 99, an integer `%e %f %g`
+would print as a long double, a negative `%b` with a precision and
+`%.0c` of a sign character with a width (`precision`); a NaN printed
+with a sign (`nan`); a character outside Unicode scalar values in a
+string (`charset`); `truncate-string-to-width` with a non-string
+ELLIPSIS and Emacs's "Format specifier doesn't match argument type"
+message (`locale`); the `length` of a closure (`unprintable`); and `eq`
+of strings built separately (`eq-identity`). The gate fails on any row
+that records `REFUSED internal`.
 
 ## Data check
 
 After the corpus, the gate regenerates `lua/organ/elisp/data/` with
 `scripts/elisp-data.el` into a temporary directory and fails on any
 difference, then has Emacs dump every code point's syntax under the org and
-elisp syntax tables and runs organ's `syntax.lookup` over the dump. The
-generator itself checks the call data it writes: each special form, macro
-and builtin is called with every argument count up to six, directly and
-through `funcall`, and generation fails unless the counts Emacs accepts form
-one range and every refused count gives the same data head.
+elisp syntax tables and runs organ's `syntax.lookup` over the dump. A second
+dump gives every character's `upcase`, `downcase` and `capitalize` (of the
+character up to `#x3FFFFF`, and of its one-character string), its case-fold
+canonical form, its `char-width` in an org-mode buffer, whether
+`composition-function-table` holds a rule for it and whether a CJK
+language environment changes its width; the gate runs `organ.elisp.chars`
+over it. The generator itself checks the call data it writes: each special
+form, macro and builtin is called with every argument count up to seven,
+directly and through `funcall`, and generation fails unless the counts Emacs
+accepts form one range and every refused count gives the same data head. It
+also checks the case facts organ relies on: `upcase-initials` agrees with
+`capitalize` on characters and one-character strings, the case-fold
+canonical form is `downcase` of `upcase` of `downcase`, and no non-ASCII
+character folds to an ASCII one.

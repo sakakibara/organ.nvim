@@ -62,3 +62,22 @@ eval-functionp-prefix.el	R6-OUT	KEEP	1	 => t\n-=> nil\n+REFUSED profile diary-da
 eval-string-number.el	R6-OUT	KEEP	1	 => "1.0e+INF"\n-=> "0.0e+NaN"\n+REFUSED nan
 eval-string-number.el	R6-OUT	KEEP	1	 => 1.0e+INF\n-=> 1.0e+NaN\n+REFUSED nan
 eval-types.el	R6-OUT	KEEP	1	 => t\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+REFUSED profile diary-date\n+REFUSED profile org-date\n+REFUSED function zzz-organ-elisp-undefined\n+REFUSED function t\n+REFUSED function :k
+eval-case.el	R6-OUT	KEEP	1	 => "σα"\n-=> "ας"\n-=> "Σας"\n+REFUSED case-special final sigma\n+REFUSED case-special final sigma
+eval-format.el	R6-OUT	KEEP	1	 => "       nan"\n-=> "nan"\n-=> "nan"\n+REFUSED nan NaN with a sign\n+REFUSED nan NaN with a sign
+eval-format.el	R6-OUT	KEEP	1	 => "0.100000000000000005551115123125782702118158340454101562500000000000000000000000000000000000000000000"\n-=> "0.1000000000000000055511151231257827021181583404541015625000000000000000000000000000000000000000000000"\n+REFUSED precision 100
+eval-format.el	R6-OUT	KEEP	1	 => "1180591620717411303424.00|9007199254740992.000000"\n-=> "9007199254740992.000000"\n-!! (error Format specifier doesn't match argument type)\n-!! (error Format specifier doesn't match argument type)\n+REFUSED precision long double\n+REFUSED locale Format specifier doesn't match argument type\n+REFUSED locale Format specifier doesn't match argument type
+eval-format.el	R6-OUT	KEEP	1	 => "5%"\n-!! (error Format specifier doesn't match argument type)\n+REFUSED locale Format specifier doesn't match argument type
+eval-format.el	R6-OUT	KEEP	1	 => "nan"\n-=> "nan"\n+REFUSED nan NaN with a sign
+eval-split-fold.el	R6-OUT	KEEP	1	 => ("aİb" "cıd")\n-=> ("a" "b" "c")\n+REFUSED regexp é
+eval-split.el	R6-OUT	KEEP	1	 !! (wrong-type-argument stringp 5)\n-=> "a b"\n+REFUSED regexp [ ]+
+eval-split.el	R6-OUT	KEEP	1	 => ("a" "b")\n-=> ("a" "b")\n-=> ("" "" "" "")\n+REFUSED regexp [ ]+\n+REFUSED regexp .
+eval-strings-lexical.el	R6-OUT	KEEP	1	 !! (wrong-type-argument sequencep 5)\n-=> nil\n+REFUSED eq-identity
+eval-strings.el	R6-OUT	KEEP	1	 => 0\n-=> 3\n+REFUSED unprintable length of a function
+eval-strings.el	R6-OUT	KEEP	1	 => t\n-=> nil\n+REFUSED eq-identity
+eval-strings.el	R6-OUT	KEEP	1	 => t\n-=> nil\n-=> nil\n+REFUSED eq-identity\n+REFUSED eq-identity
+eval-width.el	R6-OUT	KEEP	1	 !! (wrong-type-argument characterp x)\n-=> "a..."\n-=> #("abcdef" 1 6 (display "..."))\n-=> "a"\n-=> nil\n+REFUSED locale truncate-string-ellipsis\n+REFUSED unprintable string with properties\n+REFUSED width U+0009\n+REFUSED eq-identity
+eval-width.el	R6-OUT	KEEP	1	 => "   ab|x    |   ab"\n-=> "a\tb"\n+REFUSED width U+0009
+eval-width.el	R6-OUT	KEEP	1	 => "a\tb|"\n-=> "a|"\n-=> "  é|"\n-=> "  é|"\n+REFUSED width U+0009\n+REFUSED width U+00E9\n+REFUSED width U+0301
+eval-width.el	R6-OUT	KEEP	1	 => 2\n-=> 10\n-=> 1\n-=> 1\n-=> 2\n-=> 2\n+REFUSED width U+0009\n+REFUSED width U+0301\n+REFUSED width U+00E9\n+REFUSED width U+00E9\n+REFUSED width U+1F642
+eval-strings.el	R6-OUT	KEEP	1	 !! (wrong-type-argument characterp -1)\n-=> 1\n+REFUSED charset character 55296
+eval-strings.el	R6-OUT	KEEP	1	 !! (wrong-type-argument characterp -1)\n-=> 2\n+REFUSED charset character 1114112
