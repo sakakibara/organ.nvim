@@ -44,7 +44,13 @@
   '(quote function if cond and or progn prog1 let let* while condition-case
           when unless prog2 dolist dotimes lambda ignore-errors \` backquote
           funcall apply identity ignore error signal user-error
-          cons list car cdr)
+          cons list car cdr
+          + - * / % mod 1+ 1- abs max min floor ceiling round truncate float
+          ffloor fceiling fround ftruncate expt sqrt exp log sin cos tan asin
+          acos atan isnan logand logior logxor lognot ash = /= < > <= >= zerop
+          natnump numberp integerp floatp number-to-string string-to-number
+          null not atom consp listp nlistp stringp symbolp vectorp sequencep
+          functionp booleanp characterp keywordp eq eql equal)
   "Special forms, macros and builtins organ's evaluator implements.
 `setq' is not listed: its odd-count check is not an argument count.")
 
