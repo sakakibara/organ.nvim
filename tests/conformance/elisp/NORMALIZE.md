@@ -180,3 +180,74 @@ also checks the case facts organ relies on: `upcase-initials` agrees with
 `capitalize` on characters and one-character strings, the case-fold
 canonical form is `downcase` of `upcase` of `downcase`, and no non-ASCII
 character folds to an ASCII one.
+
+## Builtin coverage
+
+`organ.lua` wraps every builtin of the subset and records the ones a Lisp
+form calls (a call one builtin makes inside another is not counted). After
+the data check the gate fails on any builtin of the subset that no case
+calls, counting the cases of every zone's run.
+
+## Fuzz
+
+Last, `fuzz.lua` generates forms from five fixed seeds: 2000 forms per seed
+and profile, in files of 100 under a header with a random `case_fold` (and,
+for `diary` and `prefix`, a `date` and an `entry`). Every form is valid for
+its profile and calls only builtins of the subset, with nesting depth up to
+5, literal lists, vectors and strings up to 64 elements, `format` widths up
+to 40 and integers up to a few hundred digits. The generator calls every
+builtin of the subset (the gate fails otherwise) and leaves out what makes
+Emacs abort or never finish: `format-time-string` space padding (`%_`),
+`%.0c` with a width, holiday checks of `org-class` on a date before year 1
+or after 9999, and lists `nconc` or `mapcan` would splice into a cycle
+that later builtins walk; a cycle is made only by a form whose result is
+the cyclic list. Sizes
+Emacs would allocate or loop over (`make-string` counts, `dotimes` counts,
+`expt` exponents) stay small, and the elements mapped over by nested
+mapping functions stay below a fixed amount of work, so no form reaches a
+cap.
+
+Emacs evaluates the files as it does the cases (one process per profile,
+`TZ=UTC`). A `diary` form that is a top-level call XT-10 rewrites is
+followed in the Emacs file by the call with the year-first triples moved to
+`calendar-date-style` order. Each form's organ line must equal Emacs's,
+except:
+
+- the form is rewritten by XT-10 and organ's line equals Emacs's line for
+  the reordered call (counted as XT-10);
+- organ refuses, and the refusal's precondition holds on organ's trace of
+  the evaluation: the builtin calls active when the refusal was raised,
+  with their arguments. `nan`: a NaN among the innermost call's arguments
+  or returned by a builtin it called (or in the printed value). `width`: a
+  control character, TAB, a
+  character a CJK language environment widens or one an automatic
+  composition may join, in a string, symbol name or character among them,
+  or a string with text properties among them.
+  `regexp`: a regexp argument of `split-string` or `string-trim*` holding a
+  regexp special character, or a non-ASCII cased letter under case
+  folding. `case-special`: a capital sigma in the argument of `downcase`,
+  `capitalize` or `upcase-initials`. `locale`: per detail, a quote in an
+  `error` or `user-error` format, a numeric directive given a non-number,
+  a non-string `truncate-string-to-width` ellipsis, a locale directive,
+  `%Z`, or non-ASCII text in a `format-time-string` format, a fixed zone
+  offset of 25 hours or more or a zone name of other characters, a DST flag
+  given to `encode-time`, a time of 2^30 or more, or a zone setting (a
+  string or `wall`). `eq-identity`: two distinct strings, floats, vectors or
+  bignums (conses too, for the time functions) with equal contents.
+  `cycle`: `nconc` arguments sharing a cons or vector, or a list
+  `mapconcat` maps that shortened while mapping. `holidays`: `org-class`
+  with weeks to skip holding `holidays` or a string, or on a `date` that is
+  not valid or lies after 9999. `profile`: a `prefix` call of `org-date`,
+  `org-block`, `org-cyclic`, `org-anniversary`, or of `org-class` with
+  weeks to skip. `precision`: a `format` directive with a precision above
+  99, `%e %f %g` of an integer in [-2^63, 2^64) that is not a double, a
+  negative `%b` with a precision, or `%.0c` of a sign character with a
+  width. `unprintable`: a function or a string with text properties.
+  `charset`: an integer above `#x10FFFF` or a surrogate. `function`: an
+  argument naming a symbol outside the subset. `free-variable`:
+  `org-time-stamp-format` with CUSTOM non-nil. Any other refusal, and any
+  limit, is a disagreement.
+
+The gate fails on every disagreement. With `ORGAN_ELISP_FUZZ_STATS` set it
+prints the forms, agreements, refusals by code, XT-10 rewrites and
+disagreements per seed and profile.

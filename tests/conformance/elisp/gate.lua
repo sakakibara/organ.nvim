@@ -1,7 +1,9 @@
 -- elisp gate: the corpus (tests/conformance/_runner.lua), then the check
 -- of the Emacs data organ.elisp carries: scripts/elisp-data.el must
 -- regenerate lua/organ/elisp/data/ byte for byte, and organ's lookups
--- must agree with Emacs's per-code-point dump.
+-- must agree with Emacs's per-code-point dump.  Then every builtin of
+-- the subset must be called by some case, and the fuzz (fuzz.lua) must
+-- find no disagreement.
 --
 -- Cases whose header names a `tz` run in a separate pair of processes
 -- per zone (zone.lua, started with that TZ), as the C library reads TZ
@@ -220,6 +222,8 @@ local function check_data()
   return files, points
 end
 
+local calls = area.trace().calls
+
 -- Each zone's cases in a child process with TZ set to it: adds the
 -- child's counts to `info` and its problems to `problems`.
 local function run_zones()
@@ -249,6 +253,9 @@ local function run_zones()
     })
     local cases, recorded = out:match("\nzone ok (%d+) (%d+)\n")
     if vim.v.shell_error == 0 and cases then
+      for name in (out:match("\nzone calls ([^\n]*)") or ""):gmatch("%S+") do
+        calls[name] = true
+      end
       info.cases = info.cases + tonumber(cases)
       info.recorded = info.recorded + tonumber(recorded)
       info.runs = info.runs + 1
@@ -266,6 +273,19 @@ run_zones()
 
 local files, points = check_data()
 
+local uncovered = {}
+for name in pairs(require("organ.elisp.builtins").SUBSET) do
+  if not calls[name] then
+    uncovered[#uncovered + 1] = name
+  end
+end
+table.sort(uncovered)
+if #uncovered > 0 then
+  problems[#problems + 1] = "builtins no case calls: " .. table.concat(uncovered, " ")
+end
+
+local fuzz = dofile(root .. "/tests/conformance/elisp/fuzz.lua").run(area, problems)
+
 for line in io.lines(root .. "/tests/conformance/elisp/signatures.tsv") do
   if line:sub(1, 1) ~= "#" and line:find("REFUSED internal", 1, true) then
     problems[#problems + 1] = "signatures.tsv records an internal refusal: " .. line:sub(1, 200)
@@ -276,12 +296,13 @@ if ok and #problems == 0 then
   io.write(
     string.format(
       "conformance elisp ok (%d cases, %d run(s), %d expected difference(s); "
-        .. "data: %d files, %d code points)\n",
+        .. "data: %d files, %d code points; fuzz: %s)\n",
       info.cases,
       info.runs,
       info.recorded,
       files,
-      points
+      points,
+      fuzz
     )
   )
   os.exit(0)

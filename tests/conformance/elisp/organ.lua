@@ -1,6 +1,10 @@
 -- organ side of the elisp conformance gate: reads (and in `eval' mode
 -- evaluates) each item of a case through organ.elisp and prints one
 -- line per item in the shape emacs.el prints (see NORMALIZE.md).
+--
+-- Evaluation is traced: each builtin call a Lisp form makes is recorded
+-- by name (the builtin-coverage check), and a refusal keeps the builtin
+-- calls active when it was raised (the fuzz classifier).
 
 -- Loaded by M.render, so M.parse and M.zone work before the gate sets
 -- up the runtime path.
@@ -9,6 +13,61 @@ local elisp
 local M = {}
 
 local MODES = { read = true, eval = true }
+
+-- One trace per process, shared by every load of this file: { calls =
+-- set of builtin names called from Lisp, stack = active builtin calls
+-- (frames { name, argv, fold, pre, nan }, `nan` set when a builtin it
+-- called returned a NaN), refusals = { code, detail, frames }
+-- in the order raised since the last reset, pre = { name = fn(argv) }
+-- whose value a call of builtin `name` keeps as its frame's `pre` }.
+local TRACE_KEY = "organ.elisp conformance trace"
+
+function M.trace()
+  local t = package.loaded[TRACE_KEY]
+  if t then
+    return t
+  end
+  t = { calls = {}, stack = {}, depth = 0, refusals = {}, pre = {} }
+  package.loaded[TRACE_KEY] = t
+  local B = require("organ.elisp.builtins")
+  local R = require("organ.elisp.run")
+  local E = require("organ.elisp.eval")
+  local eval_source = debug.getinfo(E.eval, "S").source
+  for name, def in pairs(B.defs) do
+    local fn = def.fn
+    def.fn = function(run, argv)
+      if debug.getinfo(2, "S").source == eval_source then
+        t.calls[name] = true
+      end
+      local d = t.depth + 1
+      t.depth = d
+      local pre = t.pre[name]
+      t.stack[d] = { name = name, argv = argv, fold = E.case_fold(run), pre = pre and pre(argv) }
+      local ok, v = pcall(fn, run, argv)
+      t.stack[d] = nil
+      t.depth = d - 1
+      if not ok then
+        error(v, 0)
+      end
+      if type(v) == "table" and v.k == "flt" and v.x ~= v.x then
+        for i = 1, d - 1 do
+          t.stack[i].nan = true
+        end
+      end
+      return v
+    end
+  end
+  local refuse = R.refuse
+  R.refuse = function(code, detail)
+    local frames = {}
+    for i = 1, t.depth do
+      frames[i] = t.stack[i]
+    end
+    t.refusals[#t.refusals + 1] = { code = code, detail = detail, frames = frames }
+    return refuse(code, detail)
+  end
+  return t
+end
 
 local function blocks_of(text)
   local blocks, cur = {}, nil
@@ -86,10 +145,11 @@ local function read_item(source)
   return value_line(r.value)
 end
 
--- The ctx of one item of a case with `header`: `date` is read afresh
--- for each item, as emacs.el reads it, so a form that changes it
--- destructively does not reach the next item.
-local function ctx_of(header)
+--- The ctx of one item of a case with `header`: `date` is read afresh
+--- for each item, as emacs.el reads it, so a form that changes it
+--- destructively does not reach the next item.
+function M.ctx_of(header)
+  elisp = elisp or require("organ.elisp")
   local variables = {}
   if header.date then
     local d = elisp.read(header.date)
@@ -102,12 +162,19 @@ local function ctx_of(header)
   return { profile = header.profile, case_fold = header.case_fold == "t", variables = variables }
 end
 
-local function eval_item(source, ctx)
+--- The output line of evaluating `source` under `ctx`, and the result
+--- (`value` holds the evaluated value when it printed or failed to).
+function M.eval_line(source, ctx)
+  elisp = elisp or require("organ.elisp")
   local r = elisp.eval_string(source, ctx)
   if not r.ok then
-    return failure_line(r)
+    return failure_line(r), r
   end
-  return value_line(r.value)
+  return value_line(r.value), r
+end
+
+local function eval_item(source, ctx)
+  return (M.eval_line(source, ctx))
 end
 
 local function read(path)
@@ -129,6 +196,7 @@ end
 
 function M.render(path)
   elisp = elisp or require("organ.elisp")
+  M.trace()
   local text = assert(read(path))
   local header, items = M.parse(text)
   if not MODES[header.mode] then
@@ -139,7 +207,7 @@ function M.render(path)
   end
   local out = {}
   for _, item in ipairs(items) do
-    local line = header.mode == "eval" and eval_item(item.source, ctx_of(header))
+    local line = header.mode == "eval" and eval_item(item.source, M.ctx_of(header))
       or read_item(item.source)
     out[#out + 1] = line .. "\n"
   end
