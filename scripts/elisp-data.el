@@ -67,7 +67,13 @@
           downcase capitalize upcase-initials string-trim string-trim-left
           string-trim-right split-string string-join mapconcat format
           symbol-name intern string-width
-          truncate-string-to-width string-pad)
+          truncate-string-to-width string-pad
+          car-safe cdr-safe caar cadr cdar cddr nth nthcdr last butlast
+          append vconcat nconc reverse nreverse member memq memql assoc assq
+          rassoc rassq alist-get number-sequence mapcar mapc mapcan remove
+          remq delete delq delete-dups sort aref elt seq-filter seq-remove
+          seq-map seq-reduce seq-take seq-drop seq-uniq seq-contains-p
+          seq-elt seq-first seq-rest seq-position)
   "Special forms, macros and builtins organ's evaluator implements.
 `setq' is not listed: its odd-count check is not an argument count.")
 
@@ -211,10 +217,11 @@
   "F's kind, accepted argument counts and data heads, from live calls.
 A count N is accepted when (F nil ... nil) with N arguments signals no
 `wrong-number-of-arguments'; the accepted counts must form one range
-and every refused count must give (HEAD N), HEAD the same for all."
+and every refused count must give (HEAD N).  HEAD is the highest refused
+count's; `heads' lists the refused counts whose head differs from it."
   (let* ((kind (elisp-data--kind f))
          (fn-p (member kind '("subr" "lisp")))
-         min max head fhead)
+         min max heads fheads)
     (dotimes (n (1+ elisp-data-max-args))
       (let* ((args (make-list n nil))
              (direct (elisp-data--wna (cons f args)))
@@ -229,31 +236,40 @@ and every refused count must give (HEAD N), HEAD the same for all."
               (setq max n))
           (unless (and (consp (cdr direct)) (eql (cadr direct) n) (null (cddr direct)))
             (error "elisp-data: %s %d: unexpected data %S" f n direct))
-          (when (and head (not (equal head (car direct))))
-            (error "elisp-data: %s: heads %S and %S differ" f head (car direct)))
-          (setq head (car direct))
+          (push (cons n (car direct)) heads)
           (when fn-p
             (unless (and (consp (cdr through)) (eql (cadr through) n) (null (cddr through)))
               (error "elisp-data: %s %d: unexpected funcall data %S" f n through))
-            (when (and fhead (not (equal fhead (car through))))
-              (error "elisp-data: %s: funcall heads differ" f))
-            (setq fhead (car through))))))
+            (push (cons n (car through)) fheads)))))
     (unless min
       (error "elisp-data: %s accepts no count up to %d" f elisp-data-max-args))
-    (concat
-     (format "  [%s] = {\n    kind = %s,\n    min = %d,\n"
-             (elisp-data--lua-string (symbol-name f))
-             (elisp-data--lua-string kind) min)
-     (if (< max elisp-data-max-args) (format "    max = %d,\n" max) "")
-     (if head (format "    head = %s,\n" (elisp-data--lua-value f head)) "")
-     (if fhead (format "    funcall_head = %s,\n" (elisp-data--lua-value f fhead)) "")
-     (if (function-get f 'compiler-macro) "    compiler_macro = true,\n" "")
-     "  },\n")))
+    (let ((head (cdar heads)) (fhead (cdar fheads)))
+      (concat
+       (format "  [%s] = {\n    kind = %s,\n    min = %d,\n"
+               (elisp-data--lua-string (symbol-name f))
+               (elisp-data--lua-string kind) min)
+       (if (< max elisp-data-max-args) (format "    max = %d,\n" max) "")
+       (if head (format "    head = %s,\n" (elisp-data--lua-value f head)) "")
+       (elisp-data--other-heads f "heads" heads head)
+       (if fhead (format "    funcall_head = %s,\n" (elisp-data--lua-value f fhead)) "")
+       (elisp-data--other-heads f "funcall_heads" fheads fhead)
+       (if (function-get f 'compiler-macro) "    compiler_macro = true,\n" "")
+       "  },\n"))))
+
+(defun elisp-data--other-heads (f key heads common)
+  "A Lua field KEY mapping each count of HEADS, (N . HEAD) pairs in
+descending N, whose head is not COMMON to that head; empty when none."
+  (let ((rows (delq nil (mapcar (lambda (h)
+                                  (unless (equal (cdr h) common)
+                                    (format "[%d] = %s" (car h)
+                                            (elisp-data--lua-value f (cdr h)))))
+                                (reverse heads)))))
+    (if rows (format "    %s = { %s },\n" key (mapconcat #'identity rows ", ")) "")))
 
 (defun elisp-data--functions-file ()
   (concat
    (elisp-data--header
-    "-- Each implemented special form, macro and builtin: `kind' (special,\n-- macro, subr or lisp), the argument counts it accepts (`max' absent:\n-- no upper bound) and the head of its (wrong-number-of-arguments HEAD N)\n-- data called directly and, for functions, through `funcall';\n-- `compiler_macro' when one rewrites its calls inside a closure.\n")
+    "-- Each implemented special form, macro and builtin: `kind' (special,\n-- macro, subr or lisp), the argument counts it accepts (`max' absent:\n-- no upper bound) and the head of its (wrong-number-of-arguments HEAD N)\n-- data called directly and, for functions, through `funcall' (`heads'\n-- and `funcall_heads': the counts whose head differs);\n-- `compiler_macro' when one rewrites its calls inside a closure.\n")
    "return {\n"
    (mapconcat #'elisp-data--function-entry
               (sort (copy-sequence elisp-data-functions)

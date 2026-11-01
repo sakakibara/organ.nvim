@@ -121,7 +121,9 @@ language environment changes its width; the gate runs `organ.elisp.chars`
 over it. The generator itself checks the call data it writes: each special
 form, macro and builtin is called with every argument count up to seven,
 directly and through `funcall`, and generation fails unless the counts Emacs
-accepts form one range and every refused count gives the same data head. It
+accepts form one range; the data head of each refused count is recorded,
+the highest count's as the default and the counts whose head differs (the
+generic `seq-*` functions with no argument) on their own. It
 also checks the case facts organ relies on: `upcase-initials` agrees with
 `capitalize` on characters and one-character strings, the case-fold
 canonical form is `downcase` of `upcase` of `downcase`, and no non-ASCII

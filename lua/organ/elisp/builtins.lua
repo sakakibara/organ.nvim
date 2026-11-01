@@ -2,11 +2,12 @@
 -- (D5b), and the generated call data of the special forms, macros and
 -- builtins the evaluator implements (data/functions.lua).
 --
--- A builtin is `def = { name, kind, min, max, head, funcall_head, fn,
--- obj }`: `kind` "subr" checks its argument count before its arguments
--- are evaluated and "lisp" after, as Emacs; `fn(run, argv)` receives an
--- array with `argv.n` evaluated arguments; `obj` is its function value,
--- the subr Emacs puts in data signalled through `funcall'.
+-- A builtin is `def = { name, kind, min, max, head, heads,
+-- funcall_head, funcall_heads, fn, obj }`: `kind` "subr" checks its
+-- argument count before its arguments are evaluated and "lisp" after,
+-- as Emacs; `fn(run, argv)` receives an array with `argv.n` evaluated
+-- arguments; `obj` is its function value, the subr Emacs puts in data
+-- signalled through `funcall'.
 
 local DATA = require("organ.elisp.data.functions")
 local R = require("organ.elisp.run")
@@ -94,11 +95,24 @@ local function decode(x, obj)
 end
 
 --- Call data of a special form, macro or builtin: { kind, min, max,
---- head, funcall_head } with heads as values, `obj` its function value.
+--- head, heads, funcall_head, funcall_heads } with heads as values
+--- (`heads`: per argument count where it differs), `obj` its function
+--- value.
 local calls = {}
 
 function M.calls(name)
   return calls[name]
+end
+
+local function decode_heads(t, obj)
+  if not t then
+    return nil
+  end
+  local out = {}
+  for n, h in pairs(t) do
+    out[n] = decode(h, obj)
+  end
+  return out
 end
 
 local function call_data(name, obj)
@@ -112,12 +126,23 @@ local function call_data(name, obj)
     min = d.min,
     max = d.max,
     head = d.head and decode(d.head, obj),
+    heads = decode_heads(d.heads, obj),
     funcall_head = d.funcall_head and decode(d.funcall_head, obj),
+    funcall_heads = decode_heads(d.funcall_heads, obj),
     compiler_macro = d.compiler_macro,
     obj = obj,
   }
   calls[name] = c
   return c
+end
+
+--- The head of the (wrong-number-of-arguments HEAD N) data call data `c`
+--- signals for `n` arguments, called directly or `through` funcall.
+function M.head(c, n, through)
+  if through and c.funcall_head then
+    return c.funcall_heads and c.funcall_heads[n] or c.funcall_head
+  end
+  return c.heads and c.heads[n] or c.head
 end
 
 M.defs = {}

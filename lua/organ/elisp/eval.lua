@@ -192,9 +192,9 @@ local function as_value(run, x)
 end
 M.as_value = as_value
 
-local function check_arity(c, n, head)
+local function check_arity(c, n, through)
   if n < c.min or (c.max and n > c.max) then
-    wna(head, n)
+    wna(B.head(c, n, through), n)
   end
 end
 
@@ -480,14 +480,14 @@ local function call_consumer(run, spec, argv)
   return as_value(run, v)
 end
 
-local function call_def(run, def, argv, head)
-  check_arity(def, argv.n, head)
+local function call_def(run, def, argv, through)
+  check_arity(def, argv.n, through)
   return def.fn(run, argv)
 end
 
 local function macroexpand_1(run, mac, args)
   local n = list_length(run, args)
-  check_arity(mac.calls, n, mac.calls.head)
+  check_arity(mac.calls, n)
   return mac.fn(run, args, n)
 end
 
@@ -500,7 +500,7 @@ local function eval_cons(run, form)
     local name = head.name.s
     local sf = SPECIAL_FORMS[name]
     if sf then
-      check_arity(sf.calls, list_length(run, args), sf.calls.head)
+      check_arity(sf.calls, list_length(run, args))
       return sf.fn(run, args)
     end
     local mac = MACROS[name]
@@ -519,10 +519,10 @@ local function eval_cons(run, form)
     local def = builtin(run, name)
     if def then
       if def.kind == "subr" then
-        check_arity(def, list_length(run, args), def.head)
+        check_arity(def, list_length(run, args))
         return def.fn(run, eval_args(run, args))
       end
-      return call_def(run, def, eval_args(run, args), def.head)
+      return call_def(run, def, eval_args(run, args))
     end
     if head == NIL then
       R.signal(Q_VOID_FUNCTION, V.list({ NIL }))
@@ -591,13 +591,13 @@ function funcall(run, f, argv)
       if not def then
         R.refuse("function", name)
       end
-      v = call_def(run, def, argv, def.funcall_head or def.head)
+      v = call_def(run, def, argv, true)
     end
   elseif f == NIL then
     R.signal(Q_VOID_FUNCTION, V.list({ NIL }))
   elseif type(f) == "table" and f.k == "fn" then
     if f.kind == "subr" then
-      v = call_def(run, f.def, argv, f.def.funcall_head or f.def.head)
+      v = call_def(run, f.def, argv, true)
     elseif f.kind == "closure" then
       v = apply_lambda(run, f, argv)
     else
@@ -1822,7 +1822,7 @@ function M.call(run, name, args)
   for i = 1, argv.n do
     argv[i] = as_value(run, args[i])
   end
-  return call_def(run, def, argv, def.head)
+  return call_def(run, def, argv)
 end
 
 return M
