@@ -293,14 +293,58 @@ limited("long-needle split-string", "steps", function()
   )
 end)
 
+-- lists and sequences: results are sized before they are built, and
+-- comparisons and predicate calls are charged
+
+limited("(number-sequence 1 10000000)", "list", function()
+  return ev("(number-sequence 1 10000000)")
+end)
+
+limited_any("(number-sequence 1.0 10000000)", { "list", "steps" }, function()
+  return ev("(number-sequence 1.0 10000000)")
+end)
+
+limited_any("doubling append", { "list", "steps" }, function()
+  return ev("(let ((l (list 1))) (while t (setq l (append l l))))")
+end)
+
+do
+  -- (a . a) shared 50 levels deep, built twice: 2^50 nodes each.
+  local dag = "(let ((a 'x) (b 'x)) (dotimes (_ 50) (setq a (cons a a) b (cons b b))) %s)"
+  limited("printing a 2^50-node DAG built in Lisp", "steps", function()
+    return ev(dag:format('(format "%S" a)'))
+  end)
+  limited("value< of two 2^50-node DAGs", "steps", function()
+    return ev(dag:format("(sort (list a b))"))
+  end)
+  limited("equal of two 2^50-node DAGs", "steps", function()
+    return ev(dag:format("(equal a b)"))
+  end)
+end
+
+limited("sort with an expensive predicate", "steps", function()
+  return ev("(sort (number-sequence 1 2000) (lambda (a b) (dotimes (_ 100)) (< a b)))")
+end)
+
+limited("delete-dups of distinct lists compared pairwise", "steps", function()
+  return ev("(delete-dups (mapcar #'list (number-sequence 1 5000)))")
+end)
+
 -- The deepest Lua chain evaluation builds before printing: a closure
--- calls a consumer function through apply, which evaluates the next
--- call to the closure with cx.eval; at the bottom a backquote error
--- prints a 190-deep form.  mapcar and sort (with equal and value<) join
--- the chain once they exist.
+-- maps a function over a list with mapcar; that function sorts two
+-- numbers with a predicate that calls a consumer function through
+-- apply, which evaluates the next call to the closure with cx.eval.  At
+-- the bottom equal and value< compare two 190-deep lists and a
+-- backquote error prints a 190-deep form.
 do
   local deep = string.rep("(", 190) .. "x" .. string.rep(")", 190)
-  local bottom_form = elisp.read("`(\\, " .. deep .. " b)").value
+  local bottom_form = elisp.read(
+    '(progn (unless (equal a b) (error "not equal"))'
+      .. ' (unless (eq (car (sort (list b a))) b) (error "not in order"))'
+      .. " `(\\, "
+      .. deep
+      .. " b))"
+  ).value
   local down_form = elisp.read("(funcall self self (cdr l))").value
   local ctx = {
     functions = {
@@ -319,9 +363,13 @@ do
   local function chain(n)
     local list = "'(" .. string.rep("1 ", n) .. ")"
     return ev(
-      "(let ((f (lambda (self l) (if l (apply 'down (list l)) (bottom))))) (funcall f f "
+      "(let ((a 1) (b 1)) (dotimes (_ 190) (setq a (list a) b (list b)))"
+        .. " (let ((f (lambda (self l)"
+        .. " (if l (car (mapcar (lambda (_) (car (sort (list 2 1) (lambda (p q)"
+        .. " (apply 'down (list l)) (< p q))))) '(1))) (bottom)))))"
+        .. " (funcall f f "
         .. list
-        .. "))",
+        .. ")))",
       ctx
     )
   end
@@ -337,7 +385,7 @@ do
     deepest = n
   end
   check(
-    ("the chain reaches the depth cap after %s levels, printing at the bottom"):format(
+    ("the chain reaches the depth cap after %s levels, comparing and printing at the bottom"):format(
       tostring(deepest)
     ),
     not bad and deepest and deepest > 20 and r.kind == "limit" and r.cap == "depth",

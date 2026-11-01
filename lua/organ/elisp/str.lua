@@ -326,6 +326,8 @@ define("make-string", function(run, argv)
   return new_string(run, string.rep(u, len))
 end)
 
+--- The elements of sequence `seq` as an array and their count; a dotted
+--- list signals as list_length, a function refuses `unprintable'.
 local function sequence_items(run, seq)
   local items, n = {}, 0
   if seq == NIL then
@@ -345,12 +347,15 @@ local function sequence_items(run, seq)
     n = seq.n
   elseif is_str(seq) then
     items, n = codes_of(run, seq.s)
+  elseif type(seq) == "table" and seq.k == "fn" and seq.kind == "closure" then
+    R.refuse("unprintable", "elements of a function")
   else
     wta("sequencep", seq)
   end
   run:check_list(n)
   return items, n
 end
+M.sequence_items = sequence_items
 
 define("string-to-list", function(run, argv)
   local items, n = sequence_items(run, argv[1])

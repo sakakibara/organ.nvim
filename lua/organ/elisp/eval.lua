@@ -33,6 +33,8 @@ local printer = require("organ.elisp.printer")
 
 require("organ.elisp.num")
 require("organ.elisp.equal")
+require("organ.elisp.list")
+require("organ.elisp.sort")
 
 local M = {}
 
@@ -1116,54 +1118,6 @@ end)
 
 -- Internal functions macro expansions call
 
-local function sequence_items(run, seq, items)
-  if seq == NIL then
-    return
-  elseif is_cons(seq) then
-    local t = seq
-    while is_cons(t) do
-      run:step(1)
-      items[#items + 1] = t.car
-      t = t.cdr
-    end
-    if t ~= NIL then
-      wta("listp", t)
-    end
-  elseif type(seq) == "table" and seq.k == "vec" then
-    run:step(seq.n)
-    for i = 1, seq.n do
-      items[#items + 1] = seq[i]
-    end
-  elseif is_str(seq) then
-    local s, i = seq.s, 1
-    while i <= #s do
-      run:step(1)
-      local cp, j = V.utf8_next(s, i)
-      items[#items + 1] = cp
-      i = j
-    end
-  else
-    wta("sequencep", seq)
-  end
-  run:check_list(#items)
-end
-
-local APPEND = B.internal("append", function(run, argv)
-  if argv.n == 0 then
-    return NIL
-  end
-  local items = {}
-  for i = 1, argv.n - 1 do
-    sequence_items(run, argv[i], items)
-  end
-  run:charge(32 * #items)
-  local out = argv[argv.n]
-  for i = #items, 1, -1 do
-    out = cons(items[i], out)
-  end
-  return out
-end)
-
 local function vector_of(run, items, n)
   run:check_list(n)
   run:charge(8 * n)
@@ -1173,14 +1127,6 @@ local function vector_of(run, items, n)
   end
   return v
 end
-
-local VCONCAT = B.internal("vconcat", function(run, argv)
-  local items = {}
-  for i = 1, argv.n do
-    sequence_items(run, argv[i], items)
-  end
-  return vector_of(run, items, #items)
-end)
 
 local VECTOR = B.internal("vector", function(run, argv)
   return vector_of(run, argv, argv.n)
@@ -1203,6 +1149,8 @@ local INC = B.internal("1+", function(_, argv)
   return argv[1] + 1
 end)
 
+local APPEND = B.defs.append.obj
+local VCONCAT = B.defs.vconcat.obj
 local CONS = B.defs.cons.obj
 local LIST = B.defs.list.obj
 local CAR = B.defs.car.obj
@@ -1593,6 +1541,18 @@ local function string_greaterp(args, n)
   end
 end
 
+local Q_CAR = intern("car")
+local Q_CDR = intern("cdr")
+
+-- internal--compiler-macro-cXXr: (cXYr X) is (cXr (cYr X)).
+local function cxxr(outer, inner)
+  return function(args, n)
+    if n == 1 then
+      return list2(outer, list2(inner, args.car))
+    end
+  end
+end
+
 local COMPILER_MACROS = {
   zerop = function(args, n)
     if n == 1 then
@@ -1601,6 +1561,10 @@ local COMPILER_MACROS = {
   end,
   ["string>"] = string_greaterp,
   ["string-greaterp"] = string_greaterp,
+  caar = cxxr(Q_CAR, Q_CAR),
+  cadr = cxxr(Q_CAR, Q_CDR),
+  cdar = cxxr(Q_CDR, Q_CAR),
+  cddr = cxxr(Q_CDR, Q_CDR),
 }
 
 local function expand_form(run, form)

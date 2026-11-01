@@ -436,7 +436,7 @@ for _, case in ipairs({
   { "(signal 'minibuffer-quit nil)", "function", "minibuffer-quit" },
   { "(signal 'iter-end-of-sequence nil)", "profile", "iter-end-of-sequence" },
   { "(diary-date 1 2 3)", "profile", "diary-date" },
-  { "(mapcar #'1+ '(1))", "function", "mapcar" },
+  { "(float-time)", "function", "float-time" },
   { '(format "%.100f" 1.0)', "precision", "100" },
   { '(error "it\'s")', "locale", "format-message" },
   { "(condition-case nil (car 1) ((error . x) 1))", "syntax", "dotted condition list" },
@@ -446,6 +446,62 @@ for _, case in ipairs({
   check(
     ("refuses %s: %s"):format(case[2], case[1]),
     r.kind == "refused" and r.code == case[2] and r.detail == case[3],
+    show(r)
+  )
+end
+
+-- nconc refuses a splice that would make a list reach itself, through
+-- its cdrs or its elements, and condition-case does not catch the
+-- refusal
+
+for _, src in ipairs({
+  "(let ((l (list 1 2))) (nconc l l))",
+  "(let* ((l (list 1 2)) (m (list 0 l))) (nconc l (cdr l)))",
+  "(let* ((l (list 1 2)) (m (cons 0 l))) (nconc l nil m))",
+  "(let ((l (list 1))) (mapcan (lambda (x) l) '(1 2)))",
+  "(let ((l (list 1 2))) (nconc l (list l)))",
+  "(let ((l (list 1 2))) (nconc l (list 0 (vconcat (list 3 (list l))))))",
+  "(let ((l (list 1 2))) (condition-case nil (nconc l l) (t 'caught)))",
+}) do
+  local r = ev(src)
+  check(
+    "nconc refuses a cycle: " .. src,
+    r.kind == "refused" and r.code == "cycle" and r.detail == "nconc",
+    show(r)
+  )
+end
+
+-- mapconcat over a list a call shortens: Emacs reads results it never
+-- stored (and aborts), so organ refuses; mapcar maps what is left.
+do
+  local src = '(let ((l (list "a" "b" "c"))) (%s (lambda (x) (delete "b" l) x) l%s))'
+  local r = ev(src:format("mapconcat", ' "-"'))
+  check(
+    "mapconcat over a list shortened while mapping refuses",
+    r.kind == "refused" and r.code == "cycle",
+    show(r)
+  )
+  r = ev(src:format("mapcar", ""))
+  check(
+    "mapcar over a list shortened while mapping maps what is left",
+    r.ok and printed_of(r.value) == '("a" "c")',
+    show(r)
+  )
+end
+
+do
+  local r = ev("(let* ((l (list 1 2)) (m (list 3))) (nconc l m (list 4)) (list l m))")
+  check(
+    "nconc splices lists that share no cons",
+    r.ok and printed_of(r.value) == "((1 2 3 4) (3 4))",
+    show(r)
+  )
+  r = ev("(let* ((s (list 9)) (l (list 1 s)) (m (list s s))) (nconc l m) (length l))")
+  check("nconc splices a list sharing elements with it", r.ok and r.value == 4, show(r))
+  r = ev("(let ((l (list 1 2))) (nconc (list 0) l l))")
+  check(
+    "nconc of a list onto itself through a later argument refuses",
+    r.kind == "refused" and r.code == "cycle",
     show(r)
   )
 end
@@ -549,7 +605,7 @@ do
     r.kind == "signal" and r.text == "(wrong-type-argument listp 1)",
     show(r)
   )
-  r = elisp.call("mapcar", { { sym = "1+" }, { 1 } })
+  r = elisp.call("float-time", {})
   check(
     "call: an unimplemented builtin refuses",
     r.kind == "refused" and r.code == "function",
