@@ -436,7 +436,7 @@ for _, case in ipairs({
   { "(signal 'minibuffer-quit nil)", "function", "minibuffer-quit" },
   { "(signal 'iter-end-of-sequence nil)", "profile", "iter-end-of-sequence" },
   { "(diary-date 1 2 3)", "profile", "diary-date" },
-  { "(calendar-day-of-week '(1 1 2024))", "function", "calendar-day-of-week" },
+  { "(calendar-iso-from-absolute 739913)", "function", "calendar-iso-from-absolute" },
   { '(format "%.100f" 1.0)', "precision", "100" },
   { '(error "it\'s")', "locale", "format-message" },
   { "(condition-case nil (car 1) ((error . x) 1))", "syntax", "dotted condition list" },
@@ -516,14 +516,20 @@ do
   )
   r = ev("(diary-date 1 2 3)", { profile = "diary" })
   check(
-    "a diary function exists in the diary profile",
-    r.kind == "refused" and r.code == "function",
+    "a diary function exists in the diary profile and reads date",
+    r.kind == "refused" and r.code == "free-variable" and r.detail == "date",
     show(r)
   )
   r = ev("(org-date 1 2 3)", { profile = "prefix" })
   check(
-    "org-date exists in the prefix profile",
-    r.kind == "refused" and r.code == "function",
+    "org-date in the prefix profile refuses where it calls diary-lib",
+    r.kind == "refused" and r.code == "profile" and r.detail == "diary-date",
+    show(r)
+  )
+  r = ev("(org-date 1 2)", { profile = "prefix" })
+  check(
+    "org-date in the prefix profile checks its argument count first",
+    r.kind == "signal" and r.text == "(wrong-number-of-arguments (3 . 4) 2)",
     show(r)
   )
   r = ev("1", { profile = "nosuch" })
@@ -618,9 +624,11 @@ do
     show(r)
   )
   r = elisp.call("calendar-day-of-week", { { 1, 1, 2024 } })
+  check("call: a calendar builtin", r.ok and r.value == 1, show(r))
+  r = elisp.call("calendar-iso-from-absolute", { 739913 })
   check(
-    "call: an unimplemented builtin refuses",
-    r.kind == "refused" and r.code == "function",
+    "call: a function outside the subset refuses",
+    r.kind == "refused" and r.code == "function" and r.detail == "calendar-iso-from-absolute",
     show(r)
   )
   r = elisp.call("diary-date", { 1, 2, 3 })
@@ -958,6 +966,89 @@ do
     ),
     show(improper)
   )
+end
+
+-- diary: XT-10 applies to a whole diary sexp only; org-class asks the
+-- consumer for holidays, and refuses without it where they matter
+
+do
+  local date = read_value("(10 24 2026)")
+  local vars = { date = date, entry = "Ent" }
+  local diary = { profile = "diary", variables = vars }
+  check(
+    "XT-10 reads a year-first triple of a diary sexp",
+    ev_printed("(diary-date 2026 10 24)", diary) == '(nil . "Ent")'
+  )
+  local r = elisp.call("diary-date", { 2026, 10, 24 }, diary)
+  check("XT-10 does not apply to call", r.ok and r.value == elisp.NIL, show(r))
+  r = ev("(diary-anniversary 10 24 2025.0)", { profile = "diary", variables = { date = date } })
+  check(
+    "diary-anniversary reads entry before the ordinal suffix",
+    r.kind == "refused" and r.code == "free-variable" and r.detail == "entry",
+    show(r)
+  )
+  local own = {
+    ["diary-date"] = {
+      fn = function(argv)
+        return argv[1]
+      end,
+    },
+  }
+  r = ev("(diary-date 2026 10 24)", { profile = "diary", variables = vars, functions = own })
+  check("XT-10 leaves a consumer's diary-date alone", r.ok and r.value == 2026, show(r))
+
+  local seen = {}
+  local function holidays(names)
+    return {
+      ["calendar-check-holidays"] = {
+        fn = function(argv)
+          seen[#seen + 1] = printed_of(argv[1])
+          return names
+        end,
+      },
+    }
+  end
+  local class = "(org-class 2026 9 1 2026 12 31 6 %s)"
+  local function with(names, skip, profile)
+    return ev_printed(
+      class:format(skip),
+      { profile = profile or "diary", variables = vars, functions = holidays(names) }
+    )
+  end
+  check("org-class skips a holiday", with({ "Day" }, "'holidays") == "nil")
+  check("org-class skips a named holiday", with({ "Day" }, '"Day"') == "nil")
+  check("org-class keeps a date no holiday falls on", with({}, "'holidays") == '"Ent"')
+  check("org-class keeps another holiday", with({ "Day" }, '"Night"') == '"Ent"')
+  check("org-class asks with skip weeks only", with({ "Day" }, "1") == '"Ent"')
+  check("org-class asks in the prefix profile", with({ "Day" }, "'holidays", "prefix") == "nil")
+  check("org-class passes date", seen[1] == "(10 24 2026)", vim.inspect(seen))
+  for _, case in ipairs({
+    { "'holidays", "diary", "holidays" },
+    { '"Day"', "diary", "holidays" },
+    { "1", "prefix", "profile" },
+  }) do
+    r = ev(class:format(case[1]), { profile = case[2], variables = vars })
+    check(
+      "org-class without the consumer refuses: " .. case[1] .. " " .. case[2],
+      r.kind == "refused" and r.code == case[3] and r.detail == "calendar-check-holidays",
+      show(r)
+    )
+  end
+  check(
+    "org-class without holidays: skip weeks alone",
+    ev_printed(class:format("1"), diary) == '"Ent"'
+  )
+  for _, d in ipairs({ "(10 24 10026)", "(2 30 2026)" }) do
+    r = ev(
+      "(org-class 1 1 1 99999 12 31 6 1)",
+      { profile = "diary", variables = { date = read_value(d), entry = "Ent" } }
+    )
+    check(
+      "org-class refuses holidays on a date they may not finish on: " .. d,
+      r.kind == "refused" and r.code == "holidays",
+      show(r)
+    )
+  end
 end
 
 -- time: ctx.now, and refusals the conformance corpus cannot hold

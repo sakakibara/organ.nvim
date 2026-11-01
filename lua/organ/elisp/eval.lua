@@ -36,6 +36,7 @@ require("organ.elisp.equal")
 require("organ.elisp.list")
 require("organ.elisp.sort")
 require("organ.elisp.time")
+local calendar = require("organ.elisp.calendar")
 
 local M = {}
 
@@ -314,6 +315,16 @@ local function var_value(run, sym)
       return c.val
     end
   end
+  local d = run.dyn[sym]
+  if d then
+    return d.v
+  end
+  return global_value(run, sym)
+end
+
+--- The dynamic value of `sym`, as a function reading it as a free
+--- variable sees it: its dynamic binding, else its global value.
+function M.dynamic_value(run, sym)
   local d = run.dyn[sym]
   if d then
     return d.v
@@ -1776,7 +1787,11 @@ end
 --- Evaluate `form` as the profile's Emacs entry point does.
 function M.eval_top(run, form)
   M.setup(run)
-  return eval(run, as_value(run, form))
+  form = as_value(run, form)
+  if run.profile == "diary" then
+    form = calendar.year_first(run, form)
+  end
+  return eval(run, form)
 end
 
 --- Call builtin `name` of the profile with `args`, as a direct call.

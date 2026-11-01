@@ -43,9 +43,8 @@ eval-forms.el	R6-OUT	KEEP	1	 !! (void-function nil)\n-!! (invalid-function (clos
 eval-forms.el	R6-OUT	KEEP	1	 !! (wrong-type-argument listp 5)\n-!! (wrong-type-argument listp x)\n+REFUSED syntax lambda list
 eval-forms.el	R6-OUT	KEEP	1	 => (1 2)\n-!! (void-function foo)\n-!! (void-function t)\n-!! (void-function :k)\n+REFUSED function foo\n+REFUSED function t\n+REFUSED function :k
 eval-forms.el	R6-OUT	KEEP	1	 => nil\n-!! (void-variable foo)\n+REFUSED free-variable foo
-eval-profile-diary.el	R6-OUT	KEEP	1	 => 2\n-=> nil\n+REFUSED function org-date
-eval-profile-prefix.el	R6-OUT	KEEP	1	 => 6\n-!! (void-function diary-date)\n-!! (void-function diary-date)\n+REFUSED function org-date\n+REFUSED profile diary-date
-eval-profile-table.el	R6-OUT	KEEP	1	^\n-!! (void-function diary-date)\n-!! (void-function org-date)\n-!! (wrong-type-argument listp 2)\n+REFUSED profile diary-date\n+REFUSED profile org-date\n+REFUSED function org-lookup-first
+eval-profile-prefix.el	R6-OUT	KEEP	1	 => 6\n-!! (void-function diary-date)\n-!! (void-function diary-date)\n+REFUSED profile diary-date\n+REFUSED profile diary-date
+eval-profile-table.el	R6-OUT	KEEP	1	^\n-!! (void-function diary-date)\n-!! (void-function org-date)\n+REFUSED profile diary-date\n+REFUSED profile org-date
 eval-equality-lexical.el	R6-OUT	KEEP	1	 => nil\n-=> t\n+REFUSED unprintable closure
 eval-equality.el	R6-OUT	KEEP	1	 => nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+REFUSED eq-identity
 eval-equality.el	R6-OUT	KEEP	1	 => t\n+REFUSED eq-identity
