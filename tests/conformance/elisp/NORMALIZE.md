@@ -104,8 +104,18 @@ with a sign (`nan`); a character outside Unicode scalar values in a
 string (`charset`); `truncate-string-to-width` with a non-string
 ELLIPSIS and Emacs's "Format specifier doesn't match argument type"
 message (`locale`); the `length` of a closure (`unprintable`); and `eq`
-of strings built separately (`eq-identity`). The gate fails on any row
-that records `REFUSED internal`.
+of strings built separately (`eq-identity`). Lists and sequences add:
+`nconc` that would make a list reach itself through its cdrs or its
+elements (organ keeps lists and vectors acyclic), `mapconcat` over a
+list its function shortens (Emacs reads results it never stored and
+aborts) (`cycle`); `memq`, `memql`, `assq`, `rassq`, `delq` and `remq` comparing two boxes
+that could be one object, and `equal` too deep to answer in the hash
+table of `delete-dups` or `seq-uniq` on a list longer than 100, where
+Emacs compares only on a hash collision and symbols hash by address
+(`eq-identity`); a NaN that `value<` compares or that such a hash table
+holds (`nan`); and `value<` of a closure, or the elements of a closure
+that `append`, `vconcat` or `aref` would read (`unprintable`). The gate
+fails on any row that records `REFUSED internal`.
 
 ## Data check
 

@@ -81,3 +81,12 @@ eval-width.el	R6-OUT	KEEP	1	 => "a\tb|"\n-=> "a|"\n-=> "  é|"\n-=> "  é|"\n+R
 eval-width.el	R6-OUT	KEEP	1	 => 2\n-=> 10\n-=> 1\n-=> 1\n-=> 2\n-=> 2\n+REFUSED width U+0009\n+REFUSED width U+0301\n+REFUSED width U+00E9\n+REFUSED width U+00E9\n+REFUSED width U+1F642
 eval-strings.el	R6-OUT	KEEP	1	 !! (wrong-type-argument characterp -1)\n-=> 1\n+REFUSED charset character 55296
 eval-strings.el	R6-OUT	KEEP	1	 !! (wrong-type-argument characterp -1)\n-=> 2\n+REFUSED charset character 1114112
+eval-destructive.el	R6-OUT	KEEP	1	 !! (error Stack overflow in equal)\n-!! (error Stack overflow in equal)\n-=> (0.0e+NaN)\n-=> (0.0e+NaN)\n-=> 102\n+REFUSED eq-identity equal in a hash table\n+REFUSED nan\n+REFUSED nan\n+REFUSED nan hashing
+eval-destructive.el	R6-OUT	KEEP	1	 !! (wrong-type-argument consp 5)\n-=> (1 2 1 2 . #2)\n-=> (1 2 2 . #2)\n-=> (0 1 2 1 . #2)\n-=> (1 2 #0)\n+REFUSED cycle nconc\n+REFUSED cycle nconc\n+REFUSED cycle nconc\n+REFUSED cycle nconc
+eval-lists-lexical.el	R6-OUT	KEEP	1	 => ("abc")\n-=> nil\n+REFUSED eq-identity
+eval-lists-lexical.el	R6-OUT	KEEP	1	 => (2305843009213693951)\n-=> nil\n+REFUSED eq-identity
+eval-lists-lexical.el	R6-OUT	KEEP	1	 => (t t t)\n-=> nil\n+REFUSED eq-identity
+eval-lists-lexical.el	R6-OUT	KEEP	1	 => t\n-=> (#[(x) (x) (t)])\n+REFUSED unprintable closure
+eval-lists-lexical.el	R6-OUT	KEEP	1	 => t\n-=> ((x) (x) (t))\n-=> (x)\n+REFUSED unprintable elements of a function\n+REFUSED unprintable aref of a function
+eval-mapping.el	R6-OUT	KEEP	1	 => (97 98)\n-=> (1 . #0)\n+REFUSED cycle nconc
+eval-sort.el	R6-OUT	KEEP	1	 !! (error Maximum depth exceeded in comparison)\n-=> (0.0e+NaN 1)\n-=> (#[(x) (x) nil] #[(x) (x) nil])\n+REFUSED nan value<\n+REFUSED unprintable value< of a function
