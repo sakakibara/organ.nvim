@@ -96,3 +96,9 @@ eval-format-time.el	R6-OUT	KEEP	1	 => "+0000"\n-=> "\\303\\251 1970"\n-=> "1970"
 eval-org-time.el	R6-OUT	KEEP	1	 => t\n-=> "<%m/%d/%y %a>"\n+REFUSED free-variable org-timestamp-custom-formats
 eval-time-values.el	R6-OUT	KEEP	1	 => -1.0e+INF\n-=> 0.0e+NaN\n+REFUSED nan
 eval-time-values.el	R6-OUT	KEEP	1	 => t\n-!! (error Invalid time specification)\n+REFUSED eq-identity time comparison
+eval-diary-prefix.el	R6-OUT	KEEP	1	 => "Ent"\n-!! (void-function diary-date)\n-!! (void-function diary-anniversary)\n-!! (void-function diary-block)\n-!! (void-function diary-cyclic)\n+REFUSED profile diary-date\n+REFUSED profile diary-anniversary\n+REFUSED profile diary-block\n+REFUSED profile diary-cyclic
+eval-diary-prefix.el	R6-OUT	KEEP	1	 => nil\n-!! (void-function calendar-check-holidays)\n+REFUSED profile calendar-check-holidays
+eval-diary-xt10.el	XT-10	KEEP	1	 => nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+=> (nil . "Ent 26th")\n+=> (nil . "Ent 3rd")\n+=> (nil . "Ent %d%s")\n+=> (nil . "Ent %d%s")
+eval-diary-xt10.el	XT-10	KEEP	1	^\n-=> nil\n-=> nil\n+=> (nil . "Ent %d%s")\n+=> (nil . "Ent %d%s")
+eval-diary.el	R6-OUT	KEEP	1	 => "Ent %d%s"\n-=> "Ent %d%s"\n-=> "Ent %d%s"\n+REFUSED holidays calendar-check-holidays\n+REFUSED holidays calendar-check-holidays
+eval-org-lookup.el	R6-OUT	KEEP	1	 !! wrong-number-of-arguments <unprintable>\n-!! (void-function zzz-organ-elisp-undefined)\n+REFUSED function zzz-organ-elisp-undefined

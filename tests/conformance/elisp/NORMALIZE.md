@@ -83,7 +83,7 @@ or evaluates. The refused syntax is the read syntax outside the subset
 `#!`, `##`, `#:`, `#_`, `#<`), named characters `\N{NAME}`, character
 modifiers other than a control character on ASCII, strings that would be
 unibyte, and NaN in printing. In `eval` mode the refusals are: a function
-outside the subset or not yet implemented (`function`), a builtin outside
+outside the subset (`function`), a builtin outside
 its profile (`profile`), a variable bound by neither the form nor the
 caller (`free-variable`), a `setq` of one (`setq-global`), a binding of a
 special variable other than `case-fold-search` and `calendar-date-style`
@@ -139,8 +139,24 @@ table of `delete-dups` or `seq-uniq` on a list longer than 100, where
 Emacs compares only on a hash collision and symbols hash by address
 (`eq-identity`); a NaN that `value<` compares or that such a hash table
 holds (`nan`); and `value<` of a closure, or the elements of a closure
-that `append`, `vconcat` or `aref` would read (`unprintable`). The gate
-fails on any row that records `REFUSED internal`.
+that `append`, `vconcat` or `aref` would read (`unprintable`). Calendar
+and diary functions add: in the `prefix` profile, which has diary-lib only
+when something else loaded it, `org-date`, `org-block`, `org-cyclic` and
+`org-anniversary`, which call into it, and `org-class` with weeks to skip,
+which checks holidays (`profile`); and in the `diary` profile, `org-class`
+skipping holidays or a named holiday, or skipping weeks on a date that is
+not valid or lies after 9999, where the user's holiday list decides or
+Emacs's holiday forms may never finish, when the caller supplies no
+`calendar-check-holidays` (`holidays`). The gate fails on any row that
+records `REFUSED internal`.
+
+`XT-10` (KEEP) rows record the one other kind of difference: a `diary`
+sexp that is a single call of `diary-date`, `diary-anniversary`,
+`diary-cyclic` or `diary-block` with literal arguments (numbers, and `t`
+for `diary-date`) reads a date triple
+year-first when its first value is a number above 31, or `t` while its
+last is neither `t` nor a number above 31, where Emacs reads it in
+`calendar-date-style` order.
 
 ## Data check
 
