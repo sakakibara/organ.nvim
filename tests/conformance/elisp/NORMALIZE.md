@@ -154,7 +154,7 @@ canonical form, its `char-width` in an org-mode buffer, whether
 `composition-function-table` holds a rule for it and whether a CJK
 language environment changes its width; the gate runs `organ.elisp.chars`
 over it. The generator itself checks the call data it writes: each special
-form, macro and builtin is called with every argument count up to seven,
+form, macro and builtin is called with every argument count up to eight,
 directly and through `funcall`, and generation fails unless the counts Emacs
 accepts form one range; the data head of each refused count is recorded,
 the highest count's as the default and the counts whose head differs (the

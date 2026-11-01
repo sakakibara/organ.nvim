@@ -25,7 +25,8 @@
 ;;; - functions.lua: for each special form, macro and builtin organ's
 ;;;   evaluator implements, its kind, the argument counts it accepts and
 ;;;   the head of its `wrong-number-of-arguments' data called directly
-;;;   and through `funcall', all from live calls.
+;;;   and through `funcall', all from live calls in an Emacs with every
+;;;   profile's features loaded.
 ;;; - case.lua: `upcase', `downcase' and `capitalize' of every character
 ;;;   and of every code point's one-character string in an org-mode
 ;;;   buffer, where they change it.
@@ -78,11 +79,19 @@
           seq-elt seq-first seq-rest seq-position
           current-time float-time format-time-string encode-time decode-time
           time-add time-subtract time-less-p time-equal-p
-          org-time-string-to-time org-time-stamp-format)
+          org-time-string-to-time org-time-stamp-format
+          calendar-day-of-week calendar-absolute-from-gregorian
+          calendar-gregorian-from-absolute calendar-extract-month
+          calendar-extract-day calendar-extract-year calendar-leap-year-p
+          calendar-last-day-of-month calendar-day-number
+          calendar-date-is-valid-p
+          diary-date diary-block diary-cyclic diary-anniversary diary-float
+          org-date org-block org-cyclic org-anniversary org-class
+          org-lookup-first org-lookup-last org-lookup-all)
   "Special forms, macros and builtins organ's evaluator implements.
 `setq' is not listed: its odd-count check is not an argument count.")
 
-(defconst elisp-data-max-args 7
+(defconst elisp-data-max-args 8
   "Argument counts probed for each of `elisp-data-functions'.")
 
 (defconst elisp-data-build-errors
@@ -388,6 +397,7 @@ descending N, whose head is not COMMON to that head; empty when none."
     (if rows (format "    %s = { %s },\n" key (mapconcat #'identity rows ", ")) "")))
 
 (defun elisp-data--functions-file ()
+  (mapc #'require (elisp-data--all-features))
   (concat
    (elisp-data--header
     "-- Each implemented special form, macro and builtin: `kind' (special,\n-- macro, subr or lisp), the argument counts it accepts (`max' absent:\n-- no upper bound) and the head of its (wrong-number-of-arguments HEAD N)\n-- data called directly and, for functions, through `funcall' (`heads'\n-- and `funcall_heads': the counts whose head differs);\n-- `compiler_macro' when one rewrites its calls inside a closure.\n")
