@@ -584,6 +584,18 @@ do
     r.kind == "refused" and r.code == "free-variable",
     show(r)
   )
+  r = ev("(funcall (let ((tool-bar-map 1)) (lambda () tool-bar-map)))", { profile = "var" })
+  check(
+    "binding a special only some Emacs builds define refuses special",
+    r.kind == "refused" and r.code == "special" and r.detail == "tool-bar-map",
+    show(r)
+  )
+  r = ev("(condition-case nil (signal 'native-ice nil) (error 1))")
+  check(
+    "an error symbol only some Emacs builds define refuses profile",
+    r.kind == "refused" and r.code == "profile" and r.detail == "native-ice",
+    show(r)
+  )
 end
 
 -- call: one builtin from Lua, as a direct call

@@ -18,8 +18,10 @@
 ;;;   character.
 ;;; - errors.lua: `error-conditions' and `error-message' of every error
 ;;;   symbol of an Emacs with every profile's features loaded, and the
-;;;   profiles whose features do not define it.
-;;; - specials.lua: the names `special-variable-p' holds for in that Emacs.
+;;;   profiles whose features do not define it; only the name of one only
+;;;   some builds define (`elisp-data-build-errors').
+;;; - specials.lua: the names other than keywords `special-variable-p'
+;;;   holds for in that Emacs or in some build (`elisp-data-build-specials').
 ;;; - functions.lua: for each special form, macro and builtin organ's
 ;;;   evaluator implements, its kind, the argument counts it accepts and
 ;;;   the head of its `wrong-number-of-arguments' data called directly
@@ -83,6 +85,99 @@
 (defconst elisp-data-max-args 7
   "Argument counts probed for each of `elisp-data-functions'.")
 
+(defconst elisp-data-build-errors
+  '("comp-sanitizer-error" "native-compiler-error" "native-ice"
+    "native-lisp-file-inconsistent" "native-lisp-load-failed"
+    "native-lisp-wrong-reloc" "unknown-image-type" "wrong-register-subr-call")
+  "Error symbols only some Emacs builds define (native compilation, images).")
+
+(defconst elisp-data-build-specials
+  '("alternate-fontname-alist" "charset-script-alist" "comp--#$"
+    "comp--no-native-compile" "comp-abi-hash" "comp-ctxt"
+    "comp-deferred-pending-h" "comp-eln-to-el-h" "comp-file-preloaded-p"
+    "comp-installed-trampolines-h" "comp-loaded-comp-units-h"
+    "comp-native-version-dir" "comp-no-native-file-h"
+    "comp-sanitizer-active" "comp-subr-arities-h" "comp-subr-list"
+    "cross-disabled-images" "dnd-direct-save-remote-files"
+    "dnd-indicate-insertion-point" "dnd-last-dragged-remote-file"
+    "dnd-open-file-other-window" "dnd-open-remote-file-function"
+    "dnd-scroll-margin" "dnd-unescape-file-uris"
+    "emacs-save-session-functions" "find-image--cache"
+    "font-encoding-charset-alist" "fontset-alias-alist"
+    "frame-alpha-lower-limit" "fringe-bitmaps" "fringe-mode"
+    "fringe-mode-explicit" "fringe-styles" "horizontal-scroll-bar-mode"
+    "horizontal-scroll-bar-mode-hook" "ignore-relative-composition"
+    "image--repeat-map" "image-cache-eviction-delay"
+    "image-default-frame-delay" "image-format-suffixes" "image-load-path"
+    "image-map" "image-minimum-frame-delay" "image-recompute-map-p"
+    "image-scaling-factor" "image-slice-map" "image-transform-smoothing"
+    "image-type-auto-detectable" "image-type-file-name-regexps"
+    "image-type-header-regexps" "image-types" "image-use-external-converter"
+    "imagemagick--file-regexp" "imagemagick-enabled-types"
+    "imagemagick-types-inhibit" "mac-allow-anti-aliasing"
+    "mac-command-modifier" "mac-control-modifier" "mac-function-modifier"
+    "mac-option-modifier" "mac-right-command-modifier"
+    "mac-right-control-modifier" "mac-right-option-modifier"
+    "max-image-size" "modifier-bar-mode" "modifier-bar-mode-hook"
+    "modifier-bar-modifier-list" "mouse-wheel--installed-bindings-alist"
+    "mouse-wheel-click-event" "mouse-wheel-down-event"
+    "mouse-wheel-flip-direction" "mouse-wheel-follow-mouse"
+    "mouse-wheel-inhibit-click-time" "mouse-wheel-left-event"
+    "mouse-wheel-mode-hook" "mouse-wheel-progressive-speed"
+    "mouse-wheel-right-event" "mouse-wheel-scroll-amount"
+    "mouse-wheel-scroll-amount-horizontal" "mouse-wheel-tilt-scroll"
+    "mouse-wheel-up-event" "mwheel-inhibit-click-event-timer"
+    "mwheel-installed-bindings" "mwheel-installed-text-scale-bindings"
+    "mwheel-scroll-down-function" "mwheel-scroll-left-function"
+    "mwheel-scroll-right-function" "mwheel-scroll-up-function"
+    "native-comp-eln-load-path" "ns-alternate-modifier" "ns-antialias-text"
+    "ns-auto-hide-menu-bar" "ns-click-through" "ns-command-modifier"
+    "ns-confirm-quit" "ns-control-modifier" "ns-dnd-selection-value"
+    "ns-drag-motion-function" "ns-function-modifier" "ns-icon-type-alist"
+    "ns-initialized" "ns-input-file" "ns-input-font" "ns-input-fontsize"
+    "ns-input-line" "ns-input-spi-arg" "ns-input-spi-name"
+    "ns-mwheel-line-height" "ns-option-modifier" "ns-pop-up-frames"
+    "ns-right-alternate-modifier" "ns-right-command-modifier"
+    "ns-right-control-modifier" "ns-right-option-modifier"
+    "ns-scroll-event-delta-factor" "ns-select-overlay"
+    "ns-sent-selection-hooks" "ns-standard-fontset-spec"
+    "ns-system-appearance" "ns-system-appearance-change-functions"
+    "ns-use-fullscreen-animation" "ns-use-mwheel-acceleration"
+    "ns-use-mwheel-momentum" "ns-use-native-fullscreen" "ns-use-proxy-icon"
+    "ns-use-srgb-colorspace" "ns-use-thin-smoothing" "ns-version-string"
+    "ns-working-overlay" "ns-working-text" "otf-script-alist"
+    "overflow-newline-into-fringe" "previous-scroll-bar-mode"
+    "scroll-bar-mode" "scroll-bar-mode-explicit" "scroll-bar-mode-hook"
+    "secondary-tool-bar-map" "standard-fontset-spec"
+    "tool-bar-always-show-default" "tool-bar-keymap-cache" "tool-bar-map"
+    "tool-bar-mode-hook" "ucs-normalize-combining-chars"
+    "ucs-normalize-combining-chars-regexp"
+    "ucs-normalize-decomposition-pair-to-primary-composite"
+    "ucs-normalize-hangul-translation-alist"
+    "ucs-normalize-hfs-nfc-quick-check-regexp"
+    "ucs-normalize-hfs-nfd-quick-check-regexp"
+    "ucs-normalize-nfc-quick-check-regexp"
+    "ucs-normalize-nfd-quick-check-regexp"
+    "ucs-normalize-nfkc-quick-check-regexp"
+    "ucs-normalize-nfkd-quick-check-regexp" "ucs-normalize-version"
+    "use-default-ascent" "use-default-font-for-symbols"
+    "vertical-centering-font-regexp" "x-alternatives-map"
+    "x-bitmap-file-path" "x-colors" "x-command-line-resources"
+    "x-display-name" "x-font-name-charset-alist" "x-max-tooltip-size"
+    "x-resource-class" "x-resource-name" "x-stretch-cursor"
+    "x-toolkit-scroll-bars" "x-underline-at-descent-line"
+    "x-use-underline-position-properties" "xlfd-regexp-adstyle-subnum"
+    "xlfd-regexp-avgwidth-subnum" "xlfd-regexp-family-subnum"
+    "xlfd-regexp-numeric-subnums" "xlfd-regexp-pixelsize-subnum"
+    "xlfd-regexp-pointsize-subnum" "xlfd-regexp-registry-subnum"
+    "xlfd-regexp-resx-subnum" "xlfd-regexp-resy-subnum"
+    "xlfd-regexp-slant-subnum" "xlfd-regexp-spacing-subnum"
+    "xlfd-regexp-swidth-subnum" "xlfd-regexp-weight-subnum"
+    "xlfd-style-regexp" "xlfd-tight-regexp")
+  "Special variables only some Emacs builds define (window system, NS,
+native compilation), keywords aside: those of the macOS build missing
+from CI's Linux build.")
+
 (defun elisp-data--tables ()
   (list (cons "org" (with-temp-buffer (org-mode) (syntax-table)))
         (cons "elisp" emacs-lisp-mode-syntax-table)))
@@ -144,51 +239,66 @@
      (sort l #'string<)))
 
 (defun elisp-data--errors-file ()
-  (let* ((all (elisp-data--child
-               (elisp-data--all-features)
-               `(mapcar (lambda (n)
-                          (let ((s (intern n)))
-                            (list n (mapcar #'symbol-name (get s 'error-conditions))
-                                  (get s 'error-message))))
-                        ,elisp-data--error-names-form)))
+  (let* ((all (sort
+               (append
+                (mapcar #'list elisp-data-build-errors)
+                (seq-remove
+                 (lambda (e) (member (car e) elisp-data-build-errors))
+                 (elisp-data--child
+                  (elisp-data--all-features)
+                  `(mapcar (lambda (n)
+                             (let ((s (intern n)))
+                               (list n (mapcar #'symbol-name (get s 'error-conditions))
+                                     (get s 'error-message))))
+                           ,elisp-data--error-names-form))))
+               (lambda (a b) (string< (car a) (car b)))))
          (per-profile
           (mapcar (lambda (p)
                     (cons (car p) (elisp-data--child (cdr p) elisp-data--error-names-form)))
                   elisp-data-profiles)))
     (concat
      (elisp-data--header
-      "-- Each error symbol's `error-conditions' and `error-message' in an\n-- Emacs with every profile's features loaded; `profiles' lists the\n-- profiles whose features define the symbol when not all do.\n")
+      "-- Each error symbol's `error-conditions' and `error-message' in an\n-- Emacs with every profile's features loaded; `profiles' lists the\n-- profiles whose features define the symbol when not all do, and is\n-- empty for a symbol only some Emacs builds define.\n")
      "return {\n"
      (mapconcat
       (lambda (e)
-        (let ((in (delq nil (mapcar (lambda (p) (and (member (car e) (cdr p)) (car p)))
-                                    per-profile))))
-          (concat
-           (format "  [%s] = {\n    conditions = { %s },\n"
-                   (elisp-data--lua-string (nth 0 e))
-                   (mapconcat #'elisp-data--lua-string (nth 1 e) ", "))
-           (if (stringp (nth 2 e))
-               (format "    message = %s,\n" (elisp-data--lua-string (nth 2 e)))
-             "")
-           (if (= (length in) (length per-profile))
-               ""
-             (format "    profiles = { %s },\n"
-                     (mapconcat #'elisp-data--lua-string in ", ")))
-           "  },\n")))
+        (if (null (cdr e))
+            (format "  [%s] = {\n    profiles = {},\n  },\n" (elisp-data--lua-string (car e)))
+          (let ((in (delq nil (mapcar (lambda (p) (and (member (car e) (cdr p)) (car p)))
+                                      per-profile))))
+            (concat
+             (format "  [%s] = {\n    conditions = { %s },\n"
+                     (elisp-data--lua-string (nth 0 e))
+                     (mapconcat #'elisp-data--lua-string (nth 1 e) ", "))
+             (if (stringp (nth 2 e))
+                 (format "    message = %s,\n" (elisp-data--lua-string (nth 2 e)))
+               "")
+             (if (= (length in) (length per-profile))
+                 ""
+               (format "    profiles = { %s },\n"
+                       (mapconcat #'elisp-data--lua-string in ", ")))
+             "  },\n"))))
       all "")
      "}\n")))
 
 (defun elisp-data--specials-file ()
   (concat
    (elisp-data--header
-    "-- The names `special-variable-p' holds for in an Emacs with every\n-- profile's features loaded, sorted.\n")
+    "-- The names other than keywords `special-variable-p' holds for in an\n-- Emacs with every profile's features loaded or in some Emacs build,\n-- sorted.\n")
    "return {\n"
    (mapconcat (lambda (n) (format "  %s,\n" (elisp-data--lua-string n)))
-              (elisp-data--child
-               (elisp-data--all-features)
-               '(let (l)
-                  (mapatoms (lambda (s) (when (special-variable-p s) (push (symbol-name s) l))))
-                  (sort l #'string<)))
+              (sort
+               (delete-dups
+                (append
+                 (elisp-data--child
+                  (elisp-data--all-features)
+                  '(let (l)
+                     (mapatoms (lambda (s)
+                                 (when (and (special-variable-p s) (not (keywordp s)))
+                                   (push (symbol-name s) l))))
+                     l))
+                 elisp-data-build-specials))
+               #'string<)
               "")
    "}\n"))
 
