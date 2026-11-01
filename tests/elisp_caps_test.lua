@@ -393,6 +393,30 @@ do
   )
 end
 
+-- time arithmetic
+
+limited("time-add of frequencies with a huge lcm", "steps", function()
+  return ev("(time-add (cons 1 (expt 7 20000)) (cons 1 (1+ (expt 3 40000))))")
+end)
+
+limited("float-time of a huge tick count", "steps", function()
+  return ev("(float-time (cons (expt 10 19000) (1+ (expt 2 65000))))")
+end)
+
+limited("time comparisons of huge frequencies in a loop", "steps", function()
+  return ev(
+    "(let ((a (cons 1 (expt 3 9000))) (b (cons 2 (expt 7 9000)))) (while t (time-less-p a b)))"
+  )
+end)
+
+limited("format-time-string with a width past the string cap", "string", function()
+  return ev('(format-time-string "%1048577Y" 0 t)')
+end)
+
+limited("time arithmetic in a loop", "steps", function()
+  return ev("(while t (time-add 1 2) (time-less-p '(1 . 3) '(2 . 5)) (decode-time 0 t))")
+end)
+
 if fails > 0 then
   print(("\n%d check(s) failed"):format(fails))
   os.exit(1)

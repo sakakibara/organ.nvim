@@ -436,7 +436,7 @@ for _, case in ipairs({
   { "(signal 'minibuffer-quit nil)", "function", "minibuffer-quit" },
   { "(signal 'iter-end-of-sequence nil)", "profile", "iter-end-of-sequence" },
   { "(diary-date 1 2 3)", "profile", "diary-date" },
-  { "(float-time)", "function", "float-time" },
+  { "(calendar-day-of-week '(1 1 2024))", "function", "calendar-day-of-week" },
   { '(format "%.100f" 1.0)', "precision", "100" },
   { '(error "it\'s")', "locale", "format-message" },
   { "(condition-case nil (car 1) ((error . x) 1))", "syntax", "dotted condition list" },
@@ -605,7 +605,7 @@ do
     r.kind == "signal" and r.text == "(wrong-type-argument listp 1)",
     show(r)
   )
-  r = elisp.call("float-time", {})
+  r = elisp.call("calendar-day-of-week", { { 1, 1, 2024 } })
   check(
     "call: an unimplemented builtin refuses",
     r.kind == "refused" and r.code == "function",
@@ -946,6 +946,96 @@ do
     ),
     show(improper)
   )
+end
+
+-- time: ctx.now, and refusals the conformance corpus cannot hold
+-- because Emacs's answer differs by platform, by earlier calls, or
+-- aborts Emacs
+
+do
+  local function now()
+    return 1700000000, 123456789
+  end
+  local r = ev_printed(
+    '(list (current-time) (float-time) (format-time-string "%s %N" nil t))',
+    { now = now }
+  )
+  check(
+    "ctx.now is the time nil stands for",
+    r == '((25939 61696 123456 789000) 1700000000.1234567 "1700000000 123456789")',
+    show(r)
+  )
+  r = ev_printed("(time-subtract nil nil)", { now = now })
+  check("(time-subtract nil nil) is (0 0 0 0)", r == "(0 0 0 0)", show(r))
+  local function refused(label, src, code, detail)
+    local e = ev(src)
+    check(
+      label,
+      e.ok == false
+        and e.kind == "refused"
+        and e.code == code
+        and (not detail or e.detail == detail),
+      show(e)
+    )
+  end
+  refused(
+    "%Z of UTC (GMT on glibc, UTC on macOS)",
+    '(format-time-string "%Z" 0 t)',
+    "locale",
+    "format-time-string %Z of UTC"
+  )
+  refused("%Z of zone 0", '(format-time-string "%Z" 0 0)', "locale")
+  refused(
+    "a space-padded signed number wider than its width (Emacs aborts)",
+    '(format-time-string "%_1z" 0 -18000)',
+    "precision"
+  )
+  refused(
+    "a negative year space-padded to its width",
+    '(format-time-string "%_Y" -400000000000 t)',
+    "precision"
+  )
+  refused(
+    "a negative %s space-padded at its default width",
+    '(format-time-string "%_s" -1 t)',
+    "precision"
+  )
+  refused(
+    "a negative century of many digits under + and _",
+    '(format-time-string "%+_5C" -24875530938887812 t)',
+    "precision"
+  )
+  refused(
+    "a colon offset space-padded below its length",
+    '(format-time-string "%_6::z" 0 -18000)',
+    "precision"
+  )
+  refused(
+    "an overlap with no DST flag (gnulib keeps its guess from the last call)",
+    '(encode-time \'(0 30 1 3 11 2024 nil -1 "America/New_York"))',
+    "locale",
+    "local time in a daylight saving transition"
+  )
+  refused(
+    "a DST flag no nearby time has (glibc moves an hour back)",
+    '(encode-time \'(0 0 0 1 1 2024 nil t "UTC"))',
+    "locale",
+    "DST flag the zone does not use nearby"
+  )
+  refused("an offset glibc caps at 24 hours", "(decode-time 0 90000)", "locale")
+  refused("a POSIX rule before 1970", '(decode-time -315619200 "XST5XDT,M3.2.0,M11.1.0")', "locale")
+  refused("a POSIX rule past 2569", '(decode-time 20000000000 "XST5XDT,M3.2.0,M11.1.0")', "locale")
+  refused(
+    "a POSIX rule early in 1970 in the south",
+    '(decode-time 0 "NZST-12NZDT,M9.5.0,M4.1.0/3")',
+    "locale"
+  )
+  refused("a POSIX string without rules", '(decode-time 0 "XST5XDT")', "locale")
+  refused("a name glibc rejects", '(decode-time 0 \'(3600 "XY"))', "locale")
+  local e = ev('(decode-time 0 \'(3600 "ABC"))')
+  check("a three-letter zone name", e.ok, show(e))
+  e = ev('(encode-time \'(0 30 1 3 11 2024 nil nil "America/New_York"))')
+  check("an overlap with a DST flag", e.ok, show(e))
 end
 
 if fails > 0 then

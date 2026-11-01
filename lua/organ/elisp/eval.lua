@@ -35,6 +35,7 @@ require("organ.elisp.num")
 require("organ.elisp.equal")
 require("organ.elisp.list")
 require("organ.elisp.sort")
+require("organ.elisp.time")
 
 local M = {}
 

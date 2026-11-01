@@ -72,6 +72,7 @@ local function eq3(run, a, b)
   end
   return false
 end
+M.eq3 = eq3
 
 --- Whether `a` and `b` are `eq'; refuses `eq-identity' when Emacs's
 --- answer depends on sharing.

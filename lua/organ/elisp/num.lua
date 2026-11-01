@@ -119,6 +119,7 @@ local function raw(v)
   end
   return v.n
 end
+M.raw = raw
 
 local function tobn(x)
   if type(x) == "number" then
@@ -133,6 +134,7 @@ local function sign(x)
   end
   return bn.is_zero(x) and 0 or x.sign
 end
+M.sign = sign
 
 local function is_zero(x)
   return x == 0 or (type(x) == "table" and bn.is_zero(x))
@@ -187,6 +189,7 @@ local function bn_pow2(k)
   end
   return result
 end
+M.pow2 = bn_pow2
 
 local POW2_WIDTH
 
@@ -256,6 +259,7 @@ local function iadd(run, a, b)
   work(run, math.max(#x.d, #y.d))
   return shrink(bn.add(x, y))
 end
+M.iadd = iadd
 
 local function isub(run, a, b)
   if type(a) == "number" and type(b) == "number" then
@@ -268,6 +272,7 @@ local function isub(run, a, b)
   work(run, math.max(#x.d, #y.d))
   return shrink(bn.sub(x, y))
 end
+M.isub = isub
 
 local function ineg(x)
   if type(x) == "number" then
@@ -275,6 +280,7 @@ local function ineg(x)
   end
   return shrink(bn.neg(x))
 end
+M.ineg = ineg
 
 local function imul(run, a, b)
   if type(a) == "number" and type(b) == "number" then
@@ -287,6 +293,7 @@ local function imul(run, a, b)
   work(run, #x.d * #y.d)
   return shrink(bn.mul(x, y))
 end
+M.imul = imul
 
 -- Magnitude of digit array `a` divided by the single limb `v`.
 local function div_small(a, v)
@@ -413,6 +420,7 @@ local function idivmod(run, a, b)
   end
   return shrink(q), shrink(r)
 end
+M.idivmod = idivmod
 
 local function is_odd(x)
   if type(x) == "number" then
@@ -431,6 +439,7 @@ local function icmp(a, b)
   end
   return bn.cmp(tobn(a), tobn(b))
 end
+M.icmp = icmp
 
 --- Quotient of raw integers rounded as `mode` ("floor", "ceiling",
 --- "round", "truncate"); `d` nonzero.
