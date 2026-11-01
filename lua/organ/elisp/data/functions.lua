@@ -314,6 +314,20 @@ return {
     head = { sym = "cos" },
     funcall_head = { subr = true },
   },
+  ["current-time"] = {
+    kind = "subr",
+    min = 0,
+    max = 0,
+    head = { sym = "current-time" },
+    funcall_head = { subr = true },
+  },
+  ["decode-time"] = {
+    kind = "subr",
+    min = 0,
+    max = 3,
+    head = { sym = "decode-time" },
+    funcall_head = { subr = true },
+  },
   ["delete"] = {
     kind = "subr",
     min = 2,
@@ -358,6 +372,14 @@ return {
     max = 2,
     head = { sym = "elt" },
     funcall_head = { subr = true },
+  },
+  ["encode-time"] = {
+    kind = "subr",
+    min = 1,
+    holes = { [2] = true, [3] = true, [4] = true, [5] = true },
+    head = { sym = "encode-time" },
+    funcall_head = { sym = "encode-time" },
+    funcall_heads = { [0] = { subr = true } },
   },
   ["eq"] = {
     kind = "subr",
@@ -421,6 +443,13 @@ return {
     head = { sym = "float" },
     funcall_head = { subr = true },
   },
+  ["float-time"] = {
+    kind = "subr",
+    min = 0,
+    max = 1,
+    head = { sym = "float-time" },
+    funcall_head = { subr = true },
+  },
   ["floatp"] = {
     kind = "subr",
     min = 1,
@@ -439,6 +468,13 @@ return {
     kind = "subr",
     min = 1,
     head = { sym = "format" },
+    funcall_head = { subr = true },
+  },
+  ["format-time-string"] = {
+    kind = "subr",
+    min = 1,
+    max = 3,
+    head = { sym = "format-time-string" },
     funcall_head = { subr = true },
   },
   ["fround"] = {
@@ -739,6 +775,20 @@ return {
   ["or"] = {
     kind = "special",
     min = 0,
+  },
+  ["org-time-stamp-format"] = {
+    kind = "lisp",
+    min = 0,
+    max = 3,
+    head = { car = 0, cdr = 3 },
+    funcall_head = { car = 0, cdr = 3 },
+  },
+  ["org-time-string-to-time"] = {
+    kind = "lisp",
+    min = 1,
+    max = 1,
+    head = { car = 1, cdr = 1 },
+    funcall_head = { car = 1, cdr = 1 },
   },
   ["prog1"] = {
     kind = "special",
@@ -1126,6 +1176,34 @@ return {
     min = 1,
     max = 1,
     head = { sym = "tan" },
+    funcall_head = { subr = true },
+  },
+  ["time-add"] = {
+    kind = "subr",
+    min = 2,
+    max = 2,
+    head = { sym = "time-add" },
+    funcall_head = { subr = true },
+  },
+  ["time-equal-p"] = {
+    kind = "subr",
+    min = 2,
+    max = 2,
+    head = { sym = "time-equal-p" },
+    funcall_head = { subr = true },
+  },
+  ["time-less-p"] = {
+    kind = "subr",
+    min = 2,
+    max = 2,
+    head = { sym = "time-less-p" },
+    funcall_head = { subr = true },
+  },
+  ["time-subtract"] = {
+    kind = "subr",
+    min = 2,
+    max = 2,
+    head = { sym = "time-subtract" },
     funcall_head = { subr = true },
   },
   ["truncate"] = {

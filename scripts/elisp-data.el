@@ -73,7 +73,10 @@
           rassoc rassq alist-get number-sequence mapcar mapc mapcan remove
           remq delete delq delete-dups sort aref elt seq-filter seq-remove
           seq-map seq-reduce seq-take seq-drop seq-uniq seq-contains-p
-          seq-elt seq-first seq-rest seq-position)
+          seq-elt seq-first seq-rest seq-position
+          current-time float-time format-time-string encode-time decode-time
+          time-add time-subtract time-less-p time-equal-p
+          org-time-string-to-time org-time-stamp-format)
   "Special forms, macros and builtins organ's evaluator implements.
 `setq' is not listed: its odd-count check is not an argument count.")
 
@@ -216,26 +219,27 @@
 (defun elisp-data--function-entry (f)
   "F's kind, accepted argument counts and data heads, from live calls.
 A count N is accepted when (F nil ... nil) with N arguments signals no
-`wrong-number-of-arguments'; the accepted counts must form one range
-and every refused count must give (HEAD N).  HEAD is the highest refused
-count's; `heads' lists the refused counts whose head differs from it."
+`wrong-number-of-arguments'; the accepted counts must form one range,
+except that a subr may refuse counts inside it (holes), as `encode-time'
+does, and every refused count must give (HEAD N).  HEAD is the highest
+refused count's; `heads' lists the refused counts whose head differs
+from it."
   (let* ((kind (elisp-data--kind f))
          (fn-p (member kind '("subr" "lisp")))
-         min max heads fheads)
+         min max refused heads fheads holes)
     (dotimes (n (1+ elisp-data-max-args))
       (let* ((args (make-list n nil))
              (direct (elisp-data--wna (cons f args)))
              (through (and fn-p (elisp-data--wna `(apply #'funcall ',f ',args)))))
         (if (null direct)
             (progn
-              (when (and min (< (or max min) (1- n)))
-                (error "elisp-data: %s accepts counts outside one range" f))
               (when through
                 (error "elisp-data: %s refuses %d through funcall only" f n))
               (unless min (setq min n))
               (setq max n))
           (unless (and (consp (cdr direct)) (eql (cadr direct) n) (null (cddr direct)))
             (error "elisp-data: %s %d: unexpected data %S" f n direct))
+          (push n refused)
           (push (cons n (car direct)) heads)
           (when fn-p
             (unless (and (consp (cdr through)) (eql (cadr through) n) (null (cddr through)))
@@ -243,12 +247,19 @@ count's; `heads' lists the refused counts whose head differs from it."
             (push (cons n (car through)) fheads)))))
     (unless min
       (error "elisp-data: %s accepts no count up to %d" f elisp-data-max-args))
+    (setq holes (sort (seq-filter (lambda (n) (< min n max)) refused) #'<))
+    (when (and holes (not (equal kind "subr")))
+      (error "elisp-data: %s accepts counts outside one range" f))
     (let ((head (cdar heads)) (fhead (cdar fheads)))
       (concat
        (format "  [%s] = {\n    kind = %s,\n    min = %d,\n"
                (elisp-data--lua-string (symbol-name f))
                (elisp-data--lua-string kind) min)
        (if (< max elisp-data-max-args) (format "    max = %d,\n" max) "")
+       (if holes
+           (format "    holes = { %s },\n"
+                   (mapconcat (lambda (n) (format "[%d] = true" n)) holes ", "))
+         "")
        (if head (format "    head = %s,\n" (elisp-data--lua-value f head)) "")
        (elisp-data--other-heads f "heads" heads head)
        (if fhead (format "    funcall_head = %s,\n" (elisp-data--lua-value f fhead)) "")

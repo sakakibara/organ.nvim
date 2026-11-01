@@ -95,9 +95,9 @@ local function decode(x, obj)
 end
 
 --- Call data of a special form, macro or builtin: { kind, min, max,
---- head, heads, funcall_head, funcall_heads } with heads as values
---- (`heads`: per argument count where it differs), `obj` its function
---- value.
+--- holes, head, heads, funcall_head, funcall_heads } with heads as
+--- values (`heads`: per argument count where it differs; `holes`: the
+--- counts between min and max it refuses), `obj` its function value.
 local calls = {}
 
 function M.calls(name)
@@ -130,6 +130,7 @@ local function call_data(name, obj)
     funcall_head = d.funcall_head and decode(d.funcall_head, obj),
     funcall_heads = decode_heads(d.funcall_heads, obj),
     compiler_macro = d.compiler_macro,
+    holes = d.holes,
     obj = obj,
   }
   calls[name] = c

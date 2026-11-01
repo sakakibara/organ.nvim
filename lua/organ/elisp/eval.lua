@@ -194,8 +194,10 @@ local function as_value(run, x)
 end
 M.as_value = as_value
 
-local function check_arity(c, n, through)
-  if n < c.min or (c.max and n > c.max) then
+-- A subr checks its argument count's range before evaluating the
+-- arguments and its holes after, as encode-time signals itself.
+local function check_arity(c, n, through, range_only)
+  if n < c.min or (c.max and n > c.max) or (not range_only and c.holes and c.holes[n]) then
     wna(B.head(c, n, through), n)
   end
 end
@@ -521,8 +523,12 @@ local function eval_cons(run, form)
     local def = builtin(run, name)
     if def then
       if def.kind == "subr" then
-        check_arity(def, list_length(run, args))
-        return def.fn(run, eval_args(run, args))
+        check_arity(def, list_length(run, args), nil, true)
+        local argv = eval_args(run, args)
+        if def.holes then
+          check_arity(def, argv.n)
+        end
+        return def.fn(run, argv)
       end
       return call_def(run, def, eval_args(run, args))
     end
