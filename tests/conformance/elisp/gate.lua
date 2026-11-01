@@ -2,11 +2,21 @@
 -- of the Emacs data organ.elisp carries: scripts/elisp-data.el must
 -- regenerate lua/organ/elisp/data/ byte for byte, and organ's lookups
 -- must agree with Emacs's per-code-point dump.
+--
+-- Cases whose header names a `tz` run in a separate pair of processes
+-- per zone (zone.lua, started with that TZ), as the C library reads TZ
+-- once per process; the rest run here under TZ=UTC.
 
 local root = vim.fn.getcwd()
 local runner = dofile(root .. "/tests/conformance/_runner.lua")
+local area = dofile(root .. "/tests/conformance/elisp/organ.lua")
+local CASES = root .. "/tests/conformance/elisp/cases/"
 
-local ok, problems, info = runner.run("elisp")
+local ok, problems, info = runner.run("elisp", {
+  select = function(name)
+    return area.zone(CASES .. name) == nil
+  end,
+})
 if info.skip then
   io.write("conformance elisp: SKIP (" .. info.skip .. ")\n")
   os.exit(0)
@@ -209,6 +219,50 @@ local function check_data()
   vim.fn.delete(tmp, "rf")
   return files, points
 end
+
+-- Each zone's cases in a child process with TZ set to it: adds the
+-- child's counts to `info` and its problems to `problems`.
+local function run_zones()
+  local zones, seen = {}, {}
+  for _, row in ipairs(runner.manifest("elisp")) do
+    local z = area.zone(root .. "/tests/conformance/elisp/" .. row.path)
+    if z and not seen[z] then
+      seen[z] = true
+      zones[#zones + 1] = z
+    end
+  end
+  table.sort(zones)
+  for _, z in ipairs(zones) do
+    local out = vim.fn.system({
+      "env",
+      "TZ=" .. z,
+      "LC_ALL=C",
+      "timeout",
+      "-k",
+      "5",
+      "900",
+      vim.v.progpath,
+      "--headless",
+      "-l",
+      root .. "/tests/conformance/elisp/zone.lua",
+      z,
+    })
+    local cases, recorded = out:match("\nzone ok (%d+) (%d+)\n")
+    if vim.v.shell_error == 0 and cases then
+      info.cases = info.cases + tonumber(cases)
+      info.recorded = info.recorded + tonumber(recorded)
+      info.runs = info.runs + 1
+    else
+      ok = false
+      problems[#problems + 1] = string.format("TZ=%s run failed (exit %d):", z, vim.v.shell_error)
+      for line in out:gmatch("[^\n]+") do
+        problems[#problems + 1] = "  " .. line
+      end
+    end
+  end
+end
+
+run_zones()
 
 local files, points = check_data()
 

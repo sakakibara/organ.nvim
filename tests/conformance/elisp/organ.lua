@@ -2,7 +2,9 @@
 -- evaluates) each item of a case through organ.elisp and prints one
 -- line per item in the shape emacs.el prints (see NORMALIZE.md).
 
-local elisp = require("organ.elisp")
+-- Loaded by M.render, so M.parse and M.zone work before the gate sets
+-- up the runtime path.
+local elisp
 
 local M = {}
 
@@ -105,13 +107,32 @@ local function eval_item(source, ctx)
   return value_line(r.value)
 end
 
-function M.render(path)
-  local f = assert(io.open(path, "rb"))
+local function read(path)
+  local f = io.open(path, "rb")
+  if not f then
+    return nil
+  end
   local text = f:read("*a")
   f:close()
+  return text
+end
+
+--- The `tz` header of the case at `path`: the zone its run sets TZ to,
+--- nil for the UTC run (and for a missing file).
+function M.zone(path)
+  local text = read(path)
+  return text and M.parse(text).tz or nil
+end
+
+function M.render(path)
+  elisp = elisp or require("organ.elisp")
+  local text = assert(read(path))
   local header, items = M.parse(text)
   if not MODES[header.mode] then
     error("unknown mode " .. tostring(header.mode))
+  end
+  if os.getenv("TZ") ~= (header.tz or "UTC") then
+    error("case for TZ=" .. (header.tz or "UTC") .. " run with TZ=" .. tostring(os.getenv("TZ")))
   end
   local ctx = header.mode == "eval" and ctx_of(header)
   local out = {}

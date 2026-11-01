@@ -18,10 +18,11 @@
 --   signatures.tsv   expected differences of the default run
 --   signatures-<option>.tsv   expected differences of each option run
 --
--- Both sides run with TZ=UTC and LC_ALL=C; Emacs loads _collate.el
--- first, so it sorts strings the same way on every platform.  An organ error while
--- rendering becomes the output "ORGAN-ERROR: <message>", so a crash is a
--- difference like any other and needs a signature to pass.
+-- Both sides run with TZ=UTC (or the zone a run names) and LC_ALL=C;
+-- Emacs loads _collate.el first, so it sorts strings the same way on
+-- every platform.  An organ error while rendering becomes the output
+-- "ORGAN-ERROR: <message>", so a crash is a difference like any other
+-- and needs a signature to pass.
 
 local M = {}
 
@@ -92,7 +93,7 @@ local function check_manifest(area, problems)
   return cases
 end
 
-local function run_emacs(area, cases, option, problems)
+local function run_emacs(area, cases, option, problems, zone)
   local dir = root .. "/tests/conformance/" .. area
   local out_dir = vim.fn.tempname()
   vim.fn.mkdir(out_dir, "p")
@@ -106,7 +107,7 @@ local function run_emacs(area, cases, option, problems)
   )
   local cmd = {
     "env",
-    "TZ=UTC",
+    "TZ=" .. zone,
     "LC_ALL=C",
     "timeout",
     "-k",
@@ -140,7 +141,7 @@ local function run_emacs(area, cases, option, problems)
   return outputs
 end
 
-local function run_one(area, cases, option)
+local function run_one(area, cases, option, opts)
   local dir = root .. "/tests/conformance/" .. area
   local problems = {}
   local organ = dofile(dir .. "/organ.lua")
@@ -149,7 +150,7 @@ local function run_one(area, cases, option)
     or function(text)
       return text
     end
-  local emacs_out = run_emacs(area, cases, option, problems)
+  local emacs_out = run_emacs(area, cases, option, problems, opts.tz or "UTC")
   if not emacs_out then
     return problems, 0
   end
@@ -177,6 +178,15 @@ local function run_one(area, cases, option)
     end
     rows = loaded
   end
+  if opts.select then
+    local kept = {}
+    for _, r in ipairs(rows) do
+      if opts.select(r.case) then
+        kept[#kept + 1] = r
+      end
+    end
+    rows = kept
+  end
   vim.list_extend(problems, signatures.check(observed, rows))
   return problems, #rows
 end
@@ -184,7 +194,12 @@ end
 --- Run the gate for `area`: ok, the problems found, and a summary
 --- holding either `skip` (why the gate did not run), `fatal` (why it
 --- could not run), or the `cases`, `runs` and `recorded` counts.
-function M.run(area)
+--- `opts`, optional: `tz`, the zone both sides run in (default UTC;
+--- the process must already have it); `select(name)`, whether the
+--- case named `name` (and its signature rows) belong to this run.
+function M.run(area, opts)
+  opts = opts or {}
+  local zone = opts.tz or "UTC"
   vim.env.ORGAN_TEST_DB = vim.fn.tempname() .. "-" .. area .. ".db"
   dofile(root .. "/tests/_bootstrap.lua")
   if vim.fn.executable("emacs") ~= 1 then
@@ -194,12 +209,21 @@ function M.run(area)
     end
     return true, {}, { skip = "emacs not installed" }
   end
-  if os.getenv("TZ") ~= "UTC" or os.getenv("LC_ALL") ~= "C" then
-    local msg = "run with TZ=UTC LC_ALL=C, as `make conformance` does"
+  if os.getenv("TZ") ~= zone or os.getenv("LC_ALL") ~= "C" then
+    local msg = "run with TZ=" .. zone .. " LC_ALL=C, as `make conformance` does"
     return false, { msg }, { fatal = msg }
   end
   local problems = {}
   local cases = check_manifest(area, problems)
+  if opts.select then
+    local kept = {}
+    for _, c in ipairs(cases) do
+      if opts.select(vim.fn.fnamemodify(c, ":t")) then
+        kept[#kept + 1] = c
+      end
+    end
+    cases = kept
+  end
   if #cases == 0 then
     problems[#problems + 1] = "no cases"
   end
@@ -211,7 +235,7 @@ function M.run(area)
   local recorded = 0
   if #problems == 0 then
     for _, option in ipairs(runs) do
-      local p, n = run_one(area, cases, option or nil)
+      local p, n = run_one(area, cases, option or nil, opts)
       recorded = recorded + n
       for _, msg in ipairs(p) do
         problems[#problems + 1] = (option and ("[" .. option .. "] ") or "") .. msg

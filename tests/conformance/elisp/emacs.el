@@ -126,6 +126,9 @@ and `entry' bound dynamically around it, `case-fold-search' from its
          lines)
     (unless (member mode conformance-elisp-modes)
       (error "conformance: %s: unknown mode %s" file mode))
+    (unless (equal (getenv "TZ") (or (cdr (assoc "tz" header)) "UTC"))
+      (error "conformance: %s: case for TZ=%s run with TZ=%s"
+             file (or (cdr (assoc "tz" header)) "UTC") (getenv "TZ")))
     (with-temp-buffer
       (org-mode)
       (dolist (item (cdr parsed))

@@ -20,6 +20,7 @@ The first block is the header: lines starting with `;`, of which
 | `case_fold` | `eval` mode: `t` or `nil`, the `case-fold-search` the evaluation sees (organ's `ctx.case_fold`). |
 | `date` | `eval` mode, optional: a Lisp form, read, bound dynamically as `date` (organ's `ctx.variables.date`). |
 | `entry` | `eval` mode, optional: the rest of the line, as a string bound dynamically as `entry`. |
+| `tz` | Optional: the TZ setting the case runs under. Without it the case runs under `TZ=UTC` with the rest of the corpus. |
 
 Every further block is one item: its lines, joined with newlines, are the
 source string. Leading lines of the form `; naive: LINE` are not part of
@@ -58,7 +59,13 @@ on both sides.
   Reading from a string gives `invalid-read-syntax` data without the line
   and column a buffer source adds, as consumers read strings too.
 - `_collate.el` is loaded, as on every gate. `_clock.el` is not: its pin
-  changes the shape of Emacs's time values.
+  changes the shape of Emacs's time values, so the current time is tested
+  for shape only.
+- Cases with a `tz` header run apart, one pair of processes per zone:
+  `gate.lua` starts `zone.lua` with `TZ` set to the zone, and that run's
+  Emacs and organ both read it, as the C library reads `TZ` once per
+  process. Each side checks that `TZ` matches the case's zone (`UTC` for
+  the rest), and each run takes the signature rows of its own cases.
 - `eval` mode evaluates each item with `(eval FORM LEXICAL)`, LEXICAL nil
   for the `table`, `diary` and `link` profiles and t for `prefix`,
   `capture` and `var`, with `case-fold-search` bound to the header's
@@ -104,7 +111,25 @@ with a sign (`nan`); a character outside Unicode scalar values in a
 string (`charset`); `truncate-string-to-width` with a non-string
 ELLIPSIS and Emacs's "Format specifier doesn't match argument type"
 message (`locale`); the `length` of a closure (`unprintable`); and `eq`
-of strings built separately (`eq-identity`). Lists and sequences add:
+of strings built separately (`eq-identity`). Time adds `locale` for what Emacs takes from the C
+library's locale or where glibc and macOS's C library disagree: day and
+month names, AM/PM and the locale's date and time formats
+(`%a %A %b %B %h %c %x %X %p %P %r` and the `E` forms that reach the
+C library), the abbreviation of the UTC zone (`GMT` on glibc), a
+non-ASCII format string, a zone setting that is neither a zoneinfo file
+nor a POSIX string with explicit rules (or one whose names or offsets
+one of them rejects), a POSIX rule before 1970 (or before its first
+change in 1970, south of the equator) or after 2569, a local
+time in a daylight saving overlap without a DST flag, or in a gap or
+overlap whose sides share their flag (gnulib's mktime answers from its
+last call), a
+DST flag no time within a year has (glibc moves the time an hour back),
+and times within days of the end of the representable range; `precision`
+for a space-padded signed number wider than its width (Emacs aborts);
+`eq-identity` for a time comparison or `time-subtract` of two boxes that
+could be one object; and `free-variable` for the custom formats
+`org-time-stamp-format` reads when CUSTOM is non-nil. Lists and
+sequences add:
 `nconc` that would make a list reach itself through its cdrs or its
 elements (organ keeps lists and vectors acyclic), `mapconcat` over a
 list its function shortens (Emacs reads results it never stored and

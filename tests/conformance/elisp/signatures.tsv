@@ -90,3 +90,10 @@ eval-lists-lexical.el	R6-OUT	KEEP	1	 => t\n-=> (#[(x) (x) (t)])\n+REFUSED unprin
 eval-lists-lexical.el	R6-OUT	KEEP	1	 => t\n-=> ((x) (x) (t))\n-=> (x)\n+REFUSED unprintable elements of a function\n+REFUSED unprintable aref of a function
 eval-mapping.el	R6-OUT	KEEP	1	 => (97 98)\n-=> (1 . #0)\n+REFUSED cycle nconc
 eval-sort.el	R6-OUT	KEEP	1	 !! (error Maximum depth exceeded in comparison)\n-=> (0.0e+NaN 1)\n-=> (#[(x) (x) nil] #[(x) (x) nil])\n+REFUSED nan value<\n+REFUSED unprintable value< of a function
+eval-decode-time.el	R6-OUT	KEEP	1	 => (0 0 20 29 6 1970 1 t -14400)\n-=> (0 0 19 31 12 1959 4 nil -18000)\n-=> (0 0 0 1 1 1970 4 nil 0)\n+REFUSED locale time zone rule in 1960\n+REFUSED locale TZ garbage
+eval-encode-time.el	R6-OUT	KEEP	1	 !! (error Invalid time zone specification foo)\n-=> (26002 128)\n+REFUSED locale TZ garbage
+eval-format-time.el	R6-OUT	KEEP	1	 !! (wrong-type-argument sequencep x)\n-=> "Thu Jan"\n-=> "Thursday January Jan AM am 12:00:00 AM Thu Jan  1 00:00:00 1970 01/01/70 00:00:00"\n-=> "Thu Jan  1 00:00:00 1970 19 01/01/70 00:00:00 1970 70 Jan January"\n+REFUSED locale format-time-string %a\n+REFUSED locale format-time-string %A\n+REFUSED locale format-time-string %c
+eval-format-time.el	R6-OUT	KEEP	1	 => "+0000"\n-=> "\\303\\251 1970"\n-=> "1970"\n-=> "1970"\n-=> "1970"\n+REFUSED locale format-time-string of non-ASCII text\n+REFUSED locale TZ garbage\n+REFUSED locale zone offset 90000\n+REFUSED locale zone name XY
+eval-org-time.el	R6-OUT	KEEP	1	 => t\n-=> "<%m/%d/%y %a>"\n+REFUSED free-variable org-timestamp-custom-formats
+eval-time-values.el	R6-OUT	KEEP	1	 => -1.0e+INF\n-=> 0.0e+NaN\n+REFUSED nan
+eval-time-values.el	R6-OUT	KEEP	1	 => t\n-!! (error Invalid time specification)\n+REFUSED eq-identity time comparison
