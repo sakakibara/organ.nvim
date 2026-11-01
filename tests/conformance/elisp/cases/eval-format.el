@@ -1,7 +1,7 @@
 ; profile: table
 ; mode: eval
 ; case_fold: nil
-; format: every directive, flags, width, precision and field numbers, integers of every size, floats, and the error data; error and user-error format their message.
+; format: every directive, flags, width, precision and field numbers, integers of every size, floats, and the error data; error and user-error format their message; forms whose text the platform's C library decides (a NaN with a sign, %f of an integer a double cannot hold) are checked under stringp.
 
 (format "abc")
 
@@ -98,7 +98,7 @@
 
 (format "%d" 0.0e+NaN)
 
-(format "%d" -0.0e+NaN)
+(stringp (format "%d" -0.0e+NaN))
 
 (format "%x|%x|%x" -0.5 1.0e20 -1.0e20)
 
@@ -138,13 +138,13 @@
 
 (format "%010f" 0.0e+NaN)
 
-(format "%f" -0.0e+NaN)
+(stringp (format "%f" -0.0e+NaN))
 
-(format "%+f" 0.0e+NaN)
+(stringp (format "%+f" 0.0e+NaN))
 
 (format "%.2f|%f" 1180591620717411303424 9007199254740992)
 
-(format "%f" 9007199254740993)
+(stringp (format "%f" 9007199254740993))
 
 (format "%d" "a")
 
