@@ -76,6 +76,7 @@ each item is (NAIVE . SOURCE)."
               ((vectorp v) (setq todo (append v todo)))
               ((or (subrp v) (byte-code-function-p v) (interpreted-function-p v))
                (setq found t))
+              ((and (floatp v) (isnan v)) (setq found t))
               ((and (stringp v) (next-property-change 0 v)) (setq found t))
               ((and (stringp v) (text-properties-at 0 v)) (setq found t)))))
     found))

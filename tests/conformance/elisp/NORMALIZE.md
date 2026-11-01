@@ -37,7 +37,8 @@ One line per item:
 - `!! TEXT`: Emacs signalled, and `TEXT` is `(format "%s" err)`. organ
   prints the same for a signal.
 - `!! SYMBOL <unprintable>`: the signal's data holds a value organ does
-  not print (a function, a subr, a string with text properties). organ
+  not print (a function, a subr, a string with text properties, a NaN,
+  whose sign and payload organ does not keep). organ
   prints this when its result has no text; Emacs prints it when it finds
   such a value in the data, so the two sides agree on which data is
   unprintable rather than organ assuming it.

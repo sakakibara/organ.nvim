@@ -86,6 +86,9 @@ local function read_item(source)
   return value_line(r.value)
 end
 
+-- The ctx of one item of a case with `header`: `date` is read afresh
+-- for each item, as emacs.el reads it, so a form that changes it
+-- destructively does not reach the next item.
 local function ctx_of(header)
   local variables = {}
   if header.date then
@@ -134,10 +137,11 @@ function M.render(path)
   if os.getenv("TZ") ~= (header.tz or "UTC") then
     error("case for TZ=" .. (header.tz or "UTC") .. " run with TZ=" .. tostring(os.getenv("TZ")))
   end
-  local ctx = header.mode == "eval" and ctx_of(header)
   local out = {}
   for _, item in ipairs(items) do
-    out[#out + 1] = (ctx and eval_item(item.source, ctx) or read_item(item.source)) .. "\n"
+    local line = header.mode == "eval" and eval_item(item.source, ctx_of(header))
+      or read_item(item.source)
+    out[#out + 1] = line .. "\n"
   end
   return table.concat(out)
 end
