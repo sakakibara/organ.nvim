@@ -75,14 +75,6 @@ local Q_FUNCALL = intern("funcall")
 
 local TOP = { top = true }
 
-local CODES = {}
-for code in
-  ([[syntax function special free-variable setq-global regexp nan unprintable eq-identity
-  locale width case-special cycle charset holidays precision profile internal]]):gmatch("%S+")
-do
-  CODES[code] = true
-end
-
 local SPECIAL = {}
 for _, name in ipairs(SPECIALS) do
   SPECIAL[name] = true
@@ -169,10 +161,10 @@ end
 local function list_length(run, x)
   local n, t = 0, x
   while is_cons(t) do
+    run:step(1)
     n = n + 1
     t = t.cdr
   end
-  run:step(n)
   if t ~= NIL then
     wta("listp", t)
   end
@@ -190,7 +182,7 @@ end
 
 local function as_value(run, x)
   if type(x) == "table" and VALUE_KINDS[x.k] then
-    return x
+    return convert.check_value(run, x)
   end
   return convert.to_value(run, x)
 end
@@ -457,20 +449,33 @@ local function cx_of(run)
       signal_value(run, as_value(run, symbol), data == nil and NIL or as_value(run, data))
     end,
     refuse = function(code, detail)
-      if not CODES[code] then
+      if not R.CODES[code] then
         R.refuse("internal", "unknown refusal code " .. tostring(code))
       end
       R.refuse(code, detail)
     end,
     charge = function(steps, bytes)
-      run:step(steps or 0)
-      run:charge(bytes or 0)
+      steps, bytes = steps or 0, bytes or 0
+      for _, n in ipairs({ steps, bytes }) do
+        if type(n) ~= "number" or not (n >= 0 and n < math.huge) then
+          R.refuse("internal", "cx.charge: " .. tostring(n))
+        end
+      end
+      run:step(steps)
+      run:charge(bytes)
     end,
     eval = function(form)
-      local env = run.env
+      run:check_nested()
+      local env, depth, count = run.env, run.depth, run.spec.n
       run.env = run.lexical and TOP or nil
-      local v = eval(run, as_value(run, form))
-      run.env = env
+      local ok, v = pcall(function()
+        return eval(run, as_value(run, form))
+      end)
+      run.env, run.depth = env, depth
+      unbind_to(run, count)
+      if not ok then
+        error(v, 0)
+      end
       return v
     end,
   }
@@ -486,10 +491,17 @@ local function call_consumer(run, spec, argv)
   run:enter()
   local env = run.env
   local t0 = hrtime()
-  local v = spec.fn(argv, cx_of(run))
+  local ok, v = pcall(spec.fn, argv, cx_of(run))
   if spec.timeout then
     run.t0 = run.t0 + (hrtime() - t0)
   end
+  if not ok then
+    if type(v) == "table" and v.elisp and not errors.valid(v) then
+      R.refuse("internal", "consumer raised an invalid " .. tostring(v.elisp))
+    end
+    error(v, 0)
+  end
+  run:check_nested()
   run:check_time()
   run.env = env
   run:leave()
@@ -1799,6 +1811,9 @@ function M.call(run, name, args)
   M.setup(run)
   if type(name) ~= "string" or type(args) ~= "table" then
     R.refuse("internal", "call: name and args")
+  end
+  if not convert.is_array(args) then
+    R.refuse("internal", "call: args is not an array")
   end
   local def = builtin(run, name)
   if not def then

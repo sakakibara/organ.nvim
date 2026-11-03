@@ -1141,6 +1141,298 @@ do
   check("an overlap with a DST flag", e.ok, show(e))
 end
 
+-- an entry point called while a call runs (from a consumer function)
+-- is nested in that call: it shares its caps, budget and depth
+
+do
+  local function internal(r)
+    return r.ok == false and r.kind == "refused" and r.code == "internal"
+  end
+  local levels = 0
+  local ctx
+  ctx = {
+    functions = {
+      f = {
+        fn = function()
+          levels = levels + 1
+          local r = elisp.eval_string("(f)", ctx)
+          return r.ok and r.value or 0
+        end,
+      },
+    },
+  }
+  local r = ev("(f)", ctx)
+  check(
+    ("re-entering recursion ends in the depth limit (%d levels)"):format(levels),
+    r.kind == "limit" and r.cap == "depth" and levels < 400,
+    show(r)
+  )
+
+  local inner
+  local inner_budget = {}
+  r = ev("(progn (f) 1)", {
+    caps = { steps = 5000 },
+    functions = {
+      f = {
+        fn = function()
+          inner = elisp.eval_string("(while t)", { budget = inner_budget })
+          return 0
+        end,
+      },
+    },
+  })
+  check(
+    "a nested call gets only the caller's remaining steps, and its limit stays with the caller",
+    inner
+      and inner.kind == "limit"
+      and inner.cap == "steps"
+      and inner_budget.steps <= 5000
+      and r.kind == "limit"
+      and r.cap == "steps",
+    show(inner) .. " / " .. show(r) .. " " .. vim.inspect(inner_budget)
+  )
+
+  local budget = {}
+  local shared = { budget = budget }
+  shared.functions = {
+    f = {
+      fn = function()
+        return elisp.eval_string("(let ((i 0)) (while (< i 100) (setq i (1+ i))) i)", shared).value
+      end,
+    },
+  }
+  r = ev("(f)", shared)
+  local alone = {}
+  ev("(let ((i 0)) (while (< i 100) (setq i (1+ i))) i)", { budget = alone })
+  check(
+    "a nested call charges a budget it shares with its caller once",
+    r.ok and r.value == 100 and budget.steps < alone.steps + 2000,
+    show(r) .. " " .. vim.inspect(budget) .. " " .. vim.inspect(alone)
+  )
+
+  -- coroutine.yield from a consumer function
+  budget = {}
+  r = ev("(+ 1 (f))", {
+    budget = budget,
+    functions = {
+      f = {
+        fn = function()
+          coroutine.yield(true, { ok = true, value = 99 })
+        end,
+      },
+    },
+  })
+  check(
+    "a consumer function that yields gives refused internal, charged",
+    internal(r) and (budget.steps or 0) >= 1000,
+    show(r) .. " " .. vim.inspect(budget)
+  )
+  r = ev("(+ 1 2)")
+  check("an entry after a yielding consumer is not nested in it", r.ok and r.value == 3, show(r))
+
+  -- cx.eval unwinds its bindings when the consumer catches its error
+  local catching = {
+    fn = function(_, cx)
+      pcall(cx.eval, read_value('(let ((x 2) (case-fold-search t)) (error "boom"))'))
+      return 0
+    end,
+  }
+  for _, profile in ipairs({ "table", "var" }) do
+    r = ev("(let ((x 1) (case-fold-search nil)) (f) (list x case-fold-search))", {
+      profile = profile,
+      functions = { f = catching },
+    })
+    check(
+      "cx.eval unwinds let bindings when its error is caught (" .. profile .. ")",
+      r.ok and printed_of(r.value) == "(1 nil)",
+      show(r)
+    )
+  end
+  r = ev("(let ((i 0)) (while (< i 150) (f) (setq i (1+ i))) i)", {
+    caps = { depth = 20 },
+    functions = { f = catching },
+  })
+  check("cx.eval restores the depth when its error is caught", r.ok and r.value == 150, show(r))
+
+  -- misuse by a consumer or a ctx is refused internal
+  local function consumer(fn)
+    return { functions = { f = { fn = fn } } }
+  end
+  local misuse = {
+    {
+      "a limit of an unknown cap",
+      "(f)",
+      consumer(function()
+        error({ elisp = "limit", cap = "bogus" })
+      end),
+    },
+    {
+      "a refusal with an unknown code",
+      "(f)",
+      consumer(function()
+        error({ elisp = "refused", code = "made-up" })
+      end),
+    },
+    {
+      "a signal of an unknown error symbol",
+      "(condition-case nil (f) (error 1))",
+      consumer(function()
+        error({
+          elisp = "signal",
+          symbol = { k = "sym", name = { k = "str", s = "nope" } },
+          data = elisp.NIL,
+        })
+      end),
+    },
+    {
+      "a signal with malformed data, even inside condition-case",
+      "(condition-case e (f) (error e))",
+      consumer(function()
+        error({ elisp = "signal", symbol = elisp.read("error").value, data = {} })
+      end),
+    },
+    {
+      "a limit of an unknown cap raised by ctx.now",
+      "(current-time)",
+      {
+        now = function()
+          error({ elisp = "limit", cap = "bogus" })
+        end,
+      },
+    },
+    {
+      "a negative charge",
+      "(progn (f) (while t))",
+      consumer(function(_, cx)
+        cx.charge(-2e7, 0)
+        return 1
+      end),
+    },
+    {
+      "a NaN charge",
+      "(f)",
+      consumer(function(_, cx)
+        cx.charge(0 / 0)
+        return 1
+      end),
+    },
+    {
+      "a cyclic list",
+      "(length (f))",
+      consumer(function()
+        local c = { k = "cons", car = 1 }
+        c.cdr = c
+        return c
+      end),
+    },
+    {
+      "a cons without a car",
+      "(car (f))",
+      consumer(function()
+        return { k = "cons", cdr = elisp.NIL }
+      end),
+    },
+    { "a NaN cap", "(while t)", { caps = { steps = 0 / 0 } } },
+    { "a negative cap", "(+ 1 2)", { caps = { steps = -1 } } },
+    { "a cap that is not a number", "(+ 1 2)", { caps = { depth = "9" } } },
+    { "a NaN budget", "(while t)", { budget = { steps = 0 / 0 } } },
+    { "a negative budget", "(while t)", { budget = { steps = -3e7 } } },
+    { "an infinite budget", "(+ 1 2)", { budget = { time = math.huge } } },
+    {
+      "ctx.now with nanoseconds past 1e9",
+      "(current-time)",
+      {
+        now = function()
+          return 1, 2e9
+        end,
+      },
+    },
+    {
+      "ctx.now with a fraction",
+      "(current-time)",
+      {
+        now = function()
+          return 1.5, 0
+        end,
+      },
+    },
+    { "ctx.now that is not a function", "(current-time)", { now = 5 } },
+  }
+  for _, m in ipairs(misuse) do
+    local t0 = vim.uv.hrtime()
+    r = ev(m[2], m[3])
+    local ms = (vim.uv.hrtime() - t0) / 1e6
+    check(m[1] .. " is refused internal", internal(r) and ms < 2000, show(r))
+  end
+  r = elisp.eval_string("(+ 1 2)", { caps = { steps = math.huge } })
+  check("an infinite cap clamps to the default", r.ok and r.value == 3, show(r))
+  r = elisp.call("list", { 1, nil, 3 })
+  check("call with an args array with holes is refused internal", internal(r), show(r))
+  for _, pos in ipairs({ 1.5, 0, 5, "1" }) do
+    r = elisp.scan_sexp("(a)", pos, "elisp")
+    check("scan_sexp at position " .. tostring(pos) .. " is refused internal", internal(r), show(r))
+    r = elisp.read("(a)", pos)
+    check("read at position " .. tostring(pos) .. " is refused internal", internal(r), show(r))
+  end
+  r = elisp.read("(a)", 4)
+  check(
+    "read at the end of the text is end-of-file",
+    r.kind == "signal" and r.symbol == "end-of-file",
+    show(r)
+  )
+end
+
+-- error text: error_message obeys the string cap, and a signal's text is
+-- printed under the call's caps and budget
+
+do
+  local e = ev("(signal 'error (list (make-string 600000 ?a) (make-string 600000 ?a)))")
+  local m = elisp.error_message(e)
+  check(
+    "error_message longer than the string cap is a string limit",
+    e.kind == "signal" and m.ok == false and m.kind == "limit" and m.cap == "string",
+    show(m)
+  )
+  local budget = {}
+  e = ev("(signal 'error (number-sequence 1 3000))", { caps = { steps = 5000 }, budget = budget })
+  check(
+    "a signal's text that would pass the call's step cap is not printed",
+    e.kind == "signal" and e.text == nil and budget.steps > 5000,
+    show(e) .. " " .. vim.inspect(budget)
+  )
+  e = ev("(signal 'error (number-sequence 1 3))", { caps = { steps = 5000 } })
+  check("a short signal's text is printed", e.text == "(error 1 2 3)", show(e))
+end
+
+-- sort writes back along the list as it is after sorting, and refuses
+-- where Emacs would read past its array or a list would reach itself
+
+do
+  local cases = {
+    {
+      "a predicate that lengthens the list",
+      "(let ((l (list 3 2 1)) (m (list 7 8)) (done nil)) (sort l (lambda (a b) (unless done (setq done t) (nconc l m)) (< a b))))",
+    },
+    {
+      "a predicate that makes an element hold the list",
+      "(let* ((e (list 9)) (l (list e 1)) (done nil)) (sort l (lambda (a b) (unless done (setq done t) (nconc e (list (cdr l)))) (eql a 1))) 0)",
+    },
+    {
+      "an element sharing the list's tail",
+      "(let* ((tl (list 1)) (l (cons tl tl))) (sort l (lambda (a b) (consp b))) 0)",
+    },
+  }
+  for _, c in ipairs(cases) do
+    local r = ev(c[2])
+    check("sort: " .. c[1] .. " refuses cycle", r.kind == "refused" and r.code == "cycle", show(r))
+  end
+  check(
+    "sort: a predicate that shortens the list writes what is left",
+    ev_printed("(let ((l (list 3 2 1 5 4))) (list (sort l (lambda (a b) (delq 1 l) (< a b))) l))")
+      == "((1 2 3 4) (1 2 3 4))"
+  )
+end
+
 if fails > 0 then
   print(("\n%d check(s) failed"):format(fails))
   os.exit(1)

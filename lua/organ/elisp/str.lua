@@ -98,10 +98,10 @@ end
 local function list_length(run, x)
   local n, t = 0, x
   while is_cons(t) do
+    run:step(1)
     n = n + 1
     t = t.cdr
   end
-  run:step(n)
   if t ~= NIL then
     wta("listp", t)
   end
@@ -865,6 +865,7 @@ local function case_string(run, s, kind)
   local out = {}
   local inword = false
   for i = 1, n do
+    run:step(1)
     local c = codes[i]
     local was = inword
     inword = is_word(c)
@@ -894,7 +895,6 @@ local function case_string(run, s, kind)
     end
     out[i] = piece or V.utf8_char(c)
   end
-  work(run, #s)
   return table.concat(out)
 end
 
@@ -1035,20 +1035,20 @@ end)
 --- lisp_string_width of the code points codes[f+1 .. t]: their width,
 --- refusing `width' for a character whose width is not fixed across
 --- users (and, when `auto_comp`, one automatic composition may join).
-local function codes_width(run, codes, f, t, props, auto_comp)
-  if props then
-    R.refuse("width", "text properties")
+local function codes_width(run, codes, f, t, s, auto_comp)
+  if s.props then
+    R.refuse("width", "text properties", { s })
   end
   local w = 0
   for i = f + 1, t do
+    run:step(1)
     local c = codes[i]
     local cw = chars.fixed_width(c)
     if not cw or (auto_comp and chars.composes(c)) then
-      R.refuse("width", string.format("U+%04X", c))
+      R.refuse("width", string.format("U+%04X", c), { c })
     end
     w = w + cw
   end
-  run:step(1 + floor((t - f) / 64))
   return w
 end
 
@@ -1057,7 +1057,44 @@ local function string_width(run, s, from, to)
   check_string(s)
   local codes, n = codes_of(run, s.s)
   local f, t = subarray(s, from, to, n)
-  return codes_width(run, codes, f, t, s.props, true)
+  return codes_width(run, codes, f, t, s, true)
+end
+
+-- The least width a character whose width varies can have: TAB is at
+-- least one column, another control character two (^X), and a CJK
+-- language environment only widens.
+local function least_width(c)
+  if c == 9 then
+    return 1
+  elseif c < 32 or c == 127 then
+    return 2
+  end
+  return chars.char_width(c)
+end
+
+--- string-width of string value `s` when every character's width is
+--- fixed, else a lower bound and the first character whose width varies.
+local function string_width_floor(run, s)
+  check_string(s)
+  if s.props then
+    R.refuse("width", "text properties", { s })
+  end
+  local codes, n = codes_of(run, s.s)
+  local w, varies = 0, nil
+  for i = 1, n do
+    run:step(1)
+    local c = codes[i]
+    local cw = chars.fixed_width(c)
+    if chars.composes(c) then
+      R.refuse("width", string.format("U+%04X", c), { c })
+    elseif cw then
+      w = w + cw
+    else
+      w = w + least_width(c)
+      varies = varies or c
+    end
+  end
+  return w, varies
 end
 
 define("string-width", function(run, argv)
@@ -1095,8 +1132,10 @@ define("truncate-string-to-width", function(run, argv)
     R.refuse("locale", "truncate-string-ellipsis")
   end
   local str_len = length(run, str)
-  local str_width = string_width(run, str, NIL, NIL)
-  local ellipsis_width = ellipsis ~= NIL and string_width(run, ellipsis, NIL, NIL) or 0
+  local str_width, varies = string_width_floor(run, str)
+  local function width_varies()
+    R.refuse("width", string.format("U+%04X", varies), { varies })
+  end
   local codes = codes_of(run, str.s)
   local idx, column = 0, 0
   local head_pad, tail_pad = V.str(""), V.str("")
@@ -1104,7 +1143,7 @@ define("truncate-string-to-width", function(run, argv)
   local function char_width_at(i)
     local w = chars.fixed_width(codes[i + 1])
     if not w then
-      R.refuse("width", string.format("U+%04X", codes[i + 1]))
+      R.refuse("width", string.format("U+%04X", codes[i + 1]), { codes[i + 1] })
     end
     return w
   end
@@ -1127,7 +1166,19 @@ define("truncate-string-to-width", function(run, argv)
   end
   local from_idx = idx
   if true_of(call(run, ">=", end_col, column)) then
-    if lt(run, end_col, str_width) and true_of(call(run, ">", str_width, ellipsis_width)) then
+    local ellipsis_width = 0
+    local narrower = lt(run, end_col, str_width)
+    if varies and not narrower then
+      width_varies()
+    end
+    if narrower then
+      ellipsis_width = ellipsis ~= NIL and string_width(run, ellipsis, NIL, NIL) or 0
+      narrower = true_of(call(run, ">", str_width, ellipsis_width))
+      if varies and not narrower then
+        width_varies()
+      end
+    end
+    if narrower then
       end_col = call(run, "-", end_col, ellipsis_width)
     else
       ellipsis = V.str("")

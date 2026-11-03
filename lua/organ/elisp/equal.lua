@@ -5,7 +5,7 @@
 -- Two distinct boxes (strings, floats, vectors, integers beyond
 -- most-positive-fixnum) that could be one object in Emacs refuse
 -- `eq-identity'; boxes that differ in contents are distinct in Emacs
--- too.  A NaN compared by contents refuses `nan', as organ does not
+-- too.  Two NaNs compared by contents refuse `nan', as organ does not
 -- keep NaN signs and payloads; two distinct closures refuse
 -- `unprintable'.  `equal' follows fns.c's internal_equal: past depth
 -- 10 it remembers the pairs it has seen and past 200 it signals.
@@ -27,8 +27,8 @@ local function signbit(x)
 end
 
 local function same_float(x, y)
-  if x ~= x or y ~= y then
-    R.refuse("nan")
+  if x ~= x and y ~= y then
+    R.refuse("nan", nil, { x, y })
   end
   return x == y and signbit(x) == signbit(y)
 end
@@ -79,7 +79,7 @@ M.eq3 = eq3
 function M.eq(run, a, b)
   local r = eq3(run, a, b)
   if r == "maybe" then
-    R.refuse("eq-identity")
+    R.refuse("eq-identity", nil, { a, b })
   end
   return r
 end

@@ -14,6 +14,14 @@ M.DEFAULTS = {
   time = 1000,
 }
 
+M.CODES = {}
+for code in
+  ([[syntax function special free-variable setq-global regexp nan unprintable eq-identity
+  locale width case-special cycle charset holidays precision profile internal]]):gmatch("%S+")
+do
+  M.CODES[code] = true
+end
+
 local hrtime = vim.uv.hrtime
 
 --- Signal (SYMBOL . DATA); `obj` is the error object itself when the
@@ -22,6 +30,9 @@ function M.signal(symbol, data, obj)
   error({ elisp = "signal", symbol = symbol, data = data, obj = obj }, 0)
 end
 
+--- Refuse with `code`.  A refusal over particular values (a NaN, a
+--- character, two boxes) passes them as a third argument, which the
+--- conformance trace records.
 function M.refuse(code, detail)
   error({ elisp = "refused", code = code, detail = detail }, 0)
 end
@@ -33,29 +44,82 @@ end
 local Run = {}
 Run.__index = Run
 
---- State for one call under `ctx` (its `caps` and `budget`).
-function M.new(ctx)
-  ctx = ctx or {}
-  local caps = {}
-  local lower = ctx.caps or {}
-  for name, default in pairs(M.DEFAULTS) do
-    local v = lower[name]
-    caps[name] = (type(v) == "number" and v < default) and v or default
+local function bad(what, v)
+  M.refuse("internal", ("%s: %s"):format(what, tostring(v)))
+end
+
+local function cap_value(name, v, default)
+  if v == nil then
+    return default
+  elseif type(v) ~= "number" or v ~= v or v < 0 then
+    bad("caps." .. name, v)
   end
+  return math.min(v, default)
+end
+
+local function used_value(budget, name)
+  local v = budget[name]
+  if v == nil then
+    return 0
+  elseif type(v) ~= "number" or v ~= v or v < 0 or v == math.huge then
+    bad("budget." .. name, v)
+  end
+  return v
+end
+
+--- State for one call under `ctx` (its `caps` and `budget`).  Under
+--- `parent`, the run of a call still in progress, the call is nested:
+--- it gets at most the parent's remaining steps, alloc and time and the
+--- parent's caps, and its depth continues the parent's.
+function M.new(ctx, parent)
+  ctx = ctx or {}
+  if type(ctx) ~= "table" then
+    bad("ctx", ctx)
+  end
+  local lower = ctx.caps or {}
   local budget = ctx.budget
+  if type(lower) ~= "table" then
+    bad("caps", lower)
+  elseif budget ~= nil and type(budget) ~= "table" then
+    bad("budget", budget)
+  end
+  local caps = {}
+  for name, default in pairs(M.DEFAULTS) do
+    caps[name] = cap_value(name, lower[name], parent and parent.caps[name] or default)
+  end
   local used = budget or {}
+  local t0 = hrtime()
+  local steps_lim = caps.steps - used_value(used, "steps")
+  local alloc_lim = caps.alloc - used_value(used, "alloc")
+  local time_lim = (caps.time - used_value(used, "time")) * 1e6
+  local depth = 0
+  if parent then
+    steps_lim = math.min(steps_lim, parent.steps_lim - parent.steps)
+    alloc_lim = math.min(alloc_lim, parent.alloc_lim - parent.alloc)
+    time_lim = math.min(time_lim, parent.time_lim - (t0 - parent.t0))
+    depth = parent.depth
+    local p = parent
+    while p and budget do
+      if p.ctx.budget == budget then
+        budget = nil
+      end
+      p = p.parent
+    end
+  end
   return setmetatable({
     ctx = ctx,
     caps = caps,
     budget = budget,
+    parent = parent,
     steps = 0,
     alloc = 0,
-    depth = 0,
+    depth = depth,
+    depth0 = depth,
     tick = 0,
-    t0 = hrtime(),
-    steps_lim = caps.steps - (used.steps or 0),
-    alloc_lim = caps.alloc - (used.alloc or 0),
-    time_lim = (caps.time - (used.time or 0)) * 1e6,
+    t0 = t0,
+    steps_lim = steps_lim,
+    alloc_lim = alloc_lim,
+    time_lim = time_lim,
   }, Run)
 end
 
@@ -109,13 +173,32 @@ function Run:check_list(n)
   end
 end
 
---- Add this call's use to `ctx.budget`.
-function Run:settle()
+--- Add this call's use to `ctx.budget` (unless an enclosing call
+--- charges the same budget) and to the parent's counters; a limit
+--- `cap` the call hit stays with the parent.
+function Run:settle(cap)
+  if self.settled then
+    return
+  end
+  self.settled = true
   local b = self.budget
   if b then
     b.steps = (b.steps or 0) + self.steps
     b.alloc = (b.alloc or 0) + self.alloc
     b.time = (b.time or 0) + (hrtime() - self.t0) / 1e6
+  end
+  local p = self.parent
+  if p then
+    p.steps = p.steps + self.steps
+    p.alloc = p.alloc + self.alloc
+    p.limited = p.limited or cap
+  end
+end
+
+--- Raise the limit a nested call hit, once control is back in this run.
+function Run:check_nested()
+  if self.limited then
+    M.limit(self.limited)
   end
 end
 

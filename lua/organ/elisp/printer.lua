@@ -26,7 +26,7 @@ local Q_ERROR = V.intern("error")
 --- below DBL_MIN) that reads back as `x`, made to read as a float.
 function M.float_string(x)
   if x ~= x then
-    R.refuse("nan")
+    R.refuse("nan", nil, { x })
   elseif x == math.huge then
     return "1.0e+INF"
   elseif x == -math.huge then

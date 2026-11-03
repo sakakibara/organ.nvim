@@ -417,6 +417,62 @@ limited("time arithmetic in a loop", "steps", function()
   return ev("(while t (time-add 1 2) (time-less-p '(1 . 3) '(2 . 5)) (decode-time 0 t))")
 end)
 
+-- builtins that loop over a long string are charged per character or
+-- directive, so the step cap stops them, not the time backstop
+
+do
+  local function doubled(s, k)
+    return ('(let ((s "%s") (i 0)) (while (< i %d) (setq s (concat s s) i (1+ i))) s)'):format(s, k)
+  end
+  local loops = {
+    { "format-time-string of %% x 2^19", "(format-time-string " .. doubled("%%", 19) .. " 0 t)" },
+    { "format-time-string of %T x 2^17", "(format-time-string " .. doubled("%T", 17) .. " 0 t)" },
+    { "format-time-string of %Y x 2^18", "(format-time-string " .. doubled("%Y", 18) .. " 0 t)" },
+    { "string-width of 1 MiB", "(string-width " .. doubled("a", 20) .. ")" },
+    { "upcase of 1 MiB", "(upcase " .. doubled("a", 20) .. ")" },
+    { "capitalize of 1 MiB", "(capitalize " .. doubled("a", 20) .. ")" },
+    {
+      "truncate-string-to-width of 1 MiB",
+      "(truncate-string-to-width " .. doubled("a", 20) .. " 1000000)",
+    },
+    { "format padding of 1 MiB", '(format "%-1048575s" ' .. doubled("a", 19) .. ")" },
+  }
+  for _, l in ipairs(loops) do
+    limited(l[1], "steps", function()
+      return ev(l[2])
+    end)
+  end
+end
+
+limited("re-entering an entry point from a consumer function", "depth", function()
+  local ctx
+  ctx = {
+    functions = {
+      f = {
+        fn = function()
+          local r = elisp.eval_string("(f)", ctx)
+          return r.ok and r.value or 0
+        end,
+      },
+    },
+  }
+  return ev("(f)", ctx)
+end)
+
+limited("a nested call under a lowered steps cap", "steps", function()
+  return ev("(progn (f) 1)", {
+    caps = { steps = 5000 },
+    functions = {
+      f = {
+        fn = function()
+          elisp.eval_string("(while t)")
+          return 0
+        end,
+      },
+    },
+  })
+end)
+
 if fails > 0 then
   print(("\n%d check(s) failed"):format(fails))
   os.exit(1)

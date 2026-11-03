@@ -223,7 +223,20 @@ local function now(run)
   local f = run.ctx.now
   local sec, nsec
   if f then
+    if type(f) ~= "function" then
+      R.refuse("internal", "ctx.now is not a function")
+    end
     sec, nsec = f()
+    if
+      type(sec) ~= "number"
+      or type(nsec) ~= "number"
+      or sec % 1 ~= 0
+      or math.abs(sec) > V.LUA_INT_MAX
+      or nsec % 1 ~= 0
+      or not (nsec >= 0 and nsec < 1e9)
+    then
+      R.refuse("internal", ("ctx.now returned %s, %s"):format(tostring(sec), tostring(nsec)))
+    end
   else
     local ts = vim.uv.clock_gettime("realtime")
     sec, nsec = ts.sec, ts.nsec
@@ -494,7 +507,7 @@ local function time_cmp(run, a, b)
     if ok and c == 0 then
       return 0
     end
-    R.refuse("eq-identity", "time comparison")
+    R.refuse("eq-identity", "time comparison", { a, b })
   end
   if is_cons(a) and is_cons(b) then
     local cdr_eq = equal.eq3(run, a.cdr, b.cdr)
@@ -510,7 +523,7 @@ local function time_cmp(run, a, b)
       if ok and c == fast then
         return fast
       end
-      R.refuse("eq-identity", "time comparison")
+      R.refuse("eq-identity", "time comparison", { a.cdr, b.cdr })
     end
   elseif is_fixnum_int(a) and is_fixnum_int(b) then
     return icmp(raw(a), raw(b))
@@ -543,7 +556,7 @@ define("time-subtract", function(run, argv)
   if same == true then
     return new_list(run, { 0, 0, 0, 0 })
   elseif same == "maybe" then
-    R.refuse("eq-identity", "time-subtract")
+    R.refuse("eq-identity", "time-subtract", { a, b })
   end
   return time_arith(run, a, b, true)
 end)
@@ -814,6 +827,9 @@ local function format_segment(st, f, tm, upcase, yr_spec, width)
     if st.len + len + incr > cap then
       R.limit("string")
     end
+    if incr >= 64 then
+      run:step(floor(incr / 64))
+    end
     if n < wd then
       out[#out + 1] = string.rep((pad == ALWAYS_ZERO_PAD or pad == SIGN_PAD) and "0" or " ", wd - n)
     end
@@ -827,23 +843,48 @@ local function format_segment(st, f, tm, upcase, yr_spec, width)
     hour12 = 12
   end
   local fi, flen = 1, #f
-  while fi <= flen do
-    local pad = ZERO_PAD
-    local to_lowcase, to_uppcase = false, upcase
-    local change_case = false
-    local c = f:sub(fi, fi)
-    local function cpy(s)
-      if to_lowcase then
-        s = s:lower()
-      elseif to_uppcase then
-        s = s:upper()
-      end
-      width_add(width, #s, s, pad)
+  local pad, to_lowcase, to_uppcase, change_case, c, percent, modifier
+  local digits, negative, always_sign, value, colon_mask, number_kind
+  local function cpy(s)
+    if to_lowcase then
+      s = s:lower()
+    elseif to_uppcase then
+      s = s:upper()
     end
+    width_add(width, #s, s, pad)
+  end
+  local function bad_format()
+    cpy(f:sub(percent, fi))
+  end
+  local function number(d, v)
+    digits, value, negative, number_kind = d, v, v < 0, "number"
+  end
+  local function signed(d, neg, v)
+    digits, negative, value, number_kind = d, neg, v, "signed"
+  end
+  local function yearish(d, neg, v)
+    digits, negative, value, number_kind = d, neg, v, "yearish"
+  end
+  local function spacepad(d, v)
+    digits, value, negative, number_kind = d, v, v < 0, "spacepad"
+  end
+  local function tz_offset(d, mask, v)
+    digits, colon_mask, value, number_kind = d, mask, v, "tz"
+  end
+  local function subformat(sub, subwidth)
+    local s = strftime(st, sub, tm, to_uppcase, pad, subwidth or -1)
+    width_add(width, #s, s, pad)
+  end
+  while fi <= flen do
+    run:step(1)
+    pad = ZERO_PAD
+    to_lowcase, to_uppcase = false, upcase
+    change_case = false
+    c = f:sub(fi, fi)
     if c ~= "%" then
       width_add(width, 1, c, pad)
     else
-      local percent = fi
+      percent = fi
       while true do
         fi = fi + 1
         c = f:sub(fi, fi)
@@ -864,44 +905,21 @@ local function format_segment(st, f, tm, upcase, yr_spec, width)
         end
       end
       if c:match("^%d$") then
-        local digits = f:match("^%d+", fi)
-        width = tonumber(digits)
-        if #digits > 18 then
+        local ds = f:match("^%d+", fi)
+        width = tonumber(ds)
+        if #ds > 18 then
           R.refuse("precision", "format-time-string width")
         end
-        fi = fi + #digits
+        fi = fi + #ds
         c = f:sub(fi, fi)
       end
-      local modifier
+      modifier = nil
       if c == "E" or c == "O" then
         modifier = c
         fi = fi + 1
         c = f:sub(fi, fi)
       end
-      local function bad_format()
-        cpy(f:sub(percent, fi))
-      end
-      local digits, negative, always_sign, value, colon_mask
-      local number_kind
-      local function number(d, v)
-        digits, value, negative, number_kind = d, v, v < 0, "number"
-      end
-      local function signed(d, neg, v)
-        digits, negative, value, number_kind = d, neg, v, "signed"
-      end
-      local function yearish(d, neg, v)
-        digits, negative, value, number_kind = d, neg, v, "yearish"
-      end
-      local function spacepad(d, v)
-        digits, value, negative, number_kind = d, v, v < 0, "spacepad"
-      end
-      local function tz_offset(d, mask, v)
-        digits, colon_mask, value, number_kind = d, mask, v, "tz"
-      end
-      local function subformat(sub, subwidth)
-        local s = strftime(st, sub, tm, to_uppcase, pad, subwidth or -1)
-        width_add(width, #s, s, pad)
-      end
+      digits, negative, always_sign, value, colon_mask, number_kind = nil, nil, nil, nil, nil, nil
       if c == "%" then
         if fi - 1 ~= percent then
           fi = fi - 1
@@ -1209,9 +1227,7 @@ local function format_segment(st, f, tm, upcase, yr_spec, width)
     width = -1
     fi = fi + 1
   end
-  local s = table.concat(out)
-  run:step(1 + floor(#s / 64))
-  return s
+  return table.concat(out)
 end
 
 --- The C library strftime of format `f` (NUL-free) for `tm`.

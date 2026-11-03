@@ -110,10 +110,10 @@ end
 local function safe_length(run, x)
   local n = 0
   while is_cons(x) do
+    run:step(1)
     n = n + 1
     x = x.cdr
   end
-  run:step(n)
   return n
 end
 
@@ -429,14 +429,13 @@ define("reverse", function(run, argv)
   if seq == NIL then
     return NIL
   elseif is_cons(seq) then
-    local out, t, n = NIL, seq, 0
+    local out, t = NIL, seq
     while is_cons(t) do
+      run:step(1)
+      run:charge(32)
       out = V.cons(t.car, out)
       t = t.cdr
-      n = n + 1
     end
-    run:step(n)
-    run:charge(32 * n)
     if t ~= NIL then
       wta("listp", t)
     end
@@ -463,15 +462,14 @@ define("nreverse", function(run, argv)
   if seq == NIL then
     return seq
   elseif is_cons(seq) then
-    local prev, tail, n = NIL, seq, 0
+    local prev, tail = NIL, seq
     while is_cons(tail) do
+      run:step(1)
       local nxt = tail.cdr
       tail.cdr = prev
       prev = tail
       tail = nxt
-      n = n + 1
     end
-    run:step(n)
     if tail ~= NIL then
       wta("listp", seq)
     end
@@ -542,16 +540,14 @@ end)
 --- Walk list `list` until `test(car)` holds: the tail found, or nil
 --- after checking the end (wrong-type-argument listp LIST).
 local function find_tail(run, list, test)
-  local tail, n = list, 0
+  local tail = list
   while is_cons(tail) do
-    n = n + 1
+    run:step(1)
     if test(tail.car) then
-      run:step(n)
       return tail
     end
     tail = tail.cdr
   end
-  run:step(n)
   if tail ~= NIL then
     wta("listp", list)
   end
@@ -649,9 +645,9 @@ end)
 --- Remove the elements of list `list` for which `test(car)` holds by
 --- splicing its conses (Fdelq, Fdelete): the resulting list.
 local function delete_from(run, list, test)
-  local prev, tail, n = NIL, list, 0
+  local prev, tail = NIL, list
   while is_cons(tail) do
-    n = n + 1
+    run:step(1)
     if test(tail.car) then
       if prev == NIL then
         list = tail.cdr
@@ -663,7 +659,6 @@ local function delete_from(run, list, test)
     end
     tail = tail.cdr
   end
-  run:step(n)
   if tail ~= NIL then
     wta("listp", list)
   end
@@ -761,7 +756,7 @@ local function hash_key(run, x)
     return "i" .. bn.to_string(x.n)
   elseif k == "flt" then
     if x.x ~= x.x then
-      R.refuse("nan", "hashing")
+      R.refuse("nan", "hashing", { x })
     end
     return "f" .. string.format("%a", x.x)
   elseif k == "str" then
@@ -787,7 +782,7 @@ local function equal_set(run)
       local ok, same = pcall(equal.equal, run, others[i], x)
       if not ok then
         if type(same) == "table" and same.elisp == "signal" then
-          R.refuse("eq-identity", "equal in a hash table")
+          R.refuse("eq-identity", "equal in a hash table", { others[i], x })
         end
         error(same, 0)
       end

@@ -55,7 +55,7 @@ end
 local function num_cmp(a, b)
   local c = num.num_cmp(a, b)
   if not c then
-    R.refuse("nan", "value<")
+    R.refuse("nan", "value<", { num.is_float(a) and a.x ~= a.x and a or b })
   end
   return c
 end
@@ -712,6 +712,50 @@ local function tim_sort(run, predicate, keyfunc, seq, n, reverse)
   end
 end
 
+-- Refuse `cycle' when `root` reaches itself through cars, cdrs or
+-- vector elements (each box once, charged).
+local function check_acyclic(run, root)
+  local state, nodes, pos, top = { [root] = 1 }, { root }, { 0 }, 1
+  while top > 0 do
+    local v = nodes[top]
+    local i = pos[top] + 1
+    pos[top] = i
+    local child, done
+    if v.k == "cons" then
+      child, done = i == 1 and v.car or v.cdr, i > 2
+    else
+      child, done = v[i], i > v.n
+    end
+    if done then
+      state[v] = 2
+      top = top - 1
+    elseif type(child) == "table" and (child.k == "cons" or child.k == "vec") then
+      local st = state[child]
+      if st == 1 then
+        R.refuse("cycle", "sort")
+      elseif not st then
+        run:step(1)
+        state[child] = 1
+        top = top + 1
+        nodes[top], pos[top] = child, 0
+      end
+    end
+  end
+end
+
+-- The 0-based slots of vector `vec`, so that sorting them sorts `vec`
+-- itself, as Lisp code the predicate runs sees it.
+local function slots(vec)
+  return setmetatable({}, {
+    __index = function(_, i)
+      return vec[i + 1]
+    end,
+    __newindex = function(_, i, v)
+      vec[i + 1] = v
+    end,
+  })
+end
+
 local function signal_error(msg, arg)
   local t = arg
   while type(t) == "table" and t.k == "cons" do
@@ -749,10 +793,10 @@ B.define("sort", function(run, argv)
   if type(seq) == "table" and seq.k == "cons" then
     local n, t = 0, seq
     while type(t) == "table" and t.k == "cons" do
+      run:step(1)
       n = n + 1
       t = t.cdr
     end
-    run:step(n)
     if t ~= NIL then
       wta("listp", t)
     end
@@ -767,10 +811,21 @@ B.define("sort", function(run, argv)
     end
     tim_sort(run, lessp, key, arr, n, reverse)
     if inplace then
+      local i, nested = 0, false
       t = seq
-      for i = 0, n - 1 do
-        t.car = arr[i]
+      while type(t) == "table" and t.k == "cons" do
+        if i >= n then
+          R.refuse("cycle", "list grew while sorting")
+        end
+        run:step(1)
+        local x = arr[i]
+        nested = nested or (type(x) == "table" and (x.k == "cons" or x.k == "vec"))
+        t.car = x
         t = t.cdr
+        i = i + 1
+      end
+      if nested then
+        check_acyclic(run, seq)
       end
       return seq
     end
@@ -785,17 +840,7 @@ B.define("sort", function(run, argv)
     local vec = inplace and seq or list.new_vector(run, seq, seq.n)
     local n = vec.n
     if n >= 2 then
-      local arr = {}
-      for i = 0, n - 1 do
-        arr[i] = vec[i + 1]
-      end
-      local ok, err = pcall(tim_sort, run, lessp, key, arr, n, reverse)
-      for i = 0, n - 1 do
-        vec[i + 1] = arr[i]
-      end
-      if not ok then
-        error(err, 0)
-      end
+      tim_sort(run, lessp, key, slots(vec), n, reverse)
     end
     return vec
   end

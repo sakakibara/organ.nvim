@@ -48,6 +48,11 @@ local function shape_of(t)
   return max == n and "array" or nil
 end
 
+--- Whether Lua table `t` is an array without holes.
+function M.is_array(t)
+  return shape_of(t) == "array"
+end
+
 local function check_text(run, s)
   if not V.utf8_valid(s) then
     R.refuse("charset", "invalid UTF-8")
@@ -142,6 +147,89 @@ end
 
 function M.to_value(run, x)
   return to_value(run, x, {})
+end
+
+local function bad_value(what)
+  R.refuse("internal", "malformed value: " .. what)
+end
+
+--- Check value `v` that Lua code built (a consumer's return, a
+--- variable, an argument): each box once, charged, well-formed, and
+--- reaching no box from itself, as D2 values stay acyclic.
+function M.check_value(run, v)
+  local state, nodes, pos, top = {}, {}, {}, 0
+  local function visit(x)
+    if type(x) == "number" then
+      if x % 1 ~= 0 or math.abs(x) > V.LUA_INT_MAX then
+        bad_value("number " .. tostring(x))
+      end
+      return
+    elseif type(x) ~= "table" then
+      bad_value(type(x))
+    end
+    local st = state[x]
+    if st == 1 then
+      R.refuse("internal", "malformed value: a cycle")
+    elseif st then
+      return
+    end
+    run:step(1)
+    local k = x.k
+    if k == "str" then
+      if type(x.s) ~= "string" then
+        bad_value("string")
+      end
+      check_text(run, x.s)
+    elseif k == "sym" then
+      if type(x.name) ~= "table" or type(x.name.s) ~= "string" then
+        bad_value("symbol")
+      elseif not x.uninterned and V.intern(x.name.s) ~= x then
+        bad_value("symbol " .. x.name.s)
+      end
+    elseif k == "flt" then
+      if type(x.x) ~= "number" then
+        bad_value("float")
+      end
+    elseif k == "big" then
+      if type(x.n) ~= "table" then
+        bad_value("bignum")
+      end
+    elseif k == "fn" then
+      if type(x.kind) ~= "string" then
+        bad_value("function")
+      end
+    elseif k == "cons" or k == "vec" then
+      if k == "vec" and (type(x.n) ~= "number" or x.n < 0 or x.n % 1 ~= 0) then
+        bad_value("vector")
+      end
+      top = top + 1
+      nodes[top], pos[top] = x, 0
+    else
+      bad_value(tostring(k))
+    end
+    state[x] = top > 0 and nodes[top] == x and 1 or 2
+  end
+  visit(v)
+  while top > 0 do
+    local x = nodes[top]
+    local i = pos[top] + 1
+    pos[top] = i
+    local n = x.k == "cons" and 2 or x.n
+    if i > n then
+      state[x] = 2
+      nodes[top] = nil
+      top = top - 1
+    elseif x.k == "cons" then
+      if i == 1 then
+        visit(x.car)
+      else
+        visit(x.cdr)
+      end
+    else
+      visit(x[i])
+    end
+  end
+  return v
 end
 
 local to_lua

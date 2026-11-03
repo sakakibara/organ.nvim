@@ -159,7 +159,7 @@ end
 --- given) and flags, as sprintf prints it.
 local function c_float(run, conv, x, prec, plus, space, sharp)
   if x ~= x and (num.signbit(x) or plus or space) then
-    R.refuse("nan", "NaN with a sign")
+    R.refuse("nan", "NaN with a sign", { x })
   end
   local sign = ""
   if num.signbit(x) then
@@ -342,23 +342,23 @@ local function string_conv(run, s, prec, measure)
     return s.s, 0
   end
   if s.props then
-    R.refuse("width", "text properties")
+    R.refuse("width", "text properties", { s })
   end
   local text, width, i = s.s, 0, 1
   while i <= #text do
+    run:step(1)
     local c, j = V.utf8_next(text, i)
     local w = chars.fixed_width(c)
     if not w then
-      R.refuse("width", string.format("U+%04X", c))
+      R.refuse("width", string.format("U+%04X", c), { c })
     end
     if prec > 0 and prec - width < w then
-      run:step(1 + floor(i / 64))
       return sub(text, 1, i - 1), width
     end
     width = width + w
     i = j
   end
-  run:step(1 + floor(#text / 64))
+  run:step(1)
   return text, width
 end
 
