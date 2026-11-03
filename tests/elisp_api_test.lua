@@ -1386,7 +1386,7 @@ end
 -- printed under the call's caps and budget
 
 do
-  local e = ev("(signal 'error (list (make-string 600000 ?a) (make-string 600000 ?a)))")
+  local e = ev('(signal \'error (list "m" (make-string 600000 ?\\")))')
   local m = elisp.error_message(e)
   check(
     "error_message longer than the string cap is a string limit",
@@ -1396,9 +1396,27 @@ do
   local budget = {}
   e = ev("(signal 'error (number-sequence 1 3000))", { caps = { steps = 5000 }, budget = budget })
   check(
-    "a signal's text that would pass the call's step cap is not printed",
-    e.kind == "signal" and e.text == nil and budget.steps > 5000,
+    "printing a signal's text past the call's step cap is a steps limit",
+    e.kind == "limit" and e.cap == "steps" and budget.steps > 5000,
     show(e) .. " " .. vim.inspect(budget)
+  )
+  e = ev("(signal 'error (list (make-string 600000 ?a) (make-string 600000 ?a)))")
+  check(
+    "a signal's text past the string cap is a string limit",
+    e.kind == "limit" and e.cap == "string",
+    show(e)
+  )
+  e = ev("(signal 'error (list 1 (lambda (x) x)))", { profile = "var" })
+  check(
+    "a signal whose data holds a closure has no text",
+    e.kind == "signal" and e.text == nil,
+    show(e)
+  )
+  e = ev("(let ((x 1)) (dotimes (i 199) (setq x (list x))) (signal 'error (list x)))")
+  check(
+    "a signal whose data Emacs's printer cannot print has no text",
+    e.kind == "signal" and e.text == nil,
+    show(e)
   )
   e = ev("(signal 'error (number-sequence 1 3))", { caps = { steps = 5000 } })
   check("a short signal's text is printed", e.text == "(error 1 2 3)", show(e))
@@ -1431,6 +1449,64 @@ do
     ev_printed("(let ((l (list 3 2 1 5 4))) (list (sort l (lambda (a b) (delq 1 l) (< a b))) l))")
       == "((1 2 3 4) (1 2 3 4))"
   )
+end
+
+-- XT-10 reads year-first only arguments written as decimal integers;
+-- eval of a form value, which has no spelling, only fixnum arguments
+
+do
+  local diary = { profile = "diary", variables = { date = read_value("(2 29 2024)"), entry = "E" } }
+  local function xt10(r)
+    return r.ok and printed_of(r.value) == '(nil . "E")'
+  end
+  check("eval_string: decimal spellings read year-first", xt10(ev("(diary-date 2024 2 29)", diary)))
+  for _, src in ipairs({
+    "(diary-date #x7e8 2 29)",
+    "(diary-date #24r3c8 2 29)",
+    "(diary-date 2024.0 2 29)",
+    "(diary-date 2024. 2 29)",
+  }) do
+    local r = ev(src, diary)
+    check("eval_string: " .. src .. " follows Emacs", r.ok and r.value == elisp.NIL, show(r))
+  end
+  local r = elisp.eval(read_value("(diary-date 2024 2 29)"), diary)
+  check("eval: fixnum arguments read year-first", xt10(r), show(r))
+  r = elisp.eval(read_value("(diary-date 2024.0 2 29)"), diary)
+  check("eval: a float argument follows Emacs", r.ok and r.value == elisp.NIL, show(r))
+end
+
+-- ctx.syntax_table: the word syntax capitalize and upcase-initials use
+
+do
+  local function cap(s, syntax_table)
+    return ev_printed(
+      ("(capitalize %q)"):format(s),
+      { profile = "prefix", syntax_table = syntax_table }
+    )
+  end
+  check("the org syntax table is the default", cap("it's") == '"It\'s"', tostring(cap("it's")))
+  check("org: ' is a word constituent", cap("it's", "org") == '"It\'s"')
+  check(
+    "agenda: ' is not a word constituent",
+    cap("it's", "agenda") == '"It\'S"',
+    tostring(cap("it's", "agenda"))
+  )
+  local r = ev('(upcase-initials "a\u{b7}b")', { syntax_table = "agenda" })
+  check(
+    "agenda: U+00B7 is not a word constituent",
+    r.ok and printed_of(r.value) == '"A\u{b7}B"',
+    show(r)
+  )
+  for _, bad in ipairs({ "elisp", "Agenda", 1 }) do
+    r = ev('(capitalize "a")', { syntax_table = bad })
+    check(
+      "syntax_table " .. tostring(bad) .. " is refused internal",
+      r.ok == false and r.kind == "refused" and r.code == "internal",
+      show(r)
+    )
+  end
+  r = elisp.scan_sexp("(a)", 1, "agenda")
+  check("scan_sexp does not take the agenda table", r.ok == false and r.kind == "refused", show(r))
 end
 
 if fails > 0 then

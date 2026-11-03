@@ -81,14 +81,36 @@ each item is (NAIVE . SOURCE)."
               ((and (stringp v) (text-properties-at 0 v)) (setq found t)))))
     found))
 
+(defun conformance-elisp--placeholders (x)
+  "X with each value organ does not print replaced by a placeholder
+symbol: #<fn> for a function, #<nan> for a NaN, #<props> for a string
+with text properties."
+  (cond ((consp x)
+         (let (acc)
+           (while (consp x)
+             (push (conformance-elisp--placeholders (car x)) acc)
+             (setq x (cdr x)))
+           (let ((tail (conformance-elisp--placeholders x)))
+             (dolist (a acc) (setq tail (cons a tail)))
+             tail)))
+        ((or (subrp x) (byte-code-function-p x) (interpreted-function-p x))
+         (make-symbol "#<fn>"))
+        ((vectorp x) (apply #'vector (mapcar #'conformance-elisp--placeholders x)))
+        ((and (floatp x) (isnan x)) (make-symbol "#<nan>"))
+        ((and (stringp x) (or (next-property-change 0 x) (text-properties-at 0 x)))
+         (make-symbol "#<props>"))
+        (t x)))
+
 (defun conformance-elisp--error-line (err)
-  "The line for signal ERR; its symbol and <unprintable> when its data
-holds a value organ does not print, or Emacs fails to print it."
-  (if (conformance-elisp--unprintable-p (cdr err))
-      (format "!! %s <unprintable>" (car err))
-    (condition-case nil
-        (concat "!! " (conformance-elisp--oneline (format "%s" err)))
-      (error (format "!! %s <unprintable>" (car err))))))
+  "The line for signal ERR: its text, with placeholders for the values
+organ does not print; its symbol and <unprintable> when Emacs fails to
+print it."
+  (condition-case nil
+      (concat "!! " (conformance-elisp--oneline
+                     (format "%s" (if (conformance-elisp--unprintable-p (cdr err))
+                                      (conformance-elisp--placeholders err)
+                                    err))))
+    (error (format "!! %s <unprintable>" (car err)))))
 
 (defun conformance-elisp--value-line (value)
   (concat "=> " (let ((print-escape-newlines t))
@@ -135,7 +157,13 @@ and `entry' bound dynamically around it, `case-fold-search' from its
       (error "conformance: %s: case for TZ=%s run with TZ=%s"
              file (or (cdr (assoc "tz" header)) "UTC") (getenv "TZ")))
     (with-temp-buffer
-      (org-mode)
+      (pcase (cdr (assoc "syntax_table" header))
+        ('nil (org-mode))
+        ("agenda"
+         (unless (featurep 'org-agenda)
+           (error "conformance: %s: syntax_table agenda needs org-agenda" file))
+         (org-agenda-mode))
+        (other (error "conformance: %s: unknown syntax_table %s" file other)))
       (dolist (item (cdr parsed))
         (setq n (1+ n))
         (let ((line (if (equal mode "eval")

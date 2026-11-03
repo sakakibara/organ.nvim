@@ -12,10 +12,11 @@
 ;;; holds; tests/conformance/elisp/gate.lua regenerates them into a
 ;;; temporary directory and fails on any difference.
 ;;;
-;;; - syntax_org.lua, syntax_elisp.lua: the syntax table of an org-mode
-;;;   buffer and `emacs-lisp-mode-syntax-table', as ranges of code points
-;;;   sharing one raw syntax descriptor (class plus flags) and matching
-;;;   character.
+;;; - syntax_org.lua, syntax_elisp.lua, syntax_agenda.lua: the syntax
+;;;   table of an org-mode buffer, `emacs-lisp-mode-syntax-table' and the
+;;;   syntax table of an org-agenda-mode buffer (which org-agenda-mode
+;;;   leaves at the standard table), as ranges of code points sharing one
+;;;   raw syntax descriptor (class plus flags) and matching character.
 ;;; - errors.lua: `error-conditions' and `error-message' of every error
 ;;;   symbol of an Emacs with every profile's features loaded, and the
 ;;;   profiles whose features do not define it; only the name of one only
@@ -188,8 +189,10 @@ native compilation), keywords aside: those of the macOS build missing
 from CI's Linux build.")
 
 (defun elisp-data--tables ()
+  (require 'org-agenda)
   (list (cons "org" (with-temp-buffer (org-mode) (syntax-table)))
-        (cons "elisp" emacs-lisp-mode-syntax-table)))
+        (cons "elisp" emacs-lisp-mode-syntax-table)
+        (cons "agenda" (with-temp-buffer (org-agenda-mode) (syntax-table)))))
 
 (defun elisp-data--entry (table c)
   "Raw syntax descriptor and matching character of C in TABLE."

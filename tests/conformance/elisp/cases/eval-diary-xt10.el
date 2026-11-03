@@ -4,7 +4,8 @@
 ; date: (10 24 2026)
 ; entry: Ent %d%s
 ; XT-10: a diary sexp that is one call of diary-date, diary-anniversary, diary-cyclic
-; or diary-block with literal arguments reads a date triple year-first when its first
+; or diary-block whose arguments are written as decimal integers (or t for diary-date)
+; reads a date triple year-first when its first
 ; value is a number above 31, or t while its last is a plain day.  Other forms follow
 ; Emacs.
 

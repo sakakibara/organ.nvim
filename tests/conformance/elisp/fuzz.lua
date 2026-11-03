@@ -106,6 +106,7 @@ local STRINGS = {
   "straße", "ΣΑΣ", "ὈΔΥΣΣΕΎΣ", "漢字テキスト", "é", "tab\there", "line\nbreak", "ǅemal", "İstanbul",
   "ﬁnal", "MiXeD cAsE", "123", "-4.5", "foo.bar", "x*y+z", "[a]", "a\\b", "😀 emoji", "ﬃ", "ǰ",
   "ŉ", "ΌΣΟΣ", "ab ab ab", "%d", "50%", "\t x \n", "aaa", "AbC", "x", "日本", "a\0b",
+  "it's rock'n'roll", "a·b x׳y z״w q‧r",
 }
 
 -- stylua: ignore
@@ -1876,12 +1877,16 @@ local function header_of(g)
     g:push("date", "date", true)
     g:push("entry", "str", true)
   end
+  if g.profile == "prefix" and g:chance(0.3) then
+    h.syntax_table = "agenda"
+  end
   return h
 end
 
--- XT-10: a top-level diary call of these with literal number arguments
--- (and t for diary-date) reads a triple year-first when its first value
--- is above 31, or t while its last is neither t nor above 31.
+-- XT-10: a top-level diary call of these with every argument written
+-- as a decimal integer (or t for diary-date) reads a triple year-first
+-- when its first value is above 31, or t while its last is neither t nor
+-- above 31.
 local XT10 = {
   ["diary-date"] = { n = 3, triples = { 1 }, t_ok = true },
   ["diary-anniversary"] = { n = 3, triples = { 1 } },
@@ -1889,23 +1894,11 @@ local XT10 = {
   ["diary-block"] = { n = 6, triples = { 1, 4 } },
 }
 
-local function literal_number(tok)
-  local s = tok:match("^[+-]?%d+%.?$") and tok
-  if s then
-    return tonumber((s:gsub("%.$", ""))) or 0, s
-  end
-  if
-    tok:match("^[+-]?%d*%.?%d+e[+-]?%d+$")
-    or tok:match("^[+-]?%d*%.%d+$")
-    or tok:match("^[+-]?%d+%.?%d*e[+-]?%d+$")
-  then
-    return tonumber(tok), tok
-  end
-  local sign, kind = tok:match("^([+-]?)%d*%.?%d*e%+(%a+)$")
-  if kind == "INF" then
-    return sign == "-" and -math.huge or math.huge, tok
-  elseif kind == "NaN" then
-    return 0 / 0, tok
+-- The value of token `tok` when it is written as a decimal integer (an
+-- optional sign and digits), the only spelling XT-10 reads year-first.
+local function decimal_integer(tok)
+  if tok:match("^[+-]?%d+$") then
+    return tonumber(tok)
   end
   return nil
 end
@@ -1920,7 +1913,7 @@ local function xt10_form(src)
   end
   local toks, vals = {}, {}
   for tok in rest:gmatch("%S+") do
-    local v = literal_number(tok)
+    local v = decimal_integer(tok)
     if v == nil and not (rule.t_ok and tok == "t") then
       return nil
     end
@@ -2564,6 +2557,9 @@ local function write_case(path, header, items)
   if header.date then
     lines[#lines + 1] = "; date: " .. header.date
     lines[#lines + 1] = "; entry: " .. header.entry
+  end
+  if header.syntax_table then
+    lines[#lines + 1] = "; syntax_table: " .. header.syntax_table
   end
   local out = { table.concat(lines, "\n") }
   for _, it in ipairs(items) do

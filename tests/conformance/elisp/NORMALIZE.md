@@ -20,6 +20,7 @@ The first block is the header: lines starting with `;`, of which
 | `case_fold` | `eval` mode: `t` or `nil`, the `case-fold-search` the evaluation sees (organ's `ctx.case_fold`). |
 | `date` | `eval` mode, optional: a Lisp form, read, bound dynamically as `date` (organ's `ctx.variables.date`). |
 | `entry` | `eval` mode, optional: the rest of the line, as a string bound dynamically as `entry`. |
+| `syntax_table` | `eval` mode, optional: `agenda` evaluates the items with an `org-agenda-mode` buffer current instead of an `org-mode` one, as Emacs formats agenda time-grid lines and diary-file rows (organ's `ctx.syntax_table`); only in a profile that loads `org-agenda`. |
 | `tz` | Optional: the TZ setting the case runs under. Without it the case runs under `TZ=UTC` with the rest of the corpus. |
 
 Every further block is one item: its lines, joined with newlines, are the
@@ -36,14 +37,18 @@ One line per item:
   under `print-escape-newlines` t.
 - `!! TEXT`: Emacs signalled, and `TEXT` is `(format "%s" err)`. organ
   prints the same for a signal.
-- `!! SYMBOL <unprintable>`: the signal's data holds a value organ does
-  not print (a function, a subr, a string with text properties, a NaN,
-  whose sign and payload organ does not keep), or Emacs fails to print it
-  (data nested past the printer's depth limit). organ
-  prints this when its result has no text; Emacs prints it when it finds
-  such a value in the data or `format` signals, so the two sides agree on
-  which data is unprintable rather than organ assuming it. A `quit`
-  signal prints as any other signal.
+- `!! TEXT` with placeholders: the signal's data holds a value organ does
+  not print, so organ's result has no text. Both sides print
+  `(format "%s" err)` with each such value replaced by a placeholder:
+  `#<fn>` for a function or subr, `#<nan>` for a NaN (organ keeps no NaN
+  sign or payload), `#<props>` for a string with text properties. The
+  rest of the data is compared as printed. Emacs replaces only the values
+  it finds in the data, so the two sides agree on which data is
+  unprintable rather than organ assuming it. A `quit` signal prints as
+  any other signal.
+- `!! SYMBOL <unprintable>`: printing the data signals in Emacs (data
+  nested past the printer's depth limit); organ prints this when its own
+  printing of the data signals the same way.
 - `REFUSED CODE DETAIL` / `LIMIT CAP` (organ only): the input is outside
   the subset, or a cap stopped it.
 
@@ -58,7 +63,8 @@ on both sides.
   `diary-lib`, `calendar`, `org-capture`, `ob-core` or `ol`), so a feature
   one profile loads never reaches another.
 - Items are read with `read-from-string` from the case file decoded as
-  UTF-8, inside an `org-mode` temporary buffer, never through `--eval`.
+  UTF-8, inside an `org-mode` temporary buffer (`org-agenda-mode` under
+  `syntax_table: agenda`), never through `--eval`.
   Reading from a string gives `invalid-read-syntax` data without the line
   and column a buffer source adds, as consumers read strings too.
 - `_collate.el` is loaded, as on every gate. `_clock.el` is not: its pin
@@ -155,11 +161,14 @@ records `REFUSED internal`.
 
 `XT-10` (KEEP) rows record the one other kind of difference: a `diary`
 sexp that is a single call of `diary-date`, `diary-anniversary`,
-`diary-cyclic` or `diary-block` with literal arguments (numbers, and `t`
-for `diary-date`) reads a date triple
-year-first when its first value is a number above 31, or `t` while its
-last is neither `t` nor a number above 31, where Emacs reads it in
-`calendar-date-style` order.
+`diary-cyclic` or `diary-block` whose arguments are all written as
+decimal integers (an optional sign and digits), or `t` for `diary-date`,
+reads a date triple year-first when its first value is a number above 31,
+or `t` while its last is neither `t` nor a number above 31, where Emacs
+reads it in `calendar-date-style` order. Any other spelling of a number
+(`#x7e8`, `?c`, `#24r3c8`, `2024.0`) gets Emacs's answer. `eval` of a
+form value, which has no spelling, reads year-first only fixnum
+arguments.
 
 ## Data check
 
@@ -194,7 +203,8 @@ calls, counting the cases of every zone's run.
 
 Last, `fuzz.lua` generates forms from five fixed seeds: 2000 forms per seed
 and profile, in files of 100 under a header with a random `case_fold` (and,
-for `diary` and `prefix`, a `date` and an `entry`). Every form is valid for
+for `diary` and `prefix`, a `date` and an `entry`; for `prefix`, sometimes
+`syntax_table: agenda`). Every form is valid for
 its profile and calls only builtins of the subset, with nesting depth up to
 5, literal lists, vectors and strings up to 64 elements, `format` widths up
 to 40 and integers up to a few hundred digits. The generator calls every
@@ -210,7 +220,8 @@ mapping functions stay below a fixed amount of work, so no form reaches a
 cap.
 
 Emacs evaluates the files as it does the cases (one process per profile,
-`TZ=UTC`). A `diary` form that is a top-level call XT-10 rewrites is
+`TZ=UTC`). A `diary` form that is a top-level call XT-10 rewrites (its
+arguments written as decimal integers, or `t` for `diary-date`) is
 followed in the Emacs file by the call with the year-first triples moved to
 `calendar-date-style` order. Each form's organ line must equal Emacs's,
 except:

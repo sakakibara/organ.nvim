@@ -854,8 +854,8 @@ end)
 
 local Q_SIGMA = 0x3A3
 
-local function is_word(c)
-  return syntax.lookup("org", c) % 256 == 2
+local function is_word(run, c)
+  return syntax.lookup(run.syntax_table, c) % 256 == 2
 end
 
 -- The string `kind` (upcase, downcase, capitalize, upcase-initials)
@@ -868,7 +868,7 @@ local function case_string(run, s, kind)
     run:step(1)
     local c = codes[i]
     local was = inword
-    inword = is_word(c)
+    inword = is_word(run, c)
     local action
     if kind == "upcase" or kind == "downcase" then
       action = kind

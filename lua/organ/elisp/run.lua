@@ -83,6 +83,10 @@ function M.new(ctx, parent)
   elseif budget ~= nil and type(budget) ~= "table" then
     bad("budget", budget)
   end
+  local syntax_table = ctx.syntax_table or "org"
+  if syntax_table ~= "org" and syntax_table ~= "agenda" then
+    bad("syntax_table", syntax_table)
+  end
   local caps = {}
   for name, default in pairs(M.DEFAULTS) do
     caps[name] = cap_value(name, lower[name], parent and parent.caps[name] or default)
@@ -108,6 +112,7 @@ function M.new(ctx, parent)
   end
   return setmetatable({
     ctx = ctx,
+    syntax_table = syntax_table,
     caps = caps,
     budget = budget,
     parent = parent,

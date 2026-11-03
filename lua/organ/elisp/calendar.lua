@@ -17,6 +17,7 @@ local equal = require("organ.elisp.equal")
 local format = require("organ.elisp.format")
 local list = require("organ.elisp.list")
 local num = require("organ.elisp.num")
+local reader = require("organ.elisp.reader")
 
 local M = {}
 
@@ -671,9 +672,10 @@ lookup("first")
 lookup("last")
 lookup("all")
 
--- XT-10: a diary sexp that is one call of these with literal arguments
--- reads each date triple year-first when its first value is a number
--- above 31, or t while its last is not t and not a number above 31.
+-- XT-10: a diary sexp that is one call of these with every argument
+-- written as a decimal integer (or t where allowed) reads each date
+-- triple year-first when its first value is a number above 31, or t
+-- while its last is not t and not a number above 31.
 local XT10 = {
   ["diary-date"] = { n = 3, triples = { 1 }, t_ok = true },
   ["diary-anniversary"] = { n = 3, triples = { 1 } },
@@ -681,8 +683,15 @@ local XT10 = {
   ["diary-block"] = { n = 6, triples = { 1, 4 } },
 }
 
+local function decimal_spelling(text, v, rule)
+  return text:match("^[+-]?%d+$") ~= nil or (rule.t_ok and v == T and text == "t")
+end
+
 --- The form XT-10 evaluates in place of diary-profile `form`, or `form`.
-function M.year_first(run, form)
+--- `src` is the text `form` was read from at byte 1, whose argument
+--- spellings decide; without it only fixnum arguments (and t) qualify,
+--- as their printed spelling is decimal.
+function M.year_first(run, form, src)
   if not (is_cons(form) and type(form.car) == "table" and form.car.k == "sym") then
     return form
   end
@@ -700,7 +709,9 @@ function M.year_first(run, form)
   local args, n, x = {}, 0, form.cdr
   while is_cons(x) do
     local v = x.car
-    if not (num.is_num(v) or (rule.t_ok and v == T)) then
+    local fixnum = type(v) == "number"
+      or (type(v) == "table" and v.k == "big" and num.emacs_fixnum(v.n))
+    if not ((src and num.is_int(v) or fixnum) or (rule.t_ok and v == T)) then
       return form
     end
     n = n + 1
@@ -709,6 +720,17 @@ function M.year_first(run, form)
   end
   if x ~= NIL or n ~= rule.n then
     return form
+  end
+  if src then
+    local texts = reader.elements(run, src, 1)
+    if not texts or #texts ~= n + 1 then
+      return form
+    end
+    for i = 1, n do
+      if not decimal_spelling(texts[i + 1], args[i], rule) then
+        return form
+      end
+    end
   end
   local function above31(v)
     return num.is_num(v) and truthy(call(run, ">", v, 31))

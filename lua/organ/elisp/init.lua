@@ -21,6 +21,8 @@
 --   ctx.profile    "table" (default), "diary", "link" (dynamic binding),
 --                  "prefix", "capture", "var" (lexical binding)
 --   ctx.case_fold  case-fold-search
+--   ctx.syntax_table  "org" (default) or "agenda": the syntax table of the
+--                  buffer current in Emacs, for the builtins that find words
 --   ctx.variables  { name = value }: global dynamic values (not special)
 --   ctx.functions  { name = spec }: spec.fn(argv, cx) gets the evaluated
 --                  arguments (argv[1..argv.n]) and returns a value
@@ -47,14 +49,28 @@ local M = {}
 M.NIL = V.NIL
 M.T = V.T
 
+local function internal(detail)
+  return { ok = false, kind = "refused", code = "internal", detail = detail }
+end
+
 -- `text` is printed under the call's own run, so its caps and budget
--- pay for it.
+-- pay for it, and a cap hit while printing it is that limit.  It is nil
+-- when the data holds a value organ does not print or Emacs's printer
+-- signals on.
 local function signal_result(run, e)
   local name = e.symbol.name.s
   local ok, text = false, nil
   if run then
     run.depth = run.depth0
     ok, text = pcall(printer.princ, run, V.cons(e.symbol, e.data), true)
+    if not ok then
+      local kind = type(text) == "table" and text.elisp
+      if kind == "limit" then
+        return { ok = false, kind = "limit", cap = text.cap }
+      elseif not (kind == "signal" or (kind == "refused" and text.code ~= "internal")) then
+        return internal(kind and tostring(text.detail) or tostring(text))
+      end
+    end
   end
   return {
     ok = false,
@@ -63,10 +79,6 @@ local function signal_result(run, e)
     data = e.data,
     text = ok and text or nil,
   }
-end
-
-local function internal(detail)
-  return { ok = false, kind = "refused", code = "internal", detail = detail }
 end
 
 local function result_of(run, e)
@@ -168,7 +180,7 @@ end
 --- `read` at byte 1, then `eval`; trailing text is ignored.
 function M.eval_string(src, ctx)
   return entry(ctx, function(run)
-    return evaluator.eval_top(run, reader.read(run, src, 1))
+    return evaluator.eval_top(run, (reader.read(run, src, 1)), src)
   end)
 end
 

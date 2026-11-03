@@ -1,5 +1,6 @@
--- The org and elisp syntax tables (D9 data) and `scan-sexps' forward by
--- one expression, a port of syntax.c's scan_lists with
+-- The org, elisp and agenda syntax tables (D9 data) and `scan-sexps'
+-- forward by one expression under the org or elisp one, a port of
+-- syntax.c's scan_lists with
 -- parse-sexp-ignore-comments, parse-sexp-lookup-properties and
 -- multibyte-syntax-as-symbol nil, their values in an org-mode buffer and
 -- in the capture template buffer.
@@ -12,13 +13,16 @@ local M = {}
 local TABLES = {
   org = require("organ.elisp.data.syntax_org"),
   elisp = require("organ.elisp.data.syntax_elisp"),
+  agenda = require("organ.elisp.data.syntax_agenda"),
 }
+
+local SCAN_TABLES = { org = true, elisp = true }
 
 local S_WORD, S_SYMBOL, S_OPEN, S_CLOSE, S_QUOTE, S_STRING, S_MATH = 2, 3, 4, 5, 6, 7, 8
 local S_ESCAPE, S_CHARQUOTE, S_STRING_FENCE = 9, 10, 15
 
 --- Raw syntax descriptor (class plus flags) and matching character (or
---- -1) of code point `cp` in table `name` ("org" or "elisp").
+--- -1) of code point `cp` in table `name` ("org", "elisp" or "agenda").
 function M.lookup(name, cp)
   local t = TABLES[name]
   local lo, hi = 1, #t / 3
@@ -56,7 +60,7 @@ end
 --- punctuation remain.  Scan errors carry Emacs's data: character
 --- positions in a buffer holding exactly `src`.
 function M.scan_sexp(run, src, pos, name)
-  if not TABLES[name] then
+  if not SCAN_TABLES[name] then
     R.refuse("syntax", tostring(name))
   end
   run:check_string(#src)

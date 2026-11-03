@@ -115,9 +115,56 @@ local function oneline(s)
   return (s:gsub("\n", "\\n"))
 end
 
+-- `v` with each value organ does not print replaced by a placeholder
+-- symbol, as emacs.el replaces them: #<fn>, #<nan> or #<props>.
+local function placeholders(v)
+  if type(v) ~= "table" then
+    return v
+  end
+  local V = require("organ.elisp.value")
+  if v.k == "cons" then
+    local items = {}
+    while type(v) == "table" and v.k == "cons" do
+      items[#items + 1] = placeholders(v.car)
+      v = v.cdr
+    end
+    local out = placeholders(v)
+    for i = #items, 1, -1 do
+      out = V.cons(items[i], out)
+    end
+    return out
+  elseif v.k == "vec" then
+    local out = { k = "vec", n = v.n }
+    for i = 1, v.n do
+      out[i] = placeholders(v[i])
+    end
+    return out
+  elseif v.k == "fn" then
+    return V.make_symbol("#<fn>")
+  elseif v.k == "flt" and v.x ~= v.x then
+    return V.make_symbol("#<nan>")
+  elseif v.k == "str" and v.props then
+    return V.make_symbol("#<props>")
+  end
+  return v
+end
+
+-- The text of signal result `r` without its own: its data printed with
+-- placeholders, or its symbol and <unprintable> when printing signals.
+local function placeholder_text(r)
+  local V = require("organ.elisp.value")
+  local p = elisp.princ(V.cons(V.intern(r.symbol), placeholders(r.data)))
+  if p.ok then
+    return oneline(p.value)
+  elseif p.kind == "signal" then
+    return r.symbol .. " <unprintable>"
+  end
+  return "(placeholder printing: " .. p.kind .. " " .. tostring(p.code or p.cap) .. ")"
+end
+
 local function failure_line(r)
   if r.kind == "signal" then
-    return "!! " .. (r.text and oneline(r.text) or (r.symbol .. " <unprintable>"))
+    return "!! " .. (r.text and oneline(r.text) or placeholder_text(r))
   elseif r.kind == "refused" then
     return "REFUSED " .. r.code .. (r.detail and (" " .. oneline(r.detail)) or "")
   end
@@ -154,7 +201,12 @@ function M.ctx_of(header)
   if header.entry then
     variables.entry = header.entry
   end
-  return { profile = header.profile, case_fold = header.case_fold == "t", variables = variables }
+  return {
+    profile = header.profile,
+    case_fold = header.case_fold == "t",
+    syntax_table = header.syntax_table,
+    variables = variables,
+  }
 end
 
 --- The output line of evaluating `source` under `ctx`, and the result

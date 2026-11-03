@@ -876,4 +876,42 @@ function M.read(run, src, pos)
   return v, st.i
 end
 
+-- Skip whitespace and `;' comments from st.i.
+local function skip_blank(st)
+  while true do
+    local save = st.i
+    local c = getc(st)
+    if c == 59 then
+      repeat
+        c = getc(st)
+      until c < 0 or c == 10
+    elseif c < 0 or not (c <= 32 or c == NBSP) then
+      st.i = save
+      return
+    end
+  end
+end
+
+--- The source text of each element of the proper list the form at byte
+--- `pos` of `src` reads as, or nil when it is not one.
+function M.elements(run, src, pos)
+  local st = { s = src, i = pos or 1, n = #src, run = run }
+  skip_blank(st)
+  if getc(st) ~= 40 then
+    return nil
+  end
+  local out = {}
+  while true do
+    skip_blank(st)
+    local start = st.i
+    local x = read_obj(st, "list")
+    if x == CLOSE_PAREN then
+      return out
+    elseif x == DOT then
+      return nil
+    end
+    out[#out + 1] = src:sub(start, st.i - 1)
+  end
+end
+
 return M

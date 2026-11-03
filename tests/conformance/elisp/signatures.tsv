@@ -103,5 +103,6 @@ eval-diary-prefix.el	R6-OUT	KEEP	1	 => "Ent"\n-!! (void-function diary-date)\n-!
 eval-diary-prefix.el	R6-OUT	KEEP	1	 => nil\n-!! (void-function calendar-check-holidays)\n+REFUSED profile calendar-check-holidays
 eval-diary-xt10.el	XT-10	KEEP	1	 => nil\n-=> nil\n-=> nil\n-=> nil\n-=> nil\n+=> (nil . "Ent 26th")\n+=> (nil . "Ent 3rd")\n+=> (nil . "Ent %d%s")\n+=> (nil . "Ent %d%s")
 eval-diary-xt10.el	XT-10	KEEP	1	^\n-=> nil\n-=> nil\n+=> (nil . "Ent %d%s")\n+=> (nil . "Ent %d%s")
+eval-diary-xt10-spelling.el	XT-10	KEEP	1	 => nil\n-=> nil\n-=> nil\n+=> (nil . "E")\n+=> (nil . "E")
 eval-diary.el	R6-OUT	KEEP	1	 => "Ent %d%s"\n-=> "Ent %d%s"\n-=> "Ent %d%s"\n+REFUSED holidays calendar-check-holidays\n+REFUSED holidays calendar-check-holidays
-eval-org-lookup.el	R6-OUT	KEEP	1	 !! wrong-number-of-arguments <unprintable>\n-!! (void-function zzz-organ-elisp-undefined)\n+REFUSED function zzz-organ-elisp-undefined
+eval-org-lookup.el	R6-OUT	KEEP	1	 !! (wrong-number-of-arguments #<fn> 2)\n-!! (void-function zzz-organ-elisp-undefined)\n+REFUSED function zzz-organ-elisp-undefined

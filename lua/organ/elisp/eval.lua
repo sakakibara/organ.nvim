@@ -1797,11 +1797,12 @@ function M.setup(run)
 end
 
 --- Evaluate `form` as the profile's Emacs entry point does.
-function M.eval_top(run, form)
+--- `src`, when given, is the text `form` was read from at byte 1.
+function M.eval_top(run, form, src)
   M.setup(run)
   form = as_value(run, form)
   if run.profile == "diary" then
-    form = calendar.year_first(run, form)
+    form = calendar.year_first(run, form, src)
   end
   return eval(run, form)
 end
