@@ -2024,11 +2024,10 @@ local function any_char(roots, pred, ints)
   end)
 end
 
-local function varying_width(c)
-  return c == 9 or (c < 32 and c ~= 10) or c == 127 or chars.cjk(c) or chars.composes(c)
-end
-
 local function is_nan(v)
+  if type(v) == "number" then
+    return v ~= v
+  end
   return type(v) == "table" and v.k == "flt" and v.x ~= v.x
 end
 
@@ -2325,25 +2324,27 @@ local function content_key(v, depth)
   return "o" .. tostring(v)
 end
 
-local function same_contents(f, conses)
-  local by_key = {}
-  return walk(args_of(f), function(v)
-    if type(v) ~= "table" then
-      return false
-    end
-    local k = v.k
-    if k == "str" or k == "flt" or k == "big" or k == "vec" or (conses and k == "cons") then
-      local key = content_key(v, 0)
-      if key then
-        local other = by_key[key]
-        if other and other ~= v then
-          return true
-        end
-        by_key[key] = v
+-- How deep `equal' recurses into `v': through cars and vector
+-- elements (cdrs are iterative), up to `limit`.
+local function nest_depth(v, limit)
+  local best = 0
+  local function go(x, d)
+    while d <= limit and type(x) == "table" and (x.k == "cons" or x.k == "vec") do
+      if d > best then
+        best = d
       end
+      if x.k == "vec" then
+        for i = 1, x.n do
+          go(x[i], d + 1)
+        end
+        return
+      end
+      go(x.car, d + 1)
+      x = x.cdr
     end
-    return false
-  end)
+  end
+  go(v, 1)
+  return best
 end
 
 local CASE_SPECIAL = { downcase = true, capitalize = true, ["upcase-initials"] = true }
@@ -2373,19 +2374,35 @@ end
 
 local RECHECK = {}
 
-RECHECK.nan = function(_, frames, value)
-  local f = frames[#frames]
-  return (f and f.nan) or walk(f and args_of(f) or { value }, is_nan)
+RECHECK.nan = function(r)
+  local seen = r.seen
+  if not seen or #seen == 0 then
+    return false
+  end
+  for _, v in ipairs(seen) do
+    if not is_nan(v) then
+      return false
+    end
+  end
+  return true
 end
-local function has_props(roots)
-  return walk(roots, function(v)
-    return type(v) == "table" and v.k == "str" and v.props == true
-  end)
-end
-
-RECHECK.width = function(_, frames)
+RECHECK.width = function(r, frames)
   local f = frames[#frames]
-  return f ~= nil and (any_char(args_of(f), varying_width, true) or has_props(args_of(f)))
+  local v = r.seen and r.seen[1]
+  if f == nil or v == nil then
+    return false
+  elseif type(v) == "table" then
+    return v.k == "str"
+      and v.props == true
+      and walk(args_of(f), function(x)
+        return x == v
+      end)
+  end
+  local formats = f.name == "format" or f.name == "format-message"
+  return (chars.fixed_width(v) == nil or (not formats and chars.composes(v)))
+    and any_char(args_of(f), function(c)
+      return c == v
+    end, true)
 end
 RECHECK.regexp = function(_, frames)
   local f = frames[#frames]
@@ -2419,9 +2436,17 @@ end
 RECHECK.locale = function(r, frames)
   return locale_ok(r, frames)
 end
-RECHECK["eq-identity"] = function(_, frames)
-  local f = frames[#frames]
-  return f ~= nil and same_contents(f, TIME_FNS[f.name] ~= nil)
+RECHECK["eq-identity"] = function(r)
+  local a, b = r.seen and r.seen[1], r.seen and r.seen[2]
+  if type(a) ~= "table" or type(b) ~= "table" or a == b then
+    return false
+  elseif r.detail == "equal in a hash table" then
+    return nest_depth(a, 201) > 200 and nest_depth(b, 201) > 200
+  end
+  local k = a.k
+  return k == b.k
+    and (k == "str" or k == "flt" or k == "big" or k == "vec" or k == "cons")
+    and content_key(a, 0) == content_key(b, 0)
 end
 RECHECK.cycle = function(_, frames)
   local f = frames[#frames]
@@ -2677,12 +2702,10 @@ function M.run(area, problems)
           wi = wi + 1
         end
         local class
-        if line == emacs_line then
-          class = "agree"
+        if line == (alt or emacs_line) then
+          class = (alt and alt ~= emacs_line) and "xt10" or "agree"
         else
-          if alt == line then
-            class = "xt10"
-          elseif r.kind == "refused" or line:match("^REFUSED ") then
+          if r.kind == "refused" or line:match("^REFUSED ") then
             local code = line:match("^REFUSED (%S+)")
             local rec
             for k = #trace.refusals, 1, -1 do
@@ -2707,12 +2730,13 @@ function M.run(area, problems)
           shown = shown + 1
           if shown <= 20 then
             problems[#problems + 1] = string.format(
-              "fuzz seed %d %s (%s): %s\n    emacs: %s\n    organ: %s",
+              "fuzz seed %d %s (%s): %s\n    emacs: %s%s\n    organ: %s",
               ch.seed,
               ch.profile,
               ch.path:match("[^/]+$"),
               it.src,
               tostring(emacs_line),
+              alt and ("\n    emacs, XT-10 order: " .. tostring(alt)) or "",
               line
             )
           end

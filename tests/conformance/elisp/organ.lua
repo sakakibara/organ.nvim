@@ -16,9 +16,9 @@ local MODES = { read = true, eval = true }
 
 -- One trace per process, shared by every load of this file: { calls =
 -- set of builtin names called from Lisp, stack = active builtin calls
--- (frames { name, argv, fold, pre, nan }, `nan` set when a builtin it
--- called returned a NaN), refusals = { code, detail, frames }
--- in the order raised since the last reset, pre = { name = fn(argv) }
+-- (frames { name, argv, fold, pre }), refusals = { code, detail, frames, seen }
+-- in the order raised since the last reset (`seen`: the values the
+-- refusal is about, when it names them), pre = { name = fn(argv) }
 -- whose value a call of builtin `name` keeps as its frame's `pre` }.
 local TRACE_KEY = "organ.elisp conformance trace"
 
@@ -49,21 +49,16 @@ function M.trace()
       if not ok then
         error(v, 0)
       end
-      if type(v) == "table" and v.k == "flt" and v.x ~= v.x then
-        for i = 1, d - 1 do
-          t.stack[i].nan = true
-        end
-      end
       return v
     end
   end
   local refuse = R.refuse
-  R.refuse = function(code, detail)
+  R.refuse = function(code, detail, seen)
     local frames = {}
     for i = 1, t.depth do
       frames[i] = t.stack[i]
     end
-    t.refusals[#t.refusals + 1] = { code = code, detail = detail, frames = frames }
+    t.refusals[#t.refusals + 1] = { code = code, detail = detail, frames = frames, seen = seen }
     return refuse(code, detail)
   end
   return t

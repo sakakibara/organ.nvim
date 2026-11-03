@@ -99,3 +99,11 @@
 (sort (list (lambda (x) x) (lambda (x) x)))
 
 (sort (list 1 2) :lessp 'value<)
+
+(let ((l (list 3 2 1 5 4))) (list (sort l (lambda (a b) (delq 1 l) (< a b))) l))
+
+(let ((l (list 3 2 1 5 4))) (list (sort l (lambda (a b) (setq l (nreverse l)) (< a b))) l))
+
+(let ((v (vconcat (list 3 2 1 5 4)))) (list (sort v (lambda (a b) (nreverse v) (< a b))) v))
+
+(let ((v (vconcat (list 3 2 1 5 4)))) (list (sort v :in-place t :key (lambda (a) (nreverse v) a)) v))

@@ -82,9 +82,13 @@ each item is (NAIVE . SOURCE)."
     found))
 
 (defun conformance-elisp--error-line (err)
+  "The line for signal ERR; its symbol and <unprintable> when its data
+holds a value organ does not print, or Emacs fails to print it."
   (if (conformance-elisp--unprintable-p (cdr err))
       (format "!! %s <unprintable>" (car err))
-    (concat "!! " (conformance-elisp--oneline (format "%s" err)))))
+    (condition-case nil
+        (concat "!! " (conformance-elisp--oneline (format "%s" err)))
+      (error (format "!! %s <unprintable>" (car err))))))
 
 (defun conformance-elisp--value-line (value)
   (concat "=> " (let ((print-escape-newlines t))
@@ -116,7 +120,7 @@ and `entry' bound dynamically around it, `case-fold-search' from its
                       (cl-progv (mapcar #'car vars) (mapcar #'cdr vars)
                         (eval form lexical)))))
         (conformance-elisp--value-line value))
-    (error (conformance-elisp--error-line err))))
+    ((error quit) (conformance-elisp--error-line err))))
 
 (defun conformance-elisp--render (file)
   (let* ((parsed (conformance-elisp--parse (conformance-elisp--text file)))

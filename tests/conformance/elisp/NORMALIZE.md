@@ -38,10 +38,12 @@ One line per item:
   prints the same for a signal.
 - `!! SYMBOL <unprintable>`: the signal's data holds a value organ does
   not print (a function, a subr, a string with text properties, a NaN,
-  whose sign and payload organ does not keep). organ
+  whose sign and payload organ does not keep), or Emacs fails to print it
+  (data nested past the printer's depth limit). organ
   prints this when its result has no text; Emacs prints it when it finds
-  such a value in the data, so the two sides agree on which data is
-  unprintable rather than organ assuming it.
+  such a value in the data or `format` signals, so the two sides agree on
+  which data is unprintable rather than organ assuming it. A `quit`
+  signal prints as any other signal.
 - `REFUSED CODE DETAIL` / `LIMIT CAP` (organ only): the input is outside
   the subset, or a cap stopped it.
 
@@ -213,16 +215,19 @@ followed in the Emacs file by the call with the year-first triples moved to
 `calendar-date-style` order. Each form's organ line must equal Emacs's,
 except:
 
-- the form is rewritten by XT-10 and organ's line equals Emacs's line for
-  the reordered call (counted as XT-10);
+- the form is rewritten by XT-10: organ's line must equal Emacs's line for
+  the reordered call, and counts as XT-10 where that differs from
+  Emacs's line for the form as written;
 - organ refuses, and the refusal's precondition holds on organ's trace of
   the evaluation: the builtin calls active when the refusal was raised,
-  with their arguments. `nan`: a NaN among the innermost call's arguments
-  or returned by a builtin it called (or in the printed value). `width`: a
-  control character, TAB, a
-  character a CJK language environment widens or one an automatic
-  composition may join, in a string, symbol name or character among them,
-  or a string with text properties among them.
+  with their arguments, and the values the refusing operation names. `nan`:
+  every value the operation names is a NaN (both operands of `eql` or
+  `equal`, the one `value<`, printing, hashing or `format` met). `width`:
+  the character the operation measured is a control character, TAB or a
+  character a CJK language environment widens (or, outside `format`, one
+  an automatic composition may join) and occurs in a string, symbol name
+  or character among the innermost call's arguments; or the string it
+  measured has text properties and is among them.
   `regexp`: a regexp argument of `split-string` or `string-trim*` holding a
   regexp special character, or a non-ASCII cased letter under case
   folding. `case-special`: a capital sigma in the argument of `downcase`,
@@ -232,8 +237,10 @@ except:
   `%Z`, or non-ASCII text in a `format-time-string` format, a fixed zone
   offset of 25 hours or more or a zone name of other characters, a DST flag
   given to `encode-time`, a time of 2^30 or more, or a zone setting (a
-  string or `wall`). `eq-identity`: two distinct strings, floats, vectors or
-  bignums (conses too, for the time functions) with equal contents.
+  string or `wall`). `eq-identity`: the two values the operation compared
+  are distinct strings, floats, vectors, bignums or conses with equal
+  contents; for a hashed `delete-dups` or `seq-uniq`, the two elements it
+  compared both nest more than 200 deep through cars and vector elements.
   `cycle`: `nconc` arguments sharing a cons or vector, or a list
   `mapconcat` maps that shortened while mapping. `holidays`: `org-class`
   with weeks to skip holding `holidays` or a string, or on a `date` that is

@@ -178,3 +178,9 @@
 (user-error)
 
 (error "a\nb")
+
+(let ((x 1)) (dotimes (i 199) (setq x (list x))) (signal 'error (list x)))
+
+(let ((x 1)) (dotimes (i 200) (setq x (list x))) x)
+
+(signal 'quit nil)

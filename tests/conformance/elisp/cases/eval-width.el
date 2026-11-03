@@ -102,3 +102,9 @@
 (string-pad "abc" 1180591620717411303424)
 
 (let ((s "abc")) (eq s (string-pad s 2)))
+
+(truncate-string-to-width "abé" 1)
+
+(truncate-string-to-width "a	b" 1 nil nil "..")
+
+(truncate-string-to-width "abé" 3)

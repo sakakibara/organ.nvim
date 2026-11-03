@@ -124,3 +124,17 @@
 (let ((a 1) (b 1)) (dotimes (_ 1000) (setq a (cons 1 a) b (cons 1 b))) (equal a b))
 
 (equal)
+
+(eql 1.0 0.0e+NaN)
+
+(eql 0.0e+NaN -1.0)
+
+(equal 1.0 0.0e+NaN)
+
+(equal (list 0.0e+NaN) (list 2.5))
+
+(member 1.0 (list 0.0e+NaN 1.0))
+
+(seq-contains-p (list 0.0e+NaN 1.0) 1.0)
+
+(eql 0.0e+NaN -0.0e+NaN)
