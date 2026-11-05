@@ -516,12 +516,8 @@ local function new_float(run, x)
   return V.float(x)
 end
 
+--- The sign bit of a double that is not a NaN.
 local function signbit(x)
-  if x ~= x then
-    local buf = ffi.new("double[1]", x)
-    local bytes = ffi.cast("unsigned char *", buf)
-    return (ffi.abi("le") and bytes[7] or bytes[0]) >= 128
-  end
   return x < 0 or (x == 0 and 1 / x < 0)
 end
 M.signbit = signbit
@@ -914,7 +910,13 @@ end)
 define("abs", function(run, argv)
   local x = check_num(argv[1], "numberp")
   if is_float(x) then
-    if signbit(x.x) then
+    if x.x ~= x.x then
+      if x.nan_neg == false then
+        return x
+      end
+      run:charge(16)
+      return V.nan(false)
+    elseif signbit(x.x) then
       return new_float(run, -x.x)
     end
     return x
@@ -1376,8 +1378,7 @@ define("string-to-number", function(run, argv)
       return 0
     end
     if n.float then
-      local x = n.special or reader.decimal_float(n.int_part, n.frac, n.exp_digits, n.exp_neg)
-      return new_float(run, n.neg and -x or x)
+      return reader.scanned_float(run, n)
     end
     return reader.digits_to_int(run, n.int_part, n.neg, 10)
   end

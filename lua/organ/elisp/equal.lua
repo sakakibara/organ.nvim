@@ -5,8 +5,8 @@
 -- Two distinct boxes (strings, floats, vectors, integers beyond
 -- most-positive-fixnum) that could be one object in Emacs refuse
 -- `eq-identity'; boxes that differ in contents are distinct in Emacs
--- too.  Two NaNs compared by contents refuse `nan', as organ does not
--- keep NaN signs and payloads; two distinct closures refuse
+-- too.  Two NaNs compared by contents refuse `nan', as organ keeps no
+-- NaN payload and not every NaN's sign; two distinct closures refuse
 -- `unprintable'.  `equal' follows fns.c's internal_equal: past depth
 -- 10 it remembers the pairs it has seen and past 200 it signals.
 

@@ -5,8 +5,9 @@
 --
 -- Where the platforms differ organ refuses: precision above 99 and
 -- negative %b with a precision (`precision'), integers %e %f %g would
--- format as a long double (`precision'), a NaN printed with a sign
--- (`nan'); format-message quotes follow text-quoting-style (`locale').
+-- format as a long double (`precision'), a NaN printed with a sign or
+-- whose sign the platform decides (`nan'); format-message quotes follow
+-- text-quoting-style (`locale').
 
 local B = require("organ.elisp.builtins")
 local R = require("organ.elisp.run")
@@ -156,10 +157,15 @@ local function sci(digits, x, sharp)
 end
 
 --- C's %e, %f or %g of double `x` with precision `prec` (-1 when not
---- given) and flags, as sprintf prints it.
-local function c_float(run, conv, x, prec, plus, space, sharp)
-  if x ~= x and (num.signbit(x) or plus or space) then
-    R.refuse("nan", "NaN with a sign", { x })
+--- given) and flags, as sprintf prints it; `nan_neg` is a NaN's sign.
+local function c_float(run, conv, x, prec, plus, space, sharp, nan_neg)
+  if x ~= x then
+    if nan_neg == nil then
+      R.refuse("nan", "NaN of unknown sign", { x })
+    elseif nan_neg or plus or space then
+      R.refuse("nan", "NaN with a sign", { x })
+    end
+    return "nan"
   end
   local sign = ""
   if num.signbit(x) then
@@ -169,9 +175,7 @@ local function c_float(run, conv, x, prec, plus, space, sharp)
   elseif space then
     sign = " "
   end
-  if x ~= x then
-    return sign .. "nan"
-  elseif x == HUGE or x == -HUGE then
+  if x == HUGE or x == -HUGE then
     return sign .. "inf"
   end
   local d, k = exact_decimal(run, math.abs(x))
@@ -535,9 +539,9 @@ function M.number(run, conv, a, o)
   local p
   local prefix, excess = "", 0
   if o.float_conv then
-    local x
+    local x, nan_neg
     if num.is_float(a) then
-      x = a.x
+      x, nan_neg = a.x, a.nan_neg
     else
       x = num.float_of(run, a)
       if
@@ -549,7 +553,7 @@ function M.number(run, conv, a, o)
         R.refuse("precision", "long double")
       end
     end
-    p = c_float(run, conv, x, prec, o.plus, o.space, sharp)
+    p = c_float(run, conv, x, prec, o.plus, o.space, sharp, nan_neg)
   elseif conv == "c" then
     if prec == 0 then
       if o.width > 0 and (a == 45 or a == 43 or a == 32) then
@@ -590,11 +594,13 @@ function M.number(run, conv, a, o)
     elseif conv == "d" or conv == "i" then
       if num.is_float(a) then
         local x = a.x
-        x = x >= 0 and math.floor(x) or math.ceil(x)
-        if x == 0 then
-          x = 0
+        if x == x then
+          x = x >= 0 and math.floor(x) or math.ceil(x)
+          if x == 0 then
+            x = 0
+          end
         end
-        p = c_float(run, "f", x, 0, o.plus, o.space, false)
+        p = c_float(run, "f", x, 0, o.plus, o.space, false, a.nan_neg)
         local signedp = (byte(p, 1) < 48 or byte(p, 1) > 57) and 1 or 0
         local cut = math.min(o.precision, #p - signedp)
         excess = o.precision_given and o.precision - cut or 0

@@ -3,11 +3,16 @@
 -- An integer is a Lua number when |n| <= 2^53 - 1 and a bignum box
 -- { k = "big", n = <organ.calc.bn> } beyond.  Every other value is a table
 -- tagged by `k`: "sym" { name = <string box> }, "str" { s = <UTF-8>,
--- props = true|nil }, "flt" { x = <number> }, "cons" { car, cdr }, "vec"
--- { n = <count>, [1..n] }, "fn" (see organ.elisp.eval).  Symbols are
--- interned per name unless `uninterned`; `nil` is the empty list.
+-- props = true|nil }, "flt" { x = <number>, nan_neg = true|false|nil },
+-- "cons" { car, cdr }, "vec" { n = <count>, [1..n] }, "fn" (see
+-- organ.elisp.eval).  A NaN's sign is `nan_neg`, set only where it does
+-- not depend on the platform (a NaN read from text, or `abs`); nil means
+-- the platform decides it, and `x`'s own sign bit is never consulted.
+-- Symbols are interned per name unless `uninterned`; `nil` is the empty
+-- list.
 
 local bn = require("organ.calc.bn")
+local ffi = require("ffi")
 
 local M = {}
 
@@ -47,6 +52,14 @@ end
 
 function M.float(x)
   return { k = "flt", x = x }
+end
+
+local nan_bits = ffi.new("union { uint64_t u; double d; }")
+
+--- A NaN whose sign bit is `neg`, as Emacs reads `0.0e+NaN`.
+function M.nan(neg)
+  nan_bits.u = neg and 0xFFF8000000000000ULL or 0x7FF8000000000000ULL
+  return { k = "flt", x = nan_bits.d, nan_neg = neg }
 end
 
 function M.list(items, n)

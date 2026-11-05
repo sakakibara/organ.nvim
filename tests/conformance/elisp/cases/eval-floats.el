@@ -1,13 +1,13 @@
 ; profile: table
 ; mode: eval
 ; case_fold: nil
-; Float functions through libm, float printing, infinities and NaN, which organ refuses to print or compare by contents.
+; Float functions through libm, float printing, infinities and NaN, which organ refuses to print or compare by contents. A NaN libm returns is printed through abs, as its sign is the platform's.
 
 (sqrt 4)
 
 (sqrt 2)
 
-(sqrt -1)
+(abs (sqrt -1))
 
 (sqrt 1180591620717411303424)
 
@@ -23,7 +23,7 @@
 
 (log 0)
 
-(log -1)
+(abs (log -1))
 
 (log 8 2)
 
@@ -49,7 +49,7 @@
 
 (asin 1)
 
-(asin 2)
+(abs (asin 2))
 
 (acos 0.5)
 
@@ -73,7 +73,7 @@
 
 (expt -8 1.0e+INF)
 
-(expt -8.0 (/ 1.0 3))
+(abs (expt -8.0 (/ 1.0 3)))
 
 (expt 0.0 0)
 

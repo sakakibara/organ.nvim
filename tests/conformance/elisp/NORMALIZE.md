@@ -41,7 +41,7 @@ One line per item:
   not print, so organ's result has no text. Both sides print
   `(format "%s" err)` with each such value replaced by a placeholder:
   `#<fn>` for a function or subr, `#<nan>` for a NaN (organ keeps no NaN
-  sign or payload), `#<props>` for a string with text properties. The
+  payload, and no sign for a NaN arithmetic made), `#<props>` for a string with text properties. The
   rest of the data is compared as printed. Emacs replaces only the values
   it finds in the data, so the two sides agree on which data is
   unprintable rather than organ assuming it. A `quit` signal prints as
@@ -116,7 +116,8 @@ text properties (`width`); lowercasing a capital sigma inside a word
 (`case-special`); `format` precision above 99, an integer `%e %f %g`
 would print as a long double, a negative `%b` with a precision and
 `%.0c` of a sign character with a width (`precision`); a NaN printed
-with a sign (`nan`); a character outside Unicode scalar values in a
+with a sign, or one whose sign the platform decides: any NaN not read
+from text or returned by `abs` (`nan`); a character outside Unicode scalar values in a
 string (`charset`); `truncate-string-to-width` with a non-string
 ELLIPSIS and Emacs's "Format specifier doesn't match argument type"
 message (`locale`); the `length` of a closure (`unprintable`); and `eq`

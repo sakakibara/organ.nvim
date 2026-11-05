@@ -712,6 +712,75 @@ do
   check("equal of two equal strings", r.ok and r.value == elisp.T, show(r))
 end
 
+-- NaN signs: the sign of a NaN that arithmetic makes is the platform's,
+-- so format refuses it whatever the host's sign bit; a NaN read from
+-- text or returned by abs has a fixed sign
+
+do
+  local ffi = require("ffi")
+  local bits = ffi.new("union { uint64_t u; double d; uint8_t b[8]; }")
+  local function nan_of(neg)
+    bits.u = neg and 0xFFF8000000000000ULL or 0x7FF8000000000000ULL
+    return bits.d
+  end
+  local function sign_bit(x)
+    bits.d = x
+    return bits.b[ffi.abi("le") and 7 or 0] >= 128
+  end
+  local function refused_nan(r)
+    return r.kind == "refused" and r.code == "nan"
+  end
+  for _, neg in ipairs({ false, true }) do
+    local x = nan_of(neg)
+    local label = neg and "sign bit set" or "sign bit clear"
+    check("a host NaN with its " .. label, x ~= x and sign_bit(x) == neg)
+    for _, conv in ipairs({ "%d", "%e", "%f", "%g", "%5.1f" }) do
+      local r = elisp.call("format", { conv, x })
+      check(
+        "format " .. conv .. " of a NaN with its " .. label .. " refuses",
+        refused_nan(r),
+        show(r)
+      )
+    end
+    local r = ev('(format "%f" (* x 2))', { variables = { x = x } })
+    check("format of arithmetic on a NaN with its " .. label .. " refuses", refused_nan(r), show(r))
+    r = ev('(format "%d|%f" (abs x) (abs (abs x)))', { variables = { x = x } })
+    check("abs of a NaN with its " .. label, r.ok and r.value.s == "nan|nan", show(r))
+  end
+  local r = ev('(format "%d|%e|%10g" 0.0e+NaN 0.0e+NaN 0.0e+NaN)')
+  check("format of a NaN read without a sign", r.ok and r.value.s == "nan|nan|       nan", show(r))
+  r = ev('(format "%f" (string-to-number "0.0e+NaN"))')
+  check("format of string-to-number of a NaN", r.ok and r.value.s == "nan", show(r))
+  for _, src in ipairs({
+    '(format "%d" -0.0e+NaN)',
+    '(format "%f" (string-to-number "-0.0e+NaN"))',
+    '(format "%+f" 0.0e+NaN)',
+    '(format "%f" (- 1.0e+INF 1.0e+INF))',
+    '(format "%d" (* 0 1.0e+INF))',
+    '(format "%f" (sqrt -1))',
+    '(format "%f" (- 0.0e+NaN))',
+  }) do
+    r = ev(src)
+    check(src .. " refuses", refused_nan(r), show(r))
+  end
+  for _, case in ipairs({
+    { "0.0e+NaN", false },
+    { "-0.0e+NaN", true },
+    { "(abs -0.0e+NaN)", false },
+  }) do
+    r = ev(case[1])
+    local l = r.ok and elisp.to_lua(r.value)
+    local f = l and l.ok and l.value.float
+    check(
+      "to_lua of " .. case[1] .. " keeps its sign bit",
+      f ~= nil and f ~= f and sign_bit(f) == case[2],
+      show(l or r)
+    )
+  end
+  r = ev("(let ((x 0.0e+NaN)) (eq x (abs x)))")
+  check("abs of a NaN read without a sign is the NaN", r.ok and r.value == elisp.T, show(r))
+end
+
 -- consumer functions and macros
 
 do

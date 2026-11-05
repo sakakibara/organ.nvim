@@ -242,6 +242,17 @@ local function scan_number(s)
 end
 M.scan_number = scan_number
 
+--- The float a scan_number result with float syntax reads as.
+local function scanned_float(run, n)
+  run:charge(16)
+  if n.special and n.special ~= n.special then
+    return V.nan(n.neg)
+  end
+  local x = n.special or decimal_float(n.int_part, n.frac, n.exp_digits, n.exp_neg)
+  return V.float(n.neg and -x or x)
+end
+M.scanned_float = scanned_float
+
 --- Whether all of `s` reads as a number (print.c's test for a symbol
 --- name that needs a leading backslash).
 function M.reads_as_number(s)
@@ -256,9 +267,7 @@ local function token_number(run, s)
     return nil
   end
   if n.float then
-    local x = n.special or decimal_float(n.int_part, n.frac, n.exp_digits, n.exp_neg)
-    run:charge(16)
-    return V.float(n.neg and -x or x)
+    return scanned_float(run, n)
   end
   return digits_to_int(run, n.int_part, n.neg, 10)
 end
