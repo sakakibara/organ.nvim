@@ -1,0 +1,4 @@
+# case <TAB> sha256 (shasum -a 256)
+cases/from-minutes.el	d582b9748f5707bba9aec2fbb81945aa41ad697e0e3e42c94c255425f7f48fd8
+cases/h-mm-only.el	c12129a6504fba0c8b380490429a18102dde4306be73d6d463626343ff6e32ea
+cases/to-minutes.el	fff041dd0be66cb4b9352fff367024e83a1f779774fda5f9cf2787bcebd8ecc5
