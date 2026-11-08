@@ -74,6 +74,7 @@
 --
 --   M.from_string(s)   parse "0", "-42", "1/3", "12.5"
 --   M.from_int(n)      from a Lua integer (must be exact, |n| < 2^53)
+--   M.from_fraction(s) Calc's "1:2" / "1:2:3" notation, nil for other text
 --   M.to_string(v)     "42" / "-1/3" / "0"
 --   M.to_number(v)     best-effort Lua double
 --   M.is_calc(v)       predicate

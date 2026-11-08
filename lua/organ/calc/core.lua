@@ -207,6 +207,30 @@ function M.from_string(s)
   error("calc.from_string: cannot parse " .. tostring(s))
 end
 
+-- Calc's fraction notation: `a:b` is a/b and `a:b:c` is a + b/c, over
+-- unsigned digit runs with an optional leading sign. Returns nil for
+-- any other text; a zero denominator raises, as Calc rejects it.
+function M.from_fraction(s)
+  local sign, a, b, c = s:match("^([+-]?)(%d+):(%d+):(%d+)$")
+  if not a then
+    sign, b, c = s:match("^([+-]?)(%d+):(%d+)$")
+    a = "0"
+  end
+  if not b then
+    return nil
+  end
+  local den = bn.from_digits_string(c)
+  if bn.is_zero(den) then
+    error("calc: division by zero in " .. s)
+  end
+  local whole = bn.from_digits_string(a)
+  local num = bn.add(bn.mul(whole, den), bn.from_digits_string(b))
+  if sign == "-" then
+    num = bn.neg(num)
+  end
+  return reduce_rat(num, den)
+end
+
 local function format_float(x)
   if x == math.floor(x) and math.abs(x) < 1e15 then
     return tostring(math.floor(x))

@@ -320,7 +320,7 @@ function M.eval_formulas(bufnr)
   -- for exact arithmetic -- raises instead, so the caller can abandon
   -- the whole recalculation with every field as the user left it.
   local function evaluate(fm, r, c)
-    local ok, v = pcall(formula.eval_calc, fm.expr, {
+    local ctx = {
       rows = data_rows,
       hlines = hlines,
       ncols = ncols,
@@ -328,14 +328,15 @@ function M.eval_formulas(bufnr)
       current_col = c,
       numeric = fm.numeric,
       radians = fm.radians,
-    })
+    }
+    local ok, v = pcall(formula.eval_calc, fm.expr, ctx)
     if not ok then
       if formula.refused(v) then
         error(v, 0)
       end
       return "#ERROR"
     end
-    return formula.format_result(v, fm)
+    return formula.format_result(v, fm, ctx)
   end
   local function set_cell(row, c, text)
     while #row.cells < c do

@@ -2079,6 +2079,10 @@ up to date for organ to use it; see |organ-requires-tablature|.
                         binds tighter than `/`, so `8/2*4` is
                         `8/(2*4)` and gives 1
      Numbers            `12`, `1.5`, `1e12`
+     Fractions          Calc's `1:2` and `1:2:3` (one and two
+                        thirds), in a field or in the formula; the
+                        result stays exact, so `1:15+2:50` gives
+                        `8:75`
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
      `;%.2f`            printf format for the result
      `;N`               read every field as a number (empty is 0)
@@ -2107,8 +2111,12 @@ up to date for organ to use it; see |organ-requires-tablature|.
     reaches outside the reals -- the square root or logarithm of a
     negative number, a fractional power of one, and `arcsin` /
     `arccos` past -1..1, each of which Calc answers with a complex
-    pair, plus a float past the range organ holds -- is refused with
-    a message and the table is left exactly as it was.
+    pair, plus a float past the range organ holds, and a fraction
+    mixed with a float or given to anything but `+` `-` `*` `/`, an
+    integer power, a comparison, `abs` `floor` `ceil` `round` `trunc`,
+    `vsum` `vmax` `vmin` `vcount` `vlen` and `if()`, and a colon
+    beside `@#` or `$#` -- is refused with a message and the table is
+    left exactly as it was.
     Exact integer results are capped where Emacs caps them (65536
     bits); past that the formula is refused as an arithmetic overflow
     instead of computed.

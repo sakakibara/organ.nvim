@@ -43,11 +43,32 @@ local function descriptor(s, i)
     or s:match("^[%+%-]?%d+", i)
 end
 
+-- A Calc fraction literal (`1:2`, `1:2:3`) starting at `i`, or nil.
+-- Followed by anything that would extend it, the text is not a fraction
+-- organ reads, and tokenizes as it always has.
+local function fraction_literal(s, i)
+  local text = s:match("^%d+:%d+:%d+", i) or s:match("^%d+:%d+", i)
+  if not text or s:find("^[%w_.:#@$]", i + #text) then
+    return nil
+  end
+  return text
+end
+
 local function tokenize(s)
+  -- Emacs substitutes `@#` and `$#` as bare digits before Calc reads the
+  -- formula, so a colon beside one builds a fraction from the row or
+  -- column number.
+  if s:find(":[@$]#") or s:find("[@$]#:") then
+    refuse("':' next to '@#' or '$#'")
+  end
   local tokens, i = {}, 1
   while i <= #s do
     local c = s:sub(i, i)
-    if c:match("%s") then
+    local fraction = fraction_literal(s, i)
+    if fraction then
+      tokens[#tokens + 1] = { type = "frac", value = calc().from_fraction(fraction) }
+      i = i + #fraction
+    elseif c:match("%s") then
       i = i + 1
     elseif s:sub(i, i + 1) == ".." then
       tokens[#tokens + 1] = { type = "range" }
@@ -201,6 +222,10 @@ function Parser:parse_primary()
   if t.type == "num" then
     self:advance()
     return { kind = "num", value = t.value, float = t.float }
+  end
+  if t.type == "frac" then
+    self:advance()
+    return { kind = "frac", value = t.value }
   end
   if t.type == "lparen" then
     self:advance()
@@ -408,6 +433,9 @@ function M.parse(s)
         end
       end
       local ok_rhs, expr = pcall(parse_expr_text, expr_s or rhs_s)
+      if not ok_rhs and M.refused(expr) then
+        error(expr, 0)
+      end
       fm.expr = ok_rhs and expr or { kind = "error", message = tostring(expr) }
       out[#out + 1] = fm
     end
@@ -424,6 +452,8 @@ local NOT_A_VARIABLE = { inf = true, nan = true, uinf = true }
 -- for text Calc would have to parse, so consumers can decide whether
 -- to skip (aggregations) or short-circuit (binary ops); under `;N`
 -- every field in the table reads as a number, empty and textual alike.
+-- A second result marks a Calc fraction (`1:2`), which puts the
+-- evaluation in a fraction context.
 local function cell_value(ctx, r, c)
   local row = ctx.rows[r]
   local raw = row and (row.cells or {})[c]
@@ -443,8 +473,21 @@ local function cell_value(ctx, r, c)
     if not ctx.numeric and raw:match("^%a[%w_]*$") and not NOT_A_VARIABLE[raw] then
       return calc().sym(raw)
     end
+    -- Under `;N` Emacs reads field text with `string-to-number`, so no
+    -- field is a fraction there.
+    if not ctx.numeric then
+      local fraction = calc().from_fraction(raw)
+      if fraction then
+        ctx.fraction = true
+        return fraction, true
+      end
+    end
     local ok, v = pcall(calc().from_string, raw)
     if ok and not (ctx.numeric and calc().is_symbol(v)) then
+      -- `1/2` is a quotient, which Calc takes with Fraction mode off.
+      if v.kind == "rat" then
+        return calc().from_float(calc().to_number(v))
+      end
       return v
     end
   end
@@ -569,6 +612,75 @@ local function collect_range_values(node, ctx)
   end
   return out
 end
+
+-- Fraction context. An evaluation that reads a Calc fraction, from a
+-- field or a literal, sets `ctx.fraction`; only then does a rat survive
+-- from one application into the next. An application over a fraction
+-- answers only where organ's exact arithmetic is Calc's, and refuses
+-- otherwise: Calc floats a fraction to its own 12 digits, which a
+-- double does not reproduce.
+
+local function is_fraction(v)
+  return type(v) == "table" and v.kind == "rat"
+end
+
+-- Whether any of `values` -- Calc values or vectors of them -- holds a
+-- fraction. Always false outside a fraction context.
+local function over_fraction(ctx, values)
+  if not (ctx and ctx.fraction) then
+    return false
+  end
+  for _, v in ipairs(values) do
+    if is_fraction(v) then
+      return true
+    end
+    if type(v) == "table" and not v.kind then
+      for _, item in ipairs(v) do
+        if is_fraction(item) then
+          return true
+        end
+      end
+    end
+  end
+  return false
+end
+
+-- Refuses `name` unless every one of `values` is an integer or a
+-- fraction.
+local function exact_only(name, values)
+  for _, v in ipairs(values) do
+    if not calc().is_exact(v) then
+      refuse(name .. "() of a fraction")
+    end
+  end
+end
+
+local FRACTION_BINARY = {
+  ["+"] = function(C, a, b)
+    return C.add(a, b)
+  end,
+  ["-"] = function(C, a, b)
+    return C.sub(a, b)
+  end,
+  ["*"] = function(C, a, b)
+    return C.mul(a, b)
+  end,
+  ["/"] = function(C, a, b)
+    if C.sign(b) == 0 then
+      return C.fdiv(a, b)
+    end
+    return C.div(a, b)
+  end,
+  ["^"] = function(C, a, b)
+    if not C.is_int(b) then
+      refuse("^() of a fraction")
+    end
+    return C.pow(a, b)
+  end,
+}
+
+local FRACTION_AGG = { vsum = true, vmax = true, vmin = true, vcount = true }
+local FRACTION_SCALAR = { abs = true, floor = true, ceil = true, round = true, trunc = true }
 
 -- Function dispatch — every callable in the evaluator goes through here.
 -- All inputs and outputs are Calc values; conversion to / from Lua
@@ -911,7 +1023,11 @@ local function vector_length(args, ctx)
   if not arg or arg.kind ~= "range" then
     return calc().from_int(0)
   end
-  return calc().from_int(#collect_range_values(arg, ctx))
+  local values = collect_range_values(arg, ctx)
+  if over_fraction(ctx, values) then
+    exact_only("vlen", values)
+  end
+  return calc().from_int(#values)
 end
 
 -- Where Calc has no answer for numeric arguments either and keeps the
@@ -983,7 +1099,12 @@ local function apply_function(name, args, ctx)
       C.symbolic_refusal("condition in if()")
     end
     local taken = C.is_true(cond) and args[2] or args[3]
-    return eval_calc(taken, ctx)
+    local v = eval_calc(taken, ctx)
+    if over_fraction(ctx, { cond, v }) then
+      exact_only("if", { cond })
+      return v, is_fraction(v)
+    end
+    return v
   end
   if name == "vlen" then
     return vector_length(args, ctx)
@@ -992,6 +1113,13 @@ local function apply_function(name, args, ctx)
     local values = collect_arg_values(args, ctx)
     if values == nil then
       return nil
+    end
+    if over_fraction(ctx, values) then
+      if not FRACTION_AGG[name] then
+        refuse(name .. "() of a fraction")
+      end
+      exact_only(name, values)
+      return AGG[name](C, values), true
     end
     if not SYMBOLIC_AGG[name] and any_symbolic(values) then
       -- Calc reduces the elements of one vector, and leaves a call over
@@ -1017,6 +1145,13 @@ local function apply_function(name, args, ctx)
     if v == nil then
       return nil
     end
+    if over_fraction(ctx, { v }) then
+      if not FRACTION_SCALAR[name] then
+        refuse(name .. "() of a fraction")
+      end
+      exact_only(name, { v })
+      return SCALAR_C[name](C, v, ctx), true
+    end
     if C.is_symbolic(v) or outside_domain(name, { v }) then
       return C.sym_call(CALC_NAME[name] or name, { v })
     end
@@ -1031,6 +1166,9 @@ local function apply_function(name, args, ctx)
     local b = eval_calc(args[2], ctx)
     if a == nil or b == nil then
       return nil
+    end
+    if over_fraction(ctx, { a, b }) then
+      refuse(name .. "() of a fraction")
     end
     if C.is_symbolic(a) or C.is_symbolic(b) then
       if SYMBOLIC_BINARY[name] then
@@ -1052,6 +1190,9 @@ local function apply_function(name, args, ctx)
       return nil
     end
     values[i] = v
+  end
+  if over_fraction(ctx, values) then
+    refuse(name .. "() of a fraction")
   end
   return C.sym_call(name, values)
 end
@@ -1087,6 +1228,13 @@ local function eval_node(node, ctx)
     end
     return C.from_number(node.value)
   end
+  if node.kind == "frac" then
+    if not ctx then
+      return node.value
+    end
+    ctx.fraction = true
+    return node.value, true
+  end
   if node.kind == "const" then
     return const_value(node.name, ctx)
   end
@@ -1107,6 +1255,10 @@ local function eval_node(node, ctx)
     if a == nil then
       return nil
     end
+    if over_fraction(ctx, { a }) then
+      exact_only("-", { a })
+      return C.neg(a), true
+    end
     return C.neg(a)
   end
   if node.kind == "binop" then
@@ -1114,6 +1266,14 @@ local function eval_node(node, ctx)
     local b = eval_calc(node.right, ctx)
     if a == nil or b == nil then
       return nil
+    end
+    if over_fraction(ctx, { a, b }) then
+      local exact = FRACTION_BINARY[node.op]
+      if not exact then
+        refuse(node.op .. "() of a fraction")
+      end
+      exact_only(node.op, { a, b })
+      return exact(C, a, b), true
     end
     if node.op == "+" then
       return C.add(a, b)
@@ -1141,7 +1301,9 @@ local function eval_node(node, ctx)
     if a == nil or b == nil then
       return nil
     end
-    if C.is_symbolic(a) or C.is_symbolic(b) then
+    if over_fraction(ctx, { a, b }) then
+      exact_only(node.op, { a, b })
+    elseif C.is_symbolic(a) or C.is_symbolic(b) then
       return C.sym_cmp(node.op, a, b)
     end
     local r
@@ -1177,10 +1339,12 @@ end
 -- A table formula runs with Calc's Fraction mode off, so an inexact
 -- quotient reaches a result as the float it prints as. The exact
 -- rationals that survive are Calc's own -- the coefficient of a
--- collected term -- and those keep its `3:2` spelling.
+-- collected term, and a fraction the formula read or computed in a
+-- fraction context (eval_node's second result) -- and those keep its
+-- `3:2` spelling.
 function eval_calc(node, ctx)
-  local v = eval_node(node, ctx)
-  if type(v) == "table" and v.kind == "rat" then
+  local v, fraction = eval_node(node, ctx)
+  if type(v) == "table" and v.kind == "rat" and not fraction then
     return calc().from_float(calc().to_number(v))
   end
   return v
@@ -1261,20 +1425,55 @@ local function leading_number(text)
   return tonumber(n) or 0
 end
 
+-- Cell text for a result of a fraction context: a fraction spells
+-- Calc's `a:b`, inside a vector or an algebraic result too.
+local function fraction_text(v)
+  if is_fraction(v) then
+    return (calc().to_string(v):gsub("/", ":"))
+  end
+  if type(v) == "table" and not v.kind then
+    local parts = {}
+    for i, item in ipairs(v) do
+      parts[i] = fraction_text(item)
+    end
+    return "[" .. table.concat(parts, ", ") .. "]"
+  end
+  if calc().is_symbolic(v) then
+    return calc().render_expr(v, fraction_text)
+  end
+  return M.format_value(v)
+end
+
+-- Emacs's `string-to-number` of a fraction's text: its numerator.
+local function string_to_number(text)
+  local n = require("organ.elisp.reader").scan_number(text)
+  if not n then
+    return 0
+  end
+  local x = tonumber(n.int_part)
+  return n.neg and -x or x
+end
+
 -- Cell text for a result under a formula's trailing `;` mode. `N` asks
 -- for a number, so an algebraic result is an error there; a printf
--- template takes over the rendering entirely.
-function M.format_result(v, fm)
+-- template takes over the rendering entirely. `ctx` is the evaluation's
+-- context, when it read a fraction.
+function M.format_result(v, fm, ctx)
   if fm and fm.numeric and calc().is_symbolic(v) then
     return "#ERROR"
   end
+  local fraction = ctx ~= nil and ctx.fraction == true
   if not (fm and fm.fmt) then
-    return M.format_value(v)
+    return fraction and fraction_text(v) or M.format_value(v)
   end
   local x = 0
-  if type(v) == "table" and v.kind then
+  if fraction and is_fraction(v) then
+    -- Emacs formats the number the result's text starts with, so `1:2`
+    -- under `%.2f` is 1.00.
+    x = string_to_number(fraction_text(v))
+  elseif type(v) == "table" and v.kind then
     local ok, n = pcall(calc().to_number, v)
-    x = (ok and tonumber(n)) or leading_number(M.format_value(v))
+    x = (ok and tonumber(n)) or leading_number(fraction and fraction_text(v) or M.format_value(v))
   end
   if fm.conv:match("[diouxX]") then
     x = x < 0 and -math.floor(-x) or math.floor(x)
