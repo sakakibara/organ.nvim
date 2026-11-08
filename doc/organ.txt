@@ -2128,9 +2128,12 @@ up to date for organ to use it; see |organ-requires-tablature|.
     range organ holds, a duration of 2^53 seconds or more, and a
     fraction mixed with a float or given to anything but `+` `-` `*`
     `/`, an integer power, a comparison, `abs` `floor` `ceil` `round`
-    `trunc`, `vsum` `vmax` `vmin` `vcount` `vlen` and `if()`, and a
-    colon beside `@#` or `$#` -- is refused with a message and the
-    table is left exactly as it was.
+    `trunc`, `vsum` `vmax` `vmin` `vcount` `vlen` and `if()`, a colon
+    beside `@#` or `$#`, and the second argument of `round`, `floor`,
+    `ceil` and `trunc` over a non-integer, of `log`, `sign` and `not`
+    (`round(x, 2)`, `log(8, 2)`) -- is refused with a message and the
+    table is left exactly as it was. Any other one-argument function
+    given two arguments stays unevaluated, as in Calc (`abs(7, 3)`).
     Exact integer results are capped where Emacs caps them (65536
     bits); past that the formula is refused as an arithmetic overflow
     instead of computed.

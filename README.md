@@ -345,8 +345,9 @@ default) with example inputs.
 <summary><strong>TODO, planning, clock</strong></summary>
 
 `:Org todo`, `:Org schedule`, `:Org deadline`, `:Org toggle_ordered`,
-`:Org set_effort`, `:Org clock in`, `:Org clock out`, `:Org clock jump`,
-`:Org clock cancel`, `:Org clock report`
+`:Org set_effort`, `:Org migrate_effort`, `:Org clock in`,
+`:Org clock out`, `:Org clock jump`, `:Org clock cancel`,
+`:Org clock report`
 </details>
 
 <details>

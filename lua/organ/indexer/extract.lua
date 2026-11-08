@@ -1031,6 +1031,7 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
 end
 
 M.scan_filetags = scan_filetags
+-- TD-94 migration: delete after 2027-02-09
 M.file_property_drawer = file_property_drawer
 M.scan_todo_keywords = scan_todo_keywords
 

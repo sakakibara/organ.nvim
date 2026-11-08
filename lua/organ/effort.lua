@@ -43,7 +43,7 @@ function M.parse_filter(spec)
     end
   end
 
-  local lo_s, hi_s = spec:match("^(.-)%.%.(.*)$")
+  local lo_s, hi_s = spec:match("^%s*(.-)%s*%.%.%s*(.-)%s*$")
   if lo_s and hi_s then
     local lo = M.parse(lo_s)
     local hi = M.parse(hi_s)
@@ -101,11 +101,22 @@ function M.row_effort_minutes(row)
 end
 
 -- TD-94 migration: delete after 2027-02-09
--- "month" and the value with each `m` unit spelled `min`, "invalid" and
--- to_minutes's message, or nil.
-local function classify(value)
+-- Why organ reads no effort from `value` (org-duration cannot read it,
+-- or its minutes are past what H:MM prints), or nil.
+local function unreadable(value)
   local minutes, msg = duration.to_minutes(value)
-  if not minutes then
+  if minutes then
+    msg = select(2, duration.from_minutes(minutes, "h:mm"))
+  end
+  return msg
+end
+
+-- TD-94 migration: delete after 2027-02-09
+-- "month" and the value with each `m` unit spelled `min`, "invalid" and
+-- why organ reads no effort from it (after that rewrite), or nil.
+local function classify(value)
+  local _, msg = duration.to_minutes(value)
+  if msg then
     return "invalid", nil, msg
   end
   local parts, from = {}, 1
@@ -115,13 +126,22 @@ local function classify(value)
       from = t[2]
     end
   end
-  if from == 1 then
-    return nil
+  local replacement
+  if from > 1 then
+    parts[#parts + 1] = value:sub(from)
+    replacement = table.concat(parts)
   end
-  parts[#parts + 1] = value:sub(from)
-  return "month", table.concat(parts)
+  msg = unreadable(replacement or value)
+  if msg then
+    return "invalid", nil, msg
+  end
+  if replacement then
+    return "month", replacement
+  end
+  return nil
 end
 
+-- TD-94 migration: delete after 2027-02-09
 local function effort_key(key)
   key = key:lower()
   if key == "effort" then
@@ -132,6 +152,7 @@ local function effort_key(key)
   return nil
 end
 
+-- TD-94 migration: delete after 2027-02-09
 --- Every Effort and Effort_ALL value in the org tree at `root` (source
 --- `src`) that a reader of org-duration must change or cannot read: the
 --- properties of the file-level and headline property drawers and the
@@ -280,6 +301,15 @@ function M.migrate(bufnr)
   if #items > 0 then
     vim.fn.setloclist(0, {}, " ", { title = ":Org migrate_effort", items = items })
     vim.cmd("lopen")
+  else
+    local ll = vim.fn.getloclist(0, { title = 0, items = 0 })
+    local own = ll.title == ":Org migrate_effort"
+    for _, it in ipairs(ll.items or {}) do
+      own = own and it.bufnr == bufnr
+    end
+    if own then
+      vim.fn.setloclist(0, {}, "r", { title = ":Org migrate_effort", items = {} })
+    end
   end
 end
 

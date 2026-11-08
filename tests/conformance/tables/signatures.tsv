@@ -43,7 +43,8 @@ calc-lib-tern.org	TB-6	TRANSITIONAL	1	 |-\n-|7\t1\n+|7\t#ERROR
 calc-lib-unit.org	TB-15	TRANSITIONAL	1	 |-\n-|7\t3.2 m\n+|7\t#ERROR
 calc-lib-vec.org	TB-7	TRANSITIONAL	1	 |-\n-|7\t[1, 2, 3]\n+|7\t#ERROR
 calc-log10.org	TB-18	TRANSITIONAL	1	 |-\n-|7\t3\t3\n+|7\t3\t3.
-calc-log2arg.org	TB-17	TRANSITIONAL	1	 |-\n-|7\t3\t3\n+|7\t3\t2.0794415
+calc-log2arg.org	TB-17	TRANSITIONAL	1	^\n+! error
+calc-log2arg.org	TB-17	TRANSITIONAL	1	 |-\n-|7\t3\t3\n+|7\t3\t
 calc-max3.org	TB-17	TRANSITIONAL	1	 |-\n-|7\t3\t10\n+|7\t3\t7
 calc-n3.org	TB-37	TRANSITIONAL	1	^\n+! error
 calc-n3.org	TB-37	TRANSITIONAL	1	 |-\n-|7\t3\t2.33\n+|7\t3\t
@@ -53,7 +54,8 @@ calc-p3.org	TB-37	TRANSITIONAL	1	^\n+! error
 calc-p3.org	TB-37	TRANSITIONAL	1	 |-\n-|7\t3\t2.33\n+|7\t3\t
 calc-pif.org	TB-15	TRANSITIONAL	1	 |-\n-|7\t3\t3.1415927\n+|7\t3\tevalv(pi)
 calc-random.org	TB-15	TRANSITIONAL	1	 |-\n-|7\t3\t0\n+|7\t3\trandom(1)
-calc-round2.org	TB-17	TRANSITIONAL	1	 |-\n-|7\t3\t2.33\n+|7\t3\t2
+calc-round2.org	TB-17	TRANSITIONAL	1	^\n+! error
+calc-round2.org	TB-17	TRANSITIONAL	1	 |-\n-|7\t3\t2.33\n+|7\t3\t
 calc-s.org	TB-36	TRANSITIONAL	1	^\n+! error
 calc-s.org	TB-36	TRANSITIONAL	1	 |-\n-|7\t3\t2.3333333\n+|7\t3\t
 calc-s3.org	TB-37	TRANSITIONAL	1	^\n+! error

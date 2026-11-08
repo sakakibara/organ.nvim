@@ -70,6 +70,16 @@ eq(
   { "3:9-27 invalid 99999999999999999m duration out of range" },
   "out of range"
 )
+eq(
+  drawer("200000000000000"),
+  { "3:9-24 invalid 200000000000000 duration out of range" },
+  "readable, but past what H:MM prints"
+)
+eq(
+  drawer("4000000000m"),
+  { "3:9-20 month 4000000000m 4000000000min" },
+  "a month value too large for H:MM still migrates"
+)
 eq(drawer(""), {}, "blank :Effort:")
 eq(drawer("   "), {}, "blanks after :Effort:")
 
@@ -219,6 +229,26 @@ vim.notify = orig_notify
 eq(notes, { "organ: migrate_effort: rewrote 0 effort value(s)" }, "nothing to migrate")
 eq(#vim.fn.getloclist(0), 0, "no location list entries")
 eq(vim.api.nvim_buf_get_lines(0, 0, -1, false)[3], ":Effort: 1:00", "nothing rewritten")
+
+-- A rerun with nothing invalid empties the command's own location list.
+vim.fn.setloclist(0, {}, " ", {
+  title = ":Org migrate_effort",
+  items = { { bufnr = vim.api.nvim_get_current_buf(), lnum = 1, text = "stale" } },
+})
+vim.notify = function() end
+vim.cmd("Org migrate_effort")
+vim.notify = orig_notify
+eq(#vim.fn.getloclist(0), 0, "stale migrate_effort list emptied")
+
+-- Another buffer's findings are not stale for this one.
+vim.fn.setloclist(0, {}, " ", {
+  title = ":Org migrate_effort",
+  items = { { bufnr = buf, lnum = 1, text = "other file" } },
+})
+vim.notify = function() end
+vim.cmd("Org migrate_effort")
+vim.notify = orig_notify
+eq(#vim.fn.getloclist(0), 1, "another buffer's list kept")
 
 -- Health: the per-file reader and the section.
 local health = require("organ.health")

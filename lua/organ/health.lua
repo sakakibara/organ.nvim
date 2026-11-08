@@ -567,6 +567,7 @@ local function check_user_config_integration()
   end
 end
 
+-- TD-94 migration: delete after 2027-02-09
 -- The effort findings (organ.effort.scan) of the org file at `path`, or
 -- nil and why the file could not be read.
 function M._effort_findings(path)
@@ -600,10 +601,11 @@ local function check_effort_values(org_loads)
     health.warn("could not list indexed files: " .. tostring(files))
     return
   end
-  local found = 0
+  local found, unchecked = 0, 0
   for _, f in ipairs(files) do
     local findings, err = M._effort_findings(f.file_path)
     if not findings then
+      unchecked = unchecked + 1
       health.warn(("%s: not checked (%s)"):format(f.file_path, tostring(err)))
     else
       for _, x in ipairs(findings) do
@@ -614,14 +616,15 @@ local function check_effort_values(org_loads)
             "Run `:Org migrate_effort` in that file to rewrite it as " .. x.replacement .. ".",
           })
         else
-          health.warn(where .. " (invalid: " .. x.message .. ")", {
-            "organ ignores this value; Emacs signals an error reading it.",
-          })
+          local advice = x.message == "duration out of range"
+              and "organ ignores a duration this large; Emacs reads it."
+            or "organ ignores this value; Emacs signals an error reading it."
+          health.warn(where .. " (invalid: " .. x.message .. ")", { advice })
         end
       end
     end
   end
-  if found == 0 then
+  if found == 0 and unchecked == 0 then
     health.ok(("no effort values to migrate or fix in %d indexed file(s)"):format(#files))
   end
 end
@@ -636,6 +639,7 @@ function M.check()
     return
   end
 
+  -- TD-94 migration: delete after 2027-02-09
   local org_loads = check_parser()
 
   if not check_db_and_schema(db) then
@@ -650,6 +654,7 @@ function M.check()
   check_modern_glyphs()
   check_citation_processor()
   check_user_config_integration()
+  -- TD-94 migration: delete after 2027-02-09
   check_effort_values(org_loads)
 end
 

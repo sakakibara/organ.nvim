@@ -77,7 +77,13 @@ for _, spec in ipairs({ "..2:00", "1:00..", "1:00.. ", " ..2:00" }) do
   assert(err and err:find("bad range bounds", 1, true), "err: " .. tostring(err))
 end
 
--- 10. A value org-duration cannot read is rejected.
+-- 10. Blanks around `..` are not part of a bound.
+do
+  local p = effort.parse_filter("30 .. 60")
+  assert(p and p(45) and not p(61), "30 .. 60")
+end
+
+-- 11. A value org-duration cannot read is rejected.
 do
   local p, err = effort.parse_filter("<2hr")
   assert(p == nil and err and err:find("bad value", 1, true), "err: " .. tostring(err))

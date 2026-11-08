@@ -116,4 +116,23 @@ refused(ROW, "$3=x+$1;t")
 refused(ROW, "$3=$1+;U")
 refused("| 1e999 | 2 | |", "$3=$1;T")
 
+-- `;t` prints the binary hours as C's %.2f does (Emacs: 54 s is 0.01).
+check("| 0:00:54 | 1 | |", "$3=$1;t", "0.01")
+check("| 0:01:30 | 1 | |", "$3=$1;t", "0.03")
+
+-- A second argument. Calc rounds an integer to itself and returns
+-- other one-argument calls unevaluated; organ refuses the second-argument
+-- forms it does not compute (Emacs: round(0.333, 1) is 0.3, log(7, 3)
+-- 1.7712437, sign(7, 3) 3).
+check("| 7 | 1 | |", "$3=round($1, 1)", "7")
+check("| 7 | 1 | |", "$3=trunc($1, -1)", "7")
+check("| 7 | 3 | |", "$3=abs($1, $2)", "abs(7, 3)")
+check("| 7 | 3 | |", "$3=sin($1, 1)", "sin(7, 1)")
+refused("| 0.333 | 1 | |", "$3=round($1, 1)")
+refused("| 1:3 | 1 | |", "$3=round($1, 1)")
+refused("| 7 | 3 | |", "$3=log($1, $2)")
+refused("| 7 | 3 | |", "$3=sign($1, $2)")
+refused("| 7 | 3 | |", "$3=not($1, $2)")
+refused("| 7:3 | 1 | |", "$3=abs($1, 1)")
+
 io.write("table formula duration ok\n")

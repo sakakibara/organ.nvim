@@ -769,6 +769,18 @@ local FRACTION_BINARY = {
   end,
 }
 
+-- One-argument functions Calc also answers with a second argument; any
+-- other one gets the call back unevaluated, as Calc writes it.
+local SECOND_ARGUMENT = {
+  round = "digits",
+  floor = "digits",
+  ceil = "digits",
+  trunc = "digits",
+  log = true,
+  sign = true,
+  ["not"] = true,
+}
+
 local FRACTION_AGG = { vsum = true, vmax = true, vmin = true, vcount = true }
 local FRACTION_SCALAR = { abs = true, floor = true, ceil = true, round = true, trunc = true }
 
@@ -1230,7 +1242,16 @@ local function apply_function(name, args, ctx)
     end
     return result
   end
-  if SCALAR_C[name] then
+  if SCALAR_C[name] and #args > 1 and SECOND_ARGUMENT[name] then
+    local x = eval_calc(args[1], ctx)
+    local n = #args == 2 and eval_calc(args[2], ctx)
+    -- Calc rounds an integer to n digits as itself.
+    if SECOND_ARGUMENT[name] == "digits" and C.is_int(x) and n and C.is_int(n) then
+      return x
+    end
+    refuse(name .. "() with a second argument")
+  end
+  if SCALAR_C[name] and #args <= 1 then
     local v = eval_calc(args[1], ctx)
     if v == nil then
       return nil
