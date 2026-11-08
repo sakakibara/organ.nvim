@@ -1,0 +1,10 @@
+#+CONFORMANCE-VIEW: todo
+#+CONFORMANCE-FILE: a.org
+* TODO Unreadable estimate
+  :PROPERTIES:
+  :Effort:   abc
+  :END:
+* TODO Estimated task
+  :PROPERTIES:
+  :Effort:   1:30
+  :END:

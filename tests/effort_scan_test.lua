@@ -286,7 +286,7 @@ assert(
   "health month: " .. vim.inspect(body)
 )
 assert(
-  has("warn", hpath_c .. ":4 2hr (invalid", "org-duration cannot read this value"),
+  has("warn", hpath_c .. ":4 2hr (invalid", "organ ignores this value; Emacs signals an error"),
   "health invalid: " .. vim.inspect(body)
 )
 assert(has("warn", path_c .. ":1 30m (month"), "health second file: " .. vim.inspect(body))

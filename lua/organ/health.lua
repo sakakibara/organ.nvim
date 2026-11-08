@@ -615,7 +615,7 @@ local function check_effort_values(org_loads)
           })
         else
           health.warn(where .. " (invalid: " .. x.message .. ")", {
-            "org-duration cannot read this value; Emacs signals an error reading it.",
+            "organ ignores this value; Emacs signals an error reading it.",
           })
         end
       end

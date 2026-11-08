@@ -92,7 +92,7 @@ TD-90	todo-time:date-prompt-count-weekday.org	pending
 TD-91	todo-time:date-prompt-partial.org	pending
 TD-92	todo-time:date-prompt-prefer-future-off.org	pending
 TD-93	todo-time:date-prompt-default-time.org	pending
-TD-94	todo-time:effort-duration-forms.org	pending
+TD-94	todo-time:effort-duration-forms.org	pass
 TD-95	todo-time:set-effort-key.org	pending
 TD-96	todo-time:set-effort-allowed-keyword.org	pending
 TD-97	todo-time:set-effort-invalid.org	pending

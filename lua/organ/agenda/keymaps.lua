@@ -891,10 +891,10 @@ local function install_edit_maps(map, bufnr, agenda, current_row, source_for)
     agenda.refresh(bufnr)
   end, "view_week")
 
-  -- Effort filter. `e` prompts for a spec ("<30", "1:00..2:00", ">=60");
+  -- Effort filter. `e` prompts for a spec ("<30min", "1:00..2:00", ">=1h");
   -- empty input clears.
   map("e", function()
-    vim.ui.input({ prompt = "Effort filter (e.g. <30, 1:00..2:00, >=1h): " }, function(input)
+    vim.ui.input({ prompt = "Effort filter (e.g. <30min, 1:00..2:00, >=1h): " }, function(input)
       if input == nil then
         return
       end

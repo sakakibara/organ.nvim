@@ -308,8 +308,10 @@ block, `t`/`T` TODO cycle/set, `+`/`-`/`=` priority raise/lower/clear,
 `s`/`D` schedule/deadline, `gT` set tags, `A` archive row, `gA`
 show/hide archived, `gC` clock report, `I`/`O` clock in/out, `R`
 refile, `<M-CR>` add new entry, `f`/`b` next/prev period, `.` today,
-`gj` jump to date, `gd`/`gw` day/week view, `e` effort filter,
-`<Space>` bulk mark, `gM` mark all, `gB` bulk action menu, `g?` help.
+`gj` jump to date, `gd`/`gw` day/week view, `e` effort filter
+(`<30min`, `>=1h`, `1:00..2:00`; values read as Emacs's org-duration
+reads them, so `m` is a month), `<Space>` bulk mark, `gM` mark all,
+`gB` bulk action menu, `g?` help.
 </details>
 
 <details>

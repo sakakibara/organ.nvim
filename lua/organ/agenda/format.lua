@@ -14,19 +14,20 @@ local function append_effort(parts, marks, col_start, r)
   if not r.properties then
     return col_start
   end
-  local effort = require("organ.effort")
-  local est = effort.row_effort_minutes(r)
-  if not est and not r.clocked_minutes then
+  local duration = require("organ.duration")
+  local est = require("organ.effort").row_effort_minutes(r)
+  est = est and duration.from_minutes(est, "h:mm")
+  local clocked = r.clocked_minutes and duration.from_minutes(r.clocked_minutes, "h:mm")
+  if not est and not clocked then
     return col_start
   end
   local body
-  if est and r.clocked_minutes then
-    body =
-      string.format("[%s/%s]", effort.format(r.clocked_minutes, "hm"), effort.format(est, "hm"))
+  if est and clocked then
+    body = string.format("[%s/%s]", clocked, est)
   elseif est then
-    body = string.format("[%s]", effort.format(est, "hm"))
+    body = string.format("[%s]", est)
   else
-    body = string.format("[%s/?]", effort.format(r.clocked_minutes, "hm"))
+    body = string.format("[%s/?]", clocked)
   end
   table.insert(parts, "  " .. body)
   marks[#marks + 1] = { "@organ.agenda.effort", col_start + 2, col_start + 2 + #body }

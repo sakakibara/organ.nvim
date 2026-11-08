@@ -452,7 +452,7 @@ return {
       -- cause a 1-second timeoutlen wait on bare `v` press.
       view_day = "gd",
       view_week = "gw",
-      effort_filter = "e", -- prompt for an effort filter (e.g. <30, 1:00..2:00)
+      effort_filter = "e", -- prompt for an effort filter (e.g. <30min, 1:00..2:00)
     },
   },
 
@@ -1255,8 +1255,9 @@ return {
   -- Effort property + clock-budget display. Off the property `:EFFORT:`,
   -- agenda lines render `[1:30]` (estimated) or `[0:45/1:30]` (actual /
   -- estimated) when clock entries exist. `show_in_agenda = false` hides
-  -- the column entirely. Recognised value forms: `30`, `1:30`, `2h`,
-  -- `30m`, `1.5h`, `1d`, `1w`.
+  -- the column entirely. Values are read as org-duration reads them:
+  -- `30`, `1:30`, `1:30:15`, `45min`, `2h`, `1.5h`, `1d`, `1w`, `1m` (a
+  -- month), `1y`, `1d 2:30`. A value it cannot read shows no segment.
   effort = {
     show_in_agenda = true,
   },

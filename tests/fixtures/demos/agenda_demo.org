@@ -19,7 +19,7 @@ SCHEDULED: <2026-05-05 Tue>
 * TODO [#A] Code review feedback                                      :work:
 SCHEDULED: <2026-05-07 Thu>
 :PROPERTIES:
-:Effort:   45m
+:Effort:   45min
 :END:
 
 * TODO Doctor appointment                                         :personal:
@@ -29,7 +29,7 @@ SCHEDULED: <2026-05-07 Thu 09:00>
 SCHEDULED: <2026-05-08 Fri 14:00-15:30>
 :PROPERTIES:
 :CATEGORY: meet
-:Effort:   1h30
+:Effort:   1:30
 :END:
 
 * TODO Buy birthday gift                                          :personal:

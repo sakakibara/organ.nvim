@@ -2479,16 +2479,32 @@ Effort estimates                                                *organ-effort*
 
 Set the `:EFFORT:` property on a headline (e.g. `:EFFORT: 1:30` or
 `:EFFORT: 2h`). Agenda lines render `[H:MM]` for the estimate, and
-`[clocked/estimate]` once clock entries accumulate. Recognised value
-forms:
+`[clocked/estimate]` once clock entries accumulate. Values are read as
+Emacs's org-duration reads them:
 
-    `30`         30 minutes
+    `30`         30 minutes (a bare number is minutes; `0.5` is half one)
     `1:30`       1 hour 30 minutes
-    `2h` `2hr`   120 minutes
-    `30m`        30 minutes
+    `1:30:15`    1 hour 30 minutes 15 seconds
+    `45min`      45 minutes
+    `2h`         120 minutes
     `1.5h`       90 minutes
     `1d`         24 hours (calendar day)
-    `1w`         7 × 24 hours
+    `1w`         7 days
+    `1m`         a month (30 days)
+    `1y`         a year (365.25 days)
+    `1d 2:30`    units followed by `H:MM`
+
+Units are `min`, `h`, `d`, `w`, `m` and `y`; minutes are `min`, and `m`
+is a month. A value org-duration cannot read (`2hr`, `1h30`) is ignored:
+the headline shows no effort and matches no effort filter. Emacs signals
+an error reading such a value. `:checkhealth organ` and
+|:Org-migrate_effort| list them.
+
+The agenda's `e` key filters rows by effort. It prompts for a spec:
+`<30`, `<=1h`, `>2:00`, `>=1h` compare, `1:00..2:00` is an inclusive
+range, a bare value matches exactly, and an empty spec clears the
+filter. Each value is read as an effort value (`<30min`; `<30m` is
+under 30 months).
 
 Configure: >
 
@@ -3673,19 +3689,20 @@ SCHEDULED, DEADLINE, PROPERTIES, EFFORT                   *organ-cmd-planning*
 
 *:Org-set_effort*
     `:Org set_effort [<spec>]`
-    Set the `:EFFORT:` property on the headline at cursor. Recognised
-    forms: `1:30`, `2h`, `30m`, `1.5h`, `1d`. See |organ-effort|.
+    Set the `:EFFORT:` property on the headline at cursor. Values are
+    org-duration's: `1:30`, `45min`, `2h`, `1.5h`, `1d`; `m` is a
+    month. See |organ-effort|.
 
 *:Org-migrate_effort*
     `:Org migrate_effort`
     Rewrite every `Effort` and `Effort_ALL` value in the current buffer
     that uses the unit `m`, in property drawers and `#+PROPERTY:`
     lines, to `min`: `30m` becomes `30min`, `1h 30m` becomes
-    `1h 30min`. Emacs's org-duration reads `m` as a month, so these
-    values change meaning once organ reads efforts the same way. All
-    rewrites undo as one step. Values org-duration cannot read (`2hr`,
-    `1h30`) are left as they are and listed in the window's location
-    list. `:checkhealth organ` lists both kinds for every indexed file.
+    `1h 30min`. organ reads efforts through org-duration, as Emacs
+    does, and org-duration reads `m` as a month. All rewrites undo as
+    one step. Values org-duration cannot read (`2hr`, `1h30`) are left
+    as they are and listed in the window's location list; organ ignores
+    them. `:checkhealth organ` lists both kinds for every indexed file.
 
 *:Org-set_tags*
     `:Org set_tags`

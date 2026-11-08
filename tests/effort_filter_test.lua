@@ -56,5 +56,32 @@ do
   assert(err and err:find("could not parse", 1, true), "err: " .. tostring(err))
 end
 
+-- 7. Values read as effort values: `min` is minutes, `m` a month.
+do
+  local p = effort.parse_filter("<30min")
+  assert(p(29) and not p(30), "30min is 30 minutes")
+  p = effort.parse_filter("<30m")
+  assert(p(30 * 43200 - 1) and not p(30 * 43200), "30m is 30 months")
+end
+
+-- 8. ">=1h"
+do
+  local p = effort.parse_filter(">=1h")
+  assert(p(60) and not p(59), ">=1h")
+end
+
+-- 9. A blank range bound is rejected.
+for _, spec in ipairs({ "..2:00", "1:00..", "1:00.. ", " ..2:00" }) do
+  local p, err = effort.parse_filter(spec)
+  assert(p == nil, "blank bound rejected: " .. spec)
+  assert(err and err:find("bad range bounds", 1, true), "err: " .. tostring(err))
+end
+
+-- 10. A value org-duration cannot read is rejected.
+do
+  local p, err = effort.parse_filter("<2hr")
+  assert(p == nil and err and err:find("bad value", 1, true), "err: " .. tostring(err))
+end
+
 io.write("effort filter ok\n")
 os.exit(0)

@@ -156,12 +156,6 @@ done-to-done-checkbox.org	TD-26	TRANSITIONAL	1	 - [ ] x\n+--- log\n+! refused
 done-to-done-checkbox.org	TD-26	TRANSITIONAL	1	 #+TODO: TODO | DONE CANCELLED\n-* CANCELLED q\n+* DONE q
 done-to-done-children.org	TD-26	TRANSITIONAL	1	 ** TODO k\n+--- log\n+! refused
 done-to-done-children.org	TD-26	TRANSITIONAL	1	 #+TODO: TODO | DONE CANCELLED\n-* CANCELLED p\n+* DONE p
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "-30" -> invalid\n-duration "0.5" -> 0.5\n-duration "1.5" -> 1.5\n+duration "0.5" -> invalid\n+duration "1.5" -> invalid
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "0:45" -> 45\n-duration "1:30:15" -> 90.25\n-duration "30m" -> 1296000\n+duration "1:30:15" -> invalid\n+duration "30m" -> 30
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "1d2h" -> 1560\n-duration "1h 30" -> invalid\n+duration "1h 30" -> 60
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "1d 2h" -> 1560\n-duration "1h30" -> invalid\n+duration "1h30" -> 60
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "2 h" -> 120\n-duration "1m" -> 43200\n-duration "1y" -> 525960\n+duration "1m" -> 1\n+duration "1y" -> invalid
-effort-duration-forms.org	TD-94	TRANSITIONAL	1	 duration "2h" -> 120\n-duration "2hr" -> invalid\n+duration "2hr" -> 120
 eval-range-cursor.org	TD-87	TRANSITIONAL	1	 * H\n-foo bar <2026-05-04 Mon 09:00>--<2026-05-04 Mon 10:00> <2026-05-05 Tue>--<2026-05-09 Sat> 4d\n+foo bar <2026-05-04 Mon 09:00>--<2026-05-04 Mon 10:00> 01:00 <2026-05-05 Tue>--<2026-05-09 Sat>
 eval-range-previous-value.org	TD-89	KEEP	1	^\n-<2026-05-04 Mon>--<2026-05-06 Wed> 2d 2d old\n+<2026-05-04 Mon>--<2026-05-06 Wed> 2d old
 eval-range-table.org	TD-88	TRANSITIONAL	1	^\n-| <2026-05-04 Mon 09:00>--<2026-05-04 Mon 10:00> | 01:00 x |\n-| a                                              | b       |\n+| <2026-05-04 Mon 09:00>--<2026-05-04 Mon 10:00> 01:00 | x |\n+| a | b |

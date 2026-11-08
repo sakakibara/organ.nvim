@@ -1,4 +1,4 @@
--- Verifies organ.effort parsing + clock-budget formatting + agenda integration.
+-- Verifies organ.effort parsing + agenda clock-budget integration.
 -- Run via: nvim --headless -l tests/effort_test.lua
 
 local root = vim.fn.getcwd()
@@ -6,24 +6,25 @@ dofile(root .. "/tests/_bootstrap.lua")
 
 local effort = require("organ.effort")
 
--- Parse forms.
+-- Parse forms: org-duration's reading.
 assert(effort.parse("30") == 30, "bare integer = 30 min")
 assert(effort.parse("1:30") == 90, "HH:MM")
+assert(effort.parse("1:30:15") == 90.25, "H:MM:SS")
 assert(effort.parse("2h") == 120, "Xh")
-assert(effort.parse("30m") == 30, "Xm")
+assert(effort.parse("30min") == 30, "Xmin")
+assert(effort.parse("30m") == 30 * 43200, "Xm is months")
 assert(effort.parse("1.5h") == 90, "decimal hours")
-assert(effort.parse("1h30m") == 90, "compound h+m")
+assert(effort.parse("0.5") == 0.5, "bare decimal = minutes")
 assert(effort.parse("1d") == 24 * 60, "Xd")
 assert(effort.parse("1w") == 7 * 24 * 60, "Xw")
+assert(effort.parse("1d 2:30") == 24 * 60 + 150, "mixed units and H:MM")
+assert(effort.parse("2hr") == nil, "2hr is not a duration")
+assert(effort.parse("1h30") == nil, "1h30 is not a duration")
 assert(effort.parse("nonsense") == nil, "unparseable returns nil")
 assert(effort.parse("") == nil, "empty string returns nil")
+assert(effort.parse("  ") == nil, "blank returns nil")
+assert(effort.parse(" \t") == nil, "blank with a tab returns nil")
 assert(effort.parse(nil) == nil, "nil returns nil")
-
--- Format roundtrip.
-assert(effort.format(90, "hm") == "1:30", "format 90 → 1:30")
-assert(effort.format(45, "compact") == "45m", "compact 45m")
-assert(effort.format(60, "compact") == "1h", "compact 1h")
-assert(effort.format(75, "compact") == "1h15m", "compact 1h15m")
 
 -- row_effort_minutes
 assert(effort.row_effort_minutes({ properties = { EFFORT = "1:00" } }) == 60)
@@ -88,6 +89,38 @@ assert(
   not joined:find("[2:00]", 1, true),
   "effort segment should be hidden when show_in_agenda = false"
 )
+
+organ.config.effort = nil
+
+local function render_effort(props, clocked)
+  rows[1].properties = props
+  rows[1].clocked_minutes = clocked
+  return table.concat(
+    agenda.render({ { block = { group_by = "none" }, rows = rows } }, { now = "2026-04-29" }).lines,
+    "\n"
+  )
+end
+
+-- A fractional estimate prints as H:MM.
+joined = render_effort({ EFFORT = "1:30:15" }, nil)
+assert(joined:find("[1:30]", 1, true), "expected '[1:30]' for 1:30:15:\n" .. joined)
+
+-- Clocked part with a fractional estimate.
+joined = render_effort({ EFFORT = "1:30:15" }, 45)
+assert(joined:find("[0:45/1:30]", 1, true), "expected '[0:45/1:30]':\n" .. joined)
+
+-- An invalid value and a blank one give no segment.
+for _, v in ipairs({ "abc", "1h30", "", "  " }) do
+  joined = render_effort({ EFFORT = v }, nil)
+  assert(
+    not joined:find("[", 1, true),
+    "expected no effort segment for " .. vim.inspect(v) .. ":\n" .. joined
+  )
+end
+
+-- A value that reads but is past the printable range gives no segment.
+joined = render_effort({ EFFORT = "200000000000000" }, nil)
+assert(not joined:find("[", 1, true), "expected no effort segment out of range:\n" .. joined)
 
 io.write("effort ok\n")
 os.exit(0)

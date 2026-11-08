@@ -56,6 +56,7 @@ AG-54	KEEP+OPT	2.3	emacs
 AG-55	KEEP+OPT	2.3	emacs
 AG-56	FIX	2.1	emacs
 AG-57	FIX	2.2	emacs
+AG-58	KEEP	-	emacs
 BL-1	FIX	8.9	emacs
 BL-2	FIX	8.9	emacs
 BL-3	FIX	8.9	emacs
@@ -759,6 +760,7 @@ TB-52	FIX	3.6	emacs
 TB-53	FIX	3.3	emacs
 TB-54	FIX	3.3	emacs
 TB-55	FIX	3.5	emacs
+TB-56	FIX	F.2	emacs
 TD-1	FIX	8.2	emacs
 TD-2	FIX	8.2	emacs
 TD-3	FIX	8.2	emacs

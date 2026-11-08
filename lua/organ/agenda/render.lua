@@ -244,7 +244,6 @@ local function make_sort_by_time(block)
   --   alpha-up / alpha-down              by title
   --   todo-state-up / todo-state-down    by todo_state alphabetical
   --   tag-up / tag-down                  by first tag
-  --   effort-up / effort-down            by effort minutes
   --   scheduled-up / scheduled-down      by scheduled_date
   --   deadline-up / deadline-down        by deadline_date
   local TOKEN_FNS = {
