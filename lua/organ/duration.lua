@@ -486,6 +486,31 @@ function M.to_minutes(d, canonical)
   return guarded(to_minutes, d, canonical and true or false)
 end
 
+-- TD-94 migration: delete after 2027-02-09
+--- The units to_minutes's unit loop reads in string `s`, in order: a list
+--- of { first, after }, the unit's first byte and the byte after it.
+--- Empty when `s` takes neither the units branch nor the mixed one.
+function M.unit_tokens(s)
+  local out = {}
+  if type(s) ~= "string" or s == "" or hmm_p(s) then
+    return out
+  end
+  local d = full_p(s) and s or mixed(s)
+  if not d then
+    return out
+  end
+  local i = 1
+  while true do
+    local _, k, e = unit_at(d, skip_ws(d, i))
+    if not k then
+      break
+    end
+    out[#out + 1] = { k, e }
+    i = e
+  end
+  return out
+end
+
 --- org-duration-from-minutes: `minutes` as a duration string in format
 --- `fmt`, or nil and the error message.
 function M.from_minutes(minutes, fmt, canonical)

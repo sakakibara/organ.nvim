@@ -351,6 +351,13 @@ M.commands = {
     end,
     desc = "Set EFFORT property (constrained by :EFFORT_ALL: when configured)",
   },
+  -- TD-94 migration: delete after 2027-02-09
+  migrate_effort = {
+    fn = function()
+      require("organ.effort").migrate(vim.api.nvim_get_current_buf())
+    end,
+    desc = "Rewrite Nm effort values to Nmin; list invalid ones",
+  },
 }
 
 return M

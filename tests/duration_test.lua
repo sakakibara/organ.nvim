@@ -139,6 +139,23 @@ eq(D.h_mm_only_p({ "1:00", "1:00:00" }), "h:mm:ss", "h_mm_only_p H:MM:SS")
 eq(D.h_mm_only_p({ "1:00:00", "1h" }), nil, "h_mm_only_p units")
 eq(D.h_mm_only_p({ "1d 1:00" }), nil, "h_mm_only_p mixed")
 
+-- unit_tokens: the units the unit loop reads, by byte range.
+local function units(s)
+  local got = {}
+  for _, t in ipairs(D.unit_tokens(s)) do
+    got[#got + 1] = s:sub(t[1], t[2] - 1) .. "@" .. t[1]
+  end
+  return table.concat(got, " ")
+end
+eq(units("30m"), "m@3", "unit_tokens 30m")
+eq(units("1h 30min"), "h@2 min@6", "unit_tokens min before m")
+eq(units(" 1.5 M\t2d "), "M@6 d@9", "unit_tokens case and blanks")
+eq(units("1d 2m 1:30"), "d@2 m@5", "unit_tokens mixed")
+eq(units("1:30"), "", "unit_tokens H:MM")
+eq(units("30"), "", "unit_tokens bare")
+eq(units("1h30"), "", "unit_tokens invalid")
+eq(units(""), "", "unit_tokens empty")
+
 -- Arguments outside the contract raise.
 assert(not pcall(D.to_minutes, {}), "to_minutes of a table raises")
 assert(not pcall(D.from_minutes, "90"), "from_minutes of a string raises")

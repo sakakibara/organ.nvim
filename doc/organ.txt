@@ -3676,6 +3676,17 @@ SCHEDULED, DEADLINE, PROPERTIES, EFFORT                   *organ-cmd-planning*
     Set the `:EFFORT:` property on the headline at cursor. Recognised
     forms: `1:30`, `2h`, `30m`, `1.5h`, `1d`. See |organ-effort|.
 
+*:Org-migrate_effort*
+    `:Org migrate_effort`
+    Rewrite every `Effort` and `Effort_ALL` value in the current buffer
+    that uses the unit `m`, in property drawers and `#+PROPERTY:`
+    lines, to `min`: `30m` becomes `30min`, `1h 30m` becomes
+    `1h 30min`. Emacs's org-duration reads `m` as a month, so these
+    values change meaning once organ reads efforts the same way. All
+    rewrites undo as one step. Values org-duration cannot read (`2hr`,
+    `1h30`) are left as they are and listed in the window's location
+    list. `:checkhealth organ` lists both kinds for every indexed file.
+
 *:Org-set_tags*
     `:Org set_tags`
     Open the fast-tag-selection popup to add/remove tags on the

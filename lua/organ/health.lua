@@ -22,6 +22,7 @@ local function check_sqlite()
 end
 
 -- Parser presence + dlopen verification (catches arch mismatches early).
+-- Returns whether org.so loads.
 local function check_parser()
   local gi = require("organ.grammar_install")
   local plat
@@ -31,6 +32,7 @@ local function check_parser()
   end
   health.info("platform: " .. plat)
   local fix = gi.fix_hint() .. (gi.managed() and (" (log: %s)"):format(gi.log_path()) or "")
+  local org_loads = false
   for _, grammar in ipairs({ "org.so", "org_inline.so" }) do
     local path = gi.path(grammar)
     local lang = grammar:match("^(.-)%.so$")
@@ -63,6 +65,7 @@ local function check_parser()
           or ("exited " .. tostring(res.code))
       end
       if ok_load then
+        org_loads = org_loads or lang == "org"
         health.ok("tree-sitter parser loads: " .. path)
       else
         health.error(
@@ -76,6 +79,7 @@ local function check_parser()
       end
     end
   end
+  return org_loads
 end
 
 -- tablature.nvim backs every table command. The user installs it
@@ -563,6 +567,65 @@ local function check_user_config_integration()
   end
 end
 
+-- The effort findings (organ.effort.scan) of the org file at `path`, or
+-- nil and why the file could not be read.
+function M._effort_findings(path)
+  local fh, err = io.open(path, "rb")
+  if not fh then
+    return nil, err
+  end
+  local src = fh:read("*a")
+  fh:close()
+  local ok, res = pcall(function()
+    local parser = vim.treesitter.get_string_parser(src, "org")
+    return require("organ.effort").scan(parser:parse()[1]:root(), src)
+  end)
+  if not ok then
+    return nil, tostring(res)
+  end
+  return res
+end
+
+-- TD-94 migration: delete after 2027-02-09
+local function check_effort_values(org_loads)
+  health.start("organ effort values")
+  local loaded = org_loads
+    and pcall(require("organ.indexer").ensure_languages, require("organ").config.parser_path)
+  if not loaded then
+    health.warn("org grammar not available; effort values not checked")
+    return
+  end
+  local ok, files = pcall(require("organ.query").files)
+  if not ok then
+    health.warn("could not list indexed files: " .. tostring(files))
+    return
+  end
+  local found = 0
+  for _, f in ipairs(files) do
+    local findings, err = M._effort_findings(f.file_path)
+    if not findings then
+      health.warn(("%s: not checked (%s)"):format(f.file_path, tostring(err)))
+    else
+      for _, x in ipairs(findings) do
+        found = found + 1
+        local where = ("%s:%d %s"):format(f.file_path, x.line, x.value)
+        if x.kind == "month" then
+          health.warn(where .. " (month: org-duration reads `m` as a month)", {
+            "Run `:Org migrate_effort` in that file to rewrite it as " .. x.replacement .. ".",
+          })
+        else
+          health.warn(where .. " (invalid: " .. x.message .. ")", {
+            "org-duration cannot read this value; Emacs signals an error reading it.",
+          })
+        end
+      end
+    end
+  end
+  if found == 0 then
+    health.ok(("no effort values to migrate or fix in %d indexed file(s)"):format(#files))
+  end
+end
+
 function M.check()
   local organ = require("organ")
 
@@ -573,7 +636,7 @@ function M.check()
     return
   end
 
-  check_parser()
+  local org_loads = check_parser()
 
   if not check_db_and_schema(db) then
     return
@@ -587,6 +650,7 @@ function M.check()
   check_modern_glyphs()
   check_citation_processor()
   check_user_config_integration()
+  check_effort_values(org_loads)
 end
 
 return M

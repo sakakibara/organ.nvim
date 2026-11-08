@@ -790,14 +790,8 @@ local function safe_add_lang(name, path)
   return ok, err
 end
 
--- File-level metadata: a property_drawer that comes BEFORE the first heading
--- (org-roam convention) plus the `#+title:` directive. Surfaced as a
--- synthetic level-0 headline so query.get_by_id / query.headlines / find /
--- backlinks work with file-level :ID: links — just like in Emacs org-roam.
-local function extract_file_level(root_node, src, file_path)
-  if not root_node or not src then
-    return nil
-  end
+-- The file-level property_drawer of the tree at `root_node`, or nil.
+local function file_property_drawer(root_node)
   local file_drawer
   for c in root_node:iter_children() do
     if c:type() == "section" or c:type() == "headline" then
@@ -822,6 +816,18 @@ local function extract_file_level(root_node, src, file_path)
       end
     end
   end
+  return file_drawer
+end
+
+-- File-level metadata: a property_drawer that comes BEFORE the first heading
+-- (org-roam convention) plus the `#+title:` directive. Surfaced as a
+-- synthetic level-0 headline so query.get_by_id / query.headlines / find /
+-- backlinks work with file-level :ID: links — just like in Emacs org-roam.
+local function extract_file_level(root_node, src, file_path)
+  if not root_node or not src then
+    return nil
+  end
+  local file_drawer = file_property_drawer(root_node)
   if not file_drawer then
     return nil
   end
@@ -1025,6 +1031,7 @@ function M._walk(root_node, string_parser, src_for_text, file_path, yield_fn)
 end
 
 M.scan_filetags = scan_filetags
+M.file_property_drawer = file_property_drawer
 M.scan_todo_keywords = scan_todo_keywords
 
 return M
