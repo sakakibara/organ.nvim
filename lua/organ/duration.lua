@@ -526,6 +526,9 @@ function M.from_minutes(minutes, fmt, canonical)
   return guarded(from, minutes, fmt, canonical and true or false)
 end
 
+--- C's %.Nf of `x` (0 <= x < 2^47), as Emacs's format prints a float.
+M.fixed = fixed
+
 --- org-duration-h:mm-only-p: "h:mm:ss" or "h:mm" when no string of
 --- `times` uses units, else nil.
 function M.h_mm_only_p(times)

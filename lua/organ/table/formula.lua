@@ -375,25 +375,26 @@ local function parse_expr_text(s)
   return expr
 end
 
--- Trailing `;` modes: Calc mode flags first, then a printf template
--- that runs to the end of the string (`;N%.2f`, `;%.1f%%`).
+-- The mode string after a formula's last `;`, scanned as Emacs scans
+-- it: every `[pnfse]` with digits comes out first, then each flag letter
+-- left to right, wherever it stands, and what is left is a printf
+-- template (`;N%.2f`, `;%.1f%%`). So a template letter that is a flag
+-- is a flag: `;%d items` sets `t` and prints `%d iems`.
 local CONVERSION = "%%[-+ #0]*%d*%.?%d*([diouxXeEfgGs])"
+
+local DURATION = { t = "hours", T = "hh:mm:ss", U = "hh:mm" }
 
 local function parse_mode(s)
   local mode = {}
-  local flags, fmt = s:match("^(.-)(%%.*)$")
-  flags = flags or s
-  if fmt then
-    mode.conv = fmt:gsub("%%%%", ""):match("^[^%%]*" .. CONVERSION .. "[^%%]*$")
-    if not mode.conv then
-      refuse("unsupported printf format '" .. fmt .. "'")
-    end
-    mode.fmt = fmt
+  local precision = s:match("[pnfse]%-?%d+")
+  if precision then
+    refuse("unsupported formula mode flag '" .. precision .. "'")
   end
-  -- `R` and `D` name the same setting from either side, so the last of
-  -- the two wins: `;RD` computes in degrees, `;DR` in radians.
-  for flag in flags:gmatch("%S") do
-    if flag == "N" then
+  -- The last of `R` / `D`, and of `t` / `T` / `U`, wins.
+  local fmt = s:gsub("[tTUNLEDRFSu]", function(flag)
+    if DURATION[flag] then
+      mode.duration = DURATION[flag]
+    elseif flag == "N" then
       mode.numeric = true
     elseif flag == "R" then
       mode.radians = true
@@ -402,8 +403,25 @@ local function parse_mode(s)
     else
       refuse("unsupported formula mode flag '" .. flag .. "'")
     end
+    return ""
+  end)
+  if fmt:match("%S") then
+    mode.conv = fmt:gsub("%%%%", ""):match("^[^%%]*" .. CONVERSION .. "[^%%]*$")
+    if not mode.conv then
+      refuse("unsupported printf format '" .. fmt .. "'")
+    end
+    mode.fmt = fmt
   end
   return mode
+end
+
+-- Emacs gives Calc no say over a duration formula whose text is a bare
+-- `H:M` or `H:M:S`: that text is the result.
+local function duration_literal(text)
+  if text:match("^%d+:%d+$") or text:match("^%d+:%d+:%d+$") then
+    return text
+  end
+  return nil
 end
 
 -- One entry per `::`-separated formula. A bad LHS raises (Emacs
@@ -426,11 +444,15 @@ function M.parse(s)
         end
         error("formula parser: invalid LHS '" .. lhs_s .. "'")
       end
-      local expr_s, mode_s = rhs_s:match("^(.-)%s*;(.*)$")
+      -- Emacs takes the mode from after the last `;`; one left in the
+      -- expression is a syntax error there.
+      local expr_s, mode_s = rhs_s:match("^(.*);(.*)$")
       if mode_s then
         for k, v in pairs(parse_mode(mode_s)) do
           fm[k] = v
         end
+        -- Emacs strips the spaces after `=`, and nothing else.
+        fm.literal = fm.duration and duration_literal((expr_s:gsub("^ *", ""))) or nil
       end
       local ok_rhs, expr = pcall(parse_expr_text, expr_s or rhs_s)
       if not ok_rhs and M.refused(expr) then
@@ -447,17 +469,85 @@ end
 -- value for them.
 local NOT_A_VARIABLE = { inf = true, nan = true, uinf = true }
 
+-- Emacs integers are exact at any size; a Lua number is only below 2^53.
+local EXACT = 2 ^ 53
+
+local function in_range(x)
+  if not (math.abs(x) < EXACT) then
+    refuse("a duration past 2^53 seconds")
+  end
+  return x
+end
+
+-- Emacs's `string-to-number`: the number `text` starts with after
+-- blanks, else 0, and whether that is an integer.
+local function read_number(text)
+  local reader = require("organ.elisp.reader")
+  local n = reader.scan_number(text:match("^[ \t]*(.*)$"))
+  if not n then
+    return 0, true
+  end
+  if n.float then
+    local x = n.special or reader.decimal_float(n.int_part, n.frac, n.exp_digits, n.exp_neg)
+    return n.neg and -x or x, false
+  end
+  local x = tonumber(n.int_part)
+  return (n.neg and x ~= 0) and -x or x, true
+end
+
+-- `org-ts-regexp-both`: an active or inactive timestamp anywhere in `s`.
+local function holds_timestamp(s)
+  return s:find("[%[<]%d%d%d%d%-%d%d%-%d%d[%]>]") ~= nil
+    or s:find("[%[<]%d%d%d%d%-%d%d%-%d%d .-[%]>]") ~= nil
+end
+
+-- `org-table-time-string-to-seconds`: the first `H:M:S` in `s`, else its
+-- first `H:M` unless `s` holds a timestamp, else the number `s` starts
+-- with. A second result marks an integer.
+local function time_seconds(s)
+  local minus, h, m, sec = s:match("(%-?)(%d+):(%d+):(%d+)")
+  if not h and not holds_timestamp(s) then
+    minus, h, m = s:match("(%-?)(%d+):(%d+)")
+  end
+  if not h then
+    return read_number(s)
+  end
+  local total = in_range(tonumber(h)) * 3600 + in_range(tonumber(m)) * 60
+  total = in_range(total + (sec and in_range(tonumber(sec)) or 0))
+  return (minus == "-" and total ~= 0) and -total or total, true
+end
+
+-- A field under a duration flag: its seconds, as the integer or float
+-- Emacs hands Calc. Never a fraction.
+local function duration_field(raw)
+  local x, int = time_seconds(raw)
+  if int then
+    return calc().from_int(in_range(x))
+  end
+  if x ~= x or x == math.huge or x == -math.huge then
+    refuse("a duration field past the range organ holds")
+  end
+  return calc().from_float(x)
+end
+
 -- Pull a raw cell, parse to a Calc value: a number, or a symbol when
 -- the field is spelled like a name. Returns nil for empty cells and
 -- for text Calc would have to parse, so consumers can decide whether
 -- to skip (aggregations) or short-circuit (binary ops); under `;N`
--- every field in the table reads as a number, empty and textual alike.
--- A second result marks a Calc fraction (`1:2`), which puts the
--- evaluation in a fraction context.
-local function cell_value(ctx, r, c)
+-- and the duration flags every field reads as a number, empty and
+-- textual alike, except that an empty field in a range (`ranged`) is
+-- dropped, as Emacs drops it. A second result marks a Calc fraction
+-- (`1:2`), which puts the evaluation in a fraction context.
+local function cell_value(ctx, r, c, ranged)
   local row = ctx.rows[r]
   local raw = row and (row.cells or {})[c]
   raw = raw and (raw:match("^%s*(.-)%s*$") or "")
+  if ranged and (raw == nil or raw == "") then
+    return nil
+  end
+  if ctx.duration and raw and raw ~= "" then
+    return duration_field(raw)
+  end
   if raw and raw ~= "" then
     -- Integers stay exact; anything with a point or exponent is a
     -- float, as Calc reads it.
@@ -491,7 +581,7 @@ local function cell_value(ctx, r, c)
       return v
     end
   end
-  if row and ctx.numeric then
+  if row and (ctx.numeric or ctx.duration) then
     return calc().from_int(0)
   end
   return nil
@@ -603,7 +693,7 @@ local function collect_range_values(node, ctx)
   if rows_span or cols_span then
     for r = r1, r2 do
       for c = c1, c2 do
-        local v = cell_value(ctx, r, c)
+        local v = cell_value(ctx, r, c, true)
         if v ~= nil then
           out[#out + 1] = v
         end
@@ -1444,14 +1534,32 @@ local function fraction_text(v)
   return M.format_value(v)
 end
 
--- Emacs's `string-to-number` of a fraction's text: its numerator.
-local function string_to_number(text)
-  local n = require("organ.elisp.reader").scan_number(text)
-  if not n then
-    return 0
+-- A float as Emacs prints it: the shortest digits that read back, and
+-- `.0` when nothing marks it a float.
+local function float_text(x)
+  local text
+  for digits = 1, 17 do
+    text = string.format("%." .. digits .. "g", x)
+    if tonumber(text) == x then
+      break
+    end
   end
-  local x = tonumber(n.int_part)
-  return n.neg and -x or x
+  return text:find("[.en]") and text or text .. ".0"
+end
+
+-- printf `fm.fmt` over number `x`, as Emacs's `format` takes it; `float`
+-- marks an Emacs float, which `%s` prints as one.
+local function printf(fm, x, float)
+  if float and fm.conv == "s" then
+    x = float_text(x)
+  elseif fm.conv:match("[diouxX]") then
+    x = x < 0 and -math.floor(-x) or math.floor(x)
+  end
+  local ok, text = pcall(string.format, fm.fmt, x)
+  if not ok then
+    return "#ERROR"
+  end
+  return (text:gsub("^%s+", ""))
 end
 
 -- Cell text for a result under a formula's trailing `;` mode. `N` asks
@@ -1470,23 +1578,93 @@ function M.format_result(v, fm, ctx)
   if fraction and is_fraction(v) then
     -- Emacs formats the number the result's text starts with, so `1:2`
     -- under `%.2f` is 1.00.
-    x = string_to_number(fraction_text(v))
+    x = (read_number(fraction_text(v)))
   elseif type(v) == "table" and v.kind then
     local ok, n = pcall(calc().to_number, v)
     x = (ok and tonumber(n)) or leading_number(fraction and fraction_text(v) or M.format_value(v))
-  end
-  if fm.conv:match("[diouxX]") then
-    x = x < 0 and -math.floor(-x) or math.floor(x)
   end
   -- Calc has no negative zero, so nothing it prints starts "-0.".
   if x == 0 then
     x = 0
   end
-  local ok, text = pcall(string.format, fm.fmt, x)
-  if not ok then
-    return "#ERROR"
+  return printf(fm, x)
+end
+
+-- Whether Calc's `num` evaluation takes `v`: a number, or a vector of
+-- them.
+local function constant(v)
+  if type(v) ~= "table" then
+    return false
   end
-  return (text:gsub("^%s+", ""))
+  if not v.kind then
+    for _, item in ipairs(v) do
+      if not constant(item) then
+        return false
+      end
+    end
+    return true
+  end
+  return calc().is_int(v) or calc().is_float(v) or is_fraction(v)
+end
+
+local function two_digits(n)
+  local text = require("organ.duration").fixed(n, 0)
+  return #text < 2 and "0" .. text or text
+end
+
+-- `org-table-time-seconds-to-string` with `format-seconds`'s
+-- `%.2h:%.2m:%.2s`: whole units, the fraction of a second dropped.
+local function seconds_text(secs, style)
+  local a = math.abs(secs)
+  local text
+  if style == "hours" then
+    text = require("organ.duration").fixed(a / 3600, 2)
+  else
+    local whole = math.floor(a)
+    local s = math.fmod(whole, 60)
+    local minutes = (whole - s) / 60
+    local m = math.fmod(minutes, 60)
+    text = two_digits((minutes - m) / 60) .. ":" .. two_digits(m) .. ":" .. two_digits(s)
+    if style == "hh:mm" then
+      text = text:sub(1, -4)
+    end
+  end
+  return secs < 0 and "-" .. text or text
+end
+
+-- Cell text for a formula under `;T`, `;t` or `;U`, evaluated in `ctx`.
+-- Emacs signals where Calc's answer is not a number, so organ refuses.
+-- The answer's text is read back as seconds: a bare `H:M` or `H:M:S`
+-- as hours and minutes (so a fraction `8:75` is 8h 75min), anything
+-- else as the number it starts with.
+function M.duration_result(fm, ctx)
+  local text = fm.literal
+  if not text then
+    ctx.duration = true
+    local ok, v = pcall(eval_calc, fm.expr, ctx)
+    if not ok then
+      if M.refused(v) then
+        error(v, 0)
+      end
+      refuse("a duration formula Calc cannot read")
+    end
+    if not constant(v) then
+      refuse("a duration formula whose result is not a number")
+    end
+    text = ctx.fraction and fraction_text(v) or M.format_value(v)
+  end
+  local secs
+  if duration_literal(text) then
+    secs = time_seconds(text)
+  else
+    secs = read_number(text)
+  end
+  local out = seconds_text(in_range(secs), fm.duration)
+  if fm.fmt then
+    local x, int = read_number(out)
+    return printf(fm, x, not int)
+  end
+  return out
 end
 
 -- Public API. Returns a Lua number for numeric Calc values, the raw

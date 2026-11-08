@@ -35,7 +35,7 @@ TB-29	tables:tblfm-tblfm-line.org	pending
 TB-31	tables:ref-fieldbig.org	pending
 TB-32	tables:duration-none.org	pass
 TB-33	tables:agg-vmeanen.org	pending
-TB-34	tables:agg-litt.org	pending
+TB-34	tables:duration-fields.org	pass
 TB-35	tables:lisp-l.org	pending
 TB-36	tables:calc-f.org	pending
 TB-37	tables:calc-e2.org	pending
@@ -60,5 +60,5 @@ XT-6	tables:export-tsv-quoted.org	pending
 TB-53	tables:agg-lit.org	pending
 TB-54	tables:ref-ii0.org	pending
 TB-55	tables:shift-tab-first.org	pending
-TB-56	tables	todo
+TB-56	tables:field-emptyrange-n.org	pass
 TB-57	tables	todo

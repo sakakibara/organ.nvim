@@ -2085,7 +2085,14 @@ up to date for organ to use it; see |organ-requires-tablature|.
                         `8:75`
      Functions          `vsum`, `vmean`, `vmax`, `vmin`, `vlen`
      `;%.2f`            printf format for the result
-     `;N`               read every field as a number (empty is 0)
+     `;N`               read every field as a number; an empty
+                        field is 0, and drops out of a range
+     `;T`, `;U`, `;t`   read each field as a duration (`1:30`,
+                        `01:30:00`) in seconds and write the result
+                        as `HH:MM:SS`, as `HH:MM`, or as hours with
+                        two decimals; an empty field drops out of a
+                        range, and a result that is not a number is
+                        refused, as Emacs signals there
      `;R`, `;D`         take angles in radians / in degrees; as in
                         Calc, degrees is what a formula without
                         either uses, so `sin(30)` gives 0.5
@@ -2099,24 +2106,31 @@ up to date for organ to use it; see |organ-requires-tablature|.
      `8/0`              a zero divisor has no answer, so the
                         quotient is kept as Calc keeps it
 
+    The mode starts after the formula's last `;`, so a `;` before it
+    belongs to the expression, which is then malformed. As in Emacs, a
+    flag letter inside a printf format is read as a flag: `;%d items`
+    is `t` with the format `%d iems`.
+
     A column formula skips any cell holding an alignment marker
     (`<l>`, `<r>`, `<c>`, optionally with a width digit and in either
     case), wherever in the table that cell sits.
 
     A malformed right-hand side writes `#ERROR` into its target field,
     as org does. Valid org syntax organ has not implemented -- the
-    other `;` mode flags, `remote()`, hlines relative to the current
-    row, `if()` over a symbolic condition, `vmedian` / `vsdev` / `vvar`
-    / `vmaxabs` / `vproduct` over a symbol, and every answer Calc
-    reaches outside the reals -- the square root or logarithm of a
-    negative number, a fractional power of one, and `arcsin` /
-    `arccos` past -1..1, each of which Calc answers with a complex
-    pair, plus a float past the range organ holds, and a fraction
-    mixed with a float or given to anything but `+` `-` `*` `/`, an
-    integer power, a comparison, `abs` `floor` `ceil` `round` `trunc`,
-    `vsum` `vmax` `vmin` `vcount` `vlen` and `if()`, and a colon
-    beside `@#` or `$#` -- is refused with a message and the table is
-    left exactly as it was.
+    `;` mode flags `E`, `L`, `F`, `S`, `u` and `p` `n` `f` `s` `e` with
+    digits, a printf format without exactly one conversion,
+    `remote()`, hlines relative to the current row, `if()` over a
+    symbolic condition, `vmedian` / `vsdev` / `vvar` / `vmaxabs` /
+    `vproduct` over a symbol, and every answer Calc reaches outside
+    the reals -- the square root or logarithm of a negative number, a
+    fractional power of one, and `arcsin` / `arccos` past -1..1, each
+    of which Calc answers with a complex pair, plus a float past the
+    range organ holds, a duration of 2^53 seconds or more, and a
+    fraction mixed with a float or given to anything but `+` `-` `*`
+    `/`, an integer power, a comparison, `abs` `floor` `ceil` `round`
+    `trunc`, `vsum` `vmax` `vmin` `vcount` `vlen` and `if()`, and a
+    colon beside `@#` or `$#` -- is refused with a message and the
+    table is left exactly as it was.
     Exact integer results are capped where Emacs caps them (65536
     bits); past that the formula is refused as an arithmetic overflow
     instead of computed.

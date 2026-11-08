@@ -329,6 +329,9 @@ function M.eval_formulas(bufnr)
       numeric = fm.numeric,
       radians = fm.radians,
     }
+    if fm.duration then
+      return formula.duration_result(fm, ctx)
+    end
     local ok, v = pcall(formula.eval_calc, fm.expr, ctx)
     if not ok then
       if formula.refused(v) then
