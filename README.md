@@ -10,7 +10,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/sakakibara/organ.nvim/actions/workflows/test.yml"><img src="https://github.com/sakakibara/organ.nvim/actions/workflows/test.yml/badge.svg" alt="CI"></a>
   <a href="./LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://neovim.io/"><img src="https://img.shields.io/badge/Neovim-0.11%2B-57A143.svg?logo=neovim&logoColor=white" alt="Neovim 0.11+"></a>
 </p>

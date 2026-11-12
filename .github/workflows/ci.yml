@@ -1,14 +1,22 @@
-name: test
+name: ci
 
 on:
   push:
-    branches: [main]
+    branches: ['ci/**']
   pull_request:
     branches: [main]
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions: {contents: read}
     strategy:
       fail-fast: false
       matrix:
@@ -44,6 +52,8 @@ jobs:
     # (the parser is pure Lua, independent of the nvim version).
     name: extended-autolink differential (vs cmark-gfm)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
 
@@ -58,7 +68,8 @@ jobs:
           set -eux
           git clone --depth 1 --branch 0.29.0.gfm.13 \
             https://github.com/github/cmark-gfm /tmp/cmark-gfm
-          cmake -S /tmp/cmark-gfm -B /tmp/cmark-gfm/build -DCMARK_TESTS=OFF
+          cmake -S /tmp/cmark-gfm -B /tmp/cmark-gfm/build -DCMARK_TESTS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build /tmp/cmark-gfm/build -j
           bin=/tmp/cmark-gfm/build/src/cmark-gfm
           test -x "$bin"
@@ -82,6 +93,8 @@ jobs:
     # independent).
     name: emphasis/strikethrough differential (vs cmark-gfm)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
 
@@ -96,7 +109,8 @@ jobs:
           set -eux
           git clone --depth 1 --branch 0.29.0.gfm.13 \
             https://github.com/github/cmark-gfm /tmp/cmark-gfm
-          cmake -S /tmp/cmark-gfm -B /tmp/cmark-gfm/build -DCMARK_TESTS=OFF
+          cmake -S /tmp/cmark-gfm -B /tmp/cmark-gfm/build -DCMARK_TESTS=OFF \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cmake --build /tmp/cmark-gfm/build -j
           bin=/tmp/cmark-gfm/build/src/cmark-gfm
           test -x "$bin"
@@ -118,6 +132,8 @@ jobs:
     # versions in the matrixed `test` job above.
     name: emacs conformance
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions: {contents: read}
     # The Makefile builds and loads the grammars from this data dir; the
     # steps that start nvim directly use the same one.
     env:
@@ -137,7 +153,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            sqlite3 libsqlite3-0 libnotify-bin
+            sqlite3 libsqlite3-0 libnotify-bin tzdata-legacy
 
       # Pinned, not the distribution's emacs: the sweep compares our
       # extractor against whatever org that build ships, and they do not
@@ -192,6 +208,8 @@ jobs:
   smoke-lazy:
     name: smoke (lazy.nvim install + load)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
 
@@ -270,6 +288,8 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
       - uses: JohnnyMorganz/stylua-action@v5
@@ -289,6 +309,8 @@ jobs:
 
   lint-markdown:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
       - uses: DavidAnson/markdownlint-cli2-action@v24
@@ -310,6 +332,8 @@ jobs:
   demos-source-of-truth:
     name: assets/demos is CI-only
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {contents: read}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -317,16 +341,12 @@ jobs:
           fetch-depth: 0
       - name: verify no human commits touched assets/demos/
         run: |
-          # On PRs: compare against the PR base.  On push: compare
-          # against the previous commit on this branch.
+          # On PRs: compare against the PR base.  On a ci/ push: compare
+          # against main, which the landing fast-forwards.
           if [ -n "${{ github.event.pull_request.base.sha }}" ]; then
             base="${{ github.event.pull_request.base.sha }}"
           else
-            base="${{ github.event.before }}"
-          fi
-          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
-            echo "no base commit to diff against — skipping guard"
-            exit 0
+            base=$(git merge-base origin/main HEAD)
           fi
           # `--diff-filter=AM` covers adds + modifications -- the cases
           # where a human-rendered GIF would drift from the CI render.
@@ -351,3 +371,18 @@ jobs:
             fi
           done
           echo "PASS: assets/demos/ changes are all from the bot"
+
+  ci-ok:
+    if: always()
+    needs: [test, autolink-oracle, emphasis-oracle, parity, smoke-lazy, lint, lint-markdown, demos-source-of-truth]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {actions: read}
+    steps:
+      - shell: bash
+        env: {GH_TOKEN: "${{ github.token }}"}
+        run: |
+          set -o pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=all&per_page=100" --paginate --jq '.jobs[]' \
+            | jq -rs '[.[] | select(.name != "ci-ok")] | group_by(.name) | map(max_by(.run_attempt).conclusion) | unique[]' > c
+          [ "$(cat c)" = success ] || { echo "jobs ended:"; cat c; exit 1; }
